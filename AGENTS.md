@@ -176,6 +176,7 @@ AI-Skill-Roundtable/
 | 架构升级说明 | [docs/ai-guidance/2026-07-12-upgrades.md](docs/ai-guidance/2026-07-12-upgrades.md) | 2026-07-12 重大技术重构全景报告 |
 | API 协议说明 | [docs/protocols/gemini-api.md](docs/protocols/gemini-api.md) | Gemini API 包含 Embedding、Broker 的协议规范 |
 | 架构说明 | [docs/architecture/system-architecture.md](docs/architecture/system-architecture.md) | 双模型 Broker 与语义路由系统数据流 |
+| 新增角色指南 | [docs/skills/how-to-add-new-character.md](docs/skills/how-to-add-new-character.md) | 一键动态扩增全新智囊角色的操作指南 |
 
 ---
 
