@@ -94,45 +94,56 @@ object RetrofitClient {
 
     /**
      * 实现 API Key 的轮询、熔断与降级重试。
-     * 如果请求遇到 429 频控，就禁用 (ban) 该 Key 24小时，并尝试下一个可用 Key。
+     * 策略：同 Key 先切模型（主力 gemini-3.5-flash -> 备用 gemini-3.1-flash-lite-preview），
+     * 若遇到 429 则将该 Key 熔断 24 小时，并切换到下一个可用 Key。
      */
     suspend fun generateContentWithFallback(
         context: Context,
-        model: String,
+        preferredModel: String,
         request: GenerateContentRequest
     ): GenerateContentResponse {
+        val modelOrder = listOf(preferredModel, "gemini-3.1-flash-lite-preview").distinct()
         val attemptOrder = ApiKeyPool.getKeyAttemptOrder(context)
         if (attemptOrder.isEmpty()) {
-            throw Exception("所有 API Key 均处于熔断禁用状态，请稍后再试。")
+            throw Exception("所有内置 API Key 均处于熔断禁用状态，请稍后再试。")
         }
 
         var lastException: Exception? = null
+        val attempts = mutableListOf<String>()
+
         for (keyInfo in attemptOrder) {
-            try {
-                Log.d(TAG, "正在使用 Key ${keyInfo.id} 尝试调用 Gemini API...")
-                val response = service.generateContent(
-                    model = model,
-                    apiKey = keyInfo.key,
-                    request = request
-                )
-                // 成功调用，更新 lastUsedKeyId 并返回响应
-                ApiKeyPool.setLastUsedKeyId(context, keyInfo.id)
-                Log.d(TAG, "Key ${keyInfo.id} 调用成功！")
-                return response
-            } catch (e: retrofit2.HttpException) {
-                val code = e.code()
-                Log.w(TAG, "Key ${keyInfo.id} 调用失败，HTTP 状态码: $code")
-                if (code == 429) {
-                    // 遇到 429，触发熔断 24 小时
-                    ApiKeyPool.banKey(context, keyInfo.id)
-                    Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
+            for (modelName in modelOrder) {
+                try {
+                    Log.d(TAG, "正在使用 Key ${keyInfo.id} 尝试调用 $modelName...")
+                    val response = service.generateContent(
+                        model = modelName,
+                        apiKey = keyInfo.key,
+                        request = request
+                    )
+                    // 成功调用，更新 lastUsedKeyId 并返回响应
+                    ApiKeyPool.setLastUsedKeyId(context, keyInfo.id)
+                    Log.d(TAG, "Key ${keyInfo.id} / $modelName 调用成功！")
+                    return response
+                } catch (e: retrofit2.HttpException) {
+                    val code = e.code()
+                    Log.w(TAG, "Key ${keyInfo.id} / $modelName 调用失败，HTTP 状态码: $code")
+                    attempts.add("${keyInfo.id}/$modelName: HTTP $code")
+                    if (code == 429) {
+                        // 遇到 429，触发熔断 24 小时
+                        ApiKeyPool.banKey(context, keyInfo.id)
+                        Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
+                        // 429 频控直接跳过该 Key 的其他模型，进入下一个 Key
+                        break
+                    }
+                    lastException = e
+                } catch (e: Exception) {
+                    Log.w(TAG, "Key ${keyInfo.id} / $modelName 调用失败，非 HTTP 异常: ${e.message}")
+                    attempts.add("${keyInfo.id}/$modelName: ${e.message ?: "未知错误"}")
+                    lastException = e
                 }
-                lastException = e
-            } catch (e: Exception) {
-                Log.w(TAG, "Key ${keyInfo.id} 调用失败，非 HTTP 异常: ${e.message}")
-                lastException = e
             }
         }
-        throw lastException ?: Exception("请求失败：所有备用 Key 均已尝试但均未成功")
+        val detail = attempts.joinToString(", ")
+        throw Exception("请求失败，已尝试切换模型和 API Key。细节: [$detail]. 错误: ${lastException?.message ?: "未知错误"}")
     }
 }

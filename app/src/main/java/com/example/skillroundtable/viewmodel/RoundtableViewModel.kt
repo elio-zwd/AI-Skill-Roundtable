@@ -67,6 +67,14 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
+    // 控制是否自动让下一个角色发言
+    private val _isAutoNextEnabled = MutableStateFlow(true)
+    val isAutoNextEnabled: StateFlow<Boolean> = _isAutoNextEnabled.asStateFlow()
+
+    fun setAutoNextEnabled(enabled: Boolean) {
+        _isAutoNextEnabled.value = enabled
+    }
+
     // 默认保留 API key 状态（兼容 UI 配置）
     private val _apiKey = MutableStateFlow("")
     val apiKey: StateFlow<String> = _apiKey.asStateFlow()
@@ -312,6 +320,11 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     )
                 )
 
+                // 若关闭了“自动顺延”，在当前角色回答完后直接截断循环，等待用户手动点击触发下一个
+                if (!_isAutoNextEnabled.value) {
+                    break
+                }
+
                 kotlinx.coroutines.delay(1200)
             }
         } catch (e: Exception) {
@@ -371,7 +384,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         val response = try {
             RetrofitClient.generateContentWithFallback(
                 context = context,
-                model = "gemini-3.5-flash",
+                preferredModel = "gemini-3.5-flash",
                 request = request
             )
         } catch (fallbackEx: Exception) {

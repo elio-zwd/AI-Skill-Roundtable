@@ -91,6 +91,7 @@ fun MainAppContent() {
     val typingCharacterId by viewModel.typingCharacterId.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val apiKey by viewModel.apiKey.collectAsState()
+    val isAutoNextEnabled by viewModel.isAutoNextEnabled.collectAsState()
 
     var selectedTab by remember { mutableIntStateOf(0) }
     var showAddCharacterDialog by remember { mutableStateOf(false) }
@@ -144,6 +145,7 @@ fun MainAppContent() {
                         isRoundtableRunning = isRoundtableRunning,
                         typingCharacterId = typingCharacterId,
                         apiKey = apiKey,
+                        isAutoNextEnabled = isAutoNextEnabled,
                         onOpenApiKeyConfig = { showApiKeyDialog = true },
                         onToggleDrawer = { showDrawer = !showDrawer }
                     )
@@ -320,6 +322,7 @@ fun RoundtableBrainstormScreen(
     isRoundtableRunning: Boolean,
     typingCharacterId: String?,
     apiKey: String,
+    isAutoNextEnabled: Boolean,
     onOpenApiKeyConfig: () -> Unit,
     onToggleDrawer: () -> Unit
 ) {
@@ -378,7 +381,9 @@ fun RoundtableBrainstormScreen(
         RoundtableSeatingDiagram(
             characters = allCharacters.filter { it.isActive },
             typingCharacterId = typingCharacterId,
-            currentMessages = currentMessages
+            currentMessages = currentMessages,
+            isAutoNextEnabled = isAutoNextEnabled,
+            onToggleAutoNext = { viewModel.setAutoNextEnabled(it) }
         )
 
         // Chat conversation list
@@ -540,7 +545,9 @@ fun RoundtableBrainstormScreen(
 fun RoundtableSeatingDiagram(
     characters: List<Character>,
     typingCharacterId: String?,
-    currentMessages: List<Message>
+    currentMessages: List<Message>,
+    isAutoNextEnabled: Boolean,
+    onToggleAutoNext: (Boolean) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -549,13 +556,35 @@ fun RoundtableSeatingDiagram(
             .padding(vertical = 12.dp, horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = "🪵 智囊群英圆桌会议席位",
-            fontSize = 11.sp,
-            color = TextSecondary,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 6.dp)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "🪵 智囊群英圆桌会议席位",
+                fontSize = 11.sp,
+                color = TextSecondary,
+                fontWeight = FontWeight.Bold
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = if (isAutoNextEnabled) "自动顺延" else "单步点击",
+                    fontSize = 11.sp,
+                    color = if (isAutoNextEnabled) SecondaryAccent else TextSecondary,
+                    modifier = Modifier.padding(end = 4.dp)
+                )
+                Switch(
+                    checked = isAutoNextEnabled,
+                    onCheckedChange = onToggleAutoNext,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = SecondaryAccent,
+                        checkedTrackColor = SecondaryAccent.copy(alpha = 0.3f)
+                    ),
+                    modifier = Modifier.scale(0.7f)
+                )
+            }
+        }
 
         LazyRow(
             modifier = Modifier
