@@ -78,6 +78,43 @@ object ApiKeyPool {
     }
 
     /**
+     * 获取指定 Session 绑定的 Key。若无绑定或该 Key 已熔断，则自动在可用 Key 中分配绑定并返回。
+     */
+    fun getOrBindSessionKey(context: Context, sessionId: Long): ApiKeyInfo? {
+        val prefs = getPrefs(context)
+        val now = System.currentTimeMillis()
+        
+        // 1. 尝试读取该 session 当前绑定的 Key ID
+        val boundKeyId = prefs.getString("session_key_$sessionId", null)
+        if (boundKeyId != null) {
+            val banExpire = prefs.getLong("ban_$boundKeyId", 0L)
+            if (banExpire < now) {
+                val keyInfo = API_KEYS.firstOrNull { it.id == boundKeyId }
+                if (keyInfo != null) {
+                    return keyInfo
+                }
+            }
+        }
+        
+        // 2. 无绑定或已熔断，分配第一个当前可用的 Key
+        val availableKeys = getAvailableKeys(context)
+        if (availableKeys.isEmpty()) return null
+        
+        val newKey = availableKeys.first()
+        bindSessionKey(context, sessionId, newKey.id)
+        return newKey
+    }
+
+    /**
+     * 强行绑定 Session 与 Key ID 的对应关系
+     */
+    fun bindSessionKey(context: Context, sessionId: Long, keyId: String) {
+        getPrefs(context).edit()
+            .putString("session_key_$sessionId", keyId)
+            .apply()
+    }
+
+    /**
      * 获取本次请求的可尝试 Key 顺序。
      * 如果可用 Key 的数量大于 1 且存在上一次成功使用的 Key ID，
      * 则优先尝试其他可用 Key，避免连续对同一个 Key 发起并发请求导致频控。

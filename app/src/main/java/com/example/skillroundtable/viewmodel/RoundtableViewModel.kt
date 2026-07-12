@@ -270,7 +270,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     try {
                         Log.d("RoundtableViewModel", "语义路由已启用，正在对用户提问获取 Embedding...")
                         // 提取用户提问向量
-                        val questionVector = RetrofitClient.embedContentWithFallback(context, lastUserMsg.text)
+                        val questionVector = RetrofitClient.embedContentWithFallback(context, lastUserMsg.text, sessionId)
                         
                         // 计算每个可用角色的相似度并降序排序
                         sortedActiveChars = activeChars.map { character ->
@@ -327,7 +327,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 val transcript = buildTranscript(messages, character)
 
                 // 核心 API 调用，使用了动态多 Key 轮询熔断机制，忽略已传入的单 key 参数
-                val responseText = callGeminiApi(character, transcript, _apiKey.value)
+                val responseText = callGeminiApi(character, transcript, _apiKey.value, sessionId)
 
                 chatRepo.deleteMessageById(pendingMsgId)
 
@@ -382,7 +382,8 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
     private suspend fun callGeminiApi(
         character: Character,
         prompt: String,
-        apiKey: String
+        apiKey: String,
+        sessionId: Long
     ): String = withContext(Dispatchers.IO) {
         val context = getApplication<Application>().applicationContext
         
@@ -408,7 +409,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
             if (totalFiles.isNotEmpty()) {
                 val brokerPrompt = """
-                    你是一个知识检索经纪人 (Broker)。请阅读以下会议脑暴上下文，并从候选资料文件列表中选择对回答当前问题最紧密相关、最必要的 1 到 10 个参考文件。
+                    你是一个知识检索经纪人 (Broker)。请阅读以下会议脑暴上下文，并从候选资料文件列表中选择对回答当前问题最紧密相关、最必要的参考文件。
                     【会议脑暴上下文】
                     $prompt
                     【候选资料文件列表】
@@ -429,7 +430,8 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     RetrofitClient.callBrokerRouterWithFallback(
                         context = context,
                         model = "gemini-3.1-flash-lite-preview",
-                        request = brokerRequest
+                        request = brokerRequest,
+                        sessionId = sessionId
                     )
                 } catch (fallbackEx: Exception) {
                     if (apiKey.isNotBlank()) {
@@ -506,7 +508,8 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             RetrofitClient.generateContentWithFallback(
                 context = context,
                 model = "gemini-3.5-flash",
-                request = request
+                request = request,
+                sessionId = sessionId
             )
         } catch (fallbackEx: Exception) {
             if (apiKey.isNotBlank()) {
