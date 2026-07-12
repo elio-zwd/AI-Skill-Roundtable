@@ -1092,6 +1092,7 @@ fun AddEditCharacterDialog(
                                 avatar = avatar,
                                 tagline = tagline,
                                 systemPrompt = systemPrompt,
+                                skillAssetPath = character?.skillAssetPath ?: "",
                                 order = newOrder,
                                 isActive = character?.isActive ?: true
                             )

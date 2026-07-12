@@ -12,9 +12,10 @@ import kotlinx.coroutines.flow.Flow
 data class Character(
     @PrimaryKey val id: String,
     val name: String,
-    val avatar: String, // Emoji or short code
+    val avatar: String, // Emoji 或简短标识
     val tagline: String,
     val systemPrompt: String,
+    val skillAssetPath: String = "", // 技能文件在 assets 中的相对路径
     val order: Int,
     val isActive: Boolean = true
 )

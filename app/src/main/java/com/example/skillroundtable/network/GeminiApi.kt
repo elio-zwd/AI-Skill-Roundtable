@@ -1,8 +1,9 @@
 package com.example.skillroundtable.network
 
+import android.content.Context
+import android.util.Log
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -10,6 +11,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.POST
+import retrofit2.http.Path
 import retrofit2.http.Query
 import java.util.concurrent.TimeUnit
 
@@ -36,7 +38,13 @@ data class GenerationConfig(
     val temperature: Float? = null,
     val topP: Float? = null,
     val topK: Int? = null,
-    val maxOutputTokens: Int? = null
+    val maxOutputTokens: Int? = null,
+    val thinkingConfig: ThinkingConfig? = null
+)
+
+@Serializable
+data class ThinkingConfig(
+    val thinkingLevel: String
 )
 
 @Serializable
@@ -50,14 +58,16 @@ data class Candidate(
 )
 
 interface GeminiApiService {
-    @POST("v1beta/models/gemini-3.5-flash:generateContent")
+    @POST("v1beta/models/{model}:generateContent")
     suspend fun generateContent(
+        @Path("model") model: String,
         @Query("key") apiKey: String,
         @Body request: GenerateContentRequest
     ): GenerateContentResponse
 }
 
 object RetrofitClient {
+    private const val TAG = "RetrofitClient"
     private const val BASE_URL = "https://generativelanguage.googleapis.com/"
 
     private val okHttpClient = OkHttpClient.Builder()
@@ -80,5 +90,49 @@ object RetrofitClient {
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
         retrofit.create(GeminiApiService::class.java)
+    }
+
+    /**
+     * 实现 API Key 的轮询、熔断与降级重试。
+     * 如果请求遇到 429 频控，就禁用 (ban) 该 Key 24小时，并尝试下一个可用 Key。
+     */
+    suspend fun generateContentWithFallback(
+        context: Context,
+        model: String,
+        request: GenerateContentRequest
+    ): GenerateContentResponse {
+        val attemptOrder = ApiKeyPool.getKeyAttemptOrder(context)
+        if (attemptOrder.isEmpty()) {
+            throw Exception("所有 API Key 均处于熔断禁用状态，请稍后再试。")
+        }
+
+        var lastException: Exception? = null
+        for (keyInfo in attemptOrder) {
+            try {
+                Log.d(TAG, "正在使用 Key ${keyInfo.id} 尝试调用 Gemini API...")
+                val response = service.generateContent(
+                    model = model,
+                    apiKey = keyInfo.key,
+                    request = request
+                )
+                // 成功调用，更新 lastUsedKeyId 并返回响应
+                ApiKeyPool.setLastUsedKeyId(context, keyInfo.id)
+                Log.d(TAG, "Key ${keyInfo.id} 调用成功！")
+                return response
+            } catch (e: retrofit2.HttpException) {
+                val code = e.code()
+                Log.w(TAG, "Key ${keyInfo.id} 调用失败，HTTP 状态码: $code")
+                if (code == 429) {
+                    // 遇到 429，触发熔断 24 小时
+                    ApiKeyPool.banKey(context, keyInfo.id)
+                    Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
+                }
+                lastException = e
+            } catch (e: Exception) {
+                Log.w(TAG, "Key ${keyInfo.id} 调用失败，非 HTTP 异常: ${e.message}")
+                lastException = e
+            }
+        }
+        throw lastException ?: Exception("请求失败：所有备用 Key 均已尝试但均未成功")
     }
 }
