@@ -2,14 +2,14 @@
 
 ## 1. 整体架构
 
-本应用采用 Android MVVM 架构，Jetpack Compose 构建声明式 UI。
+本应用采用 Android MVVM 架构，使用 Jetpack Compose 构建声明式 UI。整个系统分为 UI 层、ViewModel 层、网络层与 Room 数据持久化层。
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                        UI 层                             │
 │   MainActivity.kt（Compose）                            │
 │   ├── RoundtableBrainstormScreen（圆桌脑暴页）           │
-│   │   ├── RoundtableSeatingDiagram（席位图）             │
+│   │   ├── RoundtableSeatingDiagram（席位图 + 双Switch）  │
 │   │   ├── MessageBubble（消息气泡）                      │
 │   │   └── TypingIndicatorBubble（打字指示器）            │
 │   └── CharacterHallScreen（智囊大厅页）                  │
@@ -19,21 +19,21 @@
 │                      ViewModel 层                        │
 │   RoundtableViewModel                                   │
 │   ├── askQuestion() → runRoundtableSequence()           │
-│   │   └── 顺序遍历激活角色 → callGeminiApi()            │
+│   │   ├── 语义路由判定 (Cosine Similarity)              │
+│   │   └── 顺序/相似度排序遍历激活角色 → callGeminiApi() │
 │   ├── 角色管理（addOrUpdateCharacter / delete）          │
 │   └── 会话管理（createNewSession / selectSession）       │
 └─────────────────────────────────────────────────────────┘
-           ↕ Coroutines/IO              ↕ Retrofit
+            ↕ Coroutines/IO              ↕ Retrofit
 ┌──────────────────────┐    ┌───────────────────────────┐
 │      数据层           │    │        网络层              │
 │  RoundtableDatabase  │    │   GeminiApi.kt            │
-│  ├── CharacterDao    │    │   ├── ApiKeyPool（待建）   │
-│  ├── ChatDao         │    │   ├── KeyCircuitBreaker    │
-│  └── Room v1 → v2    │    │   └── Retrofit Service    │
+│  ├── CharacterDao    │    │   ├── ApiKeyPool (会话级)  │
+│  ├── ChatDao         │    │   ├── callBrokerRouter    │
+│  └── Room v2 → v3    │    │   └── Retrofit Service    │
 └──────────────────────┘    └───────────────────────────┘
                                           ↕ HTTPS
                                Google Gemini REST API
-                               generativelanguage.googleapis.com
 ```
 
 ## 2. 核心数据模型
@@ -42,97 +42,55 @@
 ```kotlin
 @Entity(tableName = "characters")
 data class Character(
-    @PrimaryKey val id: String,     // 如 "elon_musk"
-    val name: String,               // 如 "埃隆·马斯克"
-    val avatar: String,             // Emoji，如 "🪐"
-    val tagline: String,            // 一句话简介
-    val systemPrompt: String,       // 角色扮演指令（从 SKILL.md 加载）
-    val skillAssetPath: String,     // SKILL.md 在 assets 中的路径（v2 新增）
-    val order: Int,                 // 发言顺序
-    val isActive: Boolean           // 是否参与本次圆桌
+    @PrimaryKey val id: String,     // 唯一标识 (例如 "elon_musk")
+    val name: String,               // 中文名称 (例如 "埃隆·马斯克")
+    val avatar: String,             // Emoji 头像 (例如 "🪐")
+    val tagline: String,            // tagline 简介
+    val systemPrompt: String,       // 动态加载并剥离 YAML frontmatter 后的系统提示词
+    val skillAssetPath: String,     // 资产文件在 assets 中的相对路径
+    val order: Int,                 // 席位默认发言顺序
+    val isActive: Boolean,          // 是否处于激活状态
+    val skillDescriptionVector: String = "" // 768维描述向量，以逗号分隔存储
 )
 ```
 
-### ChatSession（会话）
-```kotlin
-@Entity(tableName = "chat_sessions")
-data class ChatSession(id, title, createdAt)
+## 3. 核心业务与控制流
+
+### 3.1 向量语义路由 (Vector Semantic Routing)
+当用户在 UI 开启“专家先发”模式时，流程如下：
+1. 用户提交问题。
+2. ViewModel 调用 `RetrofitClient.embedContentWithFallback(..., questionText)` 获取提问的 768 维特征向量。
+3. 计算该问题向量与每一个处于 Active 状态角色的 `skillDescriptionVector` 相似度（使用 **余弦相似度算法** ）。
+4. 对可用角色按照相似度由高到低重新排序。
+5. 按照重排后的“专家先发”顺序开始圆桌循环发言。
+
+### 3.2 双模型 Context Broker 决策流水线 (Dual-Model Broker Pipeline)
+为了在搭载百万级上下文的 Gemini 模型中最高效地拼合 Few-shot 示例及参考文献，且避免 Token 膨胀冷启动，系统设计了双模型动态 Broker 机制：
+```
+           用户输入与脑暴历史 (prompt)
+                      │
+                      ▼
+ ┌──────────────────────────────────────────┐
+ │       Broker (gemini-3.1-flash-lite)     │  1. 快速判定并分析最相关资料
+ └──────────────────────────────────────────┘
+                      │
+        返回选定的文件名 JSON 数组 (例如 ["01-writings.md"])
+                      │
+                      ▼
+ ┌──────────────────────────────────────────┐
+ │            SkillLoader 加载拼合           │  2. 动态读取并与 SKILL.md 组装
+ └──────────────────────────────────────────┘
+                      │
+                拼合后的完整 Prompt
+                      │
+                      ▼
+ ┌──────────────────────────────────────────┐
+ │       主力模型 (gemini-3.5-flash)        │  3. 开启高强度思考 (Thinking Config)
+ └──────────────────────────────────────────┘
+                      │
+                 输出角色作答
 ```
 
-### Message（消息）
-```kotlin
-@Entity(tableName = "messages")
-data class Message(id, chatId, senderId, senderName, avatar, text, isPending, timestamp)
-```
-
-## 3. 核心业务流程
-
-### 圆桌答复流程（runRoundtableSequence）
-
-```
-用户提问
-    ↓
-保存用户消息到 Room
-    ↓
-获取所有激活角色列表（按 order 排序）
-    ↓
-for each character:
-    检查该角色本轮是否已答过（避免重复）
-        ↓
-    显示打字指示器（_typingCharacterId）
-        ↓
-    插入 isPending=true 占位消息
-        ↓
-    buildTranscript()：
-        取最近 15 条消息 → 格式化为「角色名：内容」
-        拼接「现在轮到你发言」指令
-        ↓
-    callGeminiApi(character, transcript, apiKey)：
-        使用角色的 systemPrompt 作为 systemInstruction
-        使用 transcript 作为 user message
-        ← 返回文本回复
-        ↓
-    删除占位消息，插入真实回复消息
-        ↓
-    delay(1200ms)（自然节奏感）
-        ↓
-    → 下一个角色
-        ↓
-所有角色答完，isRoundtableRunning = false
-```
-
-## 4. Skills 加载流程（待实现）
-
-```
-应用启动
-    ↓
-SkillLoader.loadAllSkills(context)
-    ↓
-遍历 assets/skills/ 目录
-    ↓
-读取各 SKILL.md 文件
-    ↓
-stripFrontmatter() 去除 YAML 头部
-    ↓
-Character.systemPrompt = 完整 SKILL.md 正文
-    ↓
-存入 Room 数据库（ON CONFLICT REPLACE）
-```
-
-## 5. API Key 轮询流程（待实现）
-
-```
-callWithKeyRotation()
-    ↓
-ApiKeyPool.getNextAvailableKey()
-    → 过滤掉熔断中的 Key
-    → 优先选用上次未使用的 Key
-        ↓
-尝试请求 gemini-2.0-flash
-    ↓ 成功
-返回响应
-    ↓ 失败 429
-banKey(24h) → 尝试下一个 Key
-    ↓ 所有 Key 均熔断
-抛出「当前无可用 API Key」错误
-```
+### 3.3 会话级 API Key 轮询绑定与熔断保护
+- **隐式缓存优化**：API 请求全程以 `sessionId` 为标识进行会话绑定。绑定后在同一个会话中一直使用相同的 API 密钥以激活 Gemini 的隐式上下文前缀缓存。
+- **动态换绑**：一旦被绑定的 Key 请求接口返回 HTTP 429 报错，系统立刻将该 Key 熔断 24 小时，并在剩余可用 Key 中自动选出第一个对会话执行重新绑定。
