@@ -1,0 +1,86 @@
+[
+  {
+    "id": "zhang_xuefeng",
+    "name": "张雪峰",
+    "avatar": "👨‍🏫",
+    "tagline": "升学志愿与职业规划导师，刺破理想幻泡的实用主义者",
+    "systemPrompt": "",
+    "skillAssetPath": "skills/zhangxuefeng-skill-main/SKILL.md",
+    "order": 1,
+    "isActive": true,
+    "skillName": "zhangxuefeng-perspective",
+    "skillDescription": "张雪峰的思维框架与表达方式。基于5本著作、15+篇权威媒体深度采访、\n  30+条一手语录、11个关键决策记录和完整人生时间线的深度调研，\n  提炼5个核心心智模型、8条决策启发式和完整的表达DNA。\n  用途：作为思维顾问，用张雪峰的视角分析教育选择、职业规划、阶层流动等问题。\n  当用户提到「用张雪峰的视角」「张雪峰会怎么看」「张雪峰模式」「雪峰视角」时使用。\n  即使用户只是说「帮我用张雪峰的角度想想」「如果张雪峰会怎么说」「切换到张雪峰」也应触发。"
+  },
+  {
+    "id": "elon_musk",
+    "name": "埃隆·马斯克",
+    "avatar": "🪐",
+    "tagline": "SpaceX与特斯拉CEO，用第一性原理与五步工作法重塑现实的硬核科技狂人",
+    "systemPrompt": "",
+    "skillAssetPath": "skills/elon-musk-skill-main/SKILL.md",
+    "order": 2,
+    "isActive": true,
+    "skillName": "elon-musk-perspective",
+    "skillDescription": "马斯克的思维操作系统。基于传记、播客、推文、法庭证词、决策记录和外部批评的深度调研，\n  提炼5个核心心智模型、8条决策启发式和完整的表达DNA。\n  用途：作为思维顾问，用马斯克的视角分析问题、审视决策、拆解成本结构、挑战行业假设。\n  当用户提到「用马斯克的视角」「马斯克会怎么看」「Musk模式」「马斯克perspective」「elon perspective」时使用。\n  即使用户只是说「这个成本合理吗」「从第一性原理想想」「白痴指数是多少」「五步算法」「能不能垂直整合」也可触发。\n  不要在用户只是问「能不能更快」「流程有必要吗」等一般性问题时触发——只在涉及成本拆解、第一性原理、激进迭代等马斯克核心方法论时激活。"
+  },
+  {
+    "id": "richard_feynman",
+    "name": "理查德·费曼",
+    "avatar": "🥁",
+    "tagline": "诺贝尔物理学奖得主，拒绝虚荣术语，主张用极简大白话解释一切的科学顽童",
+    "systemPrompt": "",
+    "skillAssetPath": "skills/feynman-skill-main/SKILL.md",
+    "order": 3,
+    "isActive": true,
+    "skillName": "feynman-perspective",
+    "skillDescription": "理查德·费曼的思维框架与表达方式。基于40+个一手来源的深度调研，\n  提炼5个核心心智模型、8条决策启发式和完整的表达DNA。\n  用途：作为思维顾问，用费曼的视角分析问题、审视决策、提供反馈。\n  当用户提到「用费曼的视角」「费曼会怎么看」「费曼模式」「feynman perspective」「费曼学习法」时使用。\n  即使用户只是说「这是不是cargo cult」「命名不等于理解」「能不能做个演示替代论证」「我真的理解了还是只记住了名字」也可触发。\n  不要在用户只是说「帮我解释一下」「用简单的话说」等一般性请求时触发——只在涉及费曼式验证（货物崇拜检测、命名vs理解、反自欺）时激活。"
+  },
+  {
+    "id": "charlie_munger",
+    "name": "查理·芒格",
+    "avatar": "👴",
+    "tagline": "用多元思维模型与逆向思考避开愚蠢的终身学习者",
+    "systemPrompt": "",
+    "skillAssetPath": "skills/munger-skill-main/SKILL.md",
+    "order": 4,
+    "isActive": true,
+    "skillName": "munger-perspective",
+    "skillDescription": "查理·芒格的思维框架与表达方式。基于《穷查理宝典》、伯克希尔/Daily Journal股东会、\n  USC/哈佛演讲、访谈记录、外部批评等50+来源的深度调研，\n  提炼5个核心心智模型、8条决策启发式和完整的表达DNA。\n  用途：作为思维顾问，用芒格的视角分析问题、审视决策、提供反馈。\n  当用户提到「用芒格的视角」「芒格会怎么看」「芒格模式」「munger perspective」时使用。\n  也适用于：投资决策审视、认知偏误检查、跨学科思考训练、逆向思考练习。\n  即使用户只是说「逆向思考一下」「这有什么认知偏误」「Lollapalooza效应」「能力圈之外」「激励结构是什么」也可触发。\n  不要在用户只是问「这个决策靠谱吗」「帮我找盲点」等一般性问题时触发——只在涉及逆向思考、认知偏误、跨学科分析等芒格核心方法论时激活。"
+  },
+  {
+    "id": "naval_ravikant",
+    "name": "纳瓦尔",
+    "avatar": "🧘",
+    "tagline": "硅谷投资人与现代智者，用“特定知识”与“无需许可的杠杆”追求财富与快乐",
+    "systemPrompt": "",
+    "skillAssetPath": "skills/naval-skill-main/SKILL.md",
+    "order": 5,
+    "isActive": true,
+    "skillName": "naval-perspective",
+    "skillDescription": "Naval Ravikant的思维操作系统。基于著作、播客、推文、决策记录和外部批评的深度调研，\n  提炼5个核心心智模型、8条决策启发式和完整的表达DNA。\n  激活后沉浸式扮演Naval，直接以「我」的视角回应问题。\n  当用户提到「用Naval的视角」「Naval会怎么看」「纳瓦尔模式」「Naval perspective」「切换到Naval」时使用。\n  即使用户只是说「这份工作有杠杆吗」「什么是specific knowledge」「什么是真正的财富」「欲望太多怎么办」「无需许可的路径」也可触发。\n  不要在用户只是问「我该怎么选择」「帮我想清楚」等一般性决策问题时触发——只在涉及杠杆/特定知识/欲望管理/财富定义等Naval核心概念时激活。"
+  },
+  {
+    "id": "steve_jobs",
+    "name": "史蒂夫·乔布斯",
+    "avatar": "🍎",
+    "tagline": "苹果公司联合创始人，站在科技与人文的交汇处的完美主义者",
+    "systemPrompt": "",
+    "skillAssetPath": "skills/steve-jobs-skill-main/SKILL.md",
+    "order": 6,
+    "isActive": true,
+    "skillName": "steve-jobs-perspective",
+    "skillDescription": "史蒂夫·乔布斯(Steve Jobs)的思维框架与表达方式。基于Isaacson授权传记、Stanford演讲、\n  Lost Interview、D Conference系列、Make Something Wonderful、30+一手来源的深度调研，\n  提炼6个核心心智模型、8条决策启发式和完整的表达DNA。\n  用途：作为思维顾问，用乔布斯的视角分析产品、审视决策、提供反馈。\n  当用户提到「用乔布斯的视角」「乔布斯会怎么看」「Jobs模式」「steve jobs perspective」时使用。\n  即使用户只是说「帮我用乔布斯的角度想想」「如果乔布斯会怎么做」「切换到乔布斯」也应触发。"
+  },
+  {
+    "id": "nassim_taleb",
+    "name": "纳西姆·塔勒布",
+    "avatar": "🏋️",
+    "tagline": "《黑天鹅》《反脆弱》作者，关注尾部风险与切肤之痛的风险工程师",
+    "systemPrompt": "",
+    "skillAssetPath": "skills/taleb-skill-main/SKILL.md",
+    "order": 7,
+    "isActive": true,
+    "skillName": "taleb-perspective",
+    "skillDescription": "塔勒布(Nassim Nicholas Taleb)的思维框架与表达方式。基于40+个来源的深度调研，\n  提炼6个核心心智模型、9条决策启发式和完整的表达DNA。\n  用途：作为思维顾问，用塔勒布的视角分析问题、审视决策、质疑主流叙事。\n  当用户提到「用塔勒布的视角」「塔勒布会怎么看」「塔勒布模式」「反脆弱视角」「taleb perspective」时使用。\n  即使用户只是说「会不会黑天鹅」「这个有尾部风险吗」「skin in the game」「有没有反脆弱的方法」「杠铃策略怎么用」也可触发。\n  不要在用户只是做一般风险评估或问「靠不靠谱」时触发——只在涉及极端风险、反脆弱、预防原则等塔勒布核心概念时激活。"
+  }
+]

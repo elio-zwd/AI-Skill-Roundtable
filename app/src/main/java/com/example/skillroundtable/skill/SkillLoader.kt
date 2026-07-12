@@ -1,19 +1,64 @@
 package com.example.skillroundtable.skill
 
 import android.content.Context
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
 /**
- * 技能模板加载工具，用于从 Assets 读取技能 Markdown 并去除 YAML frontmatter 头部信息。
+ * 技能配置文件对应的实体结构，用于反序列化 JSON 配置。
+ */
+@Serializable
+data class SkillConfig(
+    val id: String,
+    val name: String,
+    val avatar: String,
+    val tagline: String,
+    val systemPrompt: String = "",
+    val skillAssetPath: String,
+    val order: Int,
+    val isActive: Boolean = true,
+    val skillName: String = "",
+    val skillDescription: String = ""
+)
+
+/**
+ * 技能模板与配置文件加载工具，支持解析 JSON 角色配置以及提取 Markdown 技能包并剥离 YAML 头部。
  */
 object SkillLoader {
+
+    private val jsonParser = Json {
+        ignoreUnknownKeys = true
+        coerceInputValues = true
+    }
+
+    /**
+     * 读取并解析 assets 下的技能 JSON 配置文件。
+     *
+     * @param context Android 上下文
+     * @param assetPath JSON 文件的相对路径，默认为 "skills_config.json"
+     * @return 解析后的技能配置列表
+     */
+    fun loadSkillsConfig(context: Context, assetPath: String = "skills_config.json"): List<SkillConfig> {
+        return try {
+            context.assets.open(assetPath).use { inputStream ->
+                BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8)).use { reader ->
+                    val jsonStr = reader.readText()
+                    jsonParser.decodeFromString<List<SkillConfig>>(jsonStr)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
 
     /**
      * 从 assets 目录读取指定路径的技能文件，并自动剥离 YAML frontmatter 头部。
      *
      * @param context Android 上下文
-     * @param assetPath asset 文件相对路径，例如 "skills/elon_musk.md"
+     * @param assetPath asset 文件相对路径，例如 "skills/elon-musk-skill-main/SKILL.md"
      * @return 剥离头部后的纯 Markdown 文本
      */
     fun loadSkill(context: Context, assetPath: String): String {
