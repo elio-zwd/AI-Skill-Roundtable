@@ -25,7 +25,7 @@ data class SkillConfig(
 )
 
 /**
- * 技能模板与配置文件加载工具，支持解析 JSON 角色配置以及提取 Markdown 技能包并自动拼合 Examples 和 References。
+ * 技能模板与配置文件加载工具，支持解析 JSON 角色配置以及提取 Markdown 技能包。
  */
 object SkillLoader {
 
@@ -56,42 +56,57 @@ object SkillLoader {
     }
 
     /**
-     * 递归遍历 assets 下的指定目录，寻找所有以 .md 结尾的文件路径
+     * 罗列 assets 指定目录下的所有文件名。
      */
-    private fun findMdFiles(context: Context, path: String): List<String> {
-        val files = mutableListOf<String>()
-        try {
-            val list = context.assets.list(path)
-            if (list.isNullOrEmpty()) {
-                // 如果是文件或者空目录
-                if (path.endsWith(".md", ignoreCase = true)) {
-                    files.add(path)
-                }
-            } else {
-                // 如果是目录，递归遍历子项
-                for (item in list) {
-                    val subPath = if (path.isEmpty()) item else "$path/$item"
-                    files.addAll(findMdFiles(context, subPath))
-                }
-            }
+    fun listFilesInAssetDir(context: Context, path: String): List<String> {
+        return try {
+            context.assets.list(path)?.toList() ?: emptyList()
         } catch (e: Exception) {
-            // 发生异常时，如果是以 .md 结尾的尝试判断是否是文件
-            if (path.endsWith(".md", ignoreCase = true)) {
-                files.add(path)
-            }
+            emptyList()
         }
-        return files
     }
 
     /**
-     * 从 assets 目录读取指定路径的技能主文件并递归拼合 examples/ 与 references/ 子目录下所有 .md 文件。
+     * 根据 Broker 选择的文件列表，动态读取并拼装对应的 examples/ 或 references/ 内容。
+     */
+    fun loadSelectedFiles(
+        context: Context,
+        skillFolder: String,
+        selectedFiles: List<String>,
+        isExample: Boolean
+    ): String {
+        if (selectedFiles.isEmpty()) return ""
+        val sb = StringBuilder()
+        val subDir = if (isExample) "examples" else "references"
+        val header = if (isExample) "\n\n## Few-Shot Selected Examples\n" else "\n\n## Selected Reference Knowledge\n"
+        
+        sb.append(header)
+        for (fileName in selectedFiles) {
+            val assetPath = "skills/$skillFolder/$subDir/$fileName"
+            try {
+                context.assets.open(assetPath).use { inputStream ->
+                    BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8)).use { reader ->
+                        val fileContent = reader.readText()
+                        sb.append("\n### Selected File: $fileName\n")
+                        sb.append(fileContent)
+                        sb.append("\n")
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        return sb.toString()
+    }
+
+    /**
+     * 从 assets 目录读取指定路径的技能主文件并剥离头部 YAML frontmatter。
      *
      * @param context Android 上下文
      * @param assetPath asset 文件相对路径，例如 "skills/elon-musk-skill-main/SKILL.md"
-     * @return 拼合并剥离头部 YAML frontmatter 后的完整 System Prompt 文本
+     * @return 剥离头部 YAML frontmatter 后的 System Prompt 文本
      */
     fun loadSkill(context: Context, assetPath: String): String {
-        // 1. 读取基础的 SKILL.md
         val content = try {
             context.assets.open(assetPath).use { inputStream ->
                 BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8)).use { reader ->
@@ -102,61 +117,7 @@ object SkillLoader {
             e.printStackTrace()
             ""
         }
-        val basePrompt = stripYamlFrontmatter(content)
-
-        // 获取技能的根文件夹路径，例如 "skills/elon-musk-skill-main"
-        val parentDir = assetPath.substringBeforeLast("/", "")
-        if (parentDir.isEmpty()) {
-            return basePrompt
-        }
-
-        val finalPrompt = StringBuilder(basePrompt)
-
-        // 2. 递归加载 examples 目录下的 Few-Shot 示例
-        val examplesDir = "$parentDir/examples"
-        val exampleFiles = findMdFiles(context, examplesDir).sorted()
-        if (exampleFiles.isNotEmpty()) {
-            finalPrompt.append("\n\n## Few-Shot Conversation Examples\n")
-            for (file in exampleFiles) {
-                try {
-                    context.assets.open(file).use { inputStream ->
-                        BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8)).use { reader ->
-                            val fileContent = reader.readText()
-                            val fileName = file.substringAfterLast("/")
-                            finalPrompt.append("\n### Example: $fileName\n")
-                            finalPrompt.append(fileContent)
-                            finalPrompt.append("\n")
-                        }
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            }
-        }
-
-        // 3. 递归加载 references 目录下的核心参考文献与研究资料
-        val referencesDir = "$parentDir/references"
-        val referenceFiles = findMdFiles(context, referencesDir).sorted()
-        if (referenceFiles.isNotEmpty()) {
-            finalPrompt.append("\n\n## Core Reference Knowledge & Research\n")
-            for (file in referenceFiles) {
-                try {
-                    context.assets.open(file).use { inputStream ->
-                        BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8)).use { reader ->
-                            val fileContent = reader.readText()
-                            val fileName = file.substringAfterLast("/")
-                            finalPrompt.append("\n### Reference: $fileName\n")
-                            finalPrompt.append(fileContent)
-                            finalPrompt.append("\n")
-                        }
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            }
-        }
-
-        return finalPrompt.toString().trim()
+        return stripYamlFrontmatter(content)
     }
 
     /**

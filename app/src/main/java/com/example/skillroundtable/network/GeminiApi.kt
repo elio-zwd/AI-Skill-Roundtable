@@ -166,6 +166,54 @@ object RetrofitClient {
     }
 
     /**
+     * 调用 Gemini 1M Context Broker 路由器。
+     * 策略：使用指定的 model（通常为 gemini-3.1-flash-lite-preview），
+     * 在失败或遇到 429 报错时在 Key 池中轮询。
+     */
+    suspend fun callBrokerRouterWithFallback(
+        context: Context,
+        model: String,
+        request: GenerateContentRequest
+    ): GenerateContentResponse {
+        val attemptOrder = ApiKeyPool.getKeyAttemptOrder(context)
+        if (attemptOrder.isEmpty()) {
+            throw Exception("所有内置 API Key 均处于极度频控中，请稍后再试。")
+        }
+
+        var lastException: Exception? = null
+        val attempts = mutableListOf<String>()
+
+        for (keyInfo in attemptOrder) {
+            try {
+                Log.d(TAG, "正在使用 Key ${keyInfo.id} 尝试调用 Broker $model...")
+                val response = service.generateContent(
+                    model = model,
+                    apiKey = keyInfo.key,
+                    request = request
+                )
+                ApiKeyPool.setLastUsedKeyId(context, keyInfo.id)
+                Log.d(TAG, "Key ${keyInfo.id} / Broker $model 调用成功！")
+                return response
+            } catch (e: retrofit2.HttpException) {
+                val code = e.code()
+                Log.w(TAG, "Key ${keyInfo.id} / Broker $model 失败，状态码: $code")
+                attempts.add("${keyInfo.id}/$model: HTTP $code")
+                if (code == 429) {
+                    ApiKeyPool.banKey(context, keyInfo.id)
+                    Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
+                }
+                lastException = e
+            } catch (e: Exception) {
+                Log.w(TAG, "Key ${keyInfo.id} / Broker $model 失败，非 HTTP 异常: ${e.message}")
+                attempts.add("${keyInfo.id}/$model: ${e.message ?: "未知错误"}")
+                lastException = e
+            }
+        }
+        val detail = attempts.joinToString(", ")
+        throw Exception("Broker 路由器请求失败。细节: [$detail]. 错误: ${lastException?.message ?: "未知错误"}")
+    }
+
+    /**
      * 提取输入文本的 Embedding 向量。
      * 策略：使用 API Key 轮询，支持熔断保护。
      */

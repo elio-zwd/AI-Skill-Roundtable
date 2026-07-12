@@ -75,7 +75,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         _isAutoNextEnabled.value = enabled
     }
 
-    // 新增：控制是否启用“专家先发”（向量语义路由）
+    // 控制是否启用“专家先发”（向量语义路由）
     private val _isSemanticRoutingEnabled = MutableStateFlow(false)
     val isSemanticRoutingEnabled: StateFlow<Boolean> = _isSemanticRoutingEnabled.asStateFlow()
 
@@ -386,13 +386,113 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
     ): String = withContext(Dispatchers.IO) {
         val context = getApplication<Application>().applicationContext
         
+        // 1. 从 "skills/elon-musk-skill-main/SKILL.md" 中提取 "elon-musk-skill-main"
+        val folderName = character.skillAssetPath
+            .substringAfter("skills/", "")
+            .substringBefore("/SKILL.md", "")
+
+        val mainSkillPrompt = com.example.skillroundtable.skill.SkillLoader.loadSkill(context, character.skillAssetPath)
+
+        var finalSystemPrompt = mainSkillPrompt
+
+        if (folderName.isNotBlank()) {
+            val examplesPath = "skills/$folderName/examples"
+            val referencesPath = "skills/$folderName/references"
+
+            val exampleFiles = com.example.skillroundtable.skill.SkillLoader.listFilesInAssetDir(context, examplesPath)
+                .filter { it.endsWith(".md", ignoreCase = true) }
+            val referenceFiles = com.example.skillroundtable.skill.SkillLoader.listFilesInAssetDir(context, referencesPath)
+                .filter { it.endsWith(".md", ignoreCase = true) }
+
+            val totalFiles = exampleFiles + referenceFiles
+
+            if (totalFiles.isNotEmpty()) {
+                val brokerPrompt = """
+                    你是一个知识检索经纪人 (Broker)。请阅读以下会议脑暴上下文，并从候选资料文件列表中选择对回答当前问题最紧密相关、最必要的参考文件。
+                    【会议脑暴上下文】
+                    $prompt
+                    【候选资料文件列表】
+                    ${totalFiles.joinToString(", ")}
+                    【输出格式】
+                    你必须返回一个 JSON 数组，包含需要加载的文件名。不要包含任何 Markdown 格式包裹（如 ```json 标记），直接输出纯 JSON 字符串。
+                    示例：["01-writings.md", "03-expression-dna.md"]
+                """.trimIndent()
+
+                val brokerRequest = GenerateContentRequest(
+                    contents = listOf(
+                        Content(parts = listOf(Part(text = brokerPrompt)))
+                    )
+                )
+
+                // 优先使用内置 Key 池调用 Lite 模型
+                val brokerResponse = try {
+                    RetrofitClient.callBrokerRouterWithFallback(
+                        context = context,
+                        model = "gemini-3.1-flash-lite-preview",
+                        request = brokerRequest
+                    )
+                } catch (fallbackEx: Exception) {
+                    if (apiKey.isNotBlank()) {
+                        Log.d("RoundtableViewModel", "内置 Key 池 Broker 路由调用失败，尝试使用用户 API Key 直连...")
+                        try {
+                            RetrofitClient.service.generateContent(
+                                model = "gemini-3.1-flash-lite-preview",
+                                apiKey = apiKey,
+                                request = brokerRequest
+                            )
+                        } catch (e: Exception) {
+                            Log.e("RoundtableViewModel", "用户 API Key 调用 Broker 路由失败: ${e.message}")
+                            null
+                        }
+                    } else {
+                        Log.e("RoundtableViewModel", "所有 Key 池均不可用，跳过 Broker 决策阶段")
+                        null
+                    }
+                }
+
+                val brokerReply = brokerResponse?.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: ""
+                
+                // 去除 ```json 或 ``` 包裹
+                val cleanedReply = brokerReply
+                    .replace("```json", "")
+                    .replace("```", "")
+                    .trim()
+
+                val selectedFiles = try {
+                    if (cleanedReply.isNotBlank()) {
+                        kotlinx.serialization.json.Json.decodeFromString<List<String>>(cleanedReply)
+                    } else {
+                        emptyList()
+                    }
+                } catch (e: Exception) {
+                    Log.w("RoundtableViewModel", "JSON反序列化 Broker 返回数组失败: '$cleanedReply'，尝试正则降级提取。")
+                    val pattern = "\"[^\"]+\"".toRegex()
+                    pattern.findAll(cleanedReply).map { it.value.trim('"') }.toList()
+                }
+
+                Log.d("RoundtableViewModel", "角色 [${character.name}] 的 Broker 选择加载文件为: $selectedFiles")
+
+                val selectedExamples = selectedFiles.filter { it in exampleFiles }
+                val selectedReferences = selectedFiles.filter { it in referenceFiles }
+
+                val selectedExamplesText = com.example.skillroundtable.skill.SkillLoader.loadSelectedFiles(
+                    context, folderName, selectedExamples, isExample = true
+                )
+                val selectedReferencesText = com.example.skillroundtable.skill.SkillLoader.loadSelectedFiles(
+                    context, folderName, selectedReferences, isExample = false
+                )
+
+                finalSystemPrompt = mainSkillPrompt + selectedExamplesText + selectedReferencesText
+            }
+        }
+        
         // 构建包含 thinkingConfig=high 的请求体
         val request = GenerateContentRequest(
             contents = listOf(
                 Content(parts = listOf(Part(text = prompt)))
             ),
             systemInstruction = Content(
-                parts = listOf(Part(text = character.systemPrompt))
+                parts = listOf(Part(text = finalSystemPrompt))
             ),
             generationConfig = com.example.skillroundtable.network.GenerationConfig(
                 thinkingConfig = com.example.skillroundtable.network.ThinkingConfig(
