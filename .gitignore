@@ -4,22 +4,43 @@ build/
 app/build/
 /build
 
-# Local configuration
+# Local configuration & sensitive files
 local.properties
 .env
 
-# Android Studio / IntelliJ files
+# Android Studio / IntelliJ IDEA
 .idea/
 *.iml
 *.ipr
 *.iws
+
+# Kotlin build caches
+.kotlin/
 
 # Built artifacts
 *.apk
 *.aar
 *.ap_
 *.aab
+*.dex
 
-# OS files
+# OS metadata
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Temporary / scratch files
+work/
+*.tmp
+*.swp
+
+# Node / npm (如果有工具脚本)
+node_modules/
+
+# Python cache (如果有 Python 工具)
+__pycache__/
+*.pyc
