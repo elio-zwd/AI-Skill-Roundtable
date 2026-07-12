@@ -17,7 +17,8 @@ data class Character(
     val systemPrompt: String,
     val skillAssetPath: String = "", // 技能文件在 assets 中的相对路径
     val order: Int,
-    val isActive: Boolean = true
+    val isActive: Boolean = true,
+    val skillDescriptionVector: String = "" // 768维浮点向量的逗号分隔字符串表示，例如 "0.012,-0.045,..."
 )
 
 @Dao

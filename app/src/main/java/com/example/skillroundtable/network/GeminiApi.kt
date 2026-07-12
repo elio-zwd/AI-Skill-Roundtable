@@ -57,6 +57,23 @@ data class Candidate(
     val content: Content
 )
 
+// Embedding 接口相关的实体类
+@Serializable
+data class EmbedContentRequest(
+    val model: String = "models/text-embedding-004",
+    val content: Content
+)
+
+@Serializable
+data class EmbedContentResponse(
+    val embedding: Embedding
+)
+
+@Serializable
+data class Embedding(
+    val values: List<Float>
+)
+
 interface GeminiApiService {
     @POST("v1beta/models/{model}:generateContent")
     suspend fun generateContent(
@@ -64,6 +81,12 @@ interface GeminiApiService {
         @Query("key") apiKey: String,
         @Body request: GenerateContentRequest
     ): GenerateContentResponse
+
+    @POST("v1beta/models/text-embedding-004:embedContent")
+    suspend fun embedContent(
+        @Query("key") apiKey: String,
+        @Body request: EmbedContentRequest
+    ): EmbedContentResponse
 }
 
 object RetrofitClient {
@@ -140,5 +163,55 @@ object RetrofitClient {
         }
         val detail = attempts.joinToString(", ")
         throw Exception("请求失败，已尝试切换 API Key 轮询。细节: [$detail]. 错误: ${lastException?.message ?: "未知错误"}")
+    }
+
+    /**
+     * 提取输入文本的 Embedding 向量。
+     * 策略：使用 API Key 轮询，支持熔断保护。
+     */
+    suspend fun embedContentWithFallback(
+        context: Context,
+        text: String
+    ): List<Float> {
+        val attemptOrder = ApiKeyPool.getKeyAttemptOrder(context)
+        if (attemptOrder.isEmpty()) {
+            throw Exception("所有内置 API Key 均处于熔断禁用状态，请稍后再试。")
+        }
+
+        val request = EmbedContentRequest(
+            content = Content(parts = listOf(Part(text = text)))
+        )
+
+        var lastException: Exception? = null
+        val attempts = mutableListOf<String>()
+
+        for (keyInfo in attemptOrder) {
+            try {
+                Log.d(TAG, "正在使用 Key ${keyInfo.id} 获取 Embedding...")
+                val response = service.embedContent(
+                    apiKey = keyInfo.key,
+                    request = request
+                )
+                // 成功获取，更新 lastUsedKeyId 并返回向量列表
+                ApiKeyPool.setLastUsedKeyId(context, keyInfo.id)
+                Log.d(TAG, "Key ${keyInfo.id} 获取 Embedding 成功！")
+                return response.embedding.values
+            } catch (e: retrofit2.HttpException) {
+                val code = e.code()
+                Log.w(TAG, "Key ${keyInfo.id} 获取 Embedding 失败，HTTP 状态码: $code")
+                attempts.add("${keyInfo.id}: HTTP $code")
+                if (code == 429) {
+                    ApiKeyPool.banKey(context, keyInfo.id)
+                    Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
+                }
+                lastException = e
+            } catch (e: Exception) {
+                Log.w(TAG, "Key ${keyInfo.id} 获取 Embedding 失败，非 HTTP 异常: ${e.message}")
+                attempts.add("${keyInfo.id}: ${e.message ?: "未知错误"}")
+                lastException = e
+            }
+        }
+        val detail = attempts.joinToString(", ")
+        throw Exception("获取 Embedding 失败，已尝试轮询 Key。细节: [$detail]. 错误: ${lastException?.message ?: "未知错误"}")
     }
 }

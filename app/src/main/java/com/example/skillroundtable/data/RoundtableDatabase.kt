@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 
 @Database(
     entities = [Character::class, ChatSession::class, Message::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class RoundtableDatabase : RoomDatabase() {
@@ -50,6 +50,7 @@ abstract class RoundtableDatabase : RoomDatabase() {
                     // 动态从 skills_config.json 中获取初始角色配置，规避在代码中硬编码任何角色数据
                     val configs = com.example.skillroundtable.skill.SkillLoader.loadSkillsConfig(context)
                     val initialCharacters = configs.map { config ->
+                        val vectorStr = config.descriptionVector.joinToString(",")
                         Character(
                             id = config.id,
                             name = config.name,
@@ -58,7 +59,8 @@ abstract class RoundtableDatabase : RoomDatabase() {
                             systemPrompt = "", // 初始置空，由 ViewModel 在运行时动态载入最新 Prompt 并回填
                             skillAssetPath = config.skillAssetPath,
                             order = config.order,
-                            isActive = config.isActive
+                            isActive = config.isActive,
+                            skillDescriptionVector = vectorStr
                         )
                     }
                     if (initialCharacters.isNotEmpty()) {

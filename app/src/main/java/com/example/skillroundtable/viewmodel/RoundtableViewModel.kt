@@ -75,6 +75,14 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         _isAutoNextEnabled.value = enabled
     }
 
+    // 新增：控制是否启用“专家先发”（向量语义路由）
+    private val _isSemanticRoutingEnabled = MutableStateFlow(false)
+    val isSemanticRoutingEnabled: StateFlow<Boolean> = _isSemanticRoutingEnabled.asStateFlow()
+
+    fun setSemanticRoutingEnabled(enabled: Boolean) {
+        _isSemanticRoutingEnabled.value = enabled
+    }
+
     // 默认保留 API key 状态（兼容 UI 配置）
     private val _apiKey = MutableStateFlow("")
     val apiKey: StateFlow<String> = _apiKey.asStateFlow()
@@ -107,6 +115,8 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 val existing = charRepo.getCharacterById(config.id)
                 // 动态加载 systemPrompt 头部被剔除的 Markdown
                 val prompt = com.example.skillroundtable.skill.SkillLoader.loadSkill(context, config.skillAssetPath)
+                val vectorStr = config.descriptionVector.joinToString(",")
+                
                 val character = Character(
                     id = config.id,
                     name = config.name,
@@ -115,7 +125,8 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     systemPrompt = prompt,
                     skillAssetPath = config.skillAssetPath,
                     order = config.order,
-                    isActive = config.isActive
+                    isActive = config.isActive,
+                    skillDescriptionVector = vectorStr
                 )
 
                 if (existing == null) {
@@ -128,7 +139,8 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                             tagline = config.tagline,
                             skillAssetPath = config.skillAssetPath,
                             systemPrompt = prompt,
-                            order = config.order
+                            order = config.order,
+                            skillDescriptionVector = vectorStr
                         )
                     )
                 }
@@ -213,6 +225,23 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    /**
+     * 计算两个浮点数特征向量之间的余弦相似度。
+     */
+    private fun calculateCosineSimilarity(vectorA: List<Float>, vectorB: List<Float>): Float {
+        if (vectorA.size != vectorB.size || vectorA.isEmpty()) return 0f
+        var dotProduct = 0f
+        var normA = 0f
+        var normB = 0f
+        for (i in vectorA.indices) {
+            dotProduct += vectorA[i] * vectorB[i]
+            normA += vectorA[i] * vectorA[i]
+            normB += vectorB[i] * vectorB[i]
+        }
+        val denom = Math.sqrt(normA.toDouble()) * Math.sqrt(normB.toDouble())
+        return if (denom == 0.0) 0f else (dotProduct / denom).toFloat()
+    }
+
     private suspend fun runRoundtableSequence(sessionId: Long) {
         val activeChars = charRepo.getActiveCharacters()
         if (activeChars.isEmpty()) {
@@ -232,7 +261,45 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         _errorMessage.value = null
 
         try {
-            for (character in activeChars) {
+            // 实现向量语义路由 (Vector Semantic Routing) 如果启用，动态排序发言人
+            var sortedActiveChars = activeChars
+            if (_isSemanticRoutingEnabled.value) {
+                val messages = chatRepo.getMessages(sessionId)
+                val lastUserMsg = messages.lastOrNull { it.senderId == "user" }
+                if (lastUserMsg != null) {
+                    try {
+                        Log.d("RoundtableViewModel", "语义路由已启用，正在对用户提问获取 Embedding...")
+                        // 提取用户提问向量
+                        val questionVector = RetrofitClient.embedContentWithFallback(context, lastUserMsg.text)
+                        
+                        // 计算每个可用角色的相似度并降序排序
+                        sortedActiveChars = activeChars.map { character ->
+                            val charVector = try {
+                                if (character.skillDescriptionVector.isBlank()) emptyList()
+                                else character.skillDescriptionVector.split(",").map { it.toFloat() }
+                            } catch (e: Exception) {
+                                emptyList()
+                            }
+                            
+                            val similarity = if (charVector.isNotEmpty() && questionVector.isNotEmpty()) {
+                                calculateCosineSimilarity(questionVector, charVector)
+                            } else {
+                                0f
+                            }
+                            Log.d("RoundtableViewModel", "角色 [${character.name}] 与提问的余弦相似度: $similarity")
+                            Pair(character, similarity)
+                        }.sortedByDescending { it.second }
+                         .map { it.first }
+
+                        Log.d("RoundtableViewModel", "语义路由动态排序完成，最终发言顺序: ${sortedActiveChars.joinToString { it.name }}")
+                    } catch (e: Exception) {
+                        Log.e("RoundtableViewModel", "获取提问向量失败，降级为数据库默认排序。错误: ${e.message}")
+                        sortedActiveChars = activeChars
+                    }
+                }
+            }
+
+            for (character in sortedActiveChars) {
                 val messages = chatRepo.getMessages(sessionId)
                 val lastUserIndex = messages.indexOfLast { it.senderId == "user" }
                 if (lastUserIndex == -1) break

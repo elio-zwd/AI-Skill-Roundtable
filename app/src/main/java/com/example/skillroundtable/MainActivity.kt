@@ -92,6 +92,7 @@ fun MainAppContent() {
     val errorMessage by viewModel.errorMessage.collectAsState()
     val apiKey by viewModel.apiKey.collectAsState()
     val isAutoNextEnabled by viewModel.isAutoNextEnabled.collectAsState()
+    val isSemanticRoutingEnabled by viewModel.isSemanticRoutingEnabled.collectAsState()
 
     var selectedTab by remember { mutableIntStateOf(0) }
     var showAddCharacterDialog by remember { mutableStateOf(false) }
@@ -146,6 +147,7 @@ fun MainAppContent() {
                         typingCharacterId = typingCharacterId,
                         apiKey = apiKey,
                         isAutoNextEnabled = isAutoNextEnabled,
+                        isSemanticRoutingEnabled = isSemanticRoutingEnabled,
                         onOpenApiKeyConfig = { showApiKeyDialog = true },
                         onToggleDrawer = { showDrawer = !showDrawer }
                     )
@@ -323,6 +325,7 @@ fun RoundtableBrainstormScreen(
     typingCharacterId: String?,
     apiKey: String,
     isAutoNextEnabled: Boolean,
+    isSemanticRoutingEnabled: Boolean,
     onOpenApiKeyConfig: () -> Unit,
     onToggleDrawer: () -> Unit
 ) {
@@ -383,7 +386,9 @@ fun RoundtableBrainstormScreen(
             typingCharacterId = typingCharacterId,
             currentMessages = currentMessages,
             isAutoNextEnabled = isAutoNextEnabled,
-            onToggleAutoNext = { viewModel.setAutoNextEnabled(it) }
+            onToggleAutoNext = { viewModel.setAutoNextEnabled(it) },
+            isSemanticRoutingEnabled = isSemanticRoutingEnabled,
+            onToggleSemanticRouting = { viewModel.setSemanticRoutingEnabled(it) }
         )
 
         // Chat conversation list
@@ -547,7 +552,9 @@ fun RoundtableSeatingDiagram(
     typingCharacterId: String?,
     currentMessages: List<Message>,
     isAutoNextEnabled: Boolean,
-    onToggleAutoNext: (Boolean) -> Unit
+    onToggleAutoNext: (Boolean) -> Unit,
+    isSemanticRoutingEnabled: Boolean,
+    onToggleSemanticRouting: (Boolean) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -567,22 +574,45 @@ fun RoundtableSeatingDiagram(
                 color = TextSecondary,
                 fontWeight = FontWeight.Bold
             )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = if (isAutoNextEnabled) "自动顺延" else "单步点击",
-                    fontSize = 11.sp,
-                    color = if (isAutoNextEnabled) SecondaryAccent else TextSecondary,
-                    modifier = Modifier.padding(end = 4.dp)
-                )
-                Switch(
-                    checked = isAutoNextEnabled,
-                    onCheckedChange = onToggleAutoNext,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = SecondaryAccent,
-                        checkedTrackColor = SecondaryAccent.copy(alpha = 0.3f)
-                    ),
-                    modifier = Modifier.scale(0.7f)
-                )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = if (isAutoNextEnabled) "自动顺延" else "单步点击",
+                        fontSize = 11.sp,
+                        color = if (isAutoNextEnabled) SecondaryAccent else TextSecondary,
+                        modifier = Modifier.padding(end = 2.dp)
+                    )
+                    Switch(
+                        checked = isAutoNextEnabled,
+                        onCheckedChange = onToggleAutoNext,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = SecondaryAccent,
+                            checkedTrackColor = SecondaryAccent.copy(alpha = 0.3f)
+                        ),
+                        modifier = Modifier.scale(0.7f)
+                    )
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = if (isSemanticRoutingEnabled) "专家先发" else "默认排序",
+                        fontSize = 11.sp,
+                        color = if (isSemanticRoutingEnabled) SecondaryAccent else TextSecondary,
+                        modifier = Modifier.padding(end = 2.dp)
+                    )
+                    Switch(
+                        checked = isSemanticRoutingEnabled,
+                        onCheckedChange = onToggleSemanticRouting,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = SecondaryAccent,
+                            checkedTrackColor = SecondaryAccent.copy(alpha = 0.3f)
+                        ),
+                        modifier = Modifier.scale(0.7f)
+                    )
+                }
             }
         }
 
@@ -1123,7 +1153,8 @@ fun AddEditCharacterDialog(
                                 systemPrompt = systemPrompt,
                                 skillAssetPath = character?.skillAssetPath ?: "",
                                 order = newOrder,
-                                isActive = character?.isActive ?: true
+                                isActive = character?.isActive ?: true,
+                                skillDescriptionVector = character?.skillDescriptionVector ?: ""
                             )
                         )
                     }
