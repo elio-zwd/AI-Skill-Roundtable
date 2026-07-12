@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AI 智囊圆桌</string>
+    <string name="add_character">添加新智囊</string>
+    <string name="character_details">智囊详情</string>
+    <string name="edit_character">编辑智囊</string>
+    <string name="delete_character">删除智囊</string>
+    <string name="start_chat">开始脑暴</string>
+    <string name="enter_message">向诸位智囊提问...</string>
+    <string name="no_api_key_title">未检测到 API 密钥</string>
+    <string name="no_api_key_desc">请在 AI Studio 的 Secrets 面板中设置 GEMINI_API_KEY，或在此输入。未设置时将无法进行对话。</string>
+</resources>

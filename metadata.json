@@ -1,0 +1,6 @@
+{
+  "name": "AI 智囊圆桌",
+  "description": "支持7个AI智囊角色的圆桌脑暴群聊APP，支持轮流回复，自动加载上下文，打造极具趣味性与专业深度的AI共谋脑暴空间。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
