@@ -408,7 +408,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
             if (totalFiles.isNotEmpty()) {
                 val brokerPrompt = """
-                    你是一个知识检索经纪人 (Broker)。请阅读以下会议脑暴上下文，并从候选资料文件列表中选择对回答当前问题最紧密相关、最必要的参考文件。
+                    你是一个知识检索经纪人 (Broker)。请阅读以下会议脑暴上下文，并从候选资料文件列表中选择对回答当前问题最紧密相关、最必要的 1 到 10 个参考文件。
                     【会议脑暴上下文】
                     $prompt
                     【候选资料文件列表】
