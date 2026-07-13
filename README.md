@@ -1,36 +1,55 @@
 # AI 智囊圆桌 (AI-Skill-Roundtable)
 
-> 多角色轮询式 AI 聊天 Android 应用 — 用 7 位思想巨匠的视角，对你的问题展开一场真实的脑暴圆桌。
+> 多角色轮询式 AI 聊天 Android 应用 — 用 20 位思想巨匠的视角，对你的问题展开一场真实的脑暴圆桌。
 
 ---
 
 ## 项目简介
 
-**AI 智囊圆桌**是一款原生 Android 聊天 App。用户提交一个问题，7 个 AI 技能角色（Skills）就像圆桌上的与会者一样，**逐一顺序作答**：每位角色回答完毕后，下一位看到所有前序发言，并在此基础上评论、补充或反驳，形成真正的多智囊脑暴。
+**AI 智囊圆桌**是一款原生 Android 聊天 App。用户提交一个问题，20 个 AI 技能角色（Skills）就像圆桌上的与会者一样，**逐一顺序作答**：每位角色回答完毕后，下一位看到所有前序发言，并在此基础上评论、补充或反驳，形成真正的多智囊脑暴。
 
-### 7 位智囊
-| 角色 | 标签 | Skill 文件 |
-|------|------|-----------|
-| 🪐 埃隆·马斯克 | 第一性原理 · 五步工作法 · 白痴指数 | `elon-musk-skill-main/SKILL.md` |
-| 🥁 理查德·费曼 | 反术语 · 货物崇拜 · 六年级测试 | `feynman-skill-main/SKILL.md` |
-| 👴 查理·芒格 | 多元思维模型 · 逆向思考 · 太难筐 | `munger-skill-main/SKILL.md` |
-| 🧘 纳瓦尔 | 特定知识 · 无需许可的杠杆 · 无限游戏 | `naval-skill-main/SKILL.md` |
-| 🍎 史蒂夫·乔布斯 | 极简 · 端到端控制 · 死亡过滤器 | `steve-jobs-skill-main/SKILL.md` |
-| 🏋️ 纳西姆·塔勒布 | 反脆弱 · 切肤之痛 · 杠铃策略 | `taleb-skill-main/SKILL.md` |
-| 👨‍🏫 张雪峰 | 就业倒推 · 家庭背景分流 · 社会筛子论 | `zhangxuefeng-skill-main/SKILL.md` |
+### 🎨 全员统一莫兰迪 AI 肖像 (v2.1)
+项目已剔除 Emoji 头像，全员 20 位智囊已全部升级为统一美学的 **“低饱和度莫兰迪极简插画风” AI 高画质肖像**，具备 Editorial 杂志级的高级感。
+
+### 📋 20 位智囊清单
+
+| 角色 | 核心标签 / 决策 DNA | 技能 (Skill) 物理源文件 |
+|------|--------------------|-----------------------|
+| 埃隆·马斯克 | 第一性原理 · 五步工作法 · 白痴指数 | `elon-musk-skill-main/SKILL.md` |
+| 理查德·费曼 | 反术语 · 货物崇拜 · 六年级测试 | `feynman-skill-main/SKILL.md` |
+| 查理·芒格 | 多元思维模型 · 逆向思考 · 太难筐 | `munger-skill-main/SKILL.md` |
+| 纳瓦尔 | 特定知识 · 无需许可的杠杆 · 无限游戏 | `naval-skill-main/SKILL.md` |
+| 史蒂夫·乔布斯 | 极简 · 端到端控制 · 死亡过滤器 | `steve-jobs-skill-main/SKILL.md` |
+| 纳西姆·塔勒布 | 反脆弱 · 切肤之痛 · 杠铃策略 | `taleb-skill-main/SKILL.md` |
+| 张雪峰 | 就业倒推 · 家庭背景分流 · 社会筛子论 | `zhangxuefeng-skill-main/SKILL.md` |
+| 安德烈·卡帕斯 | 深度学习 · 代码即算法 · 神经网络本质 | `karpathy-skill/SKILL.md` |
+| 张一鸣 | 延迟满足感 · 空间复杂度与认知 · 务实 | `zhang-yiming-skill/SKILL.md` |
+| 保罗·格雷厄姆 | 创投教父 · 做出人们需要的东西 · 独立思考 | `paul-graham-skill/SKILL.md` |
+| 伊利亚·苏茨克维尔 | 技术先知 · 人工智能安全 · 无限逼近真理 | `ilya-sutskever-skill/SKILL.md` |
+| 唐纳德·特朗普 | 交易的艺术 · 强对抗节奏 · 赢家通吃 | `trump-skill/SKILL.md` |
+| 吉米·唐纳森 (MrBeast) | 注意力引擎 · 极限测试 · 极致流量曝光 | `mrbeast-skill/SKILL.md` |
+| 孙宇晨 | Web3 杠杆 · 顶级营销术 · 认知套利 | `sun-yuchen-perspective/SKILL.md` |
+| 西格蒙德·弗洛伊德 | 精神分析学 · 冰山模型 · 潜意识映射 | `freud-skill/SKILL.md` |
+| X 增长导师 | 海外流量选题 · 社交媒体算法 · 快速增长密钥 | `x-mentor-skill/SKILL.md` |
+| 峰哥亡命天涯 | 纪实旅行自媒体 · 平民视角 · 黑色幽默冷眼旁白 | `fengge-skill/SKILL.md` |
+| 赵长鹏 (CZ) | 去中心化精神 · 极高系统效率 · 实用加密精神 | `cz-skill/SKILL.md` |
+| 段永平 | 平常心投资法 · 本分价值观 · 避开不对的事 | `duan-yongping-skill/SKILL.md` |
+| 蒂姆·库克 | 极致供应链管理 · 平稳过渡艺术 · 商业操盘手 | `tim-cook-skill/SKILL.md` |
 
 ---
 
 ## 当前状态
 
-| 功能 | 状态 |
-|------|------|
-| Compose 圆桌 UI（席位图、消息气泡、打字指示器） | ✅ 完成 |
-| Room 数据库（角色 / 会话 / 消息三张表） | ✅ 完成 |
-| 顺序答复调度（携带上下文轮询） | ✅ 完成 |
-| 7 个 GitHub Skills 完整 systemPrompt 加载 | 🚧 开发中 |
-| 多 Key 轮询 + 429 熔断机制 | 🚧 开发中 |
-| API 模型名错误修复 | 🚧 开发中 |
+| 功能模块 | 交付状态 | 核心实现细节 |
+|------|------|-------------|
+| **多智囊脑暴调度** | ✅ 完成 | 自动拼装前序上下文，组内错峰串行间隔，跨组并发调用调度 |
+| **API 备用池与熔断保护** | ✅ 完成 | 内置 10 个 API Key 随机负载均衡，在 429 发生时自动启动倒计时熔断隔离 |
+| **流式 PCM 音频与 TTS 极速秒播** | ✅ 完成 | Live WebSocket 直接下发 PCM 帧追加 44 字节 WAV 头秒播，后台 ADTS MediaCodec 转码 AAC 压缩 |
+| **音频大厅与库管理面板** | ✅ 完成 | 离线音频批量查看、在线播控、一键全量清理与体积压缩监测 |
+| **智囊大厅预置/自定义分组** | ✅ 完成 | Room v4 注入四大官方预设组，右上角星标一键将激活角色另存为自定义分组 |
+| **画册风 ModalBottomSheet 画像详情** | ✅ 完成 | 点击大厅卡片拉出抽屉，流式读取 SKILL.md 大纲并基于 MarkdownRender 极简渲染其决策 DNA |
+| **莫兰迪极简 AI 高画质肖像** | ✅ 完成 | 全员 20 人头像全 JPG 化物理入库，Assets 本地零依赖安全流式加载，支持 Monogram 汉字降级 |
+
 
 ---
 
