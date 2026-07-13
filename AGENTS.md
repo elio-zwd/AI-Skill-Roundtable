@@ -193,6 +193,7 @@ AI-Skill-Roundtable/
 | 架构说明 | [docs/architecture/system-architecture.md](docs/architecture/system-architecture.md) | 双模型 Broker 与语义路由系统数据流 |
 | 音频引擎架构 | [docs/architecture/audio-engine-architecture.md](docs/architecture/audio-engine-architecture.md) | (新增) Gemini Live WebSocket 收流与后台压缩转码详细设计 |
 | 新增角色指南 | [docs/skills/how-to-add-new-character.md](docs/skills/how-to-add-new-character.md) | 一键动态扩增全新智囊角色的操作指南 |
+| 三模型级联与联网接地 ADR | [docs/decisions/adr-005-three-model-cascade-with-google-search-grounding.md](docs/decisions/adr-005-three-model-cascade-with-google-search-grounding.md) | 记录三模型级联联网搜索接地设计决策 |
 
 ---
 
@@ -207,3 +208,5 @@ AI-Skill-Roundtable/
 | 极速语音直存 (WAV) | 使用 Gemini Live WebSocket 接口实时提取 PCM base64 数据包，流结束时追加 44 字节 WAV 头部信息直存为 `.wav` 文件（无延迟播放） | 2026-07-13 |
 | 后台 MediaCodec 转码 (AAC) | WorkManager 后台任务配合原生 MediaCodec 硬件压缩 PCM 帧，前置 ADTS 头部（7字节）输出高保真 AAC 覆盖原 WAV | 2026-07-13 |
 | 反检测请求节奏限制 | 并发组随机分组，组内串行，各组错峰 1-3s 延迟启动，同一组角色间强制 2-6s 随机请求间隔以降低 API 屏蔽风险 | 2026-07-13 |
+| 三模型级联联网搜索配合 | 由 3.1lite 决策本地资料及提取多 searchQuery，2.5flash 使用 google_search 工具多路联网检索接地并做空 query 兜底，最终由 3.5flash (high thinking) 整合输出高保真作答 | 2026-07-13 |
+| 多档联网模式调节 | UI 增加 SMART（自适应）、FORCE（强制，使用提问兜底）、OFF（禁用）三档胶囊切换控制，控制是否进行联网及搜索数目分配 | 2026-07-13 |
