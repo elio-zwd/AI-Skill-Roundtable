@@ -1,5 +1,6 @@
 package com.example.skillroundtable.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.Insert
@@ -25,10 +26,10 @@ data class Message(
     val text: String,
     val timestamp: Long = System.currentTimeMillis(),
     val isPending: Boolean = false,
-    val roundIndex: Int = 0,
+    @ColumnInfo(defaultValue = "0") val roundIndex: Int = 0,
     val audioFilePath: String? = null,
     val audioFormat: String? = null,
-    val audioSizeBytes: Long = 0L
+    @ColumnInfo(defaultValue = "0") val audioSizeBytes: Long = 0L
 )
 
 @Dao

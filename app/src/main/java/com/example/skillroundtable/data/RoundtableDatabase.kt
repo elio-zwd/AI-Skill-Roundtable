@@ -1,6 +1,7 @@
 package com.example.skillroundtable.data
 
 import android.content.Context
+import android.database.Cursor
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -25,17 +26,46 @@ abstract class RoundtableDatabase : RoomDatabase() {
 
         val MIGRATION_3_4 = object : androidx.room.migration.Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE messages ADD COLUMN roundIndex INTEGER NOT NULL DEFAULT 0")
+                if (!columnExists(db, "messages", "roundIndex")) {
+                    db.execSQL("ALTER TABLE messages ADD COLUMN roundIndex INTEGER NOT NULL DEFAULT 0")
+                }
             }
         }
 
         val MIGRATION_4_5 = object : androidx.room.migration.Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE messages ADD COLUMN audioFilePath TEXT")
-                db.execSQL("ALTER TABLE messages ADD COLUMN audioFormat TEXT")
-                db.execSQL("ALTER TABLE messages ADD COLUMN audioSizeBytes INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE characters ADD COLUMN voiceConfig TEXT NOT NULL DEFAULT 'Aoede'")
+                if (!columnExists(db, "messages", "roundIndex")) {
+                    db.execSQL("ALTER TABLE messages ADD COLUMN roundIndex INTEGER NOT NULL DEFAULT 0")
+                }
+                if (!columnExists(db, "messages", "audioFilePath")) {
+                    db.execSQL("ALTER TABLE messages ADD COLUMN audioFilePath TEXT")
+                }
+                if (!columnExists(db, "messages", "audioFormat")) {
+                    db.execSQL("ALTER TABLE messages ADD COLUMN audioFormat TEXT")
+                }
+                if (!columnExists(db, "messages", "audioSizeBytes")) {
+                    db.execSQL("ALTER TABLE messages ADD COLUMN audioSizeBytes INTEGER NOT NULL DEFAULT 0")
+                }
+                if (!columnExists(db, "characters", "voiceConfig")) {
+                    db.execSQL("ALTER TABLE characters ADD COLUMN voiceConfig TEXT NOT NULL DEFAULT 'Aoede'")
+                }
             }
+        }
+
+        private fun columnExists(db: SupportSQLiteDatabase, tableName: String, columnName: String): Boolean {
+            val cursor = db.query("PRAGMA table_info($tableName)", emptyArray<Any>())
+            cursor.use {
+                val nameIndex = cursor.getColumnIndex("name")
+                if (nameIndex != -1) {
+                    while (cursor.moveToNext()) {
+                        val name = cursor.getString(nameIndex)
+                        if (name.equals(columnName, ignoreCase = true)) {
+                            return true
+                        }
+                    }
+                }
+            }
+            return false
         }
 
         fun getDatabase(context: Context, scope: CoroutineScope): RoundtableDatabase {

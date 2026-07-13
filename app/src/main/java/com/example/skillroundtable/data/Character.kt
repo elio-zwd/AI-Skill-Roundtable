@@ -1,5 +1,6 @@
 package com.example.skillroundtable.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.Insert
@@ -19,7 +20,7 @@ data class Character(
     val order: Int,
     val isActive: Boolean = true,
     val skillDescriptionVector: String = "",
-    val voiceConfig: String = "Aoede"
+    @ColumnInfo(defaultValue = "Aoede") val voiceConfig: String = "Aoede"
 )
 
 @Dao
