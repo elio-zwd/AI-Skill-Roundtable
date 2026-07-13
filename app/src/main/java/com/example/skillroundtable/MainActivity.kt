@@ -38,6 +38,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
+import dev.jeziellago.compose.markdowntext.MarkdownText
 import com.example.skillroundtable.data.Character
 import com.example.skillroundtable.data.ChatSession
 import com.example.skillroundtable.data.Message
@@ -50,6 +52,12 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 
 @Composable
 fun CharacterAvatar(
@@ -149,7 +157,7 @@ fun MainAppContent() {
     val currentSession by viewModel.currentSession.collectAsState()
     val currentMessages by viewModel.currentMessages.collectAsState()
     val isRoundtableRunning by viewModel.isRoundtableRunning.collectAsState()
-    val typingCharacterId by viewModel.typingCharacterId.collectAsState()
+    val typingCharacterIds by viewModel.typingCharacterIds.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val apiKey by viewModel.apiKey.collectAsState()
     val isAutoNextEnabled by viewModel.isAutoNextEnabled.collectAsState()
@@ -161,6 +169,11 @@ fun MainAppContent() {
     var editingCharacter by remember { mutableStateOf<Character?>(null) }
     var showApiKeyDialog by remember { mutableStateOf(false) }
     var showDrawer by remember { mutableStateOf(false) }
+
+    var renameSessionId by remember { mutableStateOf<Long?>(null) }
+    var renameSessionTitle by remember { mutableStateOf("") }
+    var showRenameDialog by remember { mutableStateOf(false) }
+    var showDebugPanel by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
 
@@ -175,7 +188,8 @@ fun MainAppContent() {
         bottomBar = {
             NavigationBar(
                 containerColor = CardBg,
-                tonalElevation = 8.dp
+                tonalElevation = 8.dp,
+                modifier = Modifier.height(68.dp)
             ) {
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.Home, contentDescription = "圆桌脑暴") },
@@ -188,6 +202,12 @@ fun MainAppContent() {
                     label = { Text("智囊大厅") },
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 }
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.PlayArrow, contentDescription = "音频库") },
+                    label = { Text("音频库") },
+                    selected = selectedTab == 2,
+                    onClick = { selectedTab = 2 }
                 )
             }
         }
@@ -206,14 +226,19 @@ fun MainAppContent() {
                         currentMessages = currentMessages,
                         allCharacters = allCharacters,
                         isRoundtableRunning = isRoundtableRunning,
-                        typingCharacterId = typingCharacterId,
+                        typingCharacterIds = typingCharacterIds,
                         apiKey = apiKey,
                         isAutoNextEnabled = isAutoNextEnabled,
                         isSemanticRoutingEnabled = isSemanticRoutingEnabled,
                         searchMode = searchMode,
                         onSearchModeChange = { viewModel.setSearchMode(it) },
                         onOpenApiKeyConfig = { showApiKeyDialog = true },
-                        onToggleDrawer = { showDrawer = !showDrawer }
+                        onToggleDrawer = { showDrawer = !showDrawer },
+                        onRenameSession = { id, title ->
+                            renameSessionId = id
+                            renameSessionTitle = title
+                            showRenameDialog = true
+                        }
                     )
                 }
                 1 -> {
@@ -231,6 +256,12 @@ fun MainAppContent() {
                             viewModel.deleteCharacter(id)
                             Toast.makeText(context, "智囊已被移出会议", Toast.LENGTH_SHORT).show()
                         }
+                    )
+                }
+                2 -> {
+                    AudioLibraryScreen(
+                        viewModel = viewModel,
+                        allCharacters = allCharacters
                     )
                 }
             }
@@ -285,13 +316,21 @@ fun MainAppContent() {
                         LazyColumn(modifier = Modifier.weight(1f)) {
                             items(allSessions) { session ->
                                 val isSelected = session.id == currentSessionId
+                                @OptIn(ExperimentalFoundationApi::class)
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable {
-                                            viewModel.selectSession(session.id)
-                                            showDrawer = false
-                                        }
+                                        .combinedClickable(
+                                            onLongClick = {
+                                                renameSessionId = session.id
+                                                renameSessionTitle = session.title
+                                                showRenameDialog = true
+                                            },
+                                            onClick = {
+                                                viewModel.selectSession(session.id)
+                                                showDrawer = false
+                                            }
+                                        )
                                         .background(if (isSelected) PrimaryAccent.copy(alpha = 0.2f) else Color.Transparent)
                                         .padding(horizontal = 24.dp, vertical = 14.dp),
                                     verticalAlignment = Alignment.CenterVertically
@@ -348,6 +387,9 @@ fun MainAppContent() {
                         viewModel.setApiKey(newKey)
                         showApiKeyDialog = false
                         Toast.makeText(context, "API Key 配置成功", Toast.LENGTH_SHORT).show()
+                    },
+                    onOpenDebugPanel = {
+                        showDebugPanel = true
                     }
                 )
             }
@@ -375,6 +417,213 @@ fun MainAppContent() {
                     }
                 )
             }
+
+            if (showRenameDialog) {
+                AlertDialog(
+                    onDismissRequest = { showRenameDialog = false },
+                    title = { Text("重命名会议主题", color = TextPrimary) },
+                    text = {
+                        OutlinedTextField(
+                            value = renameSessionTitle,
+                            onValueChange = { renameSessionTitle = it },
+                            label = { Text("新主题") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                if (renameSessionTitle.isNotBlank() && renameSessionId != null) {
+                                    viewModel.renameSession(renameSessionId!!, renameSessionTitle)
+                                    showRenameDialog = false
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryAccent)
+                        ) {
+                            Text("保存")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showRenameDialog = false }) {
+                            Text("取消", color = TextSecondary)
+                        }
+                    }
+                )
+            }
+
+            if (showDebugPanel) {
+                ApiDebugPanelDialog(
+                    currentSessionId = currentSessionId,
+                    onDismiss = { showDebugPanel = false }
+                )
+            }
+        }
+    }
+}
+
+fun saveMarkdownToLocal(context: android.content.Context, title: String, content: String): String? {
+    val resolver = context.contentResolver
+    val contentValues = android.content.ContentValues().apply {
+        put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, "${title}_${System.currentTimeMillis()}.md")
+        put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/markdown")
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Documents/AI智囊圆桌")
+        }
+    }
+    
+    val uri = resolver.insert(android.provider.MediaStore.Files.getContentUri("external"), contentValues)
+    if (uri != null) {
+        try {
+            resolver.openOutputStream(uri)?.use { outputStream ->
+                outputStream.write(content.toByteArray(java.nio.charset.StandardCharsets.UTF_8))
+            }
+            return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                "Documents/AI智囊圆桌"
+            } else {
+                uri.path
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+    return null
+}
+
+sealed class ChatItem {
+    data class UserMessage(val message: Message) : ChatItem()
+    data class RoundtableRound(val roundIndex: Int, val messages: List<Message>) : ChatItem()
+}
+
+fun groupMessages(messages: List<Message>): List<ChatItem> {
+    val result = mutableListOf<ChatItem>()
+    var currentGroup = mutableListOf<Message>()
+    
+    for (msg in messages) {
+        if (msg.senderId == "user") {
+            if (currentGroup.isNotEmpty()) {
+                val groupedByRound = currentGroup.groupBy { it.roundIndex }.entries.sortedBy { it.key }
+                groupedByRound.forEach { (round, msgs) ->
+                    result.add(ChatItem.RoundtableRound(round, msgs))
+                }
+                currentGroup.clear()
+            }
+            result.add(ChatItem.UserMessage(msg))
+        } else {
+            if (!msg.isPending) {
+                currentGroup.add(msg)
+            }
+        }
+    }
+    if (currentGroup.isNotEmpty()) {
+        val groupedByRound = currentGroup.groupBy { it.roundIndex }.entries.sortedBy { it.key }
+        groupedByRound.forEach { (round, msgs) ->
+            result.add(ChatItem.RoundtableRound(round, msgs))
+        }
+    }
+    return result
+}
+
+@Composable
+fun RoundtableRoundBubble(
+    roundItem: ChatItem.RoundtableRound,
+    currentPlayingId: Long?,
+    allCharacters: List<Character>,
+    onPlayAudio: (Message, String) -> Unit
+) {
+    val msgs = roundItem.messages
+    if (msgs.isEmpty()) return
+    
+    val pagerState = rememberPagerState(pageCount = { msgs.size })
+    val coroutineScope = rememberCoroutineScope()
+    
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+            .background(CardBg.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+            .border(1.dp, PrimaryAccent.copy(alpha = 0.1f), RoundedCornerShape(20.dp))
+            .padding(vertical = 12.dp)
+    ) {
+        // 头部：第几轮
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "⚡ 第 ${roundItem.roundIndex} 轮脑暴交锋",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = GoldAccent
+            )
+            Text(
+                text = "${pagerState.currentPage + 1}/${msgs.size}",
+                fontSize = 11.sp,
+                color = TextSecondary
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(4.dp))
+        
+        // Pager
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxWidth()
+        ) { page ->
+            val msg = msgs[page]
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                MessageBubble(
+                    message = msg,
+                    currentPlayingId = currentPlayingId,
+                    allCharacters = allCharacters,
+                    onPlayAudio = onPlayAudio
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        // 头像导航指示器 Row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            msgs.forEachIndexed { index, msg ->
+                val isSelected = pagerState.currentPage == index
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 6.dp)
+                        .size(if (isSelected) 36.dp else 28.dp)
+                        .clip(CircleShape)
+                        .background(if (isSelected) PrimaryAccent.copy(alpha = 0.2f) else Color.Transparent)
+                        .border(
+                            width = if (isSelected) 2.dp else 1.dp,
+                            color = if (isSelected) GoldAccent else TextSecondary.copy(alpha = 0.5f),
+                            shape = CircleShape
+                        )
+                        .clickable {
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(index)
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = msg.avatar,
+                        fontSize = if (isSelected) 18.sp else 14.sp
+                    )
+                }
+            }
         }
     }
 }
@@ -387,17 +636,22 @@ fun RoundtableBrainstormScreen(
     currentMessages: List<Message>,
     allCharacters: List<Character>,
     isRoundtableRunning: Boolean,
-    typingCharacterId: String?,
+    typingCharacterIds: Set<String>,
     apiKey: String,
     isAutoNextEnabled: Boolean,
     isSemanticRoutingEnabled: Boolean,
     searchMode: SearchMode,
     onSearchModeChange: (SearchMode) -> Unit,
     onOpenApiKeyConfig: () -> Unit,
-    onToggleDrawer: () -> Unit
+    onToggleDrawer: () -> Unit,
+    onRenameSession: (Long, String) -> Unit
 ) {
     val listState = rememberLazyListState()
     var userQuestionText by remember { mutableStateOf("") }
+    val coroutineScope = rememberCoroutineScope()
+    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
+    val currentPlayingId by viewModel.currentPlayingMessageId.collectAsState()
 
     // Scroll to bottom on new messages
     LaunchedEffect(currentMessages.size) {
@@ -421,7 +675,18 @@ fun RoundtableBrainstormScreen(
                     Icon(Icons.Default.Menu, contentDescription = "历史会议", tint = TextPrimary)
                 }
                 Spacer(Modifier.width(8.dp))
-                Column {
+                @OptIn(ExperimentalFoundationApi::class)
+                Column(
+                    modifier = Modifier.combinedClickable(
+                        enabled = currentSession != null,
+                        onLongClick = {
+                            currentSession?.let {
+                                onRenameSession(it.id, it.title)
+                            }
+                        },
+                        onClick = {}
+                    )
+                ) {
                     Text(
                         text = currentSession?.title ?: "AI 智囊圆桌",
                         fontWeight = FontWeight.Bold,
@@ -438,19 +703,67 @@ fun RoundtableBrainstormScreen(
                 }
             }
 
-            IconButton(onClick = onOpenApiKeyConfig) {
-                Icon(
-                    Icons.Default.Settings,
-                    contentDescription = "密钥设置",
-                    tint = if (apiKey.isNotBlank()) SecondaryAccent else GoldAccent
-                )
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (currentSession != null && currentMessages.isNotEmpty()) {
+                    var showExportMenu by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { showExportMenu = true }) {
+                            Icon(
+                                Icons.Default.Share,
+                                contentDescription = "导出对话",
+                                tint = TextPrimary
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showExportMenu,
+                            onDismissRequest = { showExportMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("复制为 Markdown") },
+                                onClick = {
+                                    showExportMenu = false
+                                    coroutineScope.launch {
+                                        val md = viewModel.exportConversation(currentSession.id)
+                                        clipboardManager.setText(AnnotatedString(md))
+                                        Toast.makeText(context, "已复制至剪贴板", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("保存到本地文档") },
+                                onClick = {
+                                    showExportMenu = false
+                                    coroutineScope.launch {
+                                        val md = viewModel.exportConversation(currentSession.id)
+                                        val saved = saveMarkdownToLocal(context, currentSession.title, md)
+                                        if (saved != null) {
+                                            Toast.makeText(context, "已保存到 Documents/AI智囊圆桌/", Toast.LENGTH_LONG).show()
+                                        } else {
+                                            Toast.makeText(context, "保存失败", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+
+                IconButton(onClick = onOpenApiKeyConfig) {
+                    Icon(
+                        Icons.Default.Settings,
+                        contentDescription = "密钥设置",
+                        tint = if (apiKey.isNotBlank()) SecondaryAccent else GoldAccent
+                    )
+                }
             }
         }
 
         // Seating Roundtable Diagram Row
         RoundtableSeatingDiagram(
             characters = allCharacters.filter { it.isActive },
-            typingCharacterId = typingCharacterId,
+            typingCharacterIds = typingCharacterIds,
             currentMessages = currentMessages,
             isAutoNextEnabled = isAutoNextEnabled,
             onToggleAutoNext = { viewModel.setAutoNextEnabled(it) },
@@ -505,6 +818,7 @@ fun RoundtableBrainstormScreen(
                 }
             }
         } else {
+            val chatItems = remember(currentMessages) { groupMessages(currentMessages) }
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -512,15 +826,34 @@ fun RoundtableBrainstormScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp)
             ) {
-                items(currentMessages) { message ->
-                    MessageBubble(message = message)
+                items(chatItems) { item ->
+                    when (item) {
+                        is ChatItem.UserMessage -> MessageBubble(
+                            message = item.message,
+                            currentPlayingId = currentPlayingId,
+                            allCharacters = allCharacters,
+                            onPlayAudio = { msg, voice ->
+                                viewModel.playOrSynthesizeTts(msg, voice)
+                            }
+                        )
+                        is ChatItem.RoundtableRound -> RoundtableRoundBubble(
+                            roundItem = item,
+                            currentPlayingId = currentPlayingId,
+                            allCharacters = allCharacters,
+                            onPlayAudio = { msg, voice ->
+                                viewModel.playOrSynthesizeTts(msg, voice)
+                            }
+                        )
+                    }
                 }
 
-                if (isRoundtableRunning && typingCharacterId != null) {
-                    item {
-                        val typingChar = allCharacters.find { it.id == typingCharacterId }
+                if (isRoundtableRunning && typingCharacterIds.isNotEmpty()) {
+                    typingCharacterIds.forEach { charId ->
+                        val typingChar = allCharacters.find { it.id == charId }
                         if (typingChar != null) {
-                            TypingIndicatorBubble(character = typingChar)
+                            item(key = "typing_$charId") {
+                                TypingIndicatorBubble(character = typingChar)
+                            }
                         }
                     }
                 }
@@ -618,7 +951,7 @@ fun RoundtableBrainstormScreen(
 @Composable
 fun RoundtableSeatingDiagram(
     characters: List<Character>,
-    typingCharacterId: String?,
+    typingCharacterIds: Set<String>,
     currentMessages: List<Message>,
     isAutoNextEnabled: Boolean,
     onToggleAutoNext: (Boolean) -> Unit,
@@ -697,7 +1030,7 @@ fun RoundtableSeatingDiagram(
             verticalAlignment = Alignment.CenterVertically
         ) {
             items(characters) { char ->
-                val isTyping = char.id == typingCharacterId
+                val isTyping = typingCharacterIds.contains(char.id)
 
                 // Determine speaker state for current round
                 val lastQuestionIndex = currentMessages.indexOfLast { it.senderId == "user" }
@@ -850,7 +1183,12 @@ fun SearchModeSelector(
 }
 
 @Composable
-fun MessageBubble(message: Message) {
+fun MessageBubble(
+    message: Message,
+    currentPlayingId: Long?,
+    allCharacters: List<Character>,
+    onPlayAudio: (Message, String) -> Unit
+) {
     val isUser = message.senderId == "user"
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
@@ -918,12 +1256,48 @@ fun MessageBubble(message: Message) {
                     }
                     .padding(14.dp)
             ) {
-                Text(
-                    text = message.text,
-                    color = TextPrimary,
-                    fontSize = 15.sp,
-                    lineHeight = 22.sp
-                )
+                if (isUser) {
+                    Text(
+                        text = message.text,
+                        color = TextPrimary,
+                        fontSize = 15.sp,
+                        lineHeight = 22.sp
+                    )
+                } else {
+                    MarkdownText(
+                        markdown = message.text,
+                        color = TextPrimary,
+                        fontSize = 15.sp,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
+            if (!isUser) {
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .padding(start = 4.dp)
+                        .clickable {
+                            val voice = allCharacters.find { it.id == message.senderId }?.voiceConfig ?: "Aoede"
+                            onPlayAudio(message, voice)
+                        }
+                ) {
+                    val isPlaying = currentPlayingId == message.id
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = "播放TTS",
+                        tint = if (isPlaying) GoldAccent else TextSecondary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = if (isPlaying) "🔊 播音中..." else "🔊 合成语音",
+                        fontSize = 11.sp,
+                        color = if (isPlaying) GoldAccent else TextSecondary
+                    )
+                }
             }
         }
 
@@ -1447,7 +1821,8 @@ fun CharacterHallScreen(
 fun ApiKeyConfigDialog(
     currentKey: String,
     onDismiss: () -> Unit,
-    onSave: (String) -> Unit
+    onSave: (String) -> Unit,
+    onOpenDebugPanel: () -> Unit
 ) {
     var keyText by remember { mutableStateOf(currentKey) }
 
@@ -1481,6 +1856,15 @@ fun ApiKeyConfigDialog(
                     fontSize = 11.sp,
                     color = GoldAccent
                 )
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onOpenDebugPanel) {
+                        Text("🔧 熔断诊断与遥测日志", color = GoldAccent, fontSize = 12.sp)
+                    }
+                }
             }
         },
         confirmButton = {
@@ -1595,6 +1979,201 @@ fun AddEditCharacterDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("取消", color = TextSecondary)
+            }
+        },
+        containerColor = CardBg
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ApiDebugPanelDialog(
+    currentSessionId: Long?,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val keyStatuses = remember { com.example.skillroundtable.network.ApiKeyPool.getKeyStatuses(context) }
+    val logs = remember { com.example.skillroundtable.network.ApiKeyPool.apiLogs }
+    val currentKeyInfo = remember(currentSessionId) {
+        currentSessionId?.let { com.example.skillroundtable.network.ApiKeyPool.getOrBindSessionKey(context, it) }
+    }
+    
+    var expandedLogIndex by remember { mutableStateOf(-1) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Build, contentDescription = null, tint = GoldAccent)
+                Spacer(Modifier.width(8.dp))
+                Text("API 熔断诊断与遥测日志", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxHeight(0.85f).fillMaxWidth()) {
+                // 1. 当前会话分配
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.5f))
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "会话绑定 API Key ID: ${currentKeyInfo?.id ?: "未分配（或未开启会话）"}",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = GoldAccent
+                        )
+                        Text(
+                            text = "绑定账号: ${currentKeyInfo?.account ?: "无"}",
+                            fontSize = 11.sp,
+                            color = TextSecondary
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // 2. 内置 10 个 Key 的熔断状态
+                Text("🔑 备用 Key 熔断状态 (24小时熔断期)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                Spacer(modifier = Modifier.height(4.dp))
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(keyStatuses) { status ->
+                        val isBanned = status.isBanned
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isBanned) Color.Red.copy(alpha = 0.1f) else PrimaryAccent.copy(alpha = 0.05f)
+                            ),
+                            border = BorderStroke(
+                                width = 1.dp,
+                                color = if (isBanned) Color.Red.copy(alpha = 0.4f) else PrimaryAccent.copy(alpha = 0.2f)
+                            )
+                        ) {
+                            Column(modifier = Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(status.id, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = TextPrimary)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                if (isBanned) {
+                                    Text("熔断", fontSize = 10.sp, color = Color.Red)
+                                    val minutes = status.remainingBanTimeMs / 1000 / 60
+                                    Text("余 ${minutes}m", fontSize = 8.sp, color = TextSecondary)
+                                } else {
+                                    Text("可用", fontSize = 10.sp, color = Color.Green)
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // 3. API 日志列表
+                Text("📄 最近 API 请求日志", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                Spacer(modifier = Modifier.height(4.dp))
+                if (logs.isEmpty()) {
+                    Box(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("无任何请求日志", fontSize = 12.sp, color = TextSecondary)
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        itemsIndexed(logs.toList()) { index, log ->
+                            val isSuccess = log.statusCode == 200
+                            val duration = log.responseTime - log.requestTime
+                            val timeStr = android.text.format.DateFormat.format("HH:mm:ss", log.requestTime).toString()
+                            
+                            Card(
+                                modifier = Modifier.fillMaxWidth().clickable {
+                                    expandedLogIndex = if (expandedLogIndex == index) -1 else index
+                                },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = CardBg
+                                ),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isSuccess) PrimaryAccent.copy(alpha = 0.15f) else Color.Red.copy(alpha = 0.2f)
+                                )
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(6.dp)
+                                                    .background(
+                                                        if (isSuccess) Color.Green else Color.Red,
+                                                        CircleShape
+                                                    )
+                                            )
+                                            Spacer(Modifier.width(6.dp))
+                                            Text(
+                                                text = "[${log.keyId}] ${log.model}",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = TextPrimary
+                                            )
+                                        }
+                                        Text(
+                                            text = "$timeStr | ${duration}ms",
+                                            fontSize = 9.sp,
+                                            color = TextSecondary
+                                        )
+                                    }
+                                    
+                                    if (log.statusCode != 200 && log.errorMessage != null) {
+                                        Text(
+                                            text = "错误: ${log.errorMessage}",
+                                            color = Color.Red,
+                                            fontSize = 10.sp,
+                                            modifier = Modifier.padding(top = 4.dp)
+                                        )
+                                    }
+                                    
+                                    if (expandedLogIndex == index) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "完整 Prompt:",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = GoldAccent
+                                        )
+                                        Text(
+                                            text = log.prompt,
+                                            fontSize = 9.sp,
+                                            color = TextSecondary,
+                                            lineHeight = 13.sp,
+                                            modifier = Modifier
+                                                .background(Color.Black.copy(alpha = 0.2f))
+                                                .padding(6.dp)
+                                                .fillMaxWidth()
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(containerColor = PrimaryAccent)
+            ) {
+                Text("关闭")
             }
         },
         containerColor = CardBg

@@ -21,7 +21,8 @@ data class SkillConfig(
     val isActive: Boolean = true,
     val skillName: String = "",
     val skillDescription: String = "",
-    val descriptionVector: List<Float> = emptyList() // 768维浮点特征向量
+    val descriptionVector: List<Float> = emptyList(),
+    val voiceConfig: String = "Aoede"
 )
 
 /**

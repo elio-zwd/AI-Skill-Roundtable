@@ -24,7 +24,11 @@ data class Message(
     val avatar: String, // Emoji or icon code
     val text: String,
     val timestamp: Long = System.currentTimeMillis(),
-    val isPending: Boolean = false
+    val isPending: Boolean = false,
+    val roundIndex: Int = 0,
+    val audioFilePath: String? = null,
+    val audioFormat: String? = null,
+    val audioSizeBytes: Long = 0L
 )
 
 @Dao
@@ -41,6 +45,9 @@ interface ChatDao {
 
     @Query("DELETE FROM chat_sessions WHERE id = :id")
     suspend fun deleteSessionById(id: Long)
+
+    @Query("UPDATE chat_sessions SET title = :title WHERE id = :id")
+    suspend fun updateSessionTitle(id: Long, title: String)
 
     @Query("DELETE FROM messages WHERE chatId = :chatId")
     suspend fun deleteMessagesByChatId(chatId: Long)
@@ -60,10 +67,18 @@ interface ChatDao {
     
     @Query("DELETE FROM messages WHERE chatId = :chatId AND isPending = 1")
     suspend fun removePendingMessages(chatId: Long)
+
+    @Query("UPDATE messages SET audioFilePath = :path, audioFormat = :format, audioSizeBytes = :size WHERE id = :id")
+    suspend fun updateMessageAudio(id: Long, path: String?, format: String?, size: Long)
+    
+    @Query("SELECT * FROM messages WHERE audioFilePath IS NOT NULL AND audioFilePath != '' ORDER BY timestamp DESC")
+    fun getAudioMessagesFlow(): Flow<List<Message>>
 }
 
 class ChatRepository(private val chatDao: ChatDao) {
     val allSessions: Flow<List<ChatSession>> = chatDao.getAllSessions()
+
+    val audioMessages: Flow<List<Message>> = chatDao.getAudioMessagesFlow()
 
     fun getMessagesFlow(chatId: Long): Flow<List<Message>> = chatDao.getMessagesForChatFlow(chatId)
 
@@ -78,6 +93,14 @@ class ChatRepository(private val chatDao: ChatDao) {
     suspend fun deleteSession(id: Long) {
         chatDao.deleteSessionById(id)
         chatDao.deleteMessagesByChatId(id)
+    }
+
+    suspend fun updateSessionTitle(id: Long, title: String) {
+        chatDao.updateSessionTitle(id, title)
+    }
+
+    suspend fun updateMessageAudio(id: Long, path: String?, format: String?, size: Long) {
+        chatDao.updateMessageAudio(id, path, format, size)
     }
 
     suspend fun insertMessage(message: Message): Long = chatDao.insertMessage(message)

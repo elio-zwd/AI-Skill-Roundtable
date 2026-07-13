@@ -90,4 +90,6 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
     implementation(libs.kotlinx.serialization.json)
+    implementation("com.github.jeziellago:compose-markdown:0.5.4")
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 }

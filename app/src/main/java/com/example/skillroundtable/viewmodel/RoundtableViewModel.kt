@@ -27,6 +27,12 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.widget.Toast
+import com.example.skillroundtable.audio.AudioPlaybackManager
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.workDataOf
+import androidx.work.WorkManager
+import java.io.File
 
 /**
  * 圆桌会议 ViewModel，负责管理会话、消息、智囊角色状态以及触发 API 逻辑。
@@ -71,8 +77,8 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
     private val _isRoundtableRunning = MutableStateFlow(false)
     val isRoundtableRunning: StateFlow<Boolean> = _isRoundtableRunning.asStateFlow()
 
-    private val _typingCharacterId = MutableStateFlow<String?>(null)
-    val typingCharacterId: StateFlow<String?> = _typingCharacterId.asStateFlow()
+    private val _typingCharacterIds = MutableStateFlow<Set<String>>(emptySet())
+    val typingCharacterIds: StateFlow<Set<String>> = _typingCharacterIds.asStateFlow()
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
@@ -231,9 +237,176 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             )
             chatRepo.insertMessage(userMsg)
 
+            val allMsgs = chatRepo.getMessages(sessionId)
+            val userMsgs = allMsgs.filter { it.senderId == "user" }
+            if (userMsgs.size == 1) {
+                generateSessionTitle(sessionId, text)
+            }
+
             // 触发圆桌脑暴流程
             runRoundtableSequence(sessionId)
         }
+    }
+
+    fun generateSessionTitle(sessionId: Long, firstQuestion: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val context = getApplication<Application>().applicationContext
+            val prompt = """
+                你是一个对话标题提炼助手。
+                请针对用户提问，提炼出一个简短、吸引人且能概括核心内容的对话标题。
+                要求：
+                1. 长度不超过 15 个字。
+                2. 不要包含任何标点符号、引号或前缀。
+                3. 直接输出标题内容，不要有多余解释。
+                
+                用户提问：$firstQuestion
+            """.trimIndent()
+            
+            val request = GenerateContentRequest(
+                contents = listOf(Content(parts = listOf(Part(text = prompt))))
+            )
+            
+            try {
+                val response = RetrofitClient.callBrokerRouterWithFallback(
+                    context = context,
+                    model = "gemini-3.1-flash-lite-preview",
+                    request = request,
+                    sessionId = sessionId
+                )
+                val reply = response.candidates.firstOrNull()?.content?.parts?.firstOrNull()?.text?.trim()
+                if (!reply.isNullOrBlank()) {
+                    val cleanTitle = reply.replace("\"", "").replace("'", "").trim()
+                    chatRepo.updateSessionTitle(sessionId, cleanTitle)
+                    val updatedSession = chatRepo.getSessionById(sessionId)
+                    if (updatedSession != null) {
+                        _currentSession.value = updatedSession
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("RoundtableViewModel", "自动生成对话标题失败", e)
+            }
+        }
+    }
+
+    fun renameSession(sessionId: Long, newTitle: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            chatRepo.updateSessionTitle(sessionId, newTitle)
+            val updated = chatRepo.getSessionById(sessionId)
+            if (updated != null) {
+                _currentSession.value = updated
+            }
+        }
+    }
+
+    suspend fun exportConversation(sessionId: Long): String = withContext(Dispatchers.IO) {
+        val session = chatRepo.getSessionById(sessionId) ?: return@withContext ""
+        val messages = chatRepo.getMessages(sessionId).filter { !it.isPending }
+        if (messages.isEmpty()) return@withContext ""
+
+        val sb = java.lang.StringBuilder()
+        sb.append("# ${session.title}\n")
+        val dateStr = android.text.format.DateFormat.format("yyyy-MM-dd HH:mm:ss", session.createdAt).toString()
+        sb.append("**时间**：$dateStr\n\n")
+
+        var currentRound = 0
+        for (msg in messages) {
+            if (msg.senderId == "user") {
+                sb.append("## 👤 用户提问\n")
+                sb.append("> ${msg.text}\n\n")
+                currentRound = 0
+            } else {
+                if (msg.roundIndex != currentRound) {
+                    currentRound = msg.roundIndex
+                    sb.append("## ⚡ 第 ${currentRound} 轮脑暴交锋\n\n")
+                }
+                sb.append("### ${msg.avatar} ${msg.senderName}\n")
+                sb.append("${msg.text}\n\n")
+            }
+        }
+        sb.toString()
+    }
+
+    val currentPlayingMessageId = AudioPlaybackManager.currentPlayingMessageId
+    val isAudioPlaying = AudioPlaybackManager.isPlaying
+    val allAudioMessages: StateFlow<List<Message>> = chatRepo.audioMessages.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Lazily,
+        initialValue = emptyList()
+    )
+
+    fun playOrSynthesizeTts(message: Message, voiceName: String) {
+        val context = getApplication<Application>().applicationContext
+        
+        if (!message.audioFilePath.isNullOrBlank()) {
+            AudioPlaybackManager.playAudio(context, message.id, message.audioFilePath)
+            return
+        }
+
+        viewModelScope.launch {
+            val apiKeyToUse = _apiKey.value.ifBlank {
+                com.example.skillroundtable.network.ApiKeyPool.getAvailableKeys(context).firstOrNull()?.key ?: ""
+            }
+            if (apiKeyToUse.isBlank()) {
+                _errorMessage.value = "无法播放语音：无可用 API Key"
+                return@launch
+            }
+
+            val cacheDir = context.cacheDir
+            val tempWavFile = File(cacheDir, "tts_${message.id}.wav")
+
+            try {
+                Log.d("RoundtableViewModel", "正在通过 Gemini Live 合成语音: ${message.id}...")
+                
+                val path = com.example.skillroundtable.network.LiveApiClient.generateTtsWav(
+                    context = context,
+                    apiKey = apiKeyToUse,
+                    text = message.text,
+                    voiceName = voiceName,
+                    outputFile = tempWavFile
+                )
+
+                chatRepo.updateMessageAudio(message.id, path, "wav", tempWavFile.length())
+                
+                AudioPlaybackManager.playAudio(context, message.id, path)
+
+                enqueueTranscodeWork(message.id, path)
+            } catch (e: Exception) {
+                Log.e("RoundtableViewModel", "TTS 音频合成失败", e)
+                Toast.makeText(context, "语音合成失败: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun enqueueTranscodeWork(messageId: Long, wavPath: String) {
+        val context = getApplication<Application>().applicationContext
+        val inputData = workDataOf(
+            "message_id" to messageId,
+            "wav_path" to wavPath
+        )
+        val request = OneTimeWorkRequestBuilder<com.example.skillroundtable.audio.AudioTranscodeWorker>()
+            .setInputData(inputData)
+            .build()
+        WorkManager.getInstance(context).enqueue(request)
+    }
+
+    fun deleteAudio(message: Message) {
+        val context = getApplication<Application>().applicationContext
+        viewModelScope.launch(Dispatchers.IO) {
+            if (AudioPlaybackManager.currentPlayingMessageId.value == message.id) {
+                AudioPlaybackManager.stopAudio()
+            }
+            if (!message.audioFilePath.isNullOrBlank()) {
+                val file = File(message.audioFilePath)
+                if (file.exists()) {
+                    file.delete()
+                }
+            }
+            chatRepo.updateMessageAudio(message.id, null, null, 0L)
+        }
+    }
+
+    fun triggerTranscode(messageId: Long, wavPath: String) {
+        enqueueTranscodeWork(messageId, wavPath)
     }
 
     fun triggerNextCharacterManual() {
@@ -269,7 +442,6 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
         val context = getApplication<Application>().applicationContext
         val availableKeys = ApiKeyPool.getAvailableKeys(context)
-        // 允许使用内置 Key 池，所以当 UI api key 为空且内置 Key 也为空时才报错
         if (_apiKey.value.isBlank() && availableKeys.isEmpty()) {
             _errorMessage.value = "当前没有可用的 API 密钥，请稍后再试或在“我的配置”中填写密钥。"
             return
@@ -279,119 +451,187 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         _errorMessage.value = null
 
         try {
-            // 实现向量语义路由 (Vector Semantic Routing) 如果启用，动态排序发言人
-            var sortedActiveChars = activeChars
-            if (_isSemanticRoutingEnabled.value) {
-                val messages = chatRepo.getMessages(sessionId)
-                val lastUserMsg = messages.lastOrNull { it.senderId == "user" }
-                if (lastUserMsg != null) {
-                    try {
-                        Log.d("RoundtableViewModel", "语义路由已启用，正在对用户提问获取 Embedding...")
-                        // 提取用户提问向量
-                        val questionVector = RetrofitClient.embedContentWithFallback(context, lastUserMsg.text, sessionId)
-                        
-                        // 计算每个可用角色的相似度并降序排序
-                        sortedActiveChars = activeChars.map { character ->
-                            val charVector = try {
-                                if (character.skillDescriptionVector.isBlank()) emptyList()
-                                else character.skillDescriptionVector.split(",").map { it.toFloat() }
-                            } catch (e: Exception) {
-                                emptyList()
-                            }
-                            
-                            val similarity = if (charVector.isNotEmpty() && questionVector.isNotEmpty()) {
-                                calculateCosineSimilarity(questionVector, charVector)
-                            } else {
-                                0f
-                            }
-                            Log.d("RoundtableViewModel", "角色 [${character.name}] 与提问的余弦相似度: $similarity")
-                            Pair(character, similarity)
-                        }.sortedByDescending { it.second }
-                         .map { it.first }
+            val messages = chatRepo.getMessages(sessionId)
+            val lastUserIndex = messages.indexOfLast { it.senderId == "user" }
+            if (lastUserIndex == -1) return
 
-                        Log.d("RoundtableViewModel", "语义路由动态排序完成，最终发言顺序: ${sortedActiveChars.joinToString { it.name }}")
-                    } catch (e: Exception) {
-                        Log.e("RoundtableViewModel", "获取提问向量失败，降级为数据库默认排序。错误: ${e.message}")
-                        sortedActiveChars = activeChars
+            val messagesSinceLastQuestion = messages.subList(lastUserIndex + 1, messages.size)
+
+            val currentRound = if (messagesSinceLastQuestion.isEmpty()) {
+                1
+            } else {
+                val maxRound = messagesSinceLastQuestion.maxOf { it.roundIndex }
+                val currentRoundMessages = messagesSinceLastQuestion.filter { it.roundIndex == maxRound }
+                val answeredInCurrentRound = currentRoundMessages.map { it.senderId }.toSet()
+                val activeCharIds = activeChars.map { it.id }.toSet()
+
+                if (activeCharIds.all { it in answeredInCurrentRound }) {
+                    maxRound + 1
+                } else {
+                    maxRound
+                }
+            }
+
+            val messagesInTargetRound = messagesSinceLastQuestion.filter { it.roundIndex == currentRound }
+            val answeredInTargetRound = messagesInTargetRound.map { it.senderId }.toSet()
+            val charactersToAnswer = activeChars.filter { it.id !in answeredInTargetRound }
+
+            if (charactersToAnswer.isEmpty()) {
+                return
+            }
+
+            var sortedChars = charactersToAnswer
+            if (_isSemanticRoutingEnabled.value) {
+                val lastUserMsg = messages[lastUserIndex]
+                try {
+                    Log.d("RoundtableViewModel", "语义路由已启用，正在对用户提问获取 Embedding...")
+                    val questionVector = RetrofitClient.embedContentWithFallback(context, lastUserMsg.text, sessionId)
+                    sortedChars = charactersToAnswer.map { character ->
+                        val charVector = try {
+                            if (character.skillDescriptionVector.isBlank()) emptyList()
+                            else character.skillDescriptionVector.split(",").map { it.toFloat() }
+                        } catch (e: Exception) {
+                            emptyList()
+                        }
+                        val similarity = if (charVector.isNotEmpty() && questionVector.isNotEmpty()) {
+                            calculateCosineSimilarity(questionVector, charVector)
+                        } else {
+                            0f
+                        }
+                        Pair(character, similarity)
+                    }.sortedByDescending { it.second }.map { it.first }
+                } catch (e: Exception) {
+                    Log.e("RoundtableViewModel", "获取提问向量失败，降级为默认。错误: ${e.message}")
+                }
+            }
+
+            // 执行多 Key 组并发与延迟防检测调度 (优化① & 新功能②)
+            kotlinx.coroutines.coroutineScope {
+                if (availableKeys.isEmpty()) {
+                    // 没有内置 Key，串行调度
+                    launch {
+                        sortedChars.forEachIndexed { index, character ->
+                            if (index > 0) {
+                                val delayMs = (2000L..6000L).random()
+                                Log.d("RoundtableViewModel", "串行等待 $delayMs ms...")
+                                kotlinx.coroutines.delay(delayMs)
+                            }
+                            executeCharacterAnswer(character, sessionId, currentRound, messages, _apiKey.value)
+                        }
+                    }
+                } else {
+                    // 使用内置 Key，随机分组
+                    val keyGroups = ApiKeyPool.assignRandomGroups(sortedChars, availableKeys)
+                    keyGroups.forEach { (keyInfo, groupChars) ->
+                        launch {
+                            val startDelayMs = (1000L..3000L).random()
+                            Log.d("RoundtableViewModel", "Key 组 ${keyInfo.id} 起始错开，等待 $startDelayMs ms...")
+                            kotlinx.coroutines.delay(startDelayMs)
+
+                            groupChars.forEachIndexed { index, character ->
+                                if (index > 0) {
+                                    val delayMs = (2000L..6000L).random()
+                                    Log.d("RoundtableViewModel", "Key 组 ${keyInfo.id} 组内串行，等待 $delayMs ms...")
+                                    kotlinx.coroutines.delay(delayMs)
+                                }
+                                executeCharacterAnswer(character, sessionId, currentRound, messages, keyInfo.key)
+                            }
+                        }
                     }
                 }
             }
 
-            for (character in sortedActiveChars) {
-                val messages = chatRepo.getMessages(sessionId)
-                val lastUserIndex = messages.indexOfLast { it.senderId == "user" }
-                if (lastUserIndex == -1) break
-
-                val messagesSinceLastQuestion = messages.subList(lastUserIndex + 1, messages.size)
-                val alreadyAnswered = messagesSinceLastQuestion.any { it.senderId == character.id }
-
-                if (alreadyAnswered) {
-                    continue
+            if (_isAutoNextEnabled.value) {
+                kotlinx.coroutines.delay(1500)
+                val updatedMessages = chatRepo.getMessages(sessionId)
+                val updatedSinceLast = updatedMessages.subList(lastUserIndex + 1, updatedMessages.size)
+                val answeredInTarget = updatedSinceLast.filter { it.roundIndex == currentRound }.map { it.senderId }.toSet()
+                if (activeChars.all { it.id in answeredInTarget }) {
+                    runRoundtableSequence(sessionId)
                 }
-
-                _typingCharacterId.value = character.id
-
-                val pendingMsgId = chatRepo.insertMessage(
-                    Message(
-                        chatId = sessionId,
-                        senderId = character.id,
-                        senderName = character.name,
-                        avatar = character.avatar,
-                        text = "正在思考中...",
-                        isPending = true
-                    )
-                )
-
-                val transcript = buildTranscript(messages, character)
-
-                // 核心 API 调用，使用了动态多 Key 轮询熔断机制，忽略已传入的单 key 参数
-                val responseText = callGeminiApi(character, transcript, _apiKey.value, sessionId)
-
-                chatRepo.deleteMessageById(pendingMsgId)
-
-                chatRepo.insertMessage(
-                    Message(
-                        chatId = sessionId,
-                        senderId = character.id,
-                        senderName = character.name,
-                        avatar = character.avatar,
-                        text = responseText
-                    )
-                )
-
-                // 若关闭了“自动顺延”，在当前角色回答完后直接截断循环，等待用户手动点击触发下一个
-                if (!_isAutoNextEnabled.value) {
-                    break
-                }
-
-                kotlinx.coroutines.delay(1200)
             }
+
         } catch (e: Exception) {
             e.printStackTrace()
             _errorMessage.value = "对话生成出错: ${e.localizedMessage ?: "未知错误"}"
             chatRepo.removePendingMessages(sessionId)
         } finally {
-            _typingCharacterId.value = null
             _isRoundtableRunning.value = false
         }
     }
 
-    private fun buildTranscript(allMessages: List<Message>, currentCharacter: Character): String {
+    private suspend fun executeCharacterAnswer(
+        character: Character,
+        sessionId: Long,
+        currentRound: Int,
+        messagesSnapshot: List<Message>,
+        apiKey: String
+    ) {
+        _typingCharacterIds.value = _typingCharacterIds.value + character.id
+
+        val pendingMsgId = chatRepo.insertMessage(
+            Message(
+                chatId = sessionId,
+                senderId = character.id,
+                senderName = character.name,
+                avatar = character.avatar,
+                text = "正在思考中...",
+                isPending = true,
+                roundIndex = currentRound
+            )
+        )
+
+        val transcript = buildTranscript(messagesSnapshot, character, currentRound)
+
+        try {
+            val responseText = callGeminiApi(character, transcript, apiKey, sessionId)
+            chatRepo.deleteMessageById(pendingMsgId)
+            chatRepo.insertMessage(
+                Message(
+                    chatId = sessionId,
+                    senderId = character.id,
+                    senderName = character.name,
+                    avatar = character.avatar,
+                    text = responseText,
+                    roundIndex = currentRound
+                )
+            )
+        } catch (e: Exception) {
+            Log.e("RoundtableViewModel", "生成回答出错: ${character.name}", e)
+            chatRepo.deleteMessageById(pendingMsgId)
+        } finally {
+            _typingCharacterIds.value = _typingCharacterIds.value - character.id
+        }
+    }
+
+    private fun buildTranscript(allMessages: List<Message>, currentCharacter: Character, roundIndex: Int): String {
         val sb = StringBuilder()
         sb.append("【圆桌会议脑暴记录】\n\n")
 
-        val recentMessages = allMessages.takeLast(15)
+        val lastUserMsg = allMessages.lastOrNull { it.senderId == "user" }
 
-        for (msg in recentMessages) {
-            if (msg.isPending) continue
-            val roleName = if (msg.senderId == "user") "用户提问" else "智囊「${msg.senderName}」"
-            sb.append("$roleName：${msg.text}\n\n")
+        if (roundIndex == 1) {
+            if (lastUserMsg != null) {
+                sb.append("用户提问：${lastUserMsg.text}\n\n")
+            }
+        } else {
+            val lastUserIndex = allMessages.indexOfLast { it.senderId == "user" }
+            if (lastUserIndex != -1) {
+                sb.append("用户提问：${lastUserMsg?.text}\n\n")
+                val charMessages = allMessages.subList(lastUserIndex + 1, allMessages.size)
+                for (msg in charMessages) {
+                    if (msg.isPending) continue
+                    sb.append("智囊「${msg.senderName}」在第 ${msg.roundIndex} 轮发言：\n${msg.text}\n\n")
+                }
+            }
         }
 
-        sb.append("现在，轮到你——「${currentCharacter.name}」发言了。\n")
-        sb.append("请记住你的设定、说话语气和人设。")
+        sb.append("现在，轮到你——「${currentCharacter.name}」在第 $roundIndex 轮发言了。\n")
+        sb.append("请记住你的设定、说话语气 and 人设。")
         sb.append("请你站在你自己的专业背景与刺头/支持立场，对用户的提问进行解答，")
-        sb.append("同时你**必须**参考、评判、补充或反驳前几位智囊的发言，展现出真实的脑暴交锋！")
+        if (roundIndex > 1) {
+            sb.append("同时你**必须**参考、评判、补充或反驳前几位智囊在前几轮的发言，展现出真实的脑暴交锋！")
+        }
         sb.append("第一句话请直接切入重点，给出明确的判断或观点，千万别废话铺垫！")
 
         return sb.toString()
@@ -444,7 +684,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     ${if (totalFiles.isEmpty()) "（当前无候选本地资料）" else totalFiles.joinToString(", ")}
                     
                     【输出规范】
-                    你必须返回一个符合以下 JSON 格式的纯 JSON 字符串。不要包含任何 Markdown 格式包裹（例如不要使用 ```json 或 ``` 标记），直接输出 JSON 内容。
+                    你必须返回一个符合以下 JSON 格式的纯 JSON 字符串。不要包含 any Markdown 格式包裹（例如不要使用 ```json 或 ``` 标记），直接输出 JSON 内容。
                     
                     JSON 格式：
                     {
@@ -465,7 +705,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     ${if (totalFiles.isEmpty()) "（当前无候选本地资料）" else totalFiles.joinToString(", ")}
                     
                     【输出规范】
-                    你必须返回一个符合以下 JSON 格式的纯 JSON 字符串。不要包含任何 Markdown 格式包裹（例如不要使用 ```json 或 ``` 标记），直接输出 JSON 内容。
+                    你必须返回一个符合以下 JSON 格式的纯 JSON 字符串。不要包含 any Markdown 格式包裹（例如不要使用 ```json 或 ``` 标记），直接输出 JSON 内容。
                     
                     JSON 格式示例：
                     {
@@ -489,7 +729,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     ${if (totalFiles.isEmpty()) "（当前无候选本地资料）" else totalFiles.joinToString(", ")}
                     
                     【输出规范】
-                    你必须返回一个符合以下 JSON 格式的纯 JSON 字符串。不要包含任何 Markdown 格式包裹（例如不要使用 ```json 或 ``` 标记），直接输出 JSON 内容。
+                    你必须返回一个符合以下 JSON 格式的纯 JSON 字符串。不要包含 any Markdown 格式包裹（例如不要使用 ```json 或 ``` 标记），直接输出 JSON 内容。
                     
                     JSON 格式示例：
                     {
@@ -515,12 +755,13 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     sessionId = sessionId
                 )
             } catch (fallbackEx: Exception) {
-                if (apiKey.isNotBlank()) {
+                val userKey = _apiKey.value
+                if (userKey.isNotBlank()) {
                     Log.d("RoundtableViewModel", "内置 Key 池 Broker 路由调用失败，尝试使用用户 API Key 直连...")
                     try {
                         RetrofitClient.service.generateContent(
                             model = "gemini-3.1-flash-lite-preview",
-                            apiKey = apiKey,
+                            apiKey = userKey,
                             request = brokerRequest
                         )
                     } catch (e: Exception) {
@@ -605,19 +846,20 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     )
 
                     val searchResponse = try {
-                        RetrofitClient.generateContentWithFallback(
-                            context = context,
+                        // 使用当前分配的 apiKey 搜索，若失败用用户 key
+                        RetrofitClient.service.generateContent(
                             model = "gemini-2.5-flash",
-                            request = searchRequest,
-                            sessionId = sessionId
+                            apiKey = apiKey,
+                            request = searchRequest
                         )
                     } catch (fallbackEx: Exception) {
-                        if (apiKey.isNotBlank()) {
+                        val userKey = _apiKey.value
+                        if (userKey.isNotBlank() && userKey != apiKey) {
                             Log.d("RoundtableViewModel", "内置多 Key 联网搜索失败，尝试使用用户配置的单 Key 直连...")
                             try {
                                 RetrofitClient.service.generateContent(
                                     model = "gemini-2.5-flash",
-                                    apiKey = apiKey,
+                                    apiKey = userKey,
                                     request = searchRequest
                                 )
                             } catch (e: Exception) {
@@ -681,39 +923,100 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 parts = listOf(Part(text = finalSystemPrompt))
             ),
             generationConfig = com.example.skillroundtable.network.GenerationConfig(
+                maxOutputTokens = 8192,
                 thinkingConfig = com.example.skillroundtable.network.ThinkingConfig(
                     thinkingLevel = "high"
                 )
             )
         )
 
-        // 优先尝试内置多 Key 轮询熔断，如失败且用户在 UI 配置了 key，则尝试用用户 Key 直连
-        val response = try {
-            RetrofitClient.generateContentWithFallback(
-                context = context,
+        // 优先尝试分流分配的 key，熔断并 fallback 机制
+        var currentResponse = try {
+            Log.d("RoundtableViewModel", "调用 Gemini 3.5 Flash，Key: ${apiKey.take(8)}...")
+            RetrofitClient.service.generateContent(
                 model = "gemini-3.5-flash",
-                request = request,
-                sessionId = sessionId
+                apiKey = apiKey,
+                request = request
             )
-        } catch (fallbackEx: Exception) {
-            if (apiKey.isNotBlank()) {
-                Log.d("RoundtableViewModel", "内置多 Key 轮询失败，尝试使用用户配置的单 Key 进行直连...")
+        } catch (e: retrofit2.HttpException) {
+            val code = e.code()
+            if (code == 429) {
+                val matchingKey = ApiKeyPool.API_KEYS.firstOrNull { it.key == apiKey }
+                if (matchingKey != null) {
+                    ApiKeyPool.banKey(context, matchingKey.id)
+                    Log.w("RoundtableViewModel", "已熔断 Key ${matchingKey.id}")
+                }
+            }
+            val userKey = _apiKey.value
+            if (userKey.isNotBlank() && userKey != apiKey) {
+                Log.d("RoundtableViewModel", "当前分配 Key 出错，尝试使用用户配置的单 Key 直连...")
                 RetrofitClient.service.generateContent(
                     model = "gemini-3.5-flash",
-                    apiKey = apiKey,
+                    apiKey = userKey,
                     request = request
                 )
             } else {
-                throw fallbackEx
+                throw e
+            }
+        } catch (e: Exception) {
+            val userKey = _apiKey.value
+            if (userKey.isNotBlank() && userKey != apiKey) {
+                Log.d("RoundtableViewModel", "当前分配 Key 出错，尝试使用用户配置的单 Key 直连...")
+                RetrofitClient.service.generateContent(
+                    model = "gemini-3.5-flash",
+                    apiKey = userKey,
+                    request = request
+                )
+            } else {
+                throw e
             }
         }
 
-        val responseText = response.candidates.firstOrNull()?.content?.parts?.firstOrNull()?.text
+        var responseText = currentResponse.candidates.firstOrNull()?.content?.parts?.firstOrNull()?.text
         if (responseText.isNullOrBlank()) {
             throw Exception("API返回空响应")
         }
+
+        // 检查 finishReason 并进行续写 (Bug①)
+        var currentCandidate = currentResponse.candidates.firstOrNull()
+        while (currentCandidate?.finishReason == "MAX_TOKENS") {
+            Log.d("RoundtableViewModel", "检测到回复被截断 (MAX_TOKENS)，发起续写请求...")
+            val continueRequest = request.copy(
+                contents = listOf(
+                    Content(role = "user", parts = listOf(Part(text = prompt))),
+                    Content(role = "model", parts = listOf(Part(text = responseText))),
+                    Content(role = "user", parts = listOf(Part(text = "请继续")))
+                )
+            )
+            val continueResponse = try {
+                RetrofitClient.service.generateContent(
+                    model = "gemini-3.5-flash",
+                    apiKey = apiKey,
+                    request = continueRequest
+                )
+            } catch (fallbackEx: Exception) {
+                val userKey = _apiKey.value
+                if (userKey.isNotBlank() && userKey != apiKey) {
+                    RetrofitClient.service.generateContent(
+                        model = "gemini-3.5-flash",
+                        apiKey = userKey,
+                        request = continueRequest
+                    )
+                } else {
+                    throw fallbackEx
+                }
+            }
+            val continueText = continueResponse.candidates.firstOrNull()?.content?.parts?.firstOrNull()?.text
+            if (continueText.isNullOrBlank()) {
+                break
+            }
+            responseText += continueText
+            currentResponse = continueResponse
+            currentCandidate = continueResponse.candidates.firstOrNull()
+        }
         responseText
     }
+
 
     fun applyCharacterGroup(group: com.example.skillroundtable.data.CharacterGroup) {
         viewModelScope.launch(Dispatchers.IO) {

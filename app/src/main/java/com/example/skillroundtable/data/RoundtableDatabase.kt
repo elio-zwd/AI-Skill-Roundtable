@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 
 @Database(
     entities = [Character::class, ChatSession::class, Message::class, CharacterGroup::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class RoundtableDatabase : RoomDatabase() {
@@ -23,6 +23,21 @@ abstract class RoundtableDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: RoundtableDatabase? = null
 
+        val MIGRATION_3_4 = object : androidx.room.migration.Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE messages ADD COLUMN roundIndex INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_4_5 = object : androidx.room.migration.Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE messages ADD COLUMN audioFilePath TEXT")
+                db.execSQL("ALTER TABLE messages ADD COLUMN audioFormat TEXT")
+                db.execSQL("ALTER TABLE messages ADD COLUMN audioSizeBytes INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE characters ADD COLUMN voiceConfig TEXT NOT NULL DEFAULT 'Aoede'")
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): RoundtableDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -30,6 +45,7 @@ abstract class RoundtableDatabase : RoomDatabase() {
                     RoundtableDatabase::class.java,
                     "roundtable_database"
                 )
+                .addMigrations(MIGRATION_3_4, MIGRATION_4_5)
                 .fallbackToDestructiveMigration()
                 .addCallback(DatabaseCallback(scope, context.applicationContext))
                 .build()
@@ -61,7 +77,8 @@ abstract class RoundtableDatabase : RoomDatabase() {
                             skillAssetPath = config.skillAssetPath,
                             order = config.order,
                             isActive = config.isActive,
-                            skillDescriptionVector = vectorStr
+                            skillDescriptionVector = vectorStr,
+                            voiceConfig = config.voiceConfig
                         )
                     }
                     if (initialCharacters.isNotEmpty()) {

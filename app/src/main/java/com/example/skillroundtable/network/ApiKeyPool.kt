@@ -12,6 +12,23 @@ data class ApiKeyInfo(
     val account: String
 )
 
+data class ApiLog(
+    val keyId: String,
+    val model: String,
+    val requestTime: Long,
+    val responseTime: Long,
+    val statusCode: Int,
+    val errorMessage: String? = null,
+    val prompt: String = ""
+)
+
+data class KeyStatus(
+    val id: String,
+    val isBanned: Boolean,
+    val banExpireTime: Long,
+    val remainingBanTimeMs: Long
+)
+
 /**
  * API Key 管理池，提供 10 个备用 Key 的轮询机制，以及 API 429 频控错误的 24 小时熔断保护。
  */
@@ -19,6 +36,26 @@ object ApiKeyPool {
     private const val PREFS_NAME = "gemini_api_key_prefs"
     private const val KEY_LAST_USED_ID = "last_used_key_id"
     private const val BAN_DURATION_MS = 24 * 60 * 60 * 1000L // 24小时
+
+    val apiLogs = java.util.concurrent.CopyOnWriteArrayList<ApiLog>()
+
+    fun addLog(log: ApiLog) {
+        apiLogs.add(0, log)
+        if (apiLogs.size > 50) {
+            apiLogs.removeAt(apiLogs.size - 1)
+        }
+    }
+
+    fun getKeyStatuses(context: Context): List<KeyStatus> {
+        val prefs = getPrefs(context)
+        val now = System.currentTimeMillis()
+        return API_KEYS.map { apiKey ->
+            val banExpire = prefs.getLong("ban_${apiKey.id}", 0L)
+            val isBanned = banExpire > now
+            val remaining = if (isBanned) banExpire - now else 0L
+            KeyStatus(apiKey.id, isBanned, banExpire, remaining)
+        }
+    }
 
     // 内置 10 个来自 life-archive-app 的备用 Key
     val API_KEYS = listOf(
@@ -131,6 +168,36 @@ object ApiKeyPool {
         val deferredKeys = availableKeys.filter { it.id == lastUsedId }
 
         return preferredKeys + deferredKeys
+    }
+
+    /**
+     * 将角色分配给可用的 API 密钥（随机分组策略）
+     * 每次会话开始时，将参与角色随机打乱后，每 1~3 个随机分配给一个可用 API Key。
+     * 返回 Map<ApiKeyInfo, List<Character>> 代表 keyId 到该组角色的映射。
+     */
+    fun assignRandomGroups(
+        characters: List<com.example.skillroundtable.data.Character>,
+        availableKeys: List<ApiKeyInfo>
+    ): Map<ApiKeyInfo, List<com.example.skillroundtable.data.Character>> {
+        if (characters.isEmpty() || availableKeys.isEmpty()) return emptyMap()
+        
+        val shuffledChars = characters.shuffled()
+        val groups = mutableListOf<List<com.example.skillroundtable.data.Character>>()
+        var remaining = shuffledChars
+        
+        while (remaining.isNotEmpty()) {
+            val groupSize = (1..3).random()
+            val takeSize = minOf(groupSize, remaining.size)
+            groups.add(remaining.take(takeSize))
+            remaining = remaining.drop(takeSize)
+        }
+        
+        val result = mutableMapOf<ApiKeyInfo, List<com.example.skillroundtable.data.Character>>()
+        groups.forEachIndexed { index, group ->
+            val keyInfo = availableKeys[index % availableKeys.size]
+            result[keyInfo] = group
+        }
+        return result
     }
 
     /**

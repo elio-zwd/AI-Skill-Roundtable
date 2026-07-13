@@ -56,6 +56,7 @@ data class GenerateContentResponse(
 @Serializable
 data class Candidate(
     val content: Content,
+    val finishReason: String? = null,
     val groundingMetadata: GroundingMetadata? = null
 )
 
@@ -122,7 +123,7 @@ object RetrofitClient {
 
     private val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(60, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(120, TimeUnit.SECONDS)
         .writeTimeout(60, TimeUnit.SECONDS)
         .addInterceptor(HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
@@ -153,6 +154,7 @@ object RetrofitClient {
     ): GenerateContentResponse {
         var lastException: Exception? = null
         val attempts = mutableListOf<String>()
+        val prompt = request.contents.firstOrNull()?.parts?.firstOrNull()?.text ?: ""
 
         for (attempt in 0 until ApiKeyPool.API_KEYS.size) {
             val keyInfo = ApiKeyPool.getOrBindSessionKey(context, sessionId)
@@ -160,6 +162,7 @@ object RetrofitClient {
                 throw Exception("当前无可用内置 API Key，全部已被频控熔断。")
             }
 
+            val startTime = System.currentTimeMillis()
             try {
                 Log.d(TAG, "正在使用会话级 Key ${keyInfo.id} 尝试调用 $model...")
                 val response = service.generateContent(
@@ -167,16 +170,31 @@ object RetrofitClient {
                     apiKey = keyInfo.key,
                     request = request
                 )
-                // 成功调用，更新 lastUsedKeyId 并返回响应
                 ApiKeyPool.setLastUsedKeyId(context, keyInfo.id)
+                ApiKeyPool.addLog(ApiLog(
+                    keyId = keyInfo.id,
+                    model = model,
+                    requestTime = startTime,
+                    responseTime = System.currentTimeMillis(),
+                    statusCode = 200,
+                    prompt = prompt
+                ))
                 Log.d(TAG, "Key ${keyInfo.id} / $model 调用成功！")
                 return response
             } catch (e: retrofit2.HttpException) {
                 val code = e.code()
                 Log.w(TAG, "Key ${keyInfo.id} / $model 调用失败，HTTP 状态码: $code")
                 attempts.add("${keyInfo.id}/$model: HTTP $code")
+                ApiKeyPool.addLog(ApiLog(
+                    keyId = keyInfo.id,
+                    model = model,
+                    requestTime = startTime,
+                    responseTime = System.currentTimeMillis(),
+                    statusCode = code,
+                    errorMessage = e.message(),
+                    prompt = prompt
+                ))
                 if (code == 429) {
-                    // 遇到 429，触发熔断 24 小时
                     ApiKeyPool.banKey(context, keyInfo.id)
                     Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
                 }
@@ -184,10 +202,18 @@ object RetrofitClient {
             } catch (e: Exception) {
                 Log.w(TAG, "Key ${keyInfo.id} / $model 调用失败，非 HTTP 异常: ${e.message}")
                 attempts.add("${keyInfo.id}/$model: ${e.message ?: "未知错误"}")
+                ApiKeyPool.addLog(ApiLog(
+                    keyId = keyInfo.id,
+                    model = model,
+                    requestTime = startTime,
+                    responseTime = System.currentTimeMillis(),
+                    statusCode = -1,
+                    errorMessage = e.message ?: "未知错误",
+                    prompt = prompt
+                ))
                 lastException = e
             }
 
-            // 出错时，自动换绑下一个可用的 Key
             val nextKey = ApiKeyPool.getAvailableKeys(context).firstOrNull { it.id != keyInfo.id }
             if (nextKey != null) {
                 Log.d(TAG, "会话 $sessionId 失败，换绑下一个 Key: ${nextKey.id}")
@@ -213,6 +239,7 @@ object RetrofitClient {
     ): GenerateContentResponse {
         var lastException: Exception? = null
         val attempts = mutableListOf<String>()
+        val prompt = request.contents.firstOrNull()?.parts?.firstOrNull()?.text ?: ""
 
         for (attempt in 0 until ApiKeyPool.API_KEYS.size) {
             val keyInfo = ApiKeyPool.getOrBindSessionKey(context, sessionId)
@@ -220,6 +247,7 @@ object RetrofitClient {
                 throw Exception("当前无可用内置 API Key，全部已被熔断。")
             }
 
+            val startTime = System.currentTimeMillis()
             try {
                 Log.d(TAG, "正在使用会话级 Key ${keyInfo.id} 尝试调用 Broker $model...")
                 val response = service.generateContent(
@@ -228,12 +256,29 @@ object RetrofitClient {
                     request = request
                 )
                 ApiKeyPool.setLastUsedKeyId(context, keyInfo.id)
+                ApiKeyPool.addLog(ApiLog(
+                    keyId = keyInfo.id,
+                    model = model,
+                    requestTime = startTime,
+                    responseTime = System.currentTimeMillis(),
+                    statusCode = 200,
+                    prompt = prompt
+                ))
                 Log.d(TAG, "Key ${keyInfo.id} / Broker $model 调用成功！")
                 return response
             } catch (e: retrofit2.HttpException) {
                 val code = e.code()
                 Log.w(TAG, "Key ${keyInfo.id} / Broker $model 失败，状态码: $code")
                 attempts.add("${keyInfo.id}/$model: HTTP $code")
+                ApiKeyPool.addLog(ApiLog(
+                    keyId = keyInfo.id,
+                    model = model,
+                    requestTime = startTime,
+                    responseTime = System.currentTimeMillis(),
+                    statusCode = code,
+                    errorMessage = e.message(),
+                    prompt = prompt
+                ))
                 if (code == 429) {
                     ApiKeyPool.banKey(context, keyInfo.id)
                     Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
@@ -242,6 +287,15 @@ object RetrofitClient {
             } catch (e: Exception) {
                 Log.w(TAG, "Key ${keyInfo.id} / Broker $model 失败，非 HTTP 异常: ${e.message}")
                 attempts.add("${keyInfo.id}/$model: ${e.message ?: "未知错误"}")
+                ApiKeyPool.addLog(ApiLog(
+                    keyId = keyInfo.id,
+                    model = model,
+                    requestTime = startTime,
+                    responseTime = System.currentTimeMillis(),
+                    statusCode = -1,
+                    errorMessage = e.message ?: "未知错误",
+                    prompt = prompt
+                ))
                 lastException = e
             }
 
