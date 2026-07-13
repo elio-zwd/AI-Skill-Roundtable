@@ -111,11 +111,23 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
     private val _apiKey = MutableStateFlow("")
     val apiKey: StateFlow<String> = _apiKey.asStateFlow()
 
+    private fun isApiKeyValid(key: String): Boolean {
+        return key.isNotBlank() &&
+                !key.equals("your_gemini_api_key_here", ignoreCase = true) &&
+                !key.startsWith("your_") &&
+                !key.contains("PLACEHOLDER")
+    }
+
     init {
-        // 从 BuildConfig 获取初始 API 密钥（如果配置了）
-        val configKey = BuildConfig.GEMINI_API_KEY
-        if (!configKey.isNullOrBlank()) {
-            _apiKey.value = configKey
+        val context = getApplication<Application>().applicationContext
+        val savedKey = com.example.skillroundtable.network.ApiKeyPool.getCustomApiKey(context)
+        if (!savedKey.isNullOrBlank() && isApiKeyValid(savedKey)) {
+            _apiKey.value = savedKey
+        } else {
+            val configKey = BuildConfig.GEMINI_API_KEY
+            if (!configKey.isNullOrBlank() && isApiKeyValid(configKey)) {
+                _apiKey.value = configKey
+            }
         }
         ensureCoreCharactersExist()
     }
@@ -180,6 +192,8 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
     fun setApiKey(key: String) {
         _apiKey.value = key
+        val context = getApplication<Application>().applicationContext
+        com.example.skillroundtable.network.ApiKeyPool.saveCustomApiKey(context, key)
     }
 
     fun clearError() {

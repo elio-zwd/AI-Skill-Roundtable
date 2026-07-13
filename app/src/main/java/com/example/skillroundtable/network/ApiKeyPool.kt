@@ -102,6 +102,22 @@ object ApiKeyPool {
     }
 
     /**
+     * 获取持久化保存的自定义 API Key
+     */
+    fun getCustomApiKey(context: Context): String? {
+        return getPrefs(context).getString("custom_api_key", null)
+    }
+
+    /**
+     * 持久化保存自定义 API Key
+     */
+    fun saveCustomApiKey(context: Context, key: String) {
+        getPrefs(context).edit()
+            .putString("custom_api_key", key)
+            .apply()
+    }
+
+    /**
      * 获取当前所有未处于熔断期的可用 Key
      */
     fun getAvailableKeys(context: Context): List<ApiKeyInfo> {
