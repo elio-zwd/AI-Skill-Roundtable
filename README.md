@@ -13,28 +13,28 @@
 
 ### 📋 20 位智囊清单
 
-| 角色 | 核心标签 / 决策 DNA | 技能 (Skill) 物理源文件 |
-|------|--------------------|-----------------------|
-| 埃隆·马斯克 | 第一性原理 · 五步工作法 · 白痴指数 | `elon-musk-skill-main/SKILL.md` |
-| 理查德·费曼 | 反术语 · 货物崇拜 · 六年级测试 | `feynman-skill-main/SKILL.md` |
-| 查理·芒格 | 多元思维模型 · 逆向思考 · 太难筐 | `munger-skill-main/SKILL.md` |
-| 纳瓦尔 | 特定知识 · 无需许可的杠杆 · 无限游戏 | `naval-skill-main/SKILL.md` |
-| 史蒂夫·乔布斯 | 极简 · 端到端控制 · 死亡过滤器 | `steve-jobs-skill-main/SKILL.md` |
-| 纳西姆·塔勒布 | 反脆弱 · 切肤之痛 · 杠铃策略 | `taleb-skill-main/SKILL.md` |
-| 张雪峰 | 就业倒推 · 家庭背景分流 · 社会筛子论 | `zhangxuefeng-skill-main/SKILL.md` |
-| 安德烈·卡帕斯 | 深度学习 · 代码即算法 · 神经网络本质 | `karpathy-skill/SKILL.md` |
-| 张一鸣 | 延迟满足感 · 空间复杂度与认知 · 务实 | `zhang-yiming-skill/SKILL.md` |
-| 保罗·格雷厄姆 | 创投教父 · 做出人们需要的东西 · 独立思考 | `paul-graham-skill/SKILL.md` |
-| 伊利亚·苏茨克维尔 | 技术先知 · 人工智能安全 · 无限逼近真理 | `ilya-sutskever-skill/SKILL.md` |
-| 唐纳德·特朗普 | 交易的艺术 · 强对抗节奏 · 赢家通吃 | `trump-skill/SKILL.md` |
-| 吉米·唐纳森 (MrBeast) | 注意力引擎 · 极限测试 · 极致流量曝光 | `mrbeast-skill/SKILL.md` |
-| 孙宇晨 | Web3 杠杆 · 顶级营销术 · 认知套利 | `sun-yuchen-perspective/SKILL.md` |
-| 西格蒙德·弗洛伊德 | 精神分析学 · 冰山模型 · 潜意识映射 | `freud-skill/SKILL.md` |
-| X 增长导师 | 海外流量选题 · 社交媒体算法 · 快速增长密钥 | `x-mentor-skill/SKILL.md` |
-| 峰哥亡命天涯 | 纪实旅行自媒体 · 平民视角 · 黑色幽默冷眼旁白 | `fengge-skill/SKILL.md` |
-| 赵长鹏 (CZ) | 去中心化精神 · 极高系统效率 · 实用加密精神 | `cz-skill/SKILL.md` |
-| 段永平 | 平常心投资法 · 本分价值观 · 避开不对的事 | `duan-yongping-skill/SKILL.md` |
-| 蒂姆·库克 | 极致供应链管理 · 平稳过渡艺术 · 商业操盘手 | `tim-cook-skill/SKILL.md` |
+| 角色 | 核心标签 / 决策 DNA | 分配音色 (音色特点) | 技能 (Skill) 物理源文件 |
+|------|--------------------|-------------------|-----------------------|
+| 埃隆·马斯克 | 第一性原理 · 五步工作法 · 白痴指数 | **Fenrir** (Excitable 亢奋极客) | `elon-musk-skill-main/SKILL.md` |
+| 理查德·费曼 | 反术语 · 货物崇拜 · 六年级测试 | **Sadaltager** (Knowledgeable 博学大师) | `feynman-skill-main/SKILL.md` |
+| 查理·芒格 | 多元思维模型 · 逆向思考 · 太难筐 | **Gacrux** (Mature 沉稳长者) | `munger-skill-main/SKILL.md` |
+| 纳瓦尔 | 特定知识 · 无需许可的杠杆 · 无限游戏 | **Charon** (Informative 冷静思考者) | `naval-skill-main/SKILL.md` |
+| 史蒂夫·乔布斯 | 极简 · 端到端控制 · 死亡过滤器 | **Kore** (Firm 坚定而极具煽动性) | `steve-jobs-skill-main/SKILL.md` |
+| 纳西姆·塔勒布 | 反脆弱 · 切肤之痛 · 杠铃策略 | **Algenib** (Gravelly 粗粝反叛) | `taleb-skill-main/SKILL.md` |
+| 张雪峰 | 就业倒推 · 家庭背景分流 · 社会筛子论 | **Orus** (Firm 洪亮坚定且极接地气) | `zhangxuefeng-skill-main/SKILL.md` |
+| 安德烈·卡帕斯 | 深度学习 · 代码即算法 · 神经网络本质 | **Achird** (Friendly 亲切而有条理) | `karpathy-skill/SKILL.md` |
+| 张一鸣 | 延迟满足感 · 空间复杂度与认知 · 务实 | **Schedar** (Even 极度克制与平静) | `zhang-yiming-skill/SKILL.md` |
+| 保罗·格雷厄姆 | 创投教父 · 做出人们需要的东西 · 独立思考 | **Rasalgethi** (Informative 逻辑启发式) | `paul-graham-skill/SKILL.md` |
+| 伊利亚·苏茨克维尔 | 技术先知 · 人工智能安全 · 无限逼近真理 | **Achernar** (Soft 深邃而谦逊温和) | `ilya-sutskever-skill/SKILL.md` |
+| 唐纳德·特朗普 | 交易的艺术 · 强对抗节奏 · 赢家通吃 | **Pulcherrima** (Forward 直白且极富攻击性) | `trump-skill/SKILL.md` |
+| 吉米·唐纳森 (MrBeast) | 注意力引擎 · 极限测试 · 极致流量曝光 | **Sadachbia** (Lively 活泼充满戏剧张力) | `mrbeast-skill/SKILL.md` |
+| 孙宇晨 | Web3 杠杆 · 顶级营销术 · 认知套利 | **Laomedeia** (Upbeat 亢奋高昂的营销风) | `sun-yuchen-perspective/SKILL.md` |
+| 西格蒙德·弗洛伊德 | 精神分析学 · 冰山模型 · 潜意识映射 | **Vindemiatrix** (Gentle 温和细致的心理流) | `freud-skill/SKILL.md` |
+| X 增长导师 | 海外流量选题 · 社交媒体算法 · 快速增长密钥 | **Zubenelgenubi** (Casual 随性自如的播主风) | `x-mentor-skill/SKILL.md` |
+| 峰哥亡命天涯 | 纪实旅行自媒体 · 平民视角 · 黑色幽默冷眼旁白 | **Umbriel** (Easy-going 慵懒随性的冷幽默) | `fengge-skill/SKILL.md` |
+| 赵长鹏 (CZ) | 去中心化精神 · 极高系统效率 · 实用加密精神 | **Algieba** (Smooth 自信圆融的极客腔) | `cz-skill/SKILL.md` |
+| 段永平 | 平常心投资法 · 本分价值观 · 避开不对的事 | **Sulafat** (Warm 温暖朴实的本分大叔) | `duan-yongping-skill/SKILL.md` |
+| 蒂姆·库克 | 极致供应链管理 · 平稳过渡艺术 · 商业操盘手 | **Despina** (Smooth 温润平稳的中庸管理腔) | `tim-cook-skill/SKILL.md` |
 
 ---
 

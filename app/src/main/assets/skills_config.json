@@ -779,7 +779,8 @@
       -0.051294,
       -0.084849,
       -0.015811
-    ]
+    ],
+    "voiceConfig": "Orus"
   },
   {
     "id": "elon_musk",
@@ -1561,7 +1562,8 @@
       -0.031957,
       0.059856,
       -0.089521
-    ]
+    ],
+    "voiceConfig": "Fenrir"
   },
   {
     "id": "richard_feynman",
@@ -2343,7 +2345,8 @@
       -0.06364,
       0.098324,
       -0.064382
-    ]
+    ],
+    "voiceConfig": "Sadaltager"
   },
   {
     "id": "charlie_munger",
@@ -3125,7 +3128,8 @@
       -0.024431,
       -0.053355,
       -0.052825
-    ]
+    ],
+    "voiceConfig": "Gacrux"
   },
   {
     "id": "naval_ravikant",
@@ -3907,7 +3911,8 @@
       -0.020351,
       -0.016184,
       -0.067232
-    ]
+    ],
+    "voiceConfig": "Charon"
   },
   {
     "id": "steve_jobs",
@@ -4689,7 +4694,8 @@
       -0.038146,
       0.02739,
       0.047651
-    ]
+    ],
+    "voiceConfig": "Kore"
   },
   {
     "id": "nassim_taleb",
@@ -5471,7 +5477,8 @@
       -0.00558,
       -0.096836,
       0.099113
-    ]
+    ],
+    "voiceConfig": "Algenib"
   },
   {
     "id": "andrej_karpathy",
@@ -6253,7 +6260,8 @@
       0.065458,
       -0.047982,
       0.068043
-    ]
+    ],
+    "voiceConfig": "Achird"
   },
   {
     "id": "zhang_yiming",
@@ -7035,7 +7043,8 @@
       0.004986,
       -0.008212,
       -0.046615
-    ]
+    ],
+    "voiceConfig": "Schedar"
   },
   {
     "id": "paul_graham",
@@ -7817,7 +7826,8 @@
       -0.087696,
       -0.015003,
       -0.091724
-    ]
+    ],
+    "voiceConfig": "Rasalgethi"
   },
   {
     "id": "ilya_sutskever",
@@ -8599,7 +8609,8 @@
       0.057305,
       0.045691,
       0.071683
-    ]
+    ],
+    "voiceConfig": "Achernar"
   },
   {
     "id": "donald_trump",
@@ -9381,7 +9392,8 @@
       -0.076563,
       0.042077,
       -0.031164
-    ]
+    ],
+    "voiceConfig": "Pulcherrima"
   },
   {
     "id": "mr_beast",
@@ -10163,7 +10175,8 @@
       0.082194,
       0.009213,
       0.014588
-    ]
+    ],
+    "voiceConfig": "Sadachbia"
   },
   {
     "id": "justin_sun",
@@ -10945,7 +10958,8 @@
       -0.003371,
       0.01677,
       0.027867
-    ]
+    ],
+    "voiceConfig": "Laomedeia"
   },
   {
     "id": "sigmund_freud",
@@ -11727,7 +11741,8 @@
       0.056272,
       -0.087412,
       -0.018103
-    ]
+    ],
+    "voiceConfig": "Vindemiatrix"
   },
   {
     "id": "x_mentor",
@@ -12509,7 +12524,8 @@
       0.077962,
       -0.06204,
       -0.027944
-    ]
+    ],
+    "voiceConfig": "Zubenelgenubi"
   },
   {
     "id": "feng_ge",
@@ -13291,7 +13307,8 @@
       -0.065581,
       0.092699,
       -0.047575
-    ]
+    ],
+    "voiceConfig": "Umbriel"
   },
   {
     "id": "changpeng_zhao",
@@ -14073,7 +14090,8 @@
       -0.011919,
       -0.066682,
       -0.057043
-    ]
+    ],
+    "voiceConfig": "Algieba"
   },
   {
     "id": "duan_yongping",
@@ -14855,7 +14873,8 @@
       0.046674,
       -0.015686,
       0.074222
-    ]
+    ],
+    "voiceConfig": "Sulafat"
   },
   {
     "id": "tim_cook",
@@ -15637,6 +15656,7 @@
       0.032295,
       0.078355,
       0.021954
-    ]
+    ],
+    "voiceConfig": "Despina"
   }
 ]

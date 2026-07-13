@@ -94,17 +94,20 @@ object LiveApiClient {
                 try {
                     val root = JSONObject(textMessage)
                     val serverContent = root.optJSONObject("serverContent") ?: return
-                    val modelTurn = serverContent.optJSONObject("modelTurn") ?: return
-                    val parts = modelTurn.optJSONArray("parts") ?: return
-                    
-                    for (i in 0 until parts.length()) {
-                        val part = parts.getJSONObject(i)
-                        val inlineData = part.optJSONObject("inlineData") ?: continue
-                        val mimeType = inlineData.optString("mimeType") ?: ""
-                        if (mimeType.startsWith("audio/pcm")) {
-                            val base64Data = inlineData.optString("data") ?: ""
-                            val pcmBytes = Base64.decode(base64Data, Base64.DEFAULT)
-                            pcmBuffer.write(pcmBytes)
+                    val modelTurn = serverContent.optJSONObject("modelTurn")
+                    if (modelTurn != null) {
+                        val parts = modelTurn.optJSONArray("parts")
+                        if (parts != null) {
+                            for (i in 0 until parts.length()) {
+                                val part = parts.getJSONObject(i)
+                                val inlineData = part.optJSONObject("inlineData") ?: continue
+                                val mimeType = inlineData.optString("mimeType") ?: ""
+                                if (mimeType.startsWith("audio/pcm")) {
+                                    val base64Data = inlineData.optString("data") ?: ""
+                                    val pcmBytes = Base64.decode(base64Data, Base64.DEFAULT)
+                                    pcmBuffer.write(pcmBytes)
+                                }
+                            }
                         }
                     }
 
