@@ -10,7 +10,7 @@
 **AI 智囊圆桌**是一款原生 Android 聊天应用。用户提问后，7 个 GitHub Skills 角色（Elon Musk、Feynman、Munger、Naval、Steve Jobs、Taleb、张雪峰）依次轮流作答，每位角色回答后自动携带完整上下文，让下一位角色看到前人发言并进行评论、反驳或补充，形成真实的圆桌脑暴效果。
 
 ### 1.2 当前阶段
-- **阶段**：并发回复交互、Markdown渲染与离线语音管理层（v2.0）全面交付，编译全量通过。
+- **阶段**：并发回复交互、Markdown渲染与离线语音管理层（v2.0）全面交付，角色预设/自定义分组、AI风格肖像画册大厅（v2.1）全面交付，编译通过。
 - **已交付目标**：
   1. **多角色并发回复**：使用并发协程组同时拉取所有角色的回答，配合多角色 typing 思考指示器。
   2. **反检测节奏策略**：配置 1~3s 首发错峰延迟与 2~6s 同 Key 内串行间隔，跨 Key 组间实现并发。
@@ -20,7 +20,11 @@
   6. **后台 MediaCodec 转码 AAC**：利用 CoroutineWorker 与原生 MediaCodec 异步打包 ADTS 头部压缩 WAV 为 AAC，节省 85%+ 空间。
   7. **🎵 音频管理 Tab**：底部增加第三 Tab 入口，具备体积统计、在线播放、全文折叠、手动转码、一键删除等功能。
   8. **API 熔断调试面板**：设置页提供强对比度 Debug 对话框，监控 10 个内置 Key 熔断倒计时，并保存最近 50 条请求日志。
-  9. **人格组合预设与 SKILL.md 可视化**：大厅顶端配置 4 套组合预设卡片并支持自定义另存/长按删除；席位抽屉动态加载并 Markdown 渲染角色的 SKILL.md 思维模型。
+  9. **人格组合预设与 SKILL.md 可意化**：大厅顶端配置 4 套组合预设卡片并支持自定义另存/长按删除；席位抽屉动态加载并 Markdown 渲染角色的 SKILL.md 思维模型。
+  10. **🎨 全员统一 AI 高端肖像 (v2.1)**：剔除难看 Emoji 头像，全员 20 位名人头像物理重构为 Morandi 极简平涂 AI 肖像 (JPG)，Assets 流式零依赖加载，头像一致性拉满。
+  11. **💼 预设与自定义分组持久化 (v2.1)**：基于 Room 数据库建立 CharacterGroup 数据层，在 Seeding 中注入四大经典官方预设，大厅支持顶部 LazyRow 滑动 Chip 应用分组及长按删除自定义组。
+  12. **★ 星号一键另存为新组 (v2.1)**：大厅状态发生改变时，右上角浮现金色星标按钮，支持用户输入名称/描述一键将当前激活角色归档为新自定义预设。
+  13. **📖 画册风画像 ModalBottomSheet 详情 (v2.1)**：大厅卡片点击唤起底部抽屉，展现 80dp 大圆形头像、呼吸感斜体 Tagline、以及动态剥离 YAML 并使用自定义 MarkdownRender 极简渲染其完整的 SKILL.md 决策 DNA。
 
 ---
 
@@ -85,8 +89,10 @@ AI-Skill-Roundtable/
 │       │   │   └── AudioTranscodeWorker.kt # CoroutineWorker 后台 MediaCodec 音频转码
 │       │   ├── data/                     # Room 实体 / DAO / 数据库 / Repository
 │       │   │   ├── Character.kt          # 实体（新增 skillDescriptionVector, voiceConfig）
+│       │   │   ├── CharacterGroup.kt     # (新增) 分组持久化实体 (包含 ID、名称、角色列表、是否官方)
 │       │   │   ├── ChatSession.kt        # 实体 (新增 roundIndex, audioFilePath, audioFormat, audioSizeBytes)
-│       │   │   └── RoundtableDatabase.kt # 数据库版本升级到 5，集成 Migration 3->4, 4->5
+│       │   │   ├── RoundtableDatabase.kt # 数据库版本升级到 4 / 5，集成 Migration 3->4, 4->5 与 Group Seeding
+│       │   │   └── RoundtableRepository.kt# 对接 CharacterGroupDao 提供上层接口
 │       │   ├── network/                  # 接口模块
 │       │   │   ├── GeminiApi.kt          # REST 接口与 Broker 拼装
 │       │   │   ├── LiveApiClient.kt      # (新增) WebSocket Gemini Live 接口 (WAV直存)
@@ -194,6 +200,9 @@ AI-Skill-Roundtable/
 | 音频引擎架构 | [docs/architecture/audio-engine-architecture.md](docs/architecture/audio-engine-architecture.md) | (新增) Gemini Live WebSocket 收流与后台压缩转码详细设计 |
 | 新增角色指南 | [docs/skills/how-to-add-new-character.md](docs/skills/how-to-add-new-character.md) | 一键动态扩增全新智囊角色的操作指南 |
 | 三模型级联与联网接地 ADR | [docs/decisions/adr-005-three-model-cascade-with-google-search-grounding.md](docs/decisions/adr-005-three-model-cascade-with-google-search-grounding.md) | 记录三模型级联联网搜索接地设计决策 |
+| 智囊分组与详情 BottomSheet ADR | [docs/decisions/adr-006-preset-groups-and-magical-markdown-bottomsheet-design.md](docs/decisions/adr-006-preset-groups-and-magical-markdown-bottomsheet-design.md) | (新增) 记录内置/自定义分组持久化与画像 Markdown 极简渲染设计决策 |
+| AI 头像生图 Prompt 指南 | [docs/planning/avatar-prompts-guide.md](docs/planning/avatar-prompts-guide.md) | (新增) 19 个名人角色莫兰迪极简 AI 头像生图提示词清单 |
+| v2.1 重构完工报告 | [docs/planning/walkthrough.md](docs/planning/walkthrough.md) | (新增) 莫兰迪头像物理覆盖、智囊分组交互与画像 BottomSheet 的交付校验报告 |
 
 ---
 
@@ -210,3 +219,7 @@ AI-Skill-Roundtable/
 | 反检测请求节奏限制 | 并发组随机分组，组内串行，各组错峰 1-3s 延迟启动，同一组角色间强制 2-6s 随机请求间隔以降低 API 屏蔽风险 | 2026-07-13 |
 | 三模型级联联网搜索配合 | 由 3.1lite 决策本地资料及提取多 searchQuery，2.5flash 使用 google_search 工具多路联网检索接地并做空 query 兜底，最终由 3.5flash (high thinking) 整合输出高保真作答 | 2026-07-13 |
 | 多档联网模式调节 | UI 增加 SMART（自适应）、FORCE（强制，使用提问兜底）、OFF（禁用）三档胶囊切换控制，控制是否进行联网及搜索数目分配 | 2026-07-13 |
+| 全员统一莫兰迪 AI 肖像 | 剔除难看 Emoji 头像，由用户生图并物理替换，20 位智囊全员 JPG 文件归集至 assets 目录，在 CharacterAvatar 实现流式零依赖安全解码加载 | 2026-07-13 |
+| 预置与自定义分组持久化 | 建立 CharacterGroup 数据库表，版本号升级至 4，在 onCreate() 写入四大预设 Seeding 数据；支持快捷 Chip 切换、长按删除及金色星标一键保存当前激活角色 | 2026-07-13 |
+| 画册风画像底置详情抽屉 | 点击角色卡片弹出 BottomSheet，首屏杂志级排版（大头像、Tagline），随后利用极简 MarkdownRender 自行解析 SKILL.md 大纲正文，流式展示其决策 DNA | 2026-07-13 |
+
