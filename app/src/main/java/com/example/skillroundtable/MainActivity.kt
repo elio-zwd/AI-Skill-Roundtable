@@ -1,5 +1,6 @@
 package com.example.skillroundtable
 
+import com.example.skillroundtable.viewmodel.SearchMode
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -41,6 +42,66 @@ import com.example.skillroundtable.data.Character
 import com.example.skillroundtable.data.ChatSession
 import com.example.skillroundtable.data.Message
 import com.example.skillroundtable.viewmodel.RoundtableViewModel
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.Image
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
+@Composable
+fun CharacterAvatar(
+    avatar: String,
+    name: String,
+    modifier: Modifier = Modifier,
+    size: androidx.compose.ui.unit.Dp = 48.dp,
+    textSize: androidx.compose.ui.unit.TextUnit = 24.sp
+) {
+    val context = LocalContext.current
+    val imageBitmap = remember(avatar) {
+        if (avatar.startsWith("avatars/")) {
+            try {
+                context.assets.open(avatar).use { inputStream ->
+                    BitmapFactory.decodeStream(inputStream)?.asImageBitmap()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
+            }
+        } else {
+            null
+        }
+    }
+
+    if (imageBitmap != null) {
+        Image(
+            bitmap = imageBitmap,
+            contentDescription = name,
+            contentScale = ContentScale.Crop,
+            modifier = modifier
+                .size(size)
+                .clip(CircleShape)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), CircleShape)
+        )
+    } else {
+        Box(
+            modifier = modifier
+                .size(size)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+            contentAlignment = Alignment.Center
+        ) {
+            val displayChar = if (avatar.length > 2) {
+                name.lastOrNull()?.toString() ?: "智"
+            } else {
+                avatar
+            }
+            Text(displayChar, fontSize = textSize, color = Color.White)
+        }
+    }
+}
 
 // Color scheme definitions for Slate-Dark Theme
 private val SlateBg = Color(0xFF121824)
@@ -93,6 +154,7 @@ fun MainAppContent() {
     val apiKey by viewModel.apiKey.collectAsState()
     val isAutoNextEnabled by viewModel.isAutoNextEnabled.collectAsState()
     val isSemanticRoutingEnabled by viewModel.isSemanticRoutingEnabled.collectAsState()
+    val searchMode by viewModel.searchMode.collectAsState()
 
     var selectedTab by remember { mutableIntStateOf(0) }
     var showAddCharacterDialog by remember { mutableStateOf(false) }
@@ -148,12 +210,15 @@ fun MainAppContent() {
                         apiKey = apiKey,
                         isAutoNextEnabled = isAutoNextEnabled,
                         isSemanticRoutingEnabled = isSemanticRoutingEnabled,
+                        searchMode = searchMode,
+                        onSearchModeChange = { viewModel.setSearchMode(it) },
                         onOpenApiKeyConfig = { showApiKeyDialog = true },
                         onToggleDrawer = { showDrawer = !showDrawer }
                     )
                 }
                 1 -> {
                     CharacterHallScreen(
+                        viewModel = viewModel,
                         characters = allCharacters,
                         onToggleActive = { char ->
                             viewModel.addOrUpdateCharacter(char.copy(isActive = !char.isActive))
@@ -326,6 +391,8 @@ fun RoundtableBrainstormScreen(
     apiKey: String,
     isAutoNextEnabled: Boolean,
     isSemanticRoutingEnabled: Boolean,
+    searchMode: SearchMode,
+    onSearchModeChange: (SearchMode) -> Unit,
     onOpenApiKeyConfig: () -> Unit,
     onToggleDrawer: () -> Unit
 ) {
@@ -388,7 +455,9 @@ fun RoundtableBrainstormScreen(
             isAutoNextEnabled = isAutoNextEnabled,
             onToggleAutoNext = { viewModel.setAutoNextEnabled(it) },
             isSemanticRoutingEnabled = isSemanticRoutingEnabled,
-            onToggleSemanticRouting = { viewModel.setSemanticRoutingEnabled(it) }
+            onToggleSemanticRouting = { viewModel.setSemanticRoutingEnabled(it) },
+            searchMode = searchMode,
+            onSearchModeChange = onSearchModeChange
         )
 
         // Chat conversation list
@@ -554,7 +623,9 @@ fun RoundtableSeatingDiagram(
     isAutoNextEnabled: Boolean,
     onToggleAutoNext: (Boolean) -> Unit,
     isSemanticRoutingEnabled: Boolean,
-    onToggleSemanticRouting: (Boolean) -> Unit
+    onToggleSemanticRouting: (Boolean) -> Unit,
+    searchMode: SearchMode,
+    onSearchModeChange: (SearchMode) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -669,9 +740,11 @@ fun RoundtableSeatingDiagram(
                                 shape = CircleShape
                             )
                     ) {
-                        Text(
-                            text = char.avatar,
-                            fontSize = 28.sp
+                        CharacterAvatar(
+                            avatar = char.avatar,
+                            name = char.name,
+                            size = 48.dp,
+                            textSize = 24.sp
                         )
 
                         // Action bubble or tick badge
@@ -718,6 +791,61 @@ fun RoundtableSeatingDiagram(
                 }
             }
         }
+        Spacer(Modifier.height(8.dp))
+        SearchModeSelector(currentMode = searchMode, onModeChange = onSearchModeChange)
+    }
+}
+
+@Composable
+fun SearchModeSelector(
+    currentMode: SearchMode,
+    onModeChange: (SearchMode) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "🔍 联网搜索接地模式",
+            fontSize = 11.sp,
+            color = TextSecondary,
+            fontWeight = FontWeight.Bold
+        )
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(CardBg)
+                .border(0.5.dp, PrimaryAccent.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                .padding(2.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            SearchMode.values().forEach { mode ->
+                val isSelected = currentMode == mode
+                val text = when (mode) {
+                    SearchMode.SMART -> "智能搜索"
+                    SearchMode.FORCE -> "强制联网"
+                    SearchMode.OFF -> "关闭联网"
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (isSelected) PrimaryAccent else Color.Transparent)
+                        .clickable { onModeChange(mode) }
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = text,
+                        fontSize = 10.sp,
+                        color = if (isSelected) Color.White else TextSecondary,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -734,16 +862,12 @@ fun MessageBubble(message: Message) {
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
     ) {
         if (!isUser) {
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(PrimaryAccent.copy(alpha = 0.1f))
-                    .border(1.dp, PrimaryAccent.copy(alpha = 0.4f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(message.avatar, fontSize = 24.sp)
-            }
+            CharacterAvatar(
+                avatar = message.avatar,
+                name = message.senderName,
+                size = 42.dp,
+                textSize = 20.sp
+            )
             Spacer(Modifier.width(8.dp))
         }
 
@@ -805,16 +929,12 @@ fun MessageBubble(message: Message) {
 
         if (isUser) {
             Spacer(Modifier.width(8.dp))
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(PrimaryAccent.copy(alpha = 0.2f))
-                    .border(1.dp, PrimaryAccent, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(message.avatar, fontSize = 24.sp)
-            }
+            CharacterAvatar(
+                avatar = message.avatar,
+                name = message.senderName,
+                size = 42.dp,
+                textSize = 20.sp
+            )
         }
     }
 }
@@ -827,16 +947,12 @@ fun TypingIndicatorBubble(character: Character) {
             .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.Start
     ) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(CircleShape)
-                .background(PrimaryAccent.copy(alpha = 0.1f))
-                .border(1.dp, PrimaryAccent.copy(alpha = 0.4f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(character.avatar, fontSize = 24.sp)
-        }
+        CharacterAvatar(
+            avatar = character.avatar,
+            name = character.name,
+            size = 42.dp,
+            textSize = 20.sp
+        )
         Spacer(Modifier.width(8.dp))
 
         Column(horizontalAlignment = Alignment.Start) {
@@ -874,25 +990,90 @@ fun TypingIndicatorBubble(character: Character) {
 }
 
 @Composable
+fun MarkdownRender(text: String) {
+    val lines = text.lines()
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        lines.forEach { line ->
+            val trimmed = line.trim()
+            if (trimmed.startsWith("#")) {
+                val level = trimmed.takeWhile { it == '#' }.length
+                val content = trimmed.drop(level).trim()
+                val fontSize = when (level) {
+                    1 -> 22.sp
+                    2 -> 19.sp
+                    3 -> 17.sp
+                    else -> 15.sp
+                }
+                Text(
+                    text = content,
+                    fontSize = fontSize,
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryAccent,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                )
+            } else if (trimmed.startsWith("-") || trimmed.startsWith("*")) {
+                val content = trimmed.drop(1).trim()
+                Row(
+                    modifier = Modifier.padding(start = 8.dp),
+                    horizontalArrangement = Arrangement.Start
+                ) {
+                    Text("• ", color = SecondaryAccent, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(
+                        text = content,
+                        color = TextPrimary,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp
+                    )
+                }
+            } else if (trimmed.isNotEmpty()) {
+                Text(
+                    text = trimmed,
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    lineHeight = 22.sp
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@Composable
 fun CharacterHallScreen(
+    viewModel: RoundtableViewModel,
     characters: List<Character>,
     onToggleActive: (Character) -> Unit,
     onEditCharacter: (Character) -> Unit,
     onAddCharacter: () -> Unit,
     onDeleteCharacter: (String) -> Unit
 ) {
+    val context = LocalContext.current
+    val groups by viewModel.allGroups.collectAsState()
+    val detailContent by viewModel.currentDetailSkillContent.collectAsState()
+
+    var showSaveGroupDialog by remember { mutableStateOf(false) }
+    var groupName by remember { mutableStateOf("") }
+    var groupDesc by remember { mutableStateOf("") }
+
+    var groupToDelete by remember { mutableStateOf<com.example.skillroundtable.data.CharacterGroup?>(null) }
+    var detailCharacter by remember { mutableStateOf<Character?>(null) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(SlateBg)
             .padding(16.dp)
     ) {
+        // 顶部标题和按钮
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "💼 智囊设定殿堂",
                     fontSize = 22.sp,
@@ -900,19 +1081,96 @@ fun CharacterHallScreen(
                     color = TextPrimary
                 )
                 Text(
-                    text = "在此设定参会角色，可支持随时自定义扩充智囊！",
+                    text = "在此设定参会角色，可支持随时自定义角包！",
                     fontSize = 12.sp,
                     color = TextSecondary
                 )
             }
 
-            Button(
-                onClick = onAddCharacter,
-                colors = ButtonDefaults.buttonColors(containerColor = SecondaryAccent)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Spacer(Modifier.width(4.dp))
-                Text("添客")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                // 如果当前有激活的角色，显示“存为分组”的五角星按钮
+                if (characters.any { it.isActive }) {
+                    IconButton(
+                        onClick = {
+                            groupName = ""
+                            groupDesc = ""
+                            showSaveGroupDialog = true
+                        },
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(GoldAccent.copy(alpha = 0.15f), CircleShape)
+                            .border(1.dp, GoldAccent.copy(alpha = 0.4f), CircleShape)
+                    ) {
+                        Icon(Icons.Default.Star, contentDescription = "存为分组", tint = GoldAccent, modifier = Modifier.size(20.dp))
+                    }
+                }
+
+                Button(
+                    onClick = onAddCharacter,
+                    colors = ButtonDefaults.buttonColors(containerColor = SecondaryAccent),
+                    modifier = Modifier.height(40.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(Modifier.width(4.dp))
+                    Text("添客")
+                }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // 滑动 Chip 分组栏
+        Text(
+            text = "快速分组角色预设",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = TextSecondary,
+            modifier = Modifier.padding(bottom = 6.dp)
+        )
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+        ) {
+            items(groups) { group ->
+                val bgColor = if (group.isPreset) PrimaryAccent.copy(alpha = 0.12f) else SecondaryAccent.copy(alpha = 0.12f)
+                val strokeColor = if (group.isPreset) PrimaryAccent else SecondaryAccent
+                Surface(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .combinedClickable(
+                            onClick = {
+                                viewModel.applyCharacterGroup(group)
+                                Toast.makeText(context, "已应用角色预设: ${group.name}", Toast.LENGTH_SHORT).show()
+                            },
+                            onLongClick = {
+                                if (!group.isPreset) {
+                                    groupToDelete = group
+                                }
+                            }
+                        ),
+                    color = bgColor,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, strokeColor.copy(alpha = 0.4f)),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                        Text(
+                            text = group.name,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = if (group.isPreset) "官方预设" else "自定义",
+                            fontSize = 10.sp,
+                            color = strokeColor,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
             }
         }
 
@@ -924,7 +1182,12 @@ fun CharacterHallScreen(
         ) {
             items(characters) { char ->
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            detailCharacter = char
+                            viewModel.loadDetailSkill(char, context)
+                        },
                     colors = CardDefaults.cardColors(containerColor = CardBg),
                     shape = RoundedCornerShape(16.dp)
                 ) {
@@ -935,15 +1198,12 @@ fun CharacterHallScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clip(CircleShape)
-                                        .background(PrimaryAccent.copy(alpha = 0.1f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(char.avatar, fontSize = 28.sp)
-                                }
+                                CharacterAvatar(
+                                    avatar = char.avatar,
+                                    name = char.name,
+                                    size = 48.dp,
+                                    textSize = 24.sp
+                                )
                                 Spacer(Modifier.width(14.dp))
                                 Column {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -998,7 +1258,6 @@ fun CharacterHallScreen(
                                 Text("修改Prompt设定")
                             }
 
-                            // Do not allow deleting the core first skill zhang_xuefeng, but allow others
                             if (char.id != "zhang_xuefeng") {
                                 Spacer(Modifier.width(8.dp))
                                 TextButton(onClick = { onDeleteCharacter(char.id) }) {
@@ -1010,6 +1269,174 @@ fun CharacterHallScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // 弹窗1：保存自定义分组 Dialog
+    if (showSaveGroupDialog) {
+        AlertDialog(
+            onDismissRequest = { showSaveGroupDialog = false },
+            title = { Text("保存当前勾选为自定义分组", color = TextPrimary) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("将当前所有被选中的智囊席位另存为一个快速启动预设组。", color = TextSecondary, fontSize = 13.sp)
+                    TextField(
+                        value = groupName,
+                        onValueChange = { groupName = it },
+                        placeholder = { Text("分组名称 (如：智能开发组)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    TextField(
+                        value = groupDesc,
+                        onValueChange = { groupDesc = it },
+                        placeholder = { Text("描述信息 (如：精选技术和产品大佬)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 2
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (groupName.isNotBlank()) {
+                            viewModel.saveCurrentActiveAsGroup(groupName.trim(), groupDesc.trim())
+                            showSaveGroupDialog = false
+                            Toast.makeText(context, "分组 [${groupName}] 已保存！", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "请输入分组名称", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryAccent)
+                ) {
+                    Text("保存")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSaveGroupDialog = false }) {
+                    Text("取消", color = TextSecondary)
+                }
+            },
+            containerColor = CardBg
+        )
+    }
+
+    // 弹窗2：删除自定义分组确认 Dialog
+    if (groupToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { groupToDelete = null },
+            title = { Text("删除自定义预设分组", color = TextPrimary) },
+            text = { Text("确定要删除 [${groupToDelete!!.name}] 吗？", color = TextSecondary) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteGroup(groupToDelete!!.id)
+                        Toast.makeText(context, "分组 [${groupToDelete!!.name}] 已删除", Toast.LENGTH_SHORT).show()
+                        groupToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.8f))
+                ) {
+                    Text("确定删除")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { groupToDelete = null }) {
+                    Text("取消", color = TextSecondary)
+                }
+            },
+            containerColor = CardBg
+        )
+    }
+
+    // BottomSheet：角色画像详情 BottomSheet
+    if (detailCharacter != null) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                detailCharacter = null
+                viewModel.clearDetailSkill()
+            },
+            containerColor = CardBg,
+            contentColor = TextPrimary,
+            dragHandle = { BottomSheetDefaults.DragHandle(color = TextSecondary.copy(alpha = 0.5f)) }
+        ) {
+            val char = detailCharacter!!
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    CharacterAvatar(
+                        avatar = char.avatar,
+                        name = char.name,
+                        size = 80.dp,
+                        textSize = 40.sp
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    Column {
+                        Text(
+                            text = char.name,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = "席位顺序: 第 ${char.order} 位",
+                            fontSize = 12.sp,
+                            color = GoldAccent,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(20.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(PrimaryAccent.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                        .border(1.dp, PrimaryAccent.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = "“ ${char.tagline} ”",
+                        fontSize = 16.sp,
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                        fontWeight = FontWeight.Medium,
+                        color = TextPrimary,
+                        lineHeight = 24.sp
+                    )
+                }
+
+                Spacer(Modifier.height(20.dp))
+
+                Text(
+                    text = "🧠 角色思维模型与决策DNA",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                if (detailContent == null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = PrimaryAccent)
+                    }
+                } else {
+                    MarkdownRender(text = detailContent!!)
+                }
+
+                Spacer(Modifier.height(40.dp))
             }
         }
     }

@@ -11,140 +11,140 @@ UI_MAPPING = {
     "elon-musk-skill-main": {
         "id": "elon_musk",
         "name": "埃隆·马斯克",
-        "avatar": "🪐",
+        "avatar": "avatars/elon_musk.jpg",
         "tagline": "SpaceX与特斯拉CEO，用第一性原理与五步工作法重塑现实的硬核科技狂人",
         "order": 2
     },
     "feynman-skill-main": {
         "id": "richard_feynman",
         "name": "理查德·费曼",
-        "avatar": "🥁",
+        "avatar": "avatars/richard_feynman.png",
         "tagline": "诺贝尔物理学奖得主，拒绝虚荣术语，主张用极简大白话解释一切的科学顽童",
         "order": 3
     },
     "munger-skill-main": {
         "id": "charlie_munger",
         "name": "查理·芒格",
-        "avatar": "👴",
+        "avatar": "avatars/charlie_munger.png",
         "tagline": "用多元思维模型与逆向思考避开愚蠢的终身学习者",
         "order": 4
     },
     "naval-skill-main": {
         "id": "naval_ravikant",
         "name": "纳瓦尔",
-        "avatar": "🧘",
+        "avatar": "avatars/naval_ravikant.png",
         "tagline": "硅谷投资人与现代智者，用“特定知识”与“无需许可的杠杆”追求财富与快乐",
         "order": 5
     },
     "steve-jobs-skill-main": {
         "id": "steve_jobs",
         "name": "史蒂夫·乔布斯",
-        "avatar": "🍎",
+        "avatar": "avatars/steve_jobs.png",
         "tagline": "苹果公司联合创始人，站在科技与人文的交汇处的完美主义者",
         "order": 6
     },
     "taleb-skill-main": {
         "id": "nassim_taleb",
         "name": "纳西姆·塔勒布",
-        "avatar": "🏋️",
+        "avatar": "avatars/nassim_taleb.png",
         "tagline": "《黑天鹅》《反脆弱》作者，关注尾部风险与切肤之痛的风险工程师",
         "order": 7
     },
     "zhangxuefeng-skill-main": {
         "id": "zhang_xuefeng",
         "name": "张雪峰",
-        "avatar": "👨‍🏫",
+        "avatar": "avatars/zhang_xuefeng.png",
         "tagline": "升学志愿与职业规划导师，刺破理想幻泡的实用主义者",
         "order": 1
     },
     "karpathy-skill": {
         "id": "andrej_karpathy",
         "name": "安德烈·卡帕斯",
-        "avatar": "💻",
+        "avatar": "avatars/andrej_karpathy.png",
         "tagline": "前特斯拉AI主管与OpenAI创始成员，主张用极简逻辑和手写纯Python代码理解AI的硬核极客",
         "order": 8
     },
     "zhang-yiming-skill": {
         "id": "zhang_yiming",
         "name": "张一鸣",
-        "avatar": "📱",
+        "avatar": "avatars/zhang_yiming.png",
         "tagline": "字节跳动创始人，信奉“延迟满足感”、坦诚清晰、大力出奇迹的理性机器与逻辑操盘手",
         "order": 9
     },
     "paul-graham-skill": {
         "id": "paul_graham",
         "name": "保罗·格雷厄姆",
-        "avatar": "🎨",
+        "avatar": "avatars/paul_graham.png",
         "tagline": "Y Combinator联合创始人，初创企业与黑客思维的创投教父",
         "order": 10
     },
     "ilya-sutskever-skill": {
         "id": "ilya_sutskever",
         "name": "伊利亚·苏茨克维尔",
-        "avatar": "🧠",
+        "avatar": "avatars/ilya_sutskever.png",
         "tagline": "前OpenAI首席科学家，对AGI安全深信不疑，探寻大模型涌现机制的技术先知",
         "order": 11
     },
     "trump-skill": {
         "id": "donald_trump",
         "name": "唐纳德·特朗普",
-        "avatar": "👱",
+        "avatar": "avatars/donald_trump.png",
         "tagline": "前美国总统，擅长极限施压、博弈与注意力争夺的“交易艺术”谈判家",
         "order": 12
     },
     "mrbeast-skill": {
         "id": "mr_beast",
         "name": "吉米·唐纳森 (MrBeast)",
-        "avatar": "🐯",
+        "avatar": "avatars/mr_beast.png",
         "tagline": "全球顶级YouTube创作者，解构爆款流量、传播学与受众心理的超级策划人",
         "order": 13
     },
     "sun-yuchen-perspective": {
         "id": "justin_sun",
         "name": "孙宇晨",
-        "avatar": "🪙",
+        "avatar": "avatars/justin_sun.png",
         "tagline": "波场创始人，擅长注意力经济、极限营销与事件公关的币圈弄潮儿",
         "order": 14
     },
     "freud-skill": {
         "id": "sigmund_freud",
         "name": "西格蒙德·弗洛伊德",
-        "avatar": "🛋️",
+        "avatar": "avatars/sigmund_freud.png",
         "tagline": "精神分析学之父，擅长剖析人类与AI潜意识、梦境与本能的心理学大师",
         "order": 15
     },
     "x-mentor-skill": {
         "id": "x_mentor",
         "name": "X 增长导师",
-        "avatar": "📈",
+        "avatar": "avatars/x_mentor.png",
         "tagline": "聚合顶级海外博主增长方法论，手握选题与内容增长密钥的社交媒体专家",
         "order": 16
     },
     "fengge-skill": {
         "id": "feng_ge",
         "name": "峰哥亡命天涯",
-        "avatar": "🧳",
+        "avatar": "avatars/feng_ge.png",
         "tagline": "纪实旅行自媒体，用反煽情、黑色幽默与平民视角冷眼看世界的“峰哥”",
         "order": 17
     },
     "cz-skill": {
         "id": "changpeng_zhao",
         "name": "赵长鹏 (CZ)",
-        "avatar": "🪙",
+        "avatar": "avatars/changpeng_zhao.png",
         "tagline": "币安创始人，奉行效率第一、力行去中心化与实用加密精神的Web3拓荒者",
         "order": 18
     },
     "duan-yongping-skill": {
         "id": "duan_yongping",
         "name": "段永平",
-        "avatar": "🎯",
+        "avatar": "avatars/duan_yongping.png",
         "tagline": "步步高与小天才幕后推手，倡导“本分”、“平常心”与做对的事的投资大师",
         "order": 19
     },
     "tim-cook-skill": {
         "id": "tim_cook",
         "name": "蒂姆·库克",
-        "avatar": "🕶️",
+        "avatar": "avatars/tim_cook.png",
         "tagline": "苹果公司CEO，将供应链效率提升至极致的商业操盘手与平稳过渡大师",
         "order": 20
     }

@@ -10,13 +10,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @Database(
-    entities = [Character::class, ChatSession::class, Message::class],
-    version = 3,
+    entities = [Character::class, ChatSession::class, Message::class, CharacterGroup::class],
+    version = 4,
     exportSchema = false
 )
 abstract class RoundtableDatabase : RoomDatabase() {
     abstract fun characterDao(): CharacterDao
     abstract fun chatDao(): ChatDao
+    abstract fun characterGroupDao(): CharacterGroupDao
 
     companion object {
         @Volatile
@@ -66,6 +67,40 @@ abstract class RoundtableDatabase : RoomDatabase() {
                     if (initialCharacters.isNotEmpty()) {
                         characterDao.insertAll(initialCharacters)
                     }
+
+                    // Seeding 初始的 4 个特色预设分组
+                    val groupDao = database.characterGroupDao()
+                    val presetGroups = listOf(
+                        CharacterGroup(
+                            id = "silicon_valley_venture",
+                            name = "硅谷创投",
+                            description = "聚焦商业突破、无需许可的杠杆、高科技创业与去中心化浪潮的硅谷科技狂人与投资导师组合",
+                            characterIds = "elon_musk,naval_ravikant,paul_graham,zhang_yiming,changpeng_zhao,tim_cook",
+                            isPreset = true
+                        ),
+                        CharacterGroup(
+                            id = "philosophy_logic",
+                            name = "哲学与心理逻辑",
+                            description = "解构认知偏差，关注尾部风险，探究人性和科学底层的跨学科终身学习大师与思考者",
+                            characterIds = "richard_feynman,charlie_munger,nassim_taleb,sigmund_freud,andrej_karpathy,ilya_sutskever",
+                            isPreset = true
+                        ),
+                        CharacterGroup(
+                            id = "traffic_attention",
+                            name = "流量与注意力经济",
+                            description = "深谙社交媒体、爆款法则、事件营销与流量操盘的全球顶级创作者与博弈专家",
+                            characterIds = "mr_beast,justin_sun,donald_trump,feng_ge,x_mentor",
+                            isPreset = true
+                        ),
+                        CharacterGroup(
+                            id = "planning_growth",
+                            name = "规划与个人成长",
+                            description = "刺破社会幻泡，推崇做对的事与长期主义的个人成长与升学志愿导师",
+                            characterIds = "zhang_xuefeng,duan_yongping,charlie_munger,naval_ravikant",
+                            isPreset = true
+                        )
+                    )
+                    groupDao.insertAll(presetGroups)
                 }
             }
         }

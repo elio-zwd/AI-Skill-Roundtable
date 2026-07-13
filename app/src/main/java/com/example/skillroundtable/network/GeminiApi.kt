@@ -19,7 +19,8 @@ import java.util.concurrent.TimeUnit
 data class GenerateContentRequest(
     val contents: List<Content>,
     val generationConfig: GenerationConfig? = null,
-    val systemInstruction: Content? = null
+    val systemInstruction: Content? = null,
+    val tools: List<Tool>? = null
 )
 
 @Serializable
@@ -54,7 +55,33 @@ data class GenerateContentResponse(
 
 @Serializable
 data class Candidate(
-    val content: Content
+    val content: Content,
+    val groundingMetadata: GroundingMetadata? = null
+)
+
+@Serializable
+data class Tool(
+    val google_search: GoogleSearch? = null
+)
+
+@Serializable
+class GoogleSearch
+
+@Serializable
+data class GroundingMetadata(
+    val webSearchQueries: List<String>? = null,
+    val groundingChunks: List<GroundingChunk>? = null
+)
+
+@Serializable
+data class GroundingChunk(
+    val web: WebSource? = null
+)
+
+@Serializable
+data class WebSource(
+    val uri: String? = null,
+    val title: String? = null
 )
 
 // Embedding 接口相关的实体类

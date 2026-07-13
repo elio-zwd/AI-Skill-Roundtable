@@ -112,14 +112,45 @@ fun loadCharacterSkillContent(context: Context, assetPath: String): String {
 
 #### B. 角色画像详情卡片 (BottomSheet)
 * **交互路径**：
-  在 `CharacterHallScreen` 的每一个角色列表中，除了“勾选框”之外，点击角色的整行区域（或信息图标 `(i)`）会弹出 `ModalBottomSheet`。
+  In `CharacterHallScreen` 的每一个角色列表中，除了“勾选框”之外，点击角色的整行区域（或信息图标 `(i)`）会弹出 `ModalBottomSheet`。
 * **BottomSheet 内容排版**：
-  1. **头部 (Header)**：超大 Emoji 头像、大号加粗姓名、分类标签。
+  1. **头部 (Header)**：超大圆形头像、大号加粗姓名、分类标签。
   2. **一句话简评**：带有引用样式的 `tagline`（大号倾斜字体，极具呼吸感）。
   3. **思维底座 (Cognitive DNA)**：
      - 动态加载其 `SKILL.md` 中的思维模型列表。
      - 用分段折叠面板 (Accordion) 展示核心心智模型（例如马斯克的“第一性原理”、“五步工作法”）。
   4. **快速启用按钮**：卡片底部配备一个“启用此智囊/禁用此智囊”的大按钮，方便用户一边看画像一边配置。
+
+#### C. 角色头像视觉升级 (Avatar Aesthetics Upgrade)
+为了彻底摒弃纯 Emoji 作为头像所带来的“廉价/Slop感”，本项目将遵循 `@design-taste-frontend` 规范，对 Avatar 视觉进行系统性升级：
+
+1. **AI 风格化肖像方案 (AI Portrait Avatars)**：
+   * **资源存放**：在 Assets 中创建独立的头像目录 `app/src/main/assets/avatars/`。
+   * **美术风格**：使用一致的低饱和度、高对比度的“极简扁平插画”或“莫兰迪色系艺术头像”。例如已经成功为埃隆·马斯克绘制的高水准 Morandi 艺术头像：
+     
+     ![埃隆·马斯克莫兰迪风格艺术肖像](file:///C:/Users/70455/.gemini/antigravity/brain/543176fa-9509-4394-b4c7-b9eea559084e/elon_musk.jpg)
+     
+   * **库结构定义**：`skills_config.json` 及 Room 中的 `avatar` 字段值从纯 Emoji（如 `🪐`）替换为相对资源路径（如 `avatars/elon_musk.jpg`）。
+   * **Refraction 渲染逻辑**：Android 手机端使用图片库（如 `Coil`）加载 Assets 图片，裁剪为圆形，并在外围套一个极细的玻璃反射边框：
+     ```kotlin
+     AsyncImage(
+         model = ImageRequest.Builder(LocalContext.current)
+             .data("file:///android_asset/${character.avatar}")
+             .build(),
+         contentDescription = character.name,
+         modifier = Modifier
+             .size(48.dp)
+             .clip(CircleShape)
+             .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), CircleShape)
+     )
+     ```
+
+2. **名宿单字徽标降级方案 (Editorial Monogram Fallback)**：
+   * **使用场景**：如果用户未来自定义新增了没有现成图片头像的角色。
+   * **去 generic AI 表现**：禁止展示默认的 Lucide 人头占位图标。直接用代码动态计算出一个极富品味的徽标：
+     * **动态低饱和度底座**：对角色 `id` 计算确定性 Hash，转换为 HSL 空间并调低饱和度，生成由两个温和颜色组成的线性渐变色刷（`Brush.linearGradient`）。
+     * **文字呈现**：圆形正中绘制角色中文名字的**最后一个字**（如马斯克对应“克”，理查德·费曼对应“曼”，张一鸣对应“鸣”）。
+     * **字体排印**：使用 Android 高端 Sans-serif 字体（如 `Outfit` / `Satoshi` ），辅以大字重与略宽字距，营造类似精致纸质出版物（Editorial）的名宿画册感。
 
 ---
 
