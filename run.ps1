@@ -23,17 +23,19 @@ Write-Host "[2/3] 正在获取应用进程 PID..." -ForegroundColor Yellow
 Start-Sleep -Seconds 1.5
 
 $packageName = "com.example.skillroundtable"
-$pid = adb shell pidof -s $packageName
+$appPid = adb shell pidof -s $packageName
 
-if (-not $pid) {
+if (-not $appPid) {
     # 兜底再尝试一次
     Start-Sleep -Seconds 1
-    $pid = adb shell pidof -s $packageName
+    $appPid = adb shell pidof -s $packageName
 }
 
-if ($pid) {
-    $pid = $pid.Trim()
-    Write-Host "[3/3] 成功获取 PID: $pid！开始流式输出日志..." -ForegroundColor Green
+if ($appPid) {
+    # 强转为 String 避免数字类型没有 Trim 方法，并修剪空白字符
+    $appPidStr = "$appPid".Trim()
+    
+    Write-Host "[3/3] 成功获取 PID: $appPidStr！开始流式输出日志..." -ForegroundColor Green
     Write-Host "--------------------------------------------------" -ForegroundColor Gray
     Write-Host "提示：按 Ctrl + C 可以随时退出日志追踪。" -ForegroundColor Yellow
     Write-Host "--------------------------------------------------" -ForegroundColor Gray
@@ -41,7 +43,7 @@ if ($pid) {
     # 清理历史日志缓存，让输出从现在开始
     adb logcat -c
     # 追踪当前 PID 的日志
-    adb logcat --pid=$pid
+    adb logcat --pid=$appPidStr
 } else {
     Write-Warning "未检测到运行中的进程，请确认 App 是否在手机上正常启动。"
     Write-Host "正在流式输出全局过滤日志（包含 Roundtable 关键字）作为备用：" -ForegroundColor Yellow
