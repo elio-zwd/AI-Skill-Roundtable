@@ -389,6 +389,7 @@ fun MainAppContent() {
                         Toast.makeText(context, "API Key 配置成功", Toast.LENGTH_SHORT).show()
                     },
                     onOpenDebugPanel = {
+                        showApiKeyDialog = false
                         showDebugPanel = true
                     }
                 )
@@ -455,7 +456,10 @@ fun MainAppContent() {
             if (showDebugPanel) {
                 ApiDebugPanelDialog(
                     currentSessionId = currentSessionId,
-                    onDismiss = { showDebugPanel = false }
+                    onDismiss = {
+                        showDebugPanel = false
+                        showApiKeyDialog = true
+                    }
                 )
             }
         }
@@ -618,9 +622,11 @@ fun RoundtableRoundBubble(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = msg.avatar,
-                        fontSize = if (isSelected) 18.sp else 14.sp
+                    CharacterAvatar(
+                        avatar = msg.avatar,
+                        name = msg.senderName,
+                        size = if (isSelected) 36.dp else 28.dp,
+                        textSize = if (isSelected) 18.sp else 14.sp
                     )
                 }
             }
