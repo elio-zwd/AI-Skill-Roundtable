@@ -437,6 +437,53 @@ fun MainAppContent() {
                                 }
                             }
                         }
+                        Divider(color = TextSecondary.copy(alpha = 0.2f), modifier = Modifier.padding(vertical = 8.dp))
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "圆桌脑暴设置",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextSecondary,
+                                modifier = Modifier.padding(bottom = 2.dp)
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("自动顺延发言 (TTS播毕)", fontSize = 12.sp, color = TextPrimary)
+                                Switch(
+                                    checked = isAutoNextEnabled,
+                                    onCheckedChange = { viewModel.setAutoNextEnabled(it) },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = SecondaryAccent,
+                                        checkedTrackColor = SecondaryAccent.copy(alpha = 0.3f)
+                                    ),
+                                    modifier = Modifier.scale(0.7f)
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("专家自适应排序 (余弦路由)", fontSize = 12.sp, color = TextPrimary)
+                                Switch(
+                                    checked = isSemanticRoutingEnabled,
+                                    onCheckedChange = { viewModel.setSemanticRoutingEnabled(it) },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = SecondaryAccent,
+                                        checkedTrackColor = SecondaryAccent.copy(alpha = 0.3f)
+                                    ),
+                                    modifier = Modifier.scale(0.7f)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -751,7 +798,7 @@ fun RoundtableBrainstormScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(CardBg)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -772,19 +819,24 @@ fun RoundtableBrainstormScreen(
                         onClick = {}
                     )
                 ) {
-                    Text(
-                        text = currentSession?.title ?: "AI 智囊圆桌",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        color = TextPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = if (isRoundtableRunning) "诸位智囊连环论证中..." else "虚左以待，请君提问",
-                        fontSize = 12.sp,
-                        color = if (isRoundtableRunning) SecondaryAccent else TextSecondary
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = currentSession?.title ?: "AI 智囊圆桌",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp,
+                            color = TextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (isRoundtableRunning) {
+                            Spacer(Modifier.width(6.dp))
+                            CircularProgressIndicator(
+                                color = SecondaryAccent,
+                                strokeWidth = 1.5.dp,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
+                    }
                 }
             }
 
@@ -850,10 +902,6 @@ fun RoundtableBrainstormScreen(
             characters = allCharacters.filter { it.isActive },
             typingCharacterIds = typingCharacterIds,
             currentMessages = currentMessages,
-            isAutoNextEnabled = isAutoNextEnabled,
-            onToggleAutoNext = { viewModel.setAutoNextEnabled(it) },
-            isSemanticRoutingEnabled = isSemanticRoutingEnabled,
-            onToggleSemanticRouting = { viewModel.setSemanticRoutingEnabled(it) },
             searchMode = searchMode,
             onSearchModeChange = onSearchModeChange
         )
@@ -1037,91 +1085,31 @@ fun RoundtableSeatingDiagram(
     characters: List<Character>,
     typingCharacterIds: Set<String>,
     currentMessages: List<Message>,
-    isAutoNextEnabled: Boolean,
-    onToggleAutoNext: (Boolean) -> Unit,
-    isSemanticRoutingEnabled: Boolean,
-    onToggleSemanticRouting: (Boolean) -> Unit,
     searchMode: SearchMode,
     onSearchModeChange: (SearchMode) -> Unit
 ) {
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(SlateBg)
-            .padding(vertical = 12.dp, horizontal = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(vertical = 4.dp, horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "🪵 智囊群英圆桌会议席位",
-                fontSize = 11.sp,
-                color = TextSecondary,
-                fontWeight = FontWeight.Bold
-            )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = if (isAutoNextEnabled) "自动顺延" else "单步点击",
-                        fontSize = 11.sp,
-                        color = if (isAutoNextEnabled) SecondaryAccent else TextSecondary,
-                        modifier = Modifier.padding(end = 2.dp)
-                    )
-                    Switch(
-                        checked = isAutoNextEnabled,
-                        onCheckedChange = onToggleAutoNext,
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = SecondaryAccent,
-                            checkedTrackColor = SecondaryAccent.copy(alpha = 0.3f)
-                        ),
-                        modifier = Modifier.scale(0.7f)
-                    )
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = if (isSemanticRoutingEnabled) "专家先发" else "默认排序",
-                        fontSize = 11.sp,
-                        color = if (isSemanticRoutingEnabled) SecondaryAccent else TextSecondary,
-                        modifier = Modifier.padding(end = 2.dp)
-                    )
-                    Switch(
-                        checked = isSemanticRoutingEnabled,
-                        onCheckedChange = onToggleSemanticRouting,
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = SecondaryAccent,
-                            checkedTrackColor = SecondaryAccent.copy(alpha = 0.3f)
-                        ),
-                        modifier = Modifier.scale(0.7f)
-                    )
-                }
-            }
-        }
-
+        // 左侧：紧凑的席位头像流 (36.dp box)
         LazyRow(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(CardBg.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
-                .border(1.dp, PrimaryAccent.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
-                .padding(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                .weight(1f)
+                .padding(end = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             items(characters) { char ->
                 val isTyping = typingCharacterIds.contains(char.id)
-
-                // Determine speaker state for current round
                 val lastQuestionIndex = currentMessages.indexOfLast { it.senderId == "user" }
                 val messagesSinceQuestion = if (lastQuestionIndex != -1) currentMessages.subList(lastQuestionIndex + 1, currentMessages.size) else emptyList()
                 val hasReplied = messagesSinceQuestion.any { it.senderId == char.id }
 
-                // Pulse scale animation for typing
                 val infiniteTransition = rememberInfiniteTransition(label = "pulse")
                 val pulseScale by infiniteTransition.animateFloat(
                     initialValue = 1.0f,
@@ -1133,131 +1121,94 @@ fun RoundtableSeatingDiagram(
                     label = "pulseScale"
                 )
 
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                Box(
+                    contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .width(68.dp)
+                        .size(36.dp)
                         .scale(if (isTyping) pulseScale else 1.0f)
-                ) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (isTyping) PrimaryAccent.copy(alpha = 0.3f)
-                                else if (hasReplied) SecondaryAccent.copy(alpha = 0.15f)
-                                else Color.Transparent
-                            )
-                            .border(
-                                width = if (isTyping) 2.dp else 1.dp,
-                                color = if (isTyping) PrimaryAccent
-                                else if (hasReplied) SecondaryAccent
-                                else TextSecondary.copy(alpha = 0.5f),
-                                shape = CircleShape
-                            )
-                    ) {
-                        CharacterAvatar(
-                            avatar = char.avatar,
-                            name = char.name,
-                            size = 48.dp,
-                            textSize = 24.sp
+                        .clip(CircleShape)
+                        .background(
+                            if (isTyping) PrimaryAccent.copy(alpha = 0.3f)
+                            else if (hasReplied) SecondaryAccent.copy(alpha = 0.15f)
+                            else Color.Transparent
                         )
+                        .border(
+                            width = if (isTyping) 1.5.dp else 1.dp,
+                            color = if (isTyping) PrimaryAccent
+                            else if (hasReplied) SecondaryAccent
+                            else TextSecondary.copy(alpha = 0.4f),
+                            shape = CircleShape
+                        )
+                ) {
+                    CharacterAvatar(
+                        avatar = char.avatar,
+                        name = char.name,
+                        size = 32.dp,
+                        textSize = 16.sp
+                    )
 
-                        // Action bubble or tick badge
-                        if (hasReplied) {
-                            Box(
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clip(CircleShape)
-                                    .background(SecondaryAccent)
-                                    .align(Alignment.BottomEnd)
-                            ) {
-                                Icon(
-                                    Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(12.dp).align(Alignment.Center)
-                                )
-                            }
-                        } else if (isTyping) {
-                            Box(
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clip(CircleShape)
-                                    .background(PrimaryAccent)
-                                    .align(Alignment.BottomEnd)
-                            ) {
-                                CircularProgressIndicator(
-                                    color = Color.White,
-                                    strokeWidth = 2.dp,
-                                    modifier = Modifier.fillMaxSize().padding(2.dp)
-                                )
-                            }
+                    if (hasReplied) {
+                        Box(
+                            modifier = Modifier
+                                .size(12.dp)
+                                .clip(CircleShape)
+                                .background(SecondaryAccent)
+                                .align(Alignment.BottomEnd)
+                        ) {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(8.dp).align(Alignment.Center)
+                            )
+                        }
+                    } else if (isTyping) {
+                        Box(
+                            modifier = Modifier
+                                .size(12.dp)
+                                .clip(CircleShape)
+                                .background(PrimaryAccent)
+                                .align(Alignment.BottomEnd)
+                        ) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                strokeWidth = 1.5.dp,
+                                modifier = Modifier.fillMaxSize().padding(1.dp)
+                            )
                         }
                     }
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = char.name,
-                        fontSize = 12.sp,
-                        color = if (isTyping) PrimaryAccent else if (hasReplied) TextPrimary else TextSecondary,
-                        fontWeight = if (isTyping || hasReplied) FontWeight.Bold else FontWeight.Normal,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
                 }
             }
         }
-        Spacer(Modifier.height(8.dp))
-        SearchModeSelector(currentMode = searchMode, onModeChange = onSearchModeChange)
-    }
-}
 
-@Composable
-fun SearchModeSelector(
-    currentMode: SearchMode,
-    onModeChange: (SearchMode) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = "联网搜索接地模式",
-            fontSize = 11.sp,
-            color = TextSecondary,
-            fontWeight = FontWeight.Bold
-        )
+        // 右侧：紧凑的联网搜索接地胶囊
         Row(
             modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(6.dp))
                 .background(CardBg)
-                .border(0.5.dp, PrimaryAccent.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                .padding(2.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                .border(0.5.dp, PrimaryAccent.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+                .padding(1.5.dp),
+            horizontalArrangement = Arrangement.spacedBy(1.dp)
         ) {
             SearchMode.values().forEach { mode ->
-                val isSelected = currentMode == mode
+                val isSelected = searchMode == mode
                 val text = when (mode) {
-                    SearchMode.SMART -> "智能搜索"
-                    SearchMode.FORCE -> "强制联网"
-                    SearchMode.OFF -> "关闭联网"
+                    SearchMode.SMART -> "智能"
+                    SearchMode.FORCE -> "强制"
+                    SearchMode.OFF -> "关闭"
                 }
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
+                        .clip(RoundedCornerShape(4.dp))
                         .background(if (isSelected) PrimaryAccent else Color.Transparent)
                         .bounceClick()
-                        .clickable { onModeChange(mode) }
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                        .clickable { onSearchModeChange(mode) }
+                        .padding(horizontal = 6.dp, vertical = 3.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = text,
-                        fontSize = 10.sp,
+                        fontSize = 9.sp,
                         color = if (isSelected) Color.White else TextSecondary,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                     )
