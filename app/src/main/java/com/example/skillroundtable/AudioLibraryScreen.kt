@@ -1,6 +1,7 @@
 package com.example.skillroundtable
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,6 +18,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -26,12 +30,39 @@ import com.example.skillroundtable.data.Character
 import com.example.skillroundtable.data.Message
 import com.example.skillroundtable.viewmodel.RoundtableViewModel
 
+// Consistent High-End Slate Palette
 private val SlateBg = Color(0xFF121824)
-private val CardBg = Color(0xFF1E293B)
-private val PrimaryAccent = Color(0xFF3B82F6)
-private val GoldAccent = Color(0xFFF59E0B)
-private val TextPrimary = Color(0xFFF1F5F9)
-private val TextSecondary = Color(0xFF94A3B8)
+private val CardBg = Color(0xFF1E2638)
+private val PrimaryAccent = Color(0xFF6366F1) // Consistent Indigo
+private val SecondaryAccent = Color(0xFF10B981) // Consistent Emerald
+private val GoldAccent = Color(0xFFF59E0B) // Consistent Amber
+private val TextPrimary = Color(0xFFF3F4F6)
+private val TextSecondary = Color(0xFF9CA3AF)
+
+@Composable
+fun MinimalistAudioEmptyIndicator(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.size(80.dp)) {
+        val width = size.width
+        val height = size.height
+        val barCount = 5
+        val spacing = 8.dp.toPx()
+        val barWidth = 4.dp.toPx()
+        val startX = (width - (barCount * barWidth + (barCount - 1) * spacing)) / 2
+        val heights = floatArrayOf(0.3f, 0.6f, 0.8f, 0.5f, 0.2f)
+        
+        for (i in 0 until barCount) {
+            val x = startX + i * (barWidth + spacing)
+            val h = height * heights[i]
+            val y = (height - h) / 2
+            drawRoundRect(
+                color = PrimaryAccent.copy(alpha = 0.4f),
+                topLeft = Offset(x, y),
+                size = Size(barWidth, h),
+                cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,7 +80,7 @@ fun AudioLibraryScreen(
             .padding(16.dp)
     ) {
         Text(
-            text = "🎵 离线语音音频库",
+            text = "离线语音音频库",
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             color = TextPrimary
@@ -69,8 +100,7 @@ fun AudioLibraryScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🎵", fontSize = 48.sp)
-                    Spacer(Modifier.height(12.dp))
+                    MinimalistAudioEmptyIndicator(modifier = Modifier.padding(bottom = 12.dp))
                     Text("无任何已合成语音音频", color = TextSecondary, fontSize = 14.sp)
                 }
             }
@@ -122,7 +152,10 @@ fun AudioItemCard(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .bounceClick()
+            .clickable { expanded = !expanded },
         colors = CardDefaults.cardColors(containerColor = CardBg),
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, if (isPlaying) GoldAccent.copy(alpha = 0.4f) else PrimaryAccent.copy(alpha = 0.1f))
@@ -179,9 +212,12 @@ fun AudioItemCard(
                             onClick = onTranscode,
                             colors = ButtonDefaults.buttonColors(containerColor = PrimaryAccent.copy(alpha = 0.1f), contentColor = PrimaryAccent),
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                            modifier = Modifier.height(28.dp).padding(end = 6.dp)
+                            modifier = Modifier
+                                .height(28.dp)
+                                .padding(end = 6.dp)
+                                .bounceClick()
                         ) {
-                            Text("⚡ 转码", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text("转码", fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -189,6 +225,7 @@ fun AudioItemCard(
                         onClick = onPlay,
                         modifier = Modifier
                             .size(32.dp)
+                            .bounceClick()
                             .background(if (isPlaying) GoldAccent.copy(alpha = 0.2f) else PrimaryAccent.copy(alpha = 0.1f), CircleShape)
                     ) {
                         Icon(
@@ -204,6 +241,7 @@ fun AudioItemCard(
                         onClick = onDelete,
                         modifier = Modifier
                             .size(32.dp)
+                            .bounceClick()
                             .background(Color.Red.copy(alpha = 0.1f), CircleShape)
                     ) {
                         Icon(
@@ -241,6 +279,7 @@ fun AudioItemCard(
                         color = GoldAccent,
                         modifier = Modifier
                             .padding(top = 6.dp)
+                            .bounceClick()
                             .clickable { expanded = !expanded }
                     )
                 }

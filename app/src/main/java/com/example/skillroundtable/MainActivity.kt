@@ -3,6 +3,14 @@ package com.example.skillroundtable
 import com.example.skillroundtable.viewmodel.SearchMode
 import android.os.Bundle
 import android.widget.Toast
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.composed
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -58,6 +66,73 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
+
+fun Modifier.bounceClick(): Modifier = composed {
+    var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1.0f,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+        label = "bounceScale"
+    )
+    this.graphicsLayer {
+        scaleX = scale
+        scaleY = scale
+    }.pointerInput(Unit) {
+        detectTapGestures(
+            onPress = {
+                isPressed = true
+                tryAwaitRelease()
+                isPressed = false
+            }
+        )
+    }
+}
+
+@Composable
+fun MinimalistPulseIndicator(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 0.85f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2200, easing = EaseInOutSine),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scale"
+    )
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 0.75f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2200, easing = EaseInOutSine),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "alpha"
+    )
+
+    Box(
+        modifier = modifier.size(100.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawCircle(
+                color = PrimaryAccent.copy(alpha = alpha * 0.12f),
+                radius = size.minDimension / 2 * scale
+            )
+            drawCircle(
+                color = GoldAccent.copy(alpha = alpha * 0.35f),
+                radius = size.minDimension / 2.4f * (2f - scale),
+                style = Stroke(width = 1.5.dp.toPx())
+            )
+        }
+        Icon(
+            imageVector = Icons.Default.Info,
+            contentDescription = null,
+            tint = GoldAccent.copy(alpha = 0.8f),
+            modifier = Modifier.size(28.dp)
+        )
+    }
+}
 
 @Composable
 fun CharacterAvatar(
@@ -195,19 +270,22 @@ fun MainAppContent() {
                     icon = { Icon(Icons.Default.Home, contentDescription = "圆桌脑暴") },
                     label = { Text("圆桌脑暴") },
                     selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 }
+                    onClick = { selectedTab = 0 },
+                    modifier = Modifier.bounceClick()
                 )
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.Person, contentDescription = "智囊大厅") },
                     label = { Text("智囊大厅") },
                     selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 }
+                    onClick = { selectedTab = 1 },
+                    modifier = Modifier.bounceClick()
                 )
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.PlayArrow, contentDescription = "音频库") },
                     label = { Text("音频库") },
                     selected = selectedTab == 2,
-                    onClick = { selectedTab = 2 }
+                    onClick = { selectedTab = 2 },
+                    modifier = Modifier.bounceClick()
                 )
             }
         }
@@ -289,7 +367,7 @@ fun MainAppContent() {
                     ) {
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            text = "🧠 脑暴会议历史",
+                            text = "脑暴会议历史",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
@@ -305,6 +383,7 @@ fun MainAppContent() {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .bounceClick()
                                 .testTag("new_session_button"),
                             colors = ButtonDefaults.buttonColors(containerColor = PrimaryAccent)
                         ) {
@@ -558,7 +637,7 @@ fun RoundtableRoundBubble(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "⚡ 第 ${roundItem.roundIndex} 轮脑暴交锋",
+                text = "第 ${roundItem.roundIndex} 轮脑暴交锋",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = GoldAccent
@@ -702,7 +781,7 @@ fun RoundtableBrainstormScreen(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = if (isRoundtableRunning) "🧠 诸位智囊连环论证中..." else "🔮 虚左以待，请君提问",
+                        text = if (isRoundtableRunning) "诸位智囊连环论证中..." else "虚左以待，请君提问",
                         fontSize = 12.sp,
                         color = if (isRoundtableRunning) SecondaryAccent else TextSecondary
                     )
@@ -756,7 +835,7 @@ fun RoundtableBrainstormScreen(
                     }
                 }
 
-                IconButton(onClick = onOpenApiKeyConfig) {
+                IconButton(onClick = onOpenApiKeyConfig, modifier = Modifier.bounceClick()) {
                     Icon(
                         Icons.Default.Settings,
                         contentDescription = "密钥设置",
@@ -793,9 +872,7 @@ fun RoundtableBrainstormScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Text(
-                        "🧠",
-                        fontSize = 64.sp,
+                    MinimalistPulseIndicator(
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
                     Text(
@@ -817,7 +894,8 @@ fun RoundtableBrainstormScreen(
                         onClick = {
                             viewModel.createNewSession("关于新方向的圆桌脑暴")
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryAccent)
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryAccent),
+                        modifier = Modifier.bounceClick()
                     ) {
                         Text("开启首个圆桌会议")
                     }
@@ -1148,7 +1226,7 @@ fun SearchModeSelector(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "🔍 联网搜索接地模式",
+            text = "联网搜索接地模式",
             fontSize = 11.sp,
             color = TextSecondary,
             fontWeight = FontWeight.Bold
@@ -1172,6 +1250,7 @@ fun SearchModeSelector(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
                         .background(if (isSelected) PrimaryAccent else Color.Transparent)
+                        .bounceClick()
                         .clickable { onModeChange(mode) }
                         .padding(horizontal = 10.dp, vertical = 4.dp),
                     contentAlignment = Alignment.Center
@@ -1256,6 +1335,7 @@ fun MessageBubble(
                             bottomEnd = if (isUser) 4.dp else 16.dp
                         )
                     )
+                    .bounceClick()
                     .clickable {
                         clipboardManager.setText(AnnotatedString(message.text))
                         Toast.makeText(context, "已复制至剪贴板", Toast.LENGTH_SHORT).show()
@@ -1285,6 +1365,7 @@ fun MessageBubble(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .padding(start = 4.dp)
+                        .bounceClick()
                         .clickable {
                             val voice = allCharacters.find { it.id == message.senderId }?.voiceConfig ?: "Aoede"
                             onPlayAudio(message, voice)
@@ -1299,7 +1380,7 @@ fun MessageBubble(
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        text = if (isPlaying) "🔊 播音中..." else "🔊 合成语音",
+                        text = if (isPlaying) "播音中..." else "合成语音",
                         fontSize = 11.sp,
                         color = if (isPlaying) GoldAccent else TextSecondary
                     )
@@ -1455,7 +1536,7 @@ fun CharacterHallScreen(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "💼 智囊设定殿堂",
+                    text = "智囊设定殿堂",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary
@@ -1519,6 +1600,7 @@ fun CharacterHallScreen(
                 val strokeColor = if (group.isPreset) PrimaryAccent else SecondaryAccent
                 Surface(
                     modifier = Modifier
+                        .bounceClick()
                         .clip(RoundedCornerShape(10.dp))
                         .combinedClickable(
                             onClick = {
@@ -1564,6 +1646,7 @@ fun CharacterHallScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .bounceClick()
                         .clickable {
                             detailCharacter = char
                             viewModel.loadDetailSkill(char, context)
@@ -1632,7 +1715,10 @@ fun CharacterHallScreen(
                             horizontalArrangement = Arrangement.End,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            TextButton(onClick = { onEditCharacter(char) }) {
+                            TextButton(
+                                onClick = { onEditCharacter(char) },
+                                modifier = Modifier.bounceClick()
+                            ) {
                                 Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Text("修改Prompt设定")
@@ -1796,7 +1882,7 @@ fun CharacterHallScreen(
                 Spacer(Modifier.height(20.dp))
 
                 Text(
-                    text = "🧠 角色思维模型与决策DNA",
+                    text = "角色思维模型与决策DNA",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary,
@@ -1867,8 +1953,8 @@ fun ApiKeyConfigDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
-                    TextButton(onClick = onOpenDebugPanel) {
-                        Text("🔧 熔断诊断与遥测日志", color = GoldAccent, fontSize = 12.sp)
+                    TextButton(onClick = onOpenDebugPanel, modifier = Modifier.bounceClick()) {
+                        Text("熔断诊断与遥测日志", color = GoldAccent, fontSize = 12.sp)
                     }
                 }
             }
@@ -1906,7 +1992,7 @@ fun AddEditCharacterDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = if (character == null) "🖋️ 录入新智囊入席" else "🖋️ 修改智囊 [${character.name}] 设定"
+                text = if (character == null) "录入新智囊入席" else "修改智囊 [${character.name}] 设定"
             )
         },
         text = {
@@ -1924,12 +2010,12 @@ fun AddEditCharacterDialog(
                     )
                 }
                 item {
-                    Text("智囊头像 (单个Emoji)", fontSize = 12.sp, color = TextSecondary)
+                    Text("智囊头像路径 (Assets)", fontSize = 12.sp, color = TextSecondary)
                     TextField(
                         value = avatar,
-                        onValueChange = { avatar = it.take(2) }, // Limit to 1-2 chars for single Emoji
+                        onValueChange = { avatar = it },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("例：🎓") }
+                        placeholder = { Text("例：avatars/elon.jpg") }
                     )
                 }
                 item {
@@ -2043,7 +2129,7 @@ fun ApiDebugPanelDialog(
                 Spacer(modifier = Modifier.height(12.dp))
                 
                 // 2. 内置 10 个 Key 的熔断状态
-                Text("🔑 备用 Key 熔断状态 (24小时熔断期)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                Text("备用 Key 熔断状态 (24小时熔断期)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                 Spacer(modifier = Modifier.height(4.dp))
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
@@ -2078,7 +2164,7 @@ fun ApiDebugPanelDialog(
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 // 3. API 日志列表
-                Text("📄 最近 API 请求日志", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                Text("最近 API 请求日志", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                 Spacer(modifier = Modifier.height(4.dp))
                 if (logs.isEmpty()) {
                     Box(
