@@ -44,3 +44,6 @@ node_modules/
 # Python cache (如果有 Python 工具)
 __pycache__/
 *.pyc
+
+# Temporary media files
+/tmp_debug_media/
