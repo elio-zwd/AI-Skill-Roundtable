@@ -10,7 +10,7 @@
 **AI 智囊圆桌**是一款原生 Android 聊天应用。用户提问后，7 个 GitHub Skills 角色（Elon Musk、Feynman、Munger、Naval、Steve Jobs、Taleb、张雪峰）依次轮流作答，每位角色回答后自动携带完整上下文，让下一位角色看到前人发言并进行评论、反驳或补充，形成真实的圆桌脑暴效果。
 
 ### 1.2 当前阶段
-- **阶段**：并发回复交互、Markdown渲染与离线语音管理层（v2.0）全面交付，角色预设/自定义分组、AI风格肖像画册大厅（v2.1）全面交付，编译通过。
+- **阶段**：并发回复交互、Markdown渲染与离线语音管理层（v2.0）全面交付，角色预设/自定义分组、AI风格肖像画册大厅（v2.1）全面交付，去 Emoji 垃圾代码、物理阻力 Spring 动效微交互、主屏顶部极致窄缩及智囊大厅 (Tab 1) Notion Bento 线性化全面交付（v2.2），编译通过。
 - **已交付目标**：
   1. **多角色并发回复**：使用并发协程组同时拉取所有角色的回答，配合多角色 typing 思考指示器。
   2. **反检测节奏策略**：配置 1~3s 首发错峰延迟与 2~6s 同 Key 内串行间隔，跨 Key 组间实现并发。
@@ -25,6 +25,7 @@
   11. **💼 预设与自定义分组持久化 (v2.1)**：基于 Room 数据库建立 CharacterGroup 数据层，在 Seeding 中注入四大经典官方预设，大厅支持顶部 LazyRow 滑动 Chip 应用分组及长按删除自定义组。
   12. **★ 星号一键另存为新组 (v2.1)**：大厅状态发生改变时，右上角浮现金色星标按钮，支持用户输入名称/描述一键将当前激活角色归档为新自定义预设。
   13. **📖 画册风画像 ModalBottomSheet 详情 (v2.1)**：大厅卡片点击唤起底部抽屉，展现 80dp 大圆形头像、呼吸感斜体 Tagline、以及动态剥离 YAML 并使用自定义 MarkdownRender 极简渲染其完整的 SKILL.md 决策 DNA。
+  14. **🎨 极简 Notion 线性风与物理交互 (v2.2)**：移除了全局 Emoji/Slop 感控件并引入 Custom同心发光环占位符；添加 `bounceClick` 手势动效让所有触控件具备 Spring 弹簧弹性微缩交互；极致压缩顶部纵向空间，移出低频开关至 Drawer；彻底重塑 Tab 1 智囊卡片为单行 Bento 线性列表（64dp 高），将状态管理重构为入席/旁听微型胶囊并隐藏操作于 DropdownMenu 浮动菜单内。
 
 ---
 
@@ -193,7 +194,7 @@ AI-Skill-Roundtable/
 
 | 文档 | 路径 | 说明 |
 |------|------|------|
-| 安卓编译指南 | [docs/environment/android-compilation-guide.md](docs/environment/android-compilation-guide.md) | JDK 17 离线编译完整方案 |
+| 安泽编译指南 | [docs/environment/android-compilation-guide.md](docs/environment/android-compilation-guide.md) | JDK 17 离线编译完整方案 |
 | 架构升级说明 | [docs/ai-guidance/2026-07-12-upgrades.md](docs/ai-guidance/2026-07-12-upgrades.md) | 2026-07-12 重大技术重构全景报告 |
 | API 协议说明 | [docs/protocols/gemini-api.md](docs/protocols/gemini-api.md) | Gemini API (含 Embedding、Broker、Live WebSocket) 规范 |
 | 架构说明 | [docs/architecture/system-architecture.md](docs/architecture/system-architecture.md) | 双模型 Broker 与语义路由系统数据流 |
@@ -201,8 +202,10 @@ AI-Skill-Roundtable/
 | 新增角色指南 | [docs/skills/how-to-add-new-character.md](docs/skills/how-to-add-new-character.md) | 一键动态扩增全新智囊角色的操作指南 |
 | 三模型级联与联网接地 ADR | [docs/decisions/adr-005-three-model-cascade-with-google-search-grounding.md](docs/decisions/adr-005-three-model-cascade-with-google-search-grounding.md) | 记录三模型级联联网搜索接地设计决策 |
 | 智囊分组与详情 BottomSheet ADR | [docs/decisions/adr-006-preset-groups-and-magical-markdown-bottomsheet-design.md](docs/decisions/adr-006-preset-groups-and-magical-markdown-bottomsheet-design.md) | (新增) 记录内置/自定义分组持久化与画像 Markdown 极简渲染设计决策 |
+| 极简Notion风格与弹簧交互决策 ADR | [docs/decisions/adr-007-notion-styled-ui-and-physics-spring-interactions.md](docs/decisions/adr-007-notion-styled-ui-and-physics-spring-interactions.md) | (新增) 记录极简去 Emoji、物理弹簧阻尼交互、顶部高度裁切与大厅 Bento 线性名册重构的设计决策 |
 | AI 头像生图 Prompt 指南 | [docs/planning/avatar-prompts-guide.md](docs/planning/avatar-prompts-guide.md) | (新增) 19 个名人角色莫兰迪极简 AI 头像生图提示词清单 |
 | v2.1 重构完工报告 | [docs/planning/walkthrough.md](docs/planning/walkthrough.md) | (新增) 莫兰迪头像物理覆盖、智囊分组交互与画像 BottomSheet 的交付校验报告 |
+| 调试面板与语音/文件导出说明 | [docs/features/debug-panel-and-telemetry-diagnostics.md](docs/features/debug-panel-and-telemetry-diagnostics.md) | (新增) 详解 API 熔断诊断与请求日志遥测浮层面板的底层技术，以及 WAV/AAC 语音转码和 Markdown 免权限 MediaStore 导出的附带功能细节 |
 
 ---
 
@@ -222,4 +225,7 @@ AI-Skill-Roundtable/
 | 全员统一莫兰迪 AI 肖像 | 剔除难看 Emoji 头像，由用户生图并物理替换，20 位智囊全员 JPG 文件归集至 assets 目录，在 CharacterAvatar 实现流式零依赖安全解码加载 | 2026-07-13 |
 | 预置与自定义分组持久化 | 建立 CharacterGroup 数据库表，版本号升级至 4，在 onCreate() 写入四大预设 Seeding 数据；支持快捷 Chip 切换、长按删除及金色星标一键保存当前激活角色 | 2026-07-13 |
 | 画册风画像底置详情抽屉 | 点击角色卡片弹出 BottomSheet，首屏杂志级排版（大头像、Tagline），随后利用极简 MarkdownRender 自行解析 SKILL.md 大纲正文，流式展示其决策 DNA | 2026-07-13 |
+| 密钥配置弹窗与熔断调试面板挂接 | 在 API 密钥配置框（齿轮）中内置高对比度超链接，点击唤起 ApiDebugPanelDialog 并通过 ApiKeyPool.apiLogs 共享 50 条最近请求详情（含 Prompt） | 2026-07-14 |
+| 无侵入式物理微交互 Modifier | 使用 Compose composed + pointerInput 配合 spring 阻尼手势解耦，对全部触控节点无感挂接点击态缩放 (0.96f) 与物理弹性回弹 | 2026-07-14 |
+| 智囊大厅 DropdownMenu 交互收纳 | 将“修改设定”与“请离会议”高危/低频功能收纳至卡片右侧 MoreVert 图标触发的 DropdownMenu，保持首屏界面极其纯净优雅 | 2026-07-14 |
 

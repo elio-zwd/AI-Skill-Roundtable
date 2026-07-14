@@ -1633,17 +1633,6 @@ fun CharacterHallScreen(
                                         fontSize = 15.sp,
                                         color = TextPrimary
                                     )
-                                    if (char.id == "zhang_xuefeng") {
-                                        Spacer(Modifier.width(6.dp))
-                                        Box(
-                                            modifier = Modifier
-                                                .background(GoldAccent.copy(alpha = 0.15f), RoundedCornerShape(3.dp))
-                                                .border(0.5.dp, GoldAccent.copy(alpha = 0.3f), RoundedCornerShape(3.dp))
-                                                .padding(horizontal = 4.dp, vertical = 1.dp)
-                                        ) {
-                                            Text("首发", color = GoldAccent, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                                        }
-                                    }
                                 }
                                 Spacer(Modifier.height(2.dp))
                                 Text(
