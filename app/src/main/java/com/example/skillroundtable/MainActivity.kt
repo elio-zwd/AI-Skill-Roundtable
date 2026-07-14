@@ -1479,28 +1479,24 @@ fun CharacterHallScreen(
             .background(SlateBg)
             .padding(16.dp)
     ) {
-        // 顶部标题和按钮
+        // 顶部标题和控制按钮 (Notion线性单行版)
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "智囊设定殿堂",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-                Text(
-                    text = "在此设定参会角色，可支持随时自定义角包！",
-                    fontSize = 12.sp,
-                    color = TextSecondary
-                )
-            }
+            Text(
+                text = "智囊设定殿堂",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
+            )
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                // 如果当前有激活的角色，显示“存为分组”的五角星按钮
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 如果当前有激活的角色，显示另存为分组的星标
                 if (characters.any { it.isActive }) {
                     IconButton(
                         onClick = {
@@ -1509,37 +1505,36 @@ fun CharacterHallScreen(
                             showSaveGroupDialog = true
                         },
                         modifier = Modifier
-                            .size(40.dp)
-                            .background(GoldAccent.copy(alpha = 0.15f), CircleShape)
-                            .border(1.dp, GoldAccent.copy(alpha = 0.4f), CircleShape)
+                            .size(36.dp)
+                            .bounceClick()
                     ) {
-                        Icon(Icons.Default.Star, contentDescription = "存为分组", tint = GoldAccent, modifier = Modifier.size(20.dp))
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = "存为分组",
+                            tint = GoldAccent,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
 
-                Button(
+                // 极简加号“添客”IconButton
+                IconButton(
                     onClick = onAddCharacter,
-                    colors = ButtonDefaults.buttonColors(containerColor = SecondaryAccent),
-                    modifier = Modifier.height(40.dp)
+                    modifier = Modifier
+                        .size(36.dp)
+                        .bounceClick()
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = null)
-                    Spacer(Modifier.width(4.dp))
-                    Text("添客")
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = "录入新智囊",
+                        tint = TextPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         }
 
-        Spacer(Modifier.height(12.dp))
-
-        // 滑动 Chip 分组栏
-        Text(
-            text = "快速分组角色预设",
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = TextSecondary,
-            modifier = Modifier.padding(bottom = 6.dp)
-        )
-
+        // 滑动 Chip 分组栏 (Notion 线性化极窄版)
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
@@ -1547,12 +1542,12 @@ fun CharacterHallScreen(
                 .padding(vertical = 4.dp)
         ) {
             items(groups) { group ->
-                val bgColor = if (group.isPreset) PrimaryAccent.copy(alpha = 0.12f) else SecondaryAccent.copy(alpha = 0.12f)
+                val bgColor = if (group.isPreset) PrimaryAccent.copy(alpha = 0.05f) else SecondaryAccent.copy(alpha = 0.05f)
                 val strokeColor = if (group.isPreset) PrimaryAccent else SecondaryAccent
                 Surface(
                     modifier = Modifier
                         .bounceClick()
-                        .clip(RoundedCornerShape(10.dp))
+                        .clip(RoundedCornerShape(6.dp))
                         .combinedClickable(
                             onClick = {
                                 viewModel.applyCharacterGroup(group)
@@ -1565,35 +1560,41 @@ fun CharacterHallScreen(
                             }
                         ),
                     color = bgColor,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, strokeColor.copy(alpha = 0.4f)),
-                    shape = RoundedCornerShape(10.dp)
+                    border = androidx.compose.foundation.BorderStroke(1.dp, strokeColor.copy(alpha = 0.25f)),
+                    shape = RoundedCornerShape(6.dp)
                 ) {
-                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(strokeColor)
+                        )
+                        Spacer(Modifier.width(6.dp))
                         Text(
                             text = group.name,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
                             color = TextPrimary
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = if (group.isPreset) "官方预设" else "自定义",
-                            fontSize = 10.sp,
-                            color = strokeColor,
-                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(12.dp))
 
+        // 智囊卡片名册 (Notion 线性 Bento 化)
         LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxSize()
         ) {
             items(characters) { char ->
+                var showMoreMenu by remember { mutableStateOf(false) }
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1603,84 +1604,123 @@ fun CharacterHallScreen(
                             viewModel.loadDetailSkill(char, context)
                         },
                     colors = CardDefaults.cardColors(containerColor = CardBg),
-                    shape = RoundedCornerShape(16.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(0.5.dp, PrimaryAccent.copy(alpha = 0.15f))
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                    ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.weight(1f)
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                                CharacterAvatar(
-                                    avatar = char.avatar,
-                                    name = char.name,
-                                    size = 48.dp,
-                                    textSize = 24.sp
-                                )
-                                Spacer(Modifier.width(14.dp))
-                                Column {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = char.name,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 17.sp,
-                                            color = TextPrimary
-                                        )
-                                        if (char.id == "zhang_xuefeng") {
-                                            Spacer(Modifier.width(6.dp))
-                                            Box(
-                                                modifier = Modifier
-                                                    .background(GoldAccent.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
-                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                                            ) {
-                                                Text("首发Skill", color = GoldAccent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                            }
+                            CharacterAvatar(
+                                avatar = char.avatar,
+                                name = char.name,
+                                size = 42.dp,
+                                textSize = 20.sp
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = char.name,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp,
+                                        color = TextPrimary
+                                    )
+                                    if (char.id == "zhang_xuefeng") {
+                                        Spacer(Modifier.width(6.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .background(GoldAccent.copy(alpha = 0.15f), RoundedCornerShape(3.dp))
+                                                .border(0.5.dp, GoldAccent.copy(alpha = 0.3f), RoundedCornerShape(3.dp))
+                                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                                        ) {
+                                            Text("首发", color = GoldAccent, fontSize = 8.sp, fontWeight = FontWeight.Bold)
                                         }
                                     }
-                                    Text(
-                                        text = char.tagline,
-                                        fontSize = 12.sp,
-                                        color = TextSecondary,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
                                 }
-                            }
-
-                            Switch(
-                                checked = char.isActive,
-                                onCheckedChange = { onToggleActive(char) },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = SecondaryAccent,
-                                    checkedTrackColor = SecondaryAccent.copy(alpha = 0.4f)
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    text = char.tagline,
+                                    fontSize = 11.sp,
+                                    color = TextSecondary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
-                            )
+                            }
                         }
 
-                        Spacer(Modifier.height(12.dp))
-                        Divider(color = TextSecondary.copy(alpha = 0.1f))
-                        Spacer(Modifier.height(10.dp))
-
+                        // 右侧操作区：入席/旁听胶囊状态 + 更多三点菜单
                         Row(
-                            horizontalArrangement = Arrangement.End,
-                            modifier = Modifier.fillMaxWidth()
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            TextButton(
-                                onClick = { onEditCharacter(char) },
-                                modifier = Modifier.bounceClick()
+                            // 入席/旁听胶囊按钮
+                            val isActive = char.isActive
+                            val capsuleBg = if (isActive) SecondaryAccent.copy(alpha = 0.08f) else Color.Transparent
+                            val capsuleBorderColor = if (isActive) SecondaryAccent.copy(alpha = 0.4f) else TextSecondary.copy(alpha = 0.3f)
+                            val capsuleTextColor = if (isActive) SecondaryAccent else TextSecondary
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(capsuleBg)
+                                    .border(0.5.dp, capsuleBorderColor, RoundedCornerShape(6.dp))
+                                    .bounceClick()
+                                    .clickable { onToggleActive(char) }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text("修改Prompt设定")
+                                Text(
+                                    text = if (isActive) "入席" else "旁听",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = capsuleTextColor
+                                )
                             }
 
-                            if (char.id != "zhang_xuefeng") {
-                                Spacer(Modifier.width(8.dp))
-                                TextButton(onClick = { onDeleteCharacter(char.id) }) {
-                                    Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Red.copy(alpha = 0.8f))
-                                    Spacer(Modifier.width(6.dp))
-                                    Text("请离会议", color = Color.Red.copy(alpha = 0.8f))
+                            // 更多菜单
+                            Box {
+                                IconButton(
+                                    onClick = { showMoreMenu = true },
+                                    modifier = Modifier.size(24.dp).bounceClick()
+                                ) {
+                                    Icon(
+                                        Icons.Default.MoreVert,
+                                        contentDescription = "更多选项",
+                                        tint = TextSecondary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+
+                                DropdownMenu(
+                                    expanded = showMoreMenu,
+                                    onDismissRequest = { showMoreMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("修改设定") },
+                                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                        onClick = {
+                                            showMoreMenu = false
+                                            onEditCharacter(char)
+                                        }
+                                    )
+                                    if (char.id != "zhang_xuefeng") {
+                                        DropdownMenuItem(
+                                            text = { Text("请离会议", color = Color.Red.copy(alpha = 0.8f)) },
+                                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Red.copy(alpha = 0.8f)) },
+                                            onClick = {
+                                                showMoreMenu = false
+                                                onDeleteCharacter(char.id)
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
