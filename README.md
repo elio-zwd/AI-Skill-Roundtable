@@ -99,6 +99,22 @@ java -version   # 应输出 openjdk 17
 .\gradlew.bat installDebug
 ```
 
+### 5. 一键编译运行与实时调试（仿 Flutter run 体验）
+
+项目中提供了一键式运行脚本 `run.ps1`。你只需连接手机，在项目根目录下执行以下命令：
+
+```powershell
+.\run.ps1
+```
+
+该脚本会自动帮你：
+1. 配置编译所需的 JDK 17 环境变量。
+2. 执行 Gradle 编译并安装应用到你的测试手机。
+3. 自动在手机上拉起本应用的主页面。
+4. 清空旧日志，提取当前 App 的进程 PID，在终端中**流式实时输出**该应用的 Debug 调试日志。
+
+> 💡 **提示**：在终端中随时按下 **`Ctrl + C`** 键即可安全退出日志追踪。
+
 ---
 
 ## 构建、测试与调试
@@ -150,6 +166,9 @@ AI-Skill-Roundtable/
 ## 常用命令速查
 
 ```powershell
+# 一键编译安装、拉起应用并实时输出日志（仿 Flutter run）
+.\run.ps1
+
 # 环境初始化
 $env:JAVA_HOME = "D:\My_Elio\dev-tools\jdk-17.0.19+10"; $env:Path = "$env:JAVA_HOME\bin;" + $env:Path
 
