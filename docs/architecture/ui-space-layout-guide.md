@@ -165,3 +165,42 @@
 | **马斯克三点菜单** | `980 1036` | `1307 1381` | 卡片 1 右侧 MoreVert 菜单 |
 | **调试面板关闭按钮** | `780 2233` | `1040 2977` | 熔断面板关闭回到密钥配置 |
 
+
+---
+
+## 7. 无文本图标的语义 & 视觉混合定位
+
+由于部分核心控件（例如菜单、齿轮、加号、星标）不含常规 Text 文本，项目提供了两种高级定位路径，支持 AI 代理完美进行“盲操”：
+
+### 7.1 XML 智能同义词推荐定位 (`uidump.py`)
+为了避免盲猜 content-description，在 `uidump.py` 的 `--find` 查询接口中，内置了高频图标别名机制：
+* **抽屉 / 菜单**：用户输入“菜单”或“抽屉”，会自动关联并匹配 `menu`, `drawer`, `navigation`, `打开导航抽屉` 等属性。
+* **设置 / 齿轮**：用户输入“设置”或“配置”，会匹配 `setting`, `setup`, `config`, `密钥配置` 属性。
+* **添加 / 加号**：用户输入“添加”或“加号”，会匹配 `add`, `plus`, `添客`, `录入新席位` 属性。
+* **保存 / 星标**：用户输入“存组”或“保存”，会匹配 `save`, `group`, `另存为分组` 属性。
+
+* 使用示例：
+  ```bash
+  python tools/uidump.py --find "设置"
+  # 输出: 975 142
+  ```
+
+### 7.2 视觉级多尺度图像模板匹配定位 (`find_icon.py`)
+当 XML 树无任何文本反馈（如 Canvas 绘制的极简占位符），或在真机与模拟器 DPI 变化时，可以通过预存的图标特征图进行**多尺度视觉搜寻**：
+- **原理**：调用 [find_icon.py](file:///d:/My_Elio/AI-Skill-Roundtable/tools/find_icon.py) 读取 `tools/templates/` 目录下的基准图标（如 `setting.png` 或 `menu.png`），自动截取当前屏幕，并进行 $0.5 \sim 1.5$ 倍的多尺度滑动窗口匹配。
+- **预设模板位置**：
+  * 齿轮设置特征图：[setting.png](file:///d:/My_Elio/AI-Skill-Roundtable/tools/templates/setting.png)
+  * 三横菜单特征图：[menu.png](file:///d:/My_Elio/AI-Skill-Roundtable/tools/templates/menu.png)
+- **使用示例**：
+  ```bash
+  python tools/find_icon.py -t tools/templates/setting.png
+  # 自动自适应缩放并输出: 975 142
+  ```
+- **点击直连**（结合 click.py 完成盲操点击）：
+  ```powershell
+  # 在 PowerShell 中获取坐标并直接点击：
+  $coords = python tools/find_icon.py -t tools/templates/setting.png
+  python tools/click.py $coords
+  ```
+
+

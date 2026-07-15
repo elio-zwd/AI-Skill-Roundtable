@@ -59,11 +59,9 @@ class TestADBTools(unittest.TestCase):
         if not self.has_device:
             self.skipTest("No ADB device online. Skipping.")
             
-        # 搜索几乎必然存在在首屏的词，比如 "脑暴" 或 "智囊"
         cmd = ["python", "tools/uidump.py", "--find", "智囊"]
         res = subprocess.run(cmd, capture_output=True, text=True)
         
-        # 若屏幕上没有该文字导致报错也算正常，但如果是找到了，应该断言输出的是中点坐标
         if res.returncode == 0:
             coords = res.stdout.strip().split()
             self.assertEqual(len(coords), 2, f"Coordinate output should be two ints: {res.stdout}")
@@ -74,6 +72,42 @@ class TestADBTools(unittest.TestCase):
             self.assertLessEqual(y, 3000)
         else:
             self.assertIn("ERROR: Widget with text/desc containing", res.stderr)
+
+    def test_uidump_synonyms(self):
+        if not self.has_device:
+            self.skipTest("No ADB device online. Skipping.")
+            
+        # 搜别名同义词，联想匹配齿轮图标 content-desc "设置"
+        cmd = ["python", "tools/uidump.py", "--find", "配置"]
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if res.returncode == 0:
+            coords = res.stdout.strip().split()
+            self.assertEqual(len(coords), 2)
+            x, y = int(coords[0]), int(coords[1])
+            self.assertGreaterEqual(x, 0)
+            self.assertLessEqual(x, 1080)
+            self.assertGreaterEqual(y, 0)
+            self.assertLessEqual(y, 2400)
+
+    def test_find_icon_image(self):
+        if not self.has_device:
+            self.skipTest("No ADB device online. Skipping.")
+            
+        # 测试在屏幕上模板匹配寻找设置齿轮图标
+        template_png = os.path.abspath("tools/templates/setting.png")
+        self.assertTrue(os.path.exists(template_png), f"Template image {template_png} does not exist.")
+        
+        cmd = ["python", "tools/find_icon.py", "-t", template_png]
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        
+        self.assertEqual(res.returncode, 0, f"find_icon.py failed with: {res.stderr}")
+        coords = res.stdout.strip().split()
+        self.assertEqual(len(coords), 2)
+        x, y = int(coords[0]), int(coords[1])
+        # 齿轮中点大致位置在 975 142 附近 (误差在 10px 内)
+        self.assertTrue(965 <= x <= 985, f"X coordinate {x} out of range.")
+        self.assertTrue(132 <= y <= 152, f"Y coordinate {y} out of range.")
 
 if __name__ == "__main__":
     unittest.main()

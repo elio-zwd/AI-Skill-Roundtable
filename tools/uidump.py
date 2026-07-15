@@ -38,12 +38,36 @@ def parse_bounds(bounds_str):
     x1, y1, x2, y2 = map(int, match.groups())
     return (x1 + x2) // 2, (y1 + y2) // 2
 
+SYNONYMS = {
+    "菜单": ["menu", "抽屉", "drawer", "navigation", "nav", "打开导航抽屉", "打开会议历史", "历史会议"],
+    "抽屉": ["菜单", "menu", "drawer", "navigation", "nav", "打开导航抽屉", "打开会议历史", "历史会议"],
+    "设置": ["setting", "setup", "配置", "config", "齿轮", "key", "密钥配置", "设置密钥", "api"],
+    "添加": ["add", "plus", "加号", "添客", "录入", "新建", "录入新席位"],
+    "存组": ["save", "group", "星标", "另存为分组", "保存"]
+}
+
 def find_node_by_text(node, search_text):
+    # 构建搜索候选项
+    candidates = [search_text.lower()]
+    for key, aliases in SYNONYMS.items():
+        if search_text.lower() in key.lower() or key.lower() in search_text.lower():
+            for alias in aliases:
+                candidates.append(alias.lower())
+                
+    # 检查节点是否匹配任意一个候选项
+    def is_match(node_val):
+        if not node_val:
+            return False
+        val_lower = node_val.lower()
+        for cand in candidates:
+            if cand in val_lower:
+                return True
+        return False
+
     text = node.get("text", "")
     desc = node.get("content-desc", "")
     
-    # 模糊包含匹配 (大小写不敏感)
-    if search_text.lower() in text.lower() or search_text.lower() in desc.lower():
+    if is_match(text) or is_match(desc):
         bounds = node.get("bounds", "")
         coords = parse_bounds(bounds)
         if coords:
