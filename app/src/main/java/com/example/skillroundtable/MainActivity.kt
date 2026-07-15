@@ -33,6 +33,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
@@ -261,32 +262,61 @@ fun MainAppContent() {
 
     Scaffold(
         bottomBar = {
-            NavigationBar(
-                containerColor = CardBg,
-                tonalElevation = 8.dp,
-                modifier = Modifier.height(68.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(SlateBg)
             ) {
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Home, contentDescription = "圆桌脑暴") },
-                    label = { Text("圆桌脑暴") },
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    modifier = Modifier.bounceClick()
+                Spacer(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(Color(0xFF232D42))
                 )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Person, contentDescription = "智囊大厅") },
-                    label = { Text("智囊大厅") },
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    modifier = Modifier.bounceClick()
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.PlayArrow, contentDescription = "音频库") },
-                    label = { Text("音频库") },
-                    selected = selectedTab == 2,
-                    onClick = { selectedTab = 2 },
-                    modifier = Modifier.bounceClick()
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp)
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceAround
+                ) {
+                    val tabs = listOf(
+                        Triple("圆桌脑暴", Icons.Default.Home, 0),
+                        Triple("智囊大厅", Icons.Default.Person, 1),
+                        Triple("音频库", Icons.Default.PlayArrow, 2)
+                    )
+                    tabs.forEach { (label, icon, index) ->
+                        val isSelected = selectedTab == index
+                        val activeColor = if (isSelected) PrimaryAccent else TextSecondary.copy(alpha = 0.6f)
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .bounceClick()
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) { selectedTab = index },
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = label,
+                                tint = activeColor,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = label,
+                                color = activeColor,
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
             }
         }
     ) { paddingValues ->
@@ -780,6 +810,7 @@ fun RoundtableBrainstormScreen(
 ) {
     val listState = rememberLazyListState()
     var userQuestionText by remember { mutableStateOf("") }
+    var isInputFocused by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
@@ -1008,14 +1039,35 @@ fun RoundtableBrainstormScreen(
                             .padding(horizontal = 16.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        Button(
+                        Surface(
                             onClick = { viewModel.triggerNextCharacterManual() },
-                            colors = ButtonDefaults.buttonColors(containerColor = SecondaryAccent),
-                            modifier = Modifier.fillMaxWidth()
+                            color = SecondaryAccent.copy(alpha = 0.08f),
+                            contentColor = SecondaryAccent,
+                            shape = RoundedCornerShape(18.dp),
+                            border = BorderStroke(1.dp, SecondaryAccent.copy(alpha = 0.25f)),
+                            modifier = Modifier
+                                .wrapContentWidth()
+                                .bounceClick()
                         ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("催促剩余智囊作答 (${repliedCount}/${activeCount} 已言)")
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = SecondaryAccent
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = "催促剩余智囊作答 (${repliedCount}/${activeCount} 已言)",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = SecondaryAccent
+                                )
+                            }
                         }
                     }
                 }
@@ -1027,53 +1079,73 @@ fun RoundtableBrainstormScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(CardBg)
-                    .padding(12.dp),
+                    .background(Color.Transparent)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextField(
-                    value = userQuestionText,
-                    onValueChange = { userQuestionText = it },
-                    placeholder = { Text("向诸位智囊提问...", color = TextSecondary) },
+                Row(
                     modifier = Modifier
+                        .fillMaxWidth()
                         .weight(1f)
-                        .clip(RoundedCornerShape(24.dp))
-                        .testTag("chat_input"),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = SlateBg,
-                        unfocusedContainerColor = SlateBg,
-                        disabledContainerColor = SlateBg,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    ),
-                    maxLines = 4,
-                    enabled = !isRoundtableRunning
-                )
-                Spacer(Modifier.width(8.dp))
-                IconButton(
-                    onClick = {
-                        if (userQuestionText.isNotBlank()) {
-                            viewModel.askQuestion(userQuestionText)
-                            userQuestionText = ""
-                        }
-                    },
-                    modifier = Modifier
-                        .size(48.dp)
                         .background(
-                            if (isRoundtableRunning || userQuestionText.isBlank()) TextSecondary.copy(
-                                alpha = 0.3f
-                            ) else PrimaryAccent, CircleShape
+                            color = if (isInputFocused) SlateBg else Color(0xFF151B27),
+                            shape = RoundedCornerShape(24.dp)
                         )
-                        .testTag("send_button"),
-                    enabled = !isRoundtableRunning && userQuestionText.isNotBlank()
+                        .border(
+                            width = 1.dp,
+                            color = if (isInputFocused) PrimaryAccent.copy(alpha = 0.8f) else Color(0xFF232D42),
+                            shape = RoundedCornerShape(24.dp)
+                        )
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "发送",
-                        tint = Color.White
+                    TextField(
+                        value = userQuestionText,
+                        onValueChange = { userQuestionText = it },
+                        placeholder = { Text("向诸位智囊提问...", color = TextSecondary.copy(alpha = 0.8f), fontSize = 14.sp) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .onFocusChanged { isInputFocused = it.isFocused }
+                            .testTag("chat_input"),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            disabledContainerColor = Color.Transparent,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
+                        ),
+                        textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
+                        maxLines = 4,
+                        enabled = !isRoundtableRunning
                     )
+                    Spacer(Modifier.width(4.dp))
+                    val isSendEnabled = !isRoundtableRunning && userQuestionText.isNotBlank()
+                    IconButton(
+                        onClick = {
+                            if (userQuestionText.isNotBlank()) {
+                                viewModel.askQuestion(userQuestionText)
+                                userQuestionText = ""
+                            }
+                        },
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(
+                                color = if (isSendEnabled) PrimaryAccent else Color.Transparent,
+                                shape = CircleShape
+                            )
+                            .bounceClick()
+                            .testTag("send_button"),
+                        enabled = isSendEnabled
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "发送",
+                            tint = if (isSendEnabled) Color.White else TextSecondary.copy(alpha = 0.4f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
         }
