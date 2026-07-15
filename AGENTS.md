@@ -177,6 +177,8 @@ AI-Skill-Roundtable/
 1. **先读后改**：每次任务开始，先阅读相关源文件，再动手修改
 2. **验证结果**：代码修改后必须运行 `assembleDebug` 或 `compileDebugKotlin` 确认编译通过
 3. **分段修改**：避免一次性替换大文件，优先使用精准的局部替换或多段替换 `multi_replace_file_content`
+4. **UI与测试规范**：在进行 UI 修改、排版微调或运行期验收测试时，必须通过 ADB 链接设备，去根目录 `/tools/` 下使用对应的截图、点击与图像/别名定位脚本进行调试与测试。详细的脚本调用与盲操命令请参阅 [tools/README.md](file:///d:/My_Elio/AI-Skill-Roundtable/tools/README.md)。
+
 
 ---
 

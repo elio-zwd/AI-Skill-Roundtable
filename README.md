@@ -135,6 +135,19 @@ java -version   # 应输出 openjdk 17
 
 ---
 
+## 📂 同名目录（Tools / Test）职能区分说明
+
+为了保持项目工程目录的整洁，本应用在“根目录”与 `workspace/` 子目录下分别放置了同名但**职能完全独立**的工具和测试文件夹：
+
+| 维度 | 根目录 `/tools/` 与 `/test/` | 工程子目录 `/workspace/tools/` 与 `/workspace/tests/` |
+| :--- | :--- | :--- |
+| **核心关注** | **运行时交互与自动化 (Runtime E2E)** | **构建期预编译与资产抽取 (Build-phase Compile)** |
+| **主要职责** | 控制在线设备或模拟器执行截图调试、模拟触控、XML 树语义匹配、OpenCV 图像匹配定位等。 | 抽取名人 SKILL.md 思维模型、提取向量写入 Seeding 预设 JSON、生成莫兰迪插画 JPG 头像资产等。 |
+| **主要消费方** | 本地调试运行的 AI 代理（如 Antigravity）与运行期集成校验。 | Gradle 构建自动化脚本与打包静态 assets 资源。 |
+| **参考文档** | [tools/README.md](file:///d:/My_Elio/AI-Skill-Roundtable/tools/README.md) \| [test/README.md](file:///d:/My_Elio/AI-Skill-Roundtable/test/README.md) | [workspace/tools/README.md](file:///d:/My_Elio/AI-Skill-Roundtable/workspace/tools/README.md) |
+
+---
+
 ## 目录说明
 
 ```
@@ -142,22 +155,21 @@ AI-Skill-Roundtable/
 ├── app/                     # Android 应用模块
 │   └── src/main/
 │       ├── java/            # Kotlin 源代码
-│       └── assets/skills/   # [待建] 7 个 SKILL.md 文件（打包进 APK）
-├── docs/                    # 项目文档
-│   ├── skills/              # GitHub Skills 原始文件（参考源）
-│   ├── architecture/        # 架构与模块说明
-│   ├── decisions/           # 技术决策记录
-│   ├── issues/              # Bug 记录
-│   ├── protocols/           # API 接口说明
-│   ├── planning/            # 任务计划
-│   ├── environment/         # 环境配置说明
-│   └── ai-guidance/         # AI 工作结论
-├── workspace/
-│   ├── tests/               # 测试脚本
-│   └── tools/               # 开发辅助工具
+│       └── assets/skills/   # 7 个参会名人的原始 SKILL.md (Seeding 数据源)
+├── docs/                    # 项目设计与架构文档
+│   ├── skills/              # GitHub 原始 Skills 数据参考
+│   ├── architecture/        # 系统架构、数据流与 UI 空间感定位指南
+│   ├── decisions/           # ADR 技术决策记录 (如 Notion 极简 UI / 物理微交互)
+│   ├── protocols/           # Gemini API（含 WS Live、音频转码、熔断遥测）协议规范
+│   └── planning/            # 任务执行计划与交付报告
+├── tools/                   # (新增) 运行时 ADB 控制与 OpenCV 图像匹配 API 工具集
+├── test/                    # (新增) 自动化交互工具链连通性集成校验测试用例
+├── workspace/               # 工程预编译辅助区
+│   ├── tools/               # 名人元数据 Embedding 抽取、头像生成等构建期工具
+│   └── tests/               # 数据库 Migration 等特定算法的单元测试
 ├── .env                     # API 密钥（不提交）
 ├── .env.example             # 密钥模板
-├── AGENTS.md                # AI 代理工作规范
+├── AGENTS.md                # AI 代理工作规范规范
 └── README.md                # 本文件
 ```
 
