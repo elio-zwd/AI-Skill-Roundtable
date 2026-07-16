@@ -40,6 +40,22 @@ import java.io.File
 class RoundtableViewModel(application: Application) : AndroidViewModel(application) {
     private val prefs = application.getSharedPreferences("roundtable_settings", android.content.Context.MODE_PRIVATE)
 
+    private var skillsSummaries: org.json.JSONObject? = null
+
+    private fun loadSkillsSummariesOnce(context: android.content.Context): org.json.JSONObject {
+        val current = skillsSummaries
+        if (current != null) return current
+        val json = try {
+            val jsonStr = context.assets.open("skills_summaries.json").use { it.reader().readText() }
+            org.json.JSONObject(jsonStr)
+        } catch (e: java.lang.Exception) {
+            android.util.Log.e("RoundtableViewModel", "加载 skills_summaries.json 失败", e)
+            org.json.JSONObject()
+        }
+        skillsSummaries = json
+        return json
+    }
+
     private val database = RoundtableDatabase.getDatabase(application, viewModelScope)
     private val charRepo = com.example.skillroundtable.data.CharacterRepository(database.characterDao())
     private val chatRepo = com.example.skillroundtable.data.ChatRepository(database.chatDao())
@@ -701,6 +717,25 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         val mode = _searchMode.value
 
         if (totalFiles.isNotEmpty() || mode != SearchMode.OFF) {
+            val summariesMap = loadSkillsSummariesOnce(context)
+            val formatFileList = {
+                if (totalFiles.isEmpty()) {
+                    "（当前无候选本地资料）"
+                } else {
+                    totalFiles.joinToString("\n") { fileName ->
+                        val isExample = fileName in exampleFiles
+                        val folderSum = summariesMap.optJSONObject(folderName)
+                        val fileSum = if (isExample) {
+                            folderSum?.optJSONObject("examples")?.optString(fileName, "")
+                        } else {
+                            folderSum?.optJSONObject("references")?.optString(fileName, "")
+                        }
+                        val cleanSum = if (fileSum.isNullOrBlank()) "暂无摘要" else fileSum
+                        "- $fileName (摘要描述: $cleanSum)"
+                    }
+                }
+            }
+
             val brokerPrompt = when (mode) {
                 SearchMode.OFF -> """
                     你是一个知识检索经纪人 (Broker)。
@@ -710,7 +745,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     $prompt
                     
                     【候选本地资料文件列表】
-                    ${if (totalFiles.isEmpty()) "（当前无候选本地资料）" else totalFiles.joinToString(", ")}
+                    ${formatFileList()}
                     
                     【输出规范】
                     你必须返回一个符合以下 JSON 格式的纯 JSON 字符串。不要包含 any Markdown 格式包裹（例如不要使用 ```json 或 ``` 标记），直接输出 JSON 内容。
@@ -731,7 +766,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     $prompt
                     
                     【候选本地资料文件列表】
-                    ${if (totalFiles.isEmpty()) "（当前无候选本地资料）" else totalFiles.joinToString(", ")}
+                    ${formatFileList()}
                     
                     【输出规范】
                     你必须返回一个符合以下 JSON 格式的纯 JSON 字符串。不要包含 any Markdown 格式包裹（例如不要使用 ```json 或 ``` 标记），直接输出 JSON 内容。
@@ -755,7 +790,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     $prompt
                     
                     【候选本地资料文件列表】
-                    ${if (totalFiles.isEmpty()) "（当前无候选本地资料）" else totalFiles.joinToString(", ")}
+                    ${formatFileList()}
                     
                     【输出规范】
                     你必须返回一个符合以下 JSON 格式的纯 JSON 字符串。不要包含 any Markdown 格式包裹（例如不要使用 ```json 或 ``` 标记），直接输出 JSON 内容。
@@ -769,9 +804,21 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 """.trimIndent()
             }
 
+            val brokerParts = mutableListOf<Part>()
+            brokerParts.add(Part(text = brokerPrompt))
+            
+            val charSummariesJson = summariesMap.optJSONObject(folderName)?.toString()
+            if (!charSummariesJson.isNullOrBlank()) {
+                val base64 = android.util.Base64.encodeToString(
+                    charSummariesJson.toByteArray(Charsets.UTF_8),
+                    android.util.Base64.NO_WRAP
+                )
+                brokerParts.add(Part(inlineData = com.example.skillroundtable.network.Blob("application/json", base64)))
+            }
+
             val brokerRequest = GenerateContentRequest(
                 contents = listOf(
-                    Content(parts = listOf(Part(text = brokerPrompt)))
+                    Content(parts = brokerParts)
                 )
             )
 
