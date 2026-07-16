@@ -27,7 +27,8 @@ data class KeyStatus(
     val id: String,
     val isBanned: Boolean,
     val banExpireTime: Long,
-    val remainingBanTimeMs: Long
+    val remainingBanTimeMs: Long,
+    val isManualDisabled: Boolean = false
 )
 
 /**
@@ -47,6 +48,14 @@ object ApiKeyPool {
         }
     }
 
+    fun isKeyDisabled(context: Context, keyId: String): Boolean {
+        return getPrefs(context).getBoolean("key_disabled_$keyId", false)
+    }
+
+    fun setKeyDisabled(context: Context, keyId: String, disabled: Boolean) {
+        getPrefs(context).edit().putBoolean("key_disabled_$keyId", disabled).apply()
+    }
+
     fun getKeyStatuses(context: Context): List<KeyStatus> {
         val prefs = getPrefs(context)
         val now = System.currentTimeMillis()
@@ -54,7 +63,8 @@ object ApiKeyPool {
             val banExpire = prefs.getLong("ban_${apiKey.id}", 0L)
             val isBanned = banExpire > now
             val remaining = if (isBanned) banExpire - now else 0L
-            KeyStatus(apiKey.id, isBanned, banExpire, remaining)
+            val isManualDisabled = prefs.getBoolean("key_disabled_${apiKey.id}", false)
+            KeyStatus(apiKey.id, isBanned, banExpire, remaining, isManualDisabled)
         }
     }
 
@@ -118,6 +128,14 @@ object ApiKeyPool {
             .apply()
     }
 
+    fun getUseBuiltInKeys(context: Context): Boolean {
+        return getPrefs(context).getBoolean("use_built_in_keys", true)
+    }
+
+    fun setUseBuiltInKeys(context: Context, use: Boolean) {
+        getPrefs(context).edit().putBoolean("use_built_in_keys", use).apply()
+    }
+
     /**
      * 获取当前所有未处于熔断期的可用 Key
      */
@@ -125,7 +143,18 @@ object ApiKeyPool {
         val prefs = getPrefs(context)
         val now = System.currentTimeMillis()
         
+        if (!getUseBuiltInKeys(context)) {
+            val customKey = getCustomApiKey(context)
+            if (!customKey.isNullOrBlank()) {
+                return listOf(ApiKeyInfo("custom", customKey, "user"))
+            }
+            return emptyList()
+        }
+        
         return API_KEYS.filter { apiKey ->
+            val isManualDisabled = prefs.getBoolean("key_disabled_${apiKey.id}", false)
+            if (isManualDisabled) return@filter false
+            
             val banExpire = prefs.getLong("ban_${apiKey.id}", 0L)
             banExpire < now
         }
@@ -137,6 +166,14 @@ object ApiKeyPool {
     fun getOrBindSessionKey(context: Context, sessionId: Long): ApiKeyInfo? {
         val prefs = getPrefs(context)
         val now = System.currentTimeMillis()
+        
+        if (!getUseBuiltInKeys(context)) {
+            val customKey = getCustomApiKey(context)
+            if (!customKey.isNullOrBlank()) {
+                return ApiKeyInfo("custom", customKey, "user")
+            }
+            return null
+        }
         
         // 1. 尝试读取该 session 当前绑定的 Key ID
         val boundKeyId = prefs.getString("session_key_$sessionId", null)

@@ -9,7 +9,7 @@
 | 认证方式 | URL Query 参数 `?key=YOUR_API_KEY` |
 | 请求方式 | POST |
 | 内容类型 | `application/json` |
-| 超时配置 | 60 秒 |
+| 超时配置 | 300 秒（5分钟） |
 
 ## 2. 核心端点
 
@@ -22,7 +22,7 @@ POST https://generativelanguage.googleapis.com/v1beta/models/{model}:generateCon
 ### embedContent
 
 ```
-POST https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key={api_key}
+POST https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key={api_key}
 ```
 
 **支持的模型（当前项目使用）**：
@@ -32,8 +32,8 @@ POST https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:
 | `gemini-3.5-flash` | 主力对话思考模型 | 对话生成，开启 `thinkingConfig` (thinkingLevel = `"high"`) |
 | `gemini-2.5-flash` | 联网接地检索模型 | 用于携带 `google_search` tools 产生联网搜索总结与网页接地引用 |
 | `gemini-3.1-flash-lite` | Context Broker 决策路由器 | 低成本快速做本地文件与联网双决策判定 |
-| `gemini-3.1-flash-live` | Live 语音音频模型 | 用于 WebSocket Bidi 实时拉取音频 PCM 裸流（TTS） |
-| `text-embedding-004` | 向量嵌入模型 | 获取 768 维文本相似度特征向量，供语义路由使用 |
+| `gemini-3.1-flash-live-preview` | Live 语音音频模型 | 用于 WebSocket Bidi 实时拉取音频 PCM 裸流（TTS） |
+| `gemini-embedding-001` | 向量嵌入模型 | 获取 768 维文本相似度特征向量，供语义路由使用（注：原 text-embedding-004 已下线退休） |
 
 ## 3. 对话请求体结构 (主力模型)
 
@@ -58,13 +58,16 @@ POST https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:
 }
 ```
 
-## 4. 向量请求体结构 (text-embedding-004)
+## 4. 向量请求体结构 (gemini-embedding-001)
 
 ```json
 {
-  "model": "models/text-embedding-004",
+  "model": "models/gemini-embedding-001",
   "content": {
     "parts": [{ "text": "需要提取向量的文本" }]
+  },
+  "config": {
+    "output_dimensionality": 768
   }
 }
 ```
@@ -265,11 +268,73 @@ data class KeyStatus(
     val id: String,                 // 密钥 ID (如 "w1")
     val isBanned: Boolean,          // 当前是否被熔断 (Ban)
     val banExpireTime: Long,        // 熔断到期时间戳 (未熔断则为 0)
-    val remainingBanTimeMs: Long    // 剩余熔断时间 (Ms)
+    val remainingBanTimeMs: Long,   // 剩余熔断时间 (Ms)
+    val isManualDisabled: Boolean   // 当前是否被手动单独禁用
 )
 ```
 
 - **剩余时间计算**：
   \[\text{remaining} = \max(0, \text{banExpireTime} - \text{System.currentTimeMillis()})\]
 - **重置协议**：通过调用 `ApiKeyPool.clearBans(context)` 可以清除所有在 SharedPreferences 中写入的 `ban_{keyId}` 状态，使得被禁用的 Key 立即恢复为可用状态。
+
+
+## 10. Interactions API (流式脑暴会话) 协议规范
+
+为了实现多智囊角色间的上下文共享并降低大文本 Payload 开销，项目引入了 Interactions API：
+
+### 10.1 核心端点与请求头
+```
+POST https://generativelanguage.googleapis.com/v1beta/interactions?key={api_key}
+```
+- **必备 Header**：`Api-Revision: 2026-05-20` (必须指定此特定版本以激活 Interactions 功能)
+
+### 10.2 请求体结构
+```json
+{
+  "previousInteractionId": "v1_xxxx_xxxx", // (可选) 云端上一次会话步骤的 ID，用于链式上下文共享
+  "interaction": {
+    "systemInstruction": {
+      "parts": [{ "text": "systemPrompt 文本（SKILL.md 及本地参考文件直拼）" }]
+    },
+    "input": {
+      "parts": [{ "text": "用户提问 或 当前智囊需要接着脑暴的历史发言记录" }]
+    },
+    "generationConfig": {
+      "thinkingConfig": {
+        "thinkingLevel": "high" // 开启 high 最强思维推理
+      },
+      "thinkingSummaries": "auto" // 自动在响应中输出思维摘要节点
+    }
+  }
+}
+```
+
+### 10.3 响应体结构 (Interaction)
+```json
+{
+  "name": "v1/interactions/xxxx", // 本次交互生成的唯一 ID，用于下一次传给 previousInteractionId
+  "steps": [
+    {
+      "modelOutput": {
+        "parts": [{ "text": "大模型回复的脑暴内容" }]
+      }
+    },
+    {
+      "thinking": {
+        "text": "大模型在生成前长文本推理思维链过程（Thinking）"
+      }
+    },
+    {
+      "googleSearchResult": {
+        "webPages": [
+          {
+            "uri": "https://example.com/grounding-page",
+            "title": "接地引用页面标题"
+          }
+        ]
+      }
+    }
+  ]
+}
+```
 

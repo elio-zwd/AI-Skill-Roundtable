@@ -10,10 +10,14 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import retrofit2.http.Body
+import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 import java.util.concurrent.TimeUnit
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.json.JsonElement
+
 
 @Serializable
 data class GenerateContentRequest(
@@ -92,11 +96,78 @@ data class WebSource(
     val title: String? = null
 )
 
+// Interactions API 相关的实体类
+@Serializable
+data class CreateInteractionRequest(
+    val model: String? = null,
+    val agent: String? = null,
+    val input: JsonElement? = null,
+    @SerialName("system_instruction") val systemInstruction: String? = null,
+    val tools: List<Tool>? = null,
+    val store: Boolean? = null,
+    @SerialName("previous_interaction_id") val previousInteractionId: String? = null,
+    @SerialName("generation_config") val generationConfig: InteractionGenerationConfig? = null
+)
+
+@Serializable
+data class InteractionGenerationConfig(
+    @SerialName("max_output_tokens") val maxOutputTokens: Int? = null,
+    val temperature: Float? = null,
+    @SerialName("thinking_level") val thinkingLevel: String? = null,
+    @SerialName("thinking_summaries") val thinkingSummaries: String? = null
+)
+
+@Serializable
+data class Interaction(
+    val id: String,
+    val model: String? = null,
+    @SerialName("object") val objType: String? = null,
+    val steps: List<InteractionStep> = emptyList(),
+    val status: String? = null,
+    val usage: InteractionUsage? = null
+)
+
+@Serializable
+data class InteractionStep(
+    val type: String,
+    val content: List<InteractionContent> = emptyList(),
+    val signature: String? = null,
+    val summary: String? = null,
+    val result: List<GoogleSearchResultItem>? = null
+)
+
+@Serializable
+data class InteractionContent(
+    val type: String,
+    val text: String? = null
+)
+
+@Serializable
+data class GoogleSearchResultItem(
+    val title: String? = null,
+    val url: String? = null,
+    val snippet: String? = null
+)
+
+@Serializable
+data class InteractionUsage(
+    @SerialName("total_input_tokens") val totalInputTokens: Int? = null,
+    @SerialName("total_output_tokens") val totalOutputTokens: Int? = null,
+    @SerialName("total_thought_tokens") val totalThoughtTokens: Int? = null,
+    @SerialName("total_tokens") val totalTokens: Int? = null
+)
+
 // Embedding 接口相关的实体类
 @Serializable
+data class EmbedContentConfig(
+    @SerialName("output_dimensionality") val outputDimensionality: Int? = 768
+)
+
+@Serializable
 data class EmbedContentRequest(
-    val model: String = "models/text-embedding-004",
-    val content: Content
+    val model: String = "models/gemini-embedding-001",
+    val content: Content,
+    val config: EmbedContentConfig = EmbedContentConfig()
 )
 
 @Serializable
@@ -117,7 +188,14 @@ interface GeminiApiService {
         @Body request: GenerateContentRequest
     ): GenerateContentResponse
 
-    @POST("v1beta/models/text-embedding-004:embedContent")
+    @POST("v1beta/interactions")
+    suspend fun createInteraction(
+        @Query("key") apiKey: String,
+        @Header("Api-Revision") apiRevision: String = "2026-05-20",
+        @Body request: CreateInteractionRequest
+    ): Interaction
+
+    @POST("v1beta/models/gemini-embedding-001:embedContent")
     suspend fun embedContent(
         @Query("key") apiKey: String,
         @Body request: EmbedContentRequest
@@ -129,9 +207,9 @@ object RetrofitClient {
     private const val BASE_URL = "https://generativelanguage.googleapis.com/"
 
     private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(60, TimeUnit.SECONDS)
-        .readTimeout(120, TimeUnit.SECONDS)
-        .writeTimeout(60, TimeUnit.SECONDS)
+        .connectTimeout(90, TimeUnit.SECONDS)
+        .readTimeout(300, TimeUnit.SECONDS)
+        .writeTimeout(90, TimeUnit.SECONDS)
         .addInterceptor(TelemetryInterceptor())
         .addInterceptor(HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
@@ -149,6 +227,59 @@ object RetrofitClient {
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
         retrofit.create(GeminiApiService::class.java)
+    }
+
+    /**
+     * 调用 Interactions API 接口，在出错熔断时自动换绑。
+     */
+    suspend fun createInteractionWithFallback(
+        context: Context,
+        request: CreateInteractionRequest,
+        sessionId: Long
+    ): Interaction {
+        var lastException: Exception? = null
+        val attempts = mutableListOf<String>()
+
+        for (attempt in 0 until ApiKeyPool.API_KEYS.size) {
+            val keyInfo = ApiKeyPool.getOrBindSessionKey(context, sessionId)
+            if (keyInfo == null) {
+                throw Exception("当前无可用内置 API Key，全部已被频控熔断。")
+            }
+
+            try {
+                Log.d(TAG, "正在使用会话级 Key ${keyInfo.id} 尝试调用 Interactions API (Model: ${request.model ?: request.agent})...")
+                val response = service.createInteraction(
+                    apiKey = keyInfo.key,
+                    request = request
+                )
+                ApiKeyPool.setLastUsedKeyId(context, keyInfo.id)
+                Log.d(TAG, "Key ${keyInfo.id} / Interactions API 调用成功！")
+                return response
+            } catch (e: retrofit2.HttpException) {
+                val code = e.code()
+                Log.w(TAG, "Key ${keyInfo.id} / Interactions API 调用失败，HTTP 状态码: $code")
+                attempts.add("${keyInfo.id}: HTTP $code")
+                if (code == 429) {
+                    ApiKeyPool.banKey(context, keyInfo.id)
+                    Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
+                }
+                lastException = e
+            } catch (e: Exception) {
+                Log.w(TAG, "Key ${keyInfo.id} / Interactions API 调用失败，非 HTTP 异常: ${e.message}")
+                attempts.add("${keyInfo.id}: ${e.message ?: "未知错误"}")
+                lastException = e
+            }
+
+            val nextKey = ApiKeyPool.getAvailableKeys(context).firstOrNull { it.id != keyInfo.id }
+            if (nextKey != null) {
+                Log.d(TAG, "会话 $sessionId 失败，换绑下一个 Key: ${nextKey.id}")
+                ApiKeyPool.bindSessionKey(context, sessionId, nextKey.id)
+            } else {
+                Log.w(TAG, "无其他备用可用 Key 可为会话 $sessionId 换绑")
+            }
+        }
+        val detail = attempts.joinToString(", ")
+        throw Exception("Interactions 请求失败，已尝试轮询会话换绑 API Key。细节: [$detail]. 错误: ${lastException?.message ?: "未知错误"}")
     }
 
     /**
@@ -361,6 +492,16 @@ class TelemetryInterceptor : okhttp3.Interceptor {
                     val json = org.json.JSONObject(bodyStr)
                     val sb = java.lang.StringBuilder()
 
+                    // 解析 Interactions API 中的 model 或 agent
+                    if (model == "unknown") {
+                        if (json.has("model")) {
+                            model = json.getString("model")
+                        } else if (json.has("agent")) {
+                            model = json.getString("agent")
+                        }
+                    }
+
+                    // 1. 解析旧版 systemInstruction
                     if (json.has("systemInstruction")) {
                         val sysInst = json.getJSONObject("systemInstruction")
                         if (sysInst.has("parts")) {
@@ -388,7 +529,20 @@ class TelemetryInterceptor : okhttp3.Interceptor {
                             sb.append("\n==========================\n\n")
                         }
                     }
+                    
+                    // 2. 解析 Interactions API 中的 system_instruction (String)
+                    if (json.has("system_instruction")) {
+                        sb.append("=== System Instruction ===\n")
+                        sb.append(json.getString("system_instruction")).append("\n")
+                        sb.append("\n==========================\n\n")
+                    }
 
+                    // 3. 解析 previous_interaction_id
+                    if (json.has("previous_interaction_id")) {
+                        sb.append("[Previous ID]: ").append(json.getString("previous_interaction_id")).append("\n")
+                    }
+
+                    // 4. 解析旧版 contents
                     if (json.has("contents")) {
                         val contents = json.getJSONArray("contents")
                         for (i in 0 until contents.length()) {
@@ -406,7 +560,32 @@ class TelemetryInterceptor : okhttp3.Interceptor {
                             }
                             sb.append("\n")
                         }
-                    } else if (json.has("content")) {
+                    } 
+                    // 5. 解析 Interactions API 中的 input
+                    else if (json.has("input")) {
+                        val inputVal = json.get("input")
+                        if (inputVal is org.json.JSONArray) {
+                            for (i in 0 until inputVal.length()) {
+                                val step = inputVal.getJSONObject(i)
+                                val type = step.optString("type", "")
+                                val contentArr = step.optJSONArray("content")
+                                sb.append("【").append(type).append("】: ")
+                                if (contentArr != null) {
+                                    for (j in 0 until contentArr.length()) {
+                                        val part = contentArr.getJSONObject(j)
+                                        if (part.has("text")) {
+                                            sb.append(part.getString("text"))
+                                        }
+                                    }
+                                }
+                                sb.append("\n")
+                            }
+                        } else {
+                            sb.append("【input】: ").append(inputVal.toString()).append("\n")
+                        }
+                    }
+                    // 6. 解析 Embedding input
+                    else if (json.has("content")) {
                         val content = json.getJSONObject("content")
                         val parts = content.getJSONArray("parts")
                         sb.append("【Embedding Input】: ")
@@ -447,6 +626,7 @@ class TelemetryInterceptor : okhttp3.Interceptor {
                     val bodyStr = peekedBody.string()
                     if (bodyStr.isNotBlank()) {
                         val json = org.json.JSONObject(bodyStr)
+                        // 解析旧版 candidates
                         if (json.has("candidates")) {
                             val candidates = json.getJSONArray("candidates")
                             if (candidates.length() > 0) {
@@ -456,7 +636,45 @@ class TelemetryInterceptor : okhttp3.Interceptor {
                                     responseText = parts.getJSONObject(0).optString("text", "")
                                 }
                             }
-                        } else if (json.has("embedding")) {
+                        } 
+                        // 解析 Interactions steps
+                        else if (json.has("steps")) {
+                            val steps = json.getJSONArray("steps")
+                            val sbResponse = java.lang.StringBuilder()
+                            for (i in 0 until steps.length()) {
+                                val step = steps.getJSONObject(i)
+                                val type = step.optString("type", "")
+                                if (type == "model_output") {
+                                    val contentArr = step.optJSONArray("content")
+                                    if (contentArr != null) {
+                                        for (j in 0 until contentArr.length()) {
+                                            val part = contentArr.getJSONObject(j)
+                                            if (part.has("text")) {
+                                                sbResponse.append(part.getString("text"))
+                                            }
+                                        }
+                                    }
+                                } else if (type == "thought") {
+                                    val summary = step.optString("summary", "")
+                                    if (summary.isNotBlank()) {
+                                        sbResponse.append("\n[Thought Summary: $summary]\n")
+                                    }
+                                } else if (type == "google_search_result") {
+                                    val searchResult = step.optJSONArray("result")
+                                    if (searchResult != null && searchResult.length() > 0) {
+                                        sbResponse.append("\n[Google Search Results:\n")
+                                        for (j in 0 until searchResult.length()) {
+                                            val item = searchResult.getJSONObject(j)
+                                            sbResponse.append("- ").append(item.optString("title", "")).append(" (").append(item.optString("url", "")).append(")\n")
+                                        }
+                                        sbResponse.append("]\n")
+                                    }
+                                }
+                            }
+                            responseText = sbResponse.toString().trim()
+                        }
+                        // 解析 embedding
+                        else if (json.has("embedding")) {
                             val embedding = json.getJSONObject("embedding")
                             val values = embedding.optJSONArray("values")
                             if (values != null) {

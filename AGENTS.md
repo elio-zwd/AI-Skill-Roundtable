@@ -10,7 +10,7 @@
 **AI 智囊圆桌**是一款原生 Android 聊天应用。用户提问后，7 个 GitHub Skills 角色（Elon Musk、Feynman、Munger、Naval、Steve Jobs、Taleb、张雪峰）依次轮流作答，每位角色回答后自动携带完整上下文，让下一位角色看到前人发言并进行评论、反驳或补充，形成真实的圆桌脑暴效果。
 
 ### 1.2 当前阶段
-- **阶段**：并发回复交互、Markdown渲染与离线语音管理层（v2.0）全面交付，角色预设/自定义分组、AI风格肖像画册大厅（v2.1）全面交付，去 Emoji 垃圾代码、物理阻力 Spring 动效微交互、主屏顶部极致窄缩及智囊大厅 (Tab 1) Notion Bento 线性化全面交付（v2.2），编译通过。
+- **阶段**：并发回复交互、Markdown渲染与离线语音管理层（v2.0）全面交付，角色预设/自定义分组、AI风格肖像画册大厅（v2.1）全面交付，去 Emoji 垃圾代码、物理阻力 Spring 动效微交互、主屏顶部极致窄缩及智囊大厅 (Tab 1) Notion Bento 线性化全面交付（v2.2），最新迁移到 Interactions API 脑暴流式对话架构与单独 Key 物理控制（v2.3），编译通过。
 - **已交付目标**：
   1. **多角色并发回复**：使用并发协程组同时拉取所有角色的回答，配合多角色 typing 思考指示器。
   2. **反检测节奏策略**：配置 1~3s 首发错峰延迟与 2~6s 同 Key 内串行间隔，跨 Key 组间实现并发。
@@ -26,6 +26,10 @@
   12. **★ 星号一键另存为新组 (v2.1)**：大厅状态发生改变时，右上角浮现金色星标按钮，支持用户输入名称/描述一键将当前激活角色归档为新自定义预设。
   13. **📖 画册风画像 ModalBottomSheet 详情 (v2.1)**：大厅卡片点击唤起底部抽屉，展现 80dp 大圆形头像、呼吸感斜体 Tagline、以及动态剥离 YAML 并使用自定义 MarkdownRender 极简渲染其完整的 SKILL.md 决策 DNA。
   14. **🎨 极简 Notion 线性风与物理交互 (v2.2)**：移除了全局 Emoji/Slop 感控件并引入 Custom同心发光环占位符；添加 `bounceClick` 手势动效让所有触控件具备 Spring 弹簧弹性微缩交互；极致压缩顶部纵向空间，移出低频开关至 Drawer；彻底重塑 Tab 1 智囊卡片为单行 Bento 线性列表（64dp 高），将状态管理重构为入席/旁听微型胶囊并隐藏操作于 DropdownMenu 浮动菜单内。
+  15. **🚀 全面升级到 Interactions API 架构 (v2.3)**：将生成脑暴、摘要、思考与联网架构迁移到 interactions 云端流式会话端点，在内存缓存 `lastInteractionIds` 实现多智囊间上下文链式传导，并提供免迁移的免费层全量兜底策略。
+  16. **🛠️ 解决已下线向量模型 404 及维度崩溃 (v2.3)**：由于 text-embedding-004 已下线退休，全面将其平替升级为 gemini-embedding-001。设计了正确的二级嵌套 `config` 序列化结构传输 `output_dimensionality = 768` 参数，完美防止因获取默认的 3072 维向量在计算余弦相似度时发生数组溢出或维度 Dismatched 闪退，彻底修复 T0 级 Bug。
+  17. **🛡️ 延展超时预防 SocketTimeout (v2.3)**：将 OkHttpClient 读取超时时间调整为超长 300 秒（5分钟），从根本上避免因为 Gemini 3.5 开启 High Thinking 状态下思考时间过长导致的 HTTP -1 超时中断。
+  18. **⚙️ 内置 API Key 池整体及微粒度物理开关 (v2.3)**：在大厅密钥配置弹窗中增加一键开关“内置备用 API 密钥池”的 Switch；在熔断调试面板（ApiTelemetryScreen）中，将 w1-w10 状态卡片设计为可点击项。用户可在断网或自定义状态下，手动任意禁用特定的内置备用 Key（变灰并显示“禁用”），完全把 Key 调配掌控权交还给用户。
 
 ---
 
@@ -208,6 +212,7 @@ AI-Skill-Roundtable/
 | AI 头像生图 Prompt 指南 | [docs/planning/avatar-prompts-guide.md](docs/planning/avatar-prompts-guide.md) | (新增) 19 个名人角色莫兰迪极简 AI 头像生图提示词清单 |
 | v2.1 重构完工报告 | [docs/planning/walkthrough.md](docs/planning/walkthrough.md) | (新增) 莫兰迪头像物理覆盖、智囊分组交互与画像 BottomSheet 的交付校验报告 |
 | 调试面板与语音/文件导出说明 | [docs/features/debug-panel-and-telemetry-diagnostics.md](docs/features/debug-panel-and-telemetry-diagnostics.md) | (新增) 详解 API 熔断诊断与请求日志遥测浮层面板的底层技术，以及 WAV/AAC 语音转码和 Markdown 免权限 MediaStore 导出的附带功能细节 |
+| 新架构迁移与细粒度 Key 控制 ADR | [docs/decisions/adr-008-interactions-api-migration-with-fallback-and-key-pool-fine-grained-control.md](docs/decisions/adr-008-interactions-api-migration-with-fallback-and-key-pool-fine-grained-control.md) | (新增) 记录旧版本生成大重构、模型退休 404 修复与 Key 池多极物理控制的决策 |
 
 ---
 
@@ -231,4 +236,7 @@ AI-Skill-Roundtable/
 | 无侵入式物理微交互 Modifier | 使用 Compose composed + pointerInput 配合 spring 阻尼手势解耦，对全部触控节点无感挂接点击态缩放 (0.96f) 与物理弹性回弹 | 2026-07-14 |
 | 智囊大厅 DropdownMenu 交互收纳 | 将“修改设定”与“请离会议”高危/低频功能收纳至卡片右侧 MoreVert 图标触发的 DropdownMenu，保持首屏界面极其纯净优雅 | 2026-07-14 |
 | 3.1 Lite 摘要列表与 JSON 附件 | 将 20 个角色 46 篇本地 `.md` 资料交由 AI 智能体预处理生成 120-150 字中文主旨摘要存入 `skills_summaries.json`，在决策 Prompt 的文件列表中渲染，并在 `brokerRequest` 携带该摘要 JSON 作 Base64 附件上传以实现 100% 精准推荐 | 2026-07-16 |
+| Interactions API 架构升级 | 全面使用 interactions 端点。通过 `lastInteractionIds` 实现会话链传导，通过 `thinking_level = "high"` 开启 3.5 最强思维，并在报错时采用 fallback 全量 prompt 传导兜底。 | 2026-07-16 |
+| gemini-embedding-001 嵌套维度截断 | 使用 `gemini-embedding-001` 代替已下线退休的 `text-embedding-004`。将输出维度 `output_dimensionality` 包裹在二级嵌套属性 `config` 下以正确截断为 768 维，与本地 Room 数据库对齐。 | 2026-07-16 |
+| 内置 API Key 池细粒度物理开关 | SharedPreferences 中持久化存储是否启用内置 Key 池、以及每个内置 Key 独立的禁用状态。在 getAvailableKeys 中排除已禁用 Key，并在遥测面板中支持点击卡片进行 Toggle。 | 2026-07-16 |
 

@@ -1991,7 +1991,11 @@ fun ApiKeyConfigDialog(
     onSave: (String) -> Unit,
     onOpenDebugPanel: () -> Unit
 ) {
+    val context = LocalContext.current
     var keyText by remember { mutableStateOf(currentKey) }
+    var useBuiltIn by remember {
+        mutableStateOf(com.example.skillroundtable.network.ApiKeyPool.getUseBuiltInKeys(context))
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -2018,8 +2022,31 @@ fun ApiKeyConfigDialog(
                     singleLine = true
                 )
                 Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "启用内置备用 API 密钥池",
+                        fontSize = 13.sp,
+                        color = TextPrimary
+                    )
+                    Switch(
+                        checked = useBuiltIn,
+                        onCheckedChange = { checked ->
+                            useBuiltIn = checked
+                            com.example.skillroundtable.network.ApiKeyPool.setUseBuiltInKeys(context, checked)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = GoldAccent,
+                            checkedTrackColor = PrimaryAccent
+                        )
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
                 Text(
-                    text = "提示：API 密钥将保存在运行内存中。如不需要本地存储，可在此进行配置。",
+                    text = "提示：自定义 API 密钥将本地持久化保存。如不启用内置池，请务必填写有效密钥。",
                     fontSize = 11.sp,
                     color = GoldAccent
                 )
@@ -2158,7 +2185,8 @@ fun ApiTelemetryScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val keyStatuses = remember(currentSessionId) {
+    var refreshTrigger by remember { mutableStateOf(0) }
+    val keyStatuses = remember(currentSessionId, refreshTrigger) {
         com.example.skillroundtable.network.ApiKeyPool.getKeyStatuses(context)
     }
     val currentKeyInfo = remember(currentSessionId) {
@@ -2246,13 +2274,28 @@ fun ApiTelemetryScreen(
                 ) {
                     items(keyStatuses) { status ->
                         val isBanned = status.isBanned
+                        val isManualDisabled = status.isManualDisabled
                         Card(
+                            modifier = Modifier
+                                .bounceClick()
+                                .clickable(enabled = !isBanned) {
+                                    com.example.skillroundtable.network.ApiKeyPool.setKeyDisabled(context, status.id, !isManualDisabled)
+                                    refreshTrigger++
+                                },
                             colors = CardDefaults.cardColors(
-                                containerColor = if (isBanned) Color.Red.copy(alpha = 0.08f) else PrimaryAccent.copy(alpha = 0.03f)
+                                containerColor = when {
+                                    isBanned -> Color.Red.copy(alpha = 0.08f)
+                                    isManualDisabled -> Color.Gray.copy(alpha = 0.12f)
+                                    else -> PrimaryAccent.copy(alpha = 0.03f)
+                                }
                             ),
                             border = BorderStroke(
                                 width = 1.dp,
-                                color = if (isBanned) Color.Red.copy(alpha = 0.3f) else PrimaryAccent.copy(alpha = 0.15f)
+                                color = when {
+                                    isBanned -> Color.Red.copy(alpha = 0.3f)
+                                    isManualDisabled -> Color.Gray.copy(alpha = 0.4f)
+                                    else -> PrimaryAccent.copy(alpha = 0.15f)
+                                }
                             )
                         ) {
                             Column(
@@ -2264,15 +2307,21 @@ fun ApiTelemetryScreen(
                                     text = status.id,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 12.sp,
-                                    color = TextPrimary
+                                    color = if (isManualDisabled) TextSecondary else TextPrimary
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
-                                if (isBanned) {
-                                    Text("熔断", fontSize = 10.sp, color = Color.Red)
-                                    val minutes = status.remainingBanTimeMs / 1000 / 60
-                                    Text("余 ${minutes}m", fontSize = 8.sp, color = TextSecondary)
-                                } else {
-                                    Text("可用", fontSize = 10.sp, color = Color.Green)
+                                when {
+                                    isBanned -> {
+                                        Text("熔断", fontSize = 10.sp, color = Color.Red)
+                                        val minutes = status.remainingBanTimeMs / 1000 / 60
+                                        Text("余 ${minutes}m", fontSize = 8.sp, color = TextSecondary)
+                                    }
+                                    isManualDisabled -> {
+                                        Text("禁用", fontSize = 10.sp, color = GoldAccent)
+                                    }
+                                    else -> {
+                                        Text("可用", fontSize = 10.sp, color = Color.Green)
+                                    }
                                 }
                             }
                         }
