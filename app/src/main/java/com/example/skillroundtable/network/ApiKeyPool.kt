@@ -19,7 +19,8 @@ data class ApiLog(
     val responseTime: Long,
     val statusCode: Int,
     val errorMessage: String? = null,
-    val prompt: String = ""
+    val prompt: String = "",
+    val responseText: String = ""
 )
 
 data class KeyStatus(

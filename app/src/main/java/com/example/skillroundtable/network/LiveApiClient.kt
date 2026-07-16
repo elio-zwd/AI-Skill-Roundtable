@@ -49,7 +49,7 @@ object LiveApiClient {
                     // 1. 发送 Setup 配置
                     val setupJson = JSONObject().apply {
                         put("setup", JSONObject().apply {
-                            put("model", "models/gemini-3.1-flash-live-preview")
+                            put("model", "models/gemini-3.1-flash-live")
                             put("generationConfig", JSONObject().apply {
                                 put("responseModalities", JSONArray(listOf("AUDIO")))
                                 put("speechConfig", JSONObject().apply {

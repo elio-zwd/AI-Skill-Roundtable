@@ -38,6 +38,7 @@ import java.io.File
  * 圆桌会议 ViewModel，负责管理会话、消息、智囊角色状态以及触发 API 逻辑。
  */
 class RoundtableViewModel(application: Application) : AndroidViewModel(application) {
+    private val prefs = application.getSharedPreferences("roundtable_settings", android.content.Context.MODE_PRIVATE)
 
     private val database = RoundtableDatabase.getDatabase(application, viewModelScope)
     private val charRepo = com.example.skillroundtable.data.CharacterRepository(database.characterDao())
@@ -89,6 +90,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
     fun setAutoNextEnabled(enabled: Boolean) {
         _isAutoNextEnabled.value = enabled
+        prefs.edit().putBoolean("is_auto_next_enabled", enabled).apply()
     }
 
     // 控制是否启用“专家先发”（向量语义路由）
@@ -97,6 +99,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
     fun setSemanticRoutingEnabled(enabled: Boolean) {
         _isSemanticRoutingEnabled.value = enabled
+        prefs.edit().putBoolean("is_semantic_routing_enabled", enabled).apply()
     }
 
     // 联网搜索模式（智能搜索、强制联网、关闭联网）
@@ -105,6 +108,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
     fun setSearchMode(mode: SearchMode) {
         _searchMode.value = mode
+        prefs.edit().putString("search_mode", mode.name).apply()
     }
 
     // 默认保留 API key 状态（兼容 UI 配置）
@@ -120,6 +124,17 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
     init {
         val context = getApplication<Application>().applicationContext
+        
+        // 从 SharedPreferences 中加载设置
+        _isAutoNextEnabled.value = prefs.getBoolean("is_auto_next_enabled", true)
+        _isSemanticRoutingEnabled.value = prefs.getBoolean("is_semantic_routing_enabled", false)
+        val savedSearchModeStr = prefs.getString("search_mode", SearchMode.SMART.name)
+        _searchMode.value = try {
+            SearchMode.valueOf(savedSearchModeStr ?: SearchMode.SMART.name)
+        } catch (e: Exception) {
+            SearchMode.SMART
+        }
+
         val savedKey = com.example.skillroundtable.network.ApiKeyPool.getCustomApiKey(context)
         if (!savedKey.isNullOrBlank() && isApiKeyValid(savedKey)) {
             _apiKey.value = savedKey
@@ -283,7 +298,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             try {
                 val response = RetrofitClient.callBrokerRouterWithFallback(
                     context = context,
-                    model = "gemini-3.1-flash-lite-preview",
+                    model = "gemini-3.1-flash-lite",
                     request = request,
                     sessionId = sessionId
                 )
@@ -560,7 +575,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 val updatedMessages = chatRepo.getMessages(sessionId)
                 val updatedSinceLast = updatedMessages.subList(lastUserIndex + 1, updatedMessages.size)
                 val answeredInTarget = updatedSinceLast.filter { it.roundIndex == currentRound }.map { it.senderId }.toSet()
-                if (activeChars.all { it.id in answeredInTarget }) {
+                if (!activeChars.all { it.id in answeredInTarget }) {
                     runRoundtableSequence(sessionId)
                 }
             }
@@ -666,7 +681,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
         val mainSkillPrompt = com.example.skillroundtable.skill.SkillLoader.loadSkill(context, character.skillAssetPath)
 
-        var finalSystemPrompt = mainSkillPrompt
+        var finalSystemInstructionParts = listOf<Part>(Part(text = mainSkillPrompt))
 
         val exampleFiles = if (folderName.isNotBlank()) {
             com.example.skillroundtable.skill.SkillLoader.listFilesInAssetDir(context, "skills/$folderName/examples")
@@ -764,7 +779,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             val brokerResponse = try {
                 RetrofitClient.callBrokerRouterWithFallback(
                     context = context,
-                    model = "gemini-3.1-flash-lite-preview",
+                    model = "gemini-3.1-flash-lite",
                     request = brokerRequest,
                     sessionId = sessionId
                 )
@@ -774,7 +789,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     Log.d("RoundtableViewModel", "内置 Key 池 Broker 路由调用失败，尝试使用用户 API Key 直连...")
                     try {
                         RetrofitClient.service.generateContent(
-                            model = "gemini-3.1-flash-lite-preview",
+                            model = "gemini-3.1-flash-lite",
                             apiKey = userKey,
                             request = brokerRequest
                         )
@@ -925,16 +940,33 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 ""
             }
 
-            finalSystemPrompt = mainSkillPrompt + selectedExamplesText + selectedReferencesText + allSearchInfoText
+            // 构建 systemInstruction parts，作为真实的 Markdown 附件直接发送给模型
+            val sysInstructionParts = mutableListOf<Part>()
+            sysInstructionParts.add(Part(text = mainSkillPrompt + allSearchInfoText))
+
+            selectedExamples.forEach { fileName ->
+                val base64 = readAssetFileAsBase64(context, "skills/$folderName/examples/$fileName")
+                if (base64 != null) {
+                    sysInstructionParts.add(Part(inlineData = com.example.skillroundtable.network.Blob("text/markdown", base64)))
+                }
+            }
+            selectedReferences.forEach { fileName ->
+                val base64 = readAssetFileAsBase64(context, "skills/$folderName/references/$fileName")
+                if (base64 != null) {
+                    sysInstructionParts.add(Part(inlineData = com.example.skillroundtable.network.Blob("text/markdown", base64)))
+                }
+            }
+
+            finalSystemInstructionParts = sysInstructionParts
         }
-        
+
         // 构建包含 thinkingConfig=high 的请求体
         val request = GenerateContentRequest(
             contents = listOf(
                 Content(parts = listOf(Part(text = prompt)))
             ),
             systemInstruction = Content(
-                parts = listOf(Part(text = finalSystemPrompt))
+                parts = finalSystemInstructionParts
             ),
             generationConfig = com.example.skillroundtable.network.GenerationConfig(
                 maxOutputTokens = 8192,
@@ -1079,6 +1111,18 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
     fun clearDetailSkill() {
         _currentDetailSkillContent.value = null
+    }
+
+    private fun readAssetFileAsBase64(context: android.content.Context, assetPath: String): String? {
+        return try {
+            context.assets.open(assetPath).use { inputStream ->
+                val bytes = inputStream.readBytes()
+                android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+            }
+        } catch (e: Exception) {
+            Log.e("RoundtableViewModel", "读取 Asset 转 Base64 失败: $assetPath", e)
+            null
+        }
     }
 }
 

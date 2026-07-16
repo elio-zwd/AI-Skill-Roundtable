@@ -249,18 +249,17 @@ fun MainAppContent() {
     var renameSessionId by remember { mutableStateOf<Long?>(null) }
     var renameSessionTitle by remember { mutableStateOf("") }
     var showRenameDialog by remember { mutableStateOf(false) }
-    var showDebugPanel by remember { mutableStateOf(false) }
+    var showTelemetryScreen by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
 
-    // Automatically trigger API key dialog if not set on first start
-    LaunchedEffect(apiKey) {
-        if (apiKey.isBlank()) {
-            showApiKeyDialog = true
-        }
-    }
-
-    Scaffold(
+    if (showTelemetryScreen) {
+        ApiTelemetryScreen(
+            currentSessionId = currentSessionId,
+            onBack = { showTelemetryScreen = false }
+        )
+    } else {
+        Scaffold(
         bottomBar = {
             Column(
                 modifier = Modifier
@@ -513,6 +512,38 @@ fun MainAppContent() {
                                     modifier = Modifier.scale(0.7f)
                                 )
                             }
+                            Divider(color = TextSecondary.copy(alpha = 0.2f), modifier = Modifier.padding(vertical = 4.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .bounceClick()
+                                    .clickable {
+                                        showTelemetryScreen = true
+                                        showDrawer = false
+                                    }
+                                    .padding(vertical = 6.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Build,
+                                        contentDescription = null,
+                                        tint = TextPrimary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text("熔断诊断与遥测日志", fontSize = 12.sp, color = TextPrimary)
+                                }
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowRight,
+                                    contentDescription = null,
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -546,7 +577,7 @@ fun MainAppContent() {
                     },
                     onOpenDebugPanel = {
                         showApiKeyDialog = false
-                        showDebugPanel = true
+                        showTelemetryScreen = true
                     }
                 )
             }
@@ -609,14 +640,6 @@ fun MainAppContent() {
                 )
             }
 
-            if (showDebugPanel) {
-                ApiDebugPanelDialog(
-                    currentSessionId = currentSessionId,
-                    onDismiss = {
-                        showDebugPanel = false
-                        showApiKeyDialog = true
-                    }
-                )
             }
         }
     }
@@ -2129,47 +2152,76 @@ fun AddEditCharacterDialog(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ApiDebugPanelDialog(
+fun ApiTelemetryScreen(
     currentSessionId: Long?,
-    onDismiss: () -> Unit
+    onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val keyStatuses = remember { com.example.skillroundtable.network.ApiKeyPool.getKeyStatuses(context) }
-    val logs = remember { com.example.skillroundtable.network.ApiKeyPool.apiLogs }
+    val keyStatuses = remember(currentSessionId) {
+        com.example.skillroundtable.network.ApiKeyPool.getKeyStatuses(context)
+    }
     val currentKeyInfo = remember(currentSessionId) {
         currentSessionId?.let { com.example.skillroundtable.network.ApiKeyPool.getOrBindSessionKey(context, it) }
     }
-    
+    val logs = remember { com.example.skillroundtable.network.ApiKeyPool.apiLogs }
     var expandedLogIndex by remember { mutableStateOf(-1) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = SlateBg
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+        ) {
+            // 1. 顶部返回导航栏
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Build, contentDescription = null, tint = GoldAccent)
-                Spacer(Modifier.width(8.dp))
-                Text("API 熔断诊断与遥测日志", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.bounceClick()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "返回",
+                        tint = TextPrimary
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "API 熔断诊断与遥测日志",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
             }
-        },
-        text = {
-            Column(modifier = Modifier.fillMaxHeight(0.85f).fillMaxWidth()) {
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
                 // 1. 当前会话分配
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.5f))
+                    colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.5f)),
+                    border = BorderStroke(1.dp, TextSecondary.copy(alpha = 0.1f))
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
+                    Column(modifier = Modifier.padding(14.dp)) {
                         Text(
-                            text = "会话绑定 API Key ID: ${currentKeyInfo?.id ?: "未分配（或未开启会话）"}",
+                            text = "当前会话绑定 API Key ID: ${currentKeyInfo?.id ?: "未分配（或当前无活跃会话）"}",
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
                             color = GoldAccent
                         )
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "绑定账号: ${currentKeyInfo?.account ?: "无"}",
                             fontSize = 11.sp,
@@ -2177,12 +2229,17 @@ fun ApiDebugPanelDialog(
                         )
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(12.dp))
-                
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 // 2. 内置 10 个 Key 的熔断状态
-                Text("备用 Key 熔断状态 (24小时熔断期)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "备用 Key 熔断状态 (24小时冷却期)",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+                Spacer(modifier = Modifier.height(6.dp))
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -2191,15 +2248,24 @@ fun ApiDebugPanelDialog(
                         val isBanned = status.isBanned
                         Card(
                             colors = CardDefaults.cardColors(
-                                containerColor = if (isBanned) Color.Red.copy(alpha = 0.1f) else PrimaryAccent.copy(alpha = 0.05f)
+                                containerColor = if (isBanned) Color.Red.copy(alpha = 0.08f) else PrimaryAccent.copy(alpha = 0.03f)
                             ),
                             border = BorderStroke(
                                 width = 1.dp,
-                                color = if (isBanned) Color.Red.copy(alpha = 0.4f) else PrimaryAccent.copy(alpha = 0.2f)
+                                color = if (isBanned) Color.Red.copy(alpha = 0.3f) else PrimaryAccent.copy(alpha = 0.15f)
                             )
                         ) {
-                            Column(modifier = Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(status.id, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = TextPrimary)
+                            Column(
+                                modifier = Modifier
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = status.id,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = TextPrimary
+                                )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 if (isBanned) {
                                     Text("熔断", fontSize = 10.sp, color = Color.Red)
@@ -2212,42 +2278,52 @@ fun ApiDebugPanelDialog(
                         }
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
+
+                Spacer(modifier = Modifier.height(20.dp))
+
                 // 3. API 日志列表
-                Text("最近 API 请求日志", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "最近 API 请求遥测日志",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
                 if (logs.isEmpty()) {
                     Box(
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("无任何请求日志", fontSize = 12.sp, color = TextSecondary)
+                        Text("无任何请求日志记录", fontSize = 12.sp, color = TextSecondary)
                     }
                 } else {
                     LazyColumn(
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         itemsIndexed(logs.toList()) { index, log ->
                             val isSuccess = log.statusCode == 200
                             val duration = log.responseTime - log.requestTime
                             val timeStr = android.text.format.DateFormat.format("HH:mm:ss", log.requestTime).toString()
-                            
+
                             Card(
-                                modifier = Modifier.fillMaxWidth().clickable {
-                                    expandedLogIndex = if (expandedLogIndex == index) -1 else index
-                                },
-                                colors = CardDefaults.cardColors(
-                                    containerColor = CardBg
-                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .bounceClick()
+                                    .clickable {
+                                        expandedLogIndex = if (expandedLogIndex == index) -1 else index
+                                    },
+                                colors = CardDefaults.cardColors(containerColor = CardBg),
                                 border = BorderStroke(
                                     1.dp,
                                     if (isSuccess) PrimaryAccent.copy(alpha = 0.15f) else Color.Red.copy(alpha = 0.2f)
                                 )
                             ) {
-                                Column(modifier = Modifier.padding(10.dp)) {
+                                Column(modifier = Modifier.padding(12.dp)) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -2262,48 +2338,90 @@ fun ApiDebugPanelDialog(
                                                         CircleShape
                                                     )
                                             )
-                                            Spacer(Modifier.width(6.dp))
+                                            Spacer(Modifier.width(8.dp))
                                             Text(
                                                 text = "[${log.keyId}] ${log.model}",
-                                                fontSize = 11.sp,
+                                                fontSize = 12.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = TextPrimary
                                             )
                                         }
                                         Text(
                                             text = "$timeStr | ${duration}ms",
-                                            fontSize = 9.sp,
+                                            fontSize = 10.sp,
                                             color = TextSecondary
                                         )
                                     }
-                                    
+
                                     if (log.statusCode != 200 && log.errorMessage != null) {
                                         Text(
-                                            text = "错误: ${log.errorMessage}",
+                                            text = "错误原因: ${log.errorMessage}",
                                             color = Color.Red,
                                             fontSize = 10.sp,
-                                            modifier = Modifier.padding(top = 4.dp)
+                                            modifier = Modifier.padding(top = 6.dp)
                                         )
                                     }
-                                    
+
                                     if (expandedLogIndex == index) {
-                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Spacer(modifier = Modifier.height(12.dp))
+
                                         Text(
-                                            text = "完整 Prompt:",
-                                            fontSize = 10.sp,
+                                            text = "请求 Prompt 预览:",
+                                            fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = GoldAccent
                                         )
-                                        Text(
-                                            text = log.prompt,
-                                            fontSize = 9.sp,
-                                            color = TextSecondary,
-                                            lineHeight = 13.sp,
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Box(
                                             modifier = Modifier
-                                                .background(Color.Black.copy(alpha = 0.2f))
-                                                .padding(6.dp)
                                                 .fillMaxWidth()
+                                                .heightIn(max = 140.dp)
+                                                .background(Color.Black.copy(alpha = 0.2f), shape = RoundedCornerShape(4.dp))
+                                                .padding(8.dp)
+                                        ) {
+                                            val scrollState = rememberScrollState()
+                                            Text(
+                                                text = log.prompt.ifBlank { "（空）" },
+                                                fontSize = 10.sp,
+                                                color = TextSecondary,
+                                                lineHeight = 14.sp,
+                                                modifier = Modifier
+                                                    .verticalScroll(scrollState)
+                                                    .fillMaxWidth()
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(10.dp))
+
+                                        Text(
+                                            text = "API 返回结果预览:",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = GoldAccent
                                         )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .heightIn(max = 140.dp)
+                                                .background(Color.Black.copy(alpha = 0.2f), shape = RoundedCornerShape(4.dp))
+                                                .padding(8.dp)
+                                        ) {
+                                            val scrollState = rememberScrollState()
+                                            Text(
+                                                text = if (log.statusCode == 200) {
+                                                    log.responseText.ifBlank { "（空返回）" }
+                                                } else {
+                                                    "请求失败，无返回文本。HTTP 状态码: ${log.statusCode}"
+                                                },
+                                                fontSize = 10.sp,
+                                                color = TextSecondary,
+                                                lineHeight = 14.sp,
+                                                modifier = Modifier
+                                                    .verticalScroll(scrollState)
+                                                    .fillMaxWidth()
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -2311,15 +2429,6 @@ fun ApiDebugPanelDialog(
                     }
                 }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryAccent)
-            ) {
-                Text("关闭")
-            }
-        },
-        containerColor = CardBg
-    )
+        }
+    }
 }

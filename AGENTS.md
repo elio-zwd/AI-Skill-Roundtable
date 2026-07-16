@@ -217,7 +217,7 @@ AI-Skill-Roundtable/
 |------|------|---------|
 | 数据库 Seeding 模式 | Scheme B：由 `extract_skills_metadata.py` 物理除二进制大文件，并在 `DatabaseCallback` 通过解析 assets/skills_config.json 全动态入库 | 2026-07-12 |
 | 会话级 Key 绑定 | 通过 `SharedPreferences` 让每个 `sessionId` 绑定唯一的 API Key，仅在 429 报错时换绑重试，最大化命中隐式前缀缓存 | 2026-07-12 |
-| 双模型级联 Broker 路由 | 使用 `gemini-3.1-flash-lite-preview` 快速选出相关少样本文件，加载拼装后送主力 `gemini-3.5-flash` (high thinking) 回答 | 2026-07-12 |
+| 双模型级联 Broker 路由 | 使用 `gemini-3.1-flash-lite` 快速选出相关少样本文件，加载拼装后送主力 `gemini-3.5-flash` (high thinking) 回答 | 2026-07-12 |
 | 语义自适应路由 | 通过 `text-embedding-004` 将角色介绍转为 768 维向量存库。提问时计算问题余弦相似度，降序对席位重排以实现“专家先发”模式 | 2026-07-12 |
 | 极速语音直存 (WAV) | 使用 Gemini Live WebSocket 接口实时提取 PCM base64 数据包，流结束时追加 44 字节 WAV 头部信息直存为 `.wav` 文件（无延迟播放） | 2026-07-13 |
 | 后台 MediaCodec 转码 (AAC) | WorkManager 后台任务配合原生 MediaCodec 硬件压缩 PCM 帧，前置 ADTS 头部（7字节）输出高保真 AAC 覆盖原 WAV | 2026-07-13 |
@@ -227,7 +227,7 @@ AI-Skill-Roundtable/
 | 全员统一莫兰迪 AI 肖像 | 剔除难看 Emoji 头像，由用户生图并物理替换，20 位智囊全员 JPG 文件归集至 assets 目录，在 CharacterAvatar 实现流式零依赖安全解码加载 | 2026-07-13 |
 | 预置与自定义分组持久化 | 建立 CharacterGroup 数据库表，版本号升级至 4，在 onCreate() 写入四大预设 Seeding 数据；支持快捷 Chip 切换、长按删除及金色星标一键保存当前激活角色 | 2026-07-13 |
 | 画册风画像底置详情抽屉 | 点击角色卡片弹出 BottomSheet，首屏杂志级排版（大头像、Tagline），随后利用极简 MarkdownRender 自行解析 SKILL.md 大纲正文，流式展示其决策 DNA | 2026-07-13 |
-| 密钥配置弹窗与熔断调试面板挂接 | 在 API 密钥配置框（齿轮）中内置高对比度超链接，点击唤起 ApiDebugPanelDialog 并通过 ApiKeyPool.apiLogs 共享 50 条最近请求详情（含 Prompt） | 2026-07-14 |
+| 密钥配置弹窗与熔断调试面板挂接 | 在 API 密钥配置框（齿轮）中内置高对比度超链接，点击唤起 ApiTelemetryScreen 二级全屏界面，并通过 ApiKeyPool.apiLogs 共享最近 50 条全部 API 请求遥测详情（含 Prompt/返回预览） | 2026-07-14 |
 | 无侵入式物理微交互 Modifier | 使用 Compose composed + pointerInput 配合 spring 阻尼手势解耦，对全部触控节点无感挂接点击态缩放 (0.96f) 与物理弹性回弹 | 2026-07-14 |
 | 智囊大厅 DropdownMenu 交互收纳 | 将“修改设定”与“请离会议”高危/低频功能收纳至卡片右侧 MoreVert 图标触发的 DropdownMenu，保持首屏界面极其纯净优雅 | 2026-07-14 |
 

@@ -31,7 +31,14 @@ data class Content(
 
 @Serializable
 data class Part(
-    val text: String
+    val text: String? = null,
+    val inlineData: Blob? = null
+)
+
+@Serializable
+data class Blob(
+    val mimeType: String,
+    val data: String
 )
 
 @Serializable
@@ -125,6 +132,7 @@ object RetrofitClient {
         .connectTimeout(60, TimeUnit.SECONDS)
         .readTimeout(120, TimeUnit.SECONDS)
         .writeTimeout(60, TimeUnit.SECONDS)
+        .addInterceptor(TelemetryInterceptor())
         .addInterceptor(HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         })
@@ -171,29 +179,12 @@ object RetrofitClient {
                     request = request
                 )
                 ApiKeyPool.setLastUsedKeyId(context, keyInfo.id)
-                ApiKeyPool.addLog(ApiLog(
-                    keyId = keyInfo.id,
-                    model = model,
-                    requestTime = startTime,
-                    responseTime = System.currentTimeMillis(),
-                    statusCode = 200,
-                    prompt = prompt
-                ))
                 Log.d(TAG, "Key ${keyInfo.id} / $model 调用成功！")
                 return response
             } catch (e: retrofit2.HttpException) {
                 val code = e.code()
                 Log.w(TAG, "Key ${keyInfo.id} / $model 调用失败，HTTP 状态码: $code")
                 attempts.add("${keyInfo.id}/$model: HTTP $code")
-                ApiKeyPool.addLog(ApiLog(
-                    keyId = keyInfo.id,
-                    model = model,
-                    requestTime = startTime,
-                    responseTime = System.currentTimeMillis(),
-                    statusCode = code,
-                    errorMessage = e.message(),
-                    prompt = prompt
-                ))
                 if (code == 429) {
                     ApiKeyPool.banKey(context, keyInfo.id)
                     Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
@@ -202,15 +193,6 @@ object RetrofitClient {
             } catch (e: Exception) {
                 Log.w(TAG, "Key ${keyInfo.id} / $model 调用失败，非 HTTP 异常: ${e.message}")
                 attempts.add("${keyInfo.id}/$model: ${e.message ?: "未知错误"}")
-                ApiKeyPool.addLog(ApiLog(
-                    keyId = keyInfo.id,
-                    model = model,
-                    requestTime = startTime,
-                    responseTime = System.currentTimeMillis(),
-                    statusCode = -1,
-                    errorMessage = e.message ?: "未知错误",
-                    prompt = prompt
-                ))
                 lastException = e
             }
 
@@ -256,29 +238,12 @@ object RetrofitClient {
                     request = request
                 )
                 ApiKeyPool.setLastUsedKeyId(context, keyInfo.id)
-                ApiKeyPool.addLog(ApiLog(
-                    keyId = keyInfo.id,
-                    model = model,
-                    requestTime = startTime,
-                    responseTime = System.currentTimeMillis(),
-                    statusCode = 200,
-                    prompt = prompt
-                ))
                 Log.d(TAG, "Key ${keyInfo.id} / Broker $model 调用成功！")
                 return response
             } catch (e: retrofit2.HttpException) {
                 val code = e.code()
                 Log.w(TAG, "Key ${keyInfo.id} / Broker $model 失败，状态码: $code")
                 attempts.add("${keyInfo.id}/$model: HTTP $code")
-                ApiKeyPool.addLog(ApiLog(
-                    keyId = keyInfo.id,
-                    model = model,
-                    requestTime = startTime,
-                    responseTime = System.currentTimeMillis(),
-                    statusCode = code,
-                    errorMessage = e.message(),
-                    prompt = prompt
-                ))
                 if (code == 429) {
                     ApiKeyPool.banKey(context, keyInfo.id)
                     Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
@@ -287,15 +252,6 @@ object RetrofitClient {
             } catch (e: Exception) {
                 Log.w(TAG, "Key ${keyInfo.id} / Broker $model 失败，非 HTTP 异常: ${e.message}")
                 attempts.add("${keyInfo.id}/$model: ${e.message ?: "未知错误"}")
-                ApiKeyPool.addLog(ApiLog(
-                    keyId = keyInfo.id,
-                    model = model,
-                    requestTime = startTime,
-                    responseTime = System.currentTimeMillis(),
-                    statusCode = -1,
-                    errorMessage = e.message ?: "未知错误",
-                    prompt = prompt
-                ))
                 lastException = e
             }
 
@@ -369,5 +325,165 @@ object RetrofitClient {
         }
         val detail = attempts.joinToString(", ")
         throw Exception("获取 Embedding 失败，已尝试轮询 Key。细节: [$detail]. 错误: ${lastException?.message ?: "未知错误"}")
+    }
+}
+
+class TelemetryInterceptor : okhttp3.Interceptor {
+    override fun intercept(chain: okhttp3.Interceptor.Chain): okhttp3.Response {
+        val request = chain.request()
+        val url = request.url
+        val startTime = System.currentTimeMillis()
+
+        val path = url.encodedPath
+        var model = "unknown"
+        val modelRegex = "models/([^:/]+)".toRegex()
+        val matchResult = modelRegex.find(path)
+        if (matchResult != null) {
+            model = matchResult.groupValues[1]
+        }
+
+        val apiKey = url.queryParameter("key") ?: ""
+        val keyInfo = ApiKeyPool.API_KEYS.firstOrNull { it.key == apiKey }
+        val keyId = keyInfo?.id ?: if (apiKey.isNotBlank()) {
+            if (apiKey.length > 8) "custom(${apiKey.take(8)}...)" else "custom"
+        } else {
+            "none"
+        }
+
+        var prompt = ""
+        try {
+            val requestBody = request.body
+            if (requestBody != null) {
+                val buffer = okio.Buffer()
+                requestBody.writeTo(buffer)
+                val bodyStr = buffer.readUtf8()
+                if (bodyStr.isNotBlank()) {
+                    val json = org.json.JSONObject(bodyStr)
+                    val sb = java.lang.StringBuilder()
+
+                    if (json.has("systemInstruction")) {
+                        val sysInst = json.getJSONObject("systemInstruction")
+                        if (sysInst.has("parts")) {
+                            val parts = sysInst.getJSONArray("parts")
+                            sb.append("=== System Instruction ===\n")
+                            for (i in 0 until parts.length()) {
+                                val part = parts.getJSONObject(i)
+                                if (part.has("text")) {
+                                    sb.append(part.getString("text")).append("\n")
+                                } else if (part.has("inlineData")) {
+                                    val inlineData = part.getJSONObject("inlineData")
+                                    val mimeType = inlineData.optString("mimeType", "")
+                                    val base64Data = inlineData.optString("data", "")
+                                    if (base64Data.isNotBlank()) {
+                                        val decodedText = try {
+                                            val decodedBytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
+                                            java.lang.String(decodedBytes, Charsets.UTF_8).toString()
+                                        } catch (e: Exception) {
+                                            "[Base64 Decode Error]"
+                                        }
+                                        sb.append("\n[附件 (MIME: $mimeType)]:\n").append(decodedText).append("\n")
+                                    }
+                                }
+                            }
+                            sb.append("\n==========================\n\n")
+                        }
+                    }
+
+                    if (json.has("contents")) {
+                        val contents = json.getJSONArray("contents")
+                        for (i in 0 until contents.length()) {
+                            val turn = contents.getJSONObject(i)
+                            val role = turn.optString("role", "user")
+                            val parts = turn.getJSONArray("parts")
+                            sb.append("【").append(role).append("】: ")
+                            for (j in 0 until parts.length()) {
+                                val part = parts.getJSONObject(j)
+                                if (part.has("text")) {
+                                    sb.append(part.getString("text"))
+                                } else if (part.has("inlineData")) {
+                                    sb.append("[Inline Data Attachment]")
+                                }
+                            }
+                            sb.append("\n")
+                        }
+                    } else if (json.has("content")) {
+                        val content = json.getJSONObject("content")
+                        val parts = content.getJSONArray("parts")
+                        sb.append("【Embedding Input】: ")
+                        for (i in 0 until parts.length()) {
+                            val part = parts.getJSONObject(i)
+                            if (part.has("text")) {
+                                sb.append(part.getString("text"))
+                            }
+                        }
+                        sb.append("\n")
+                    }
+
+                    prompt = sb.toString().trim()
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("TelemetryInterceptor", "解析请求 Prompt 失败", e)
+        }
+
+        var response: okhttp3.Response? = null
+        var lastException: Exception? = null
+        try {
+            response = chain.proceed(request)
+        } catch (e: Exception) {
+            lastException = e
+        }
+
+        val responseTime = System.currentTimeMillis()
+        val statusCode = response?.code ?: -1
+        val errorMsg = lastException?.message ?: response?.message
+
+        var responseText: String? = null
+        if (response != null && response.isSuccessful) {
+            try {
+                val responseBody = response.body
+                if (responseBody != null) {
+                    val peekedBody = response.peekBody(1024 * 512)
+                    val bodyStr = peekedBody.string()
+                    if (bodyStr.isNotBlank()) {
+                        val json = org.json.JSONObject(bodyStr)
+                        if (json.has("candidates")) {
+                            val candidates = json.getJSONArray("candidates")
+                            if (candidates.length() > 0) {
+                                val content = candidates.getJSONObject(0).optJSONObject("content")
+                                val parts = content?.optJSONArray("parts")
+                                if (parts != null && parts.length() > 0) {
+                                    responseText = parts.getJSONObject(0).optString("text", "")
+                                }
+                            }
+                        } else if (json.has("embedding")) {
+                            val embedding = json.getJSONObject("embedding")
+                            val values = embedding.optJSONArray("values")
+                            if (values != null) {
+                                responseText = "Embedding Vector: [${values.length()} values]"
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("TelemetryInterceptor", "解析响应文本失败", e)
+            }
+        }
+
+        ApiKeyPool.addLog(ApiLog(
+            keyId = keyId,
+            model = model,
+            requestTime = startTime,
+            responseTime = responseTime,
+            statusCode = statusCode,
+            errorMessage = errorMsg,
+            prompt = prompt,
+            responseText = responseText ?: ""
+        ))
+
+        if (lastException != null) {
+            throw lastException
+        }
+        return response!!
     }
 }
