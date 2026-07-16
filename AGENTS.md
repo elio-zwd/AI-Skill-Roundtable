@@ -230,4 +230,5 @@ AI-Skill-Roundtable/
 | 密钥配置弹窗与熔断调试面板挂接 | 在 API 密钥配置框（齿轮）中内置高对比度超链接，点击唤起 ApiTelemetryScreen 二级全屏界面，并通过 ApiKeyPool.apiLogs 共享最近 50 条全部 API 请求遥测详情（含 Prompt/返回预览） | 2026-07-14 |
 | 无侵入式物理微交互 Modifier | 使用 Compose composed + pointerInput 配合 spring 阻尼手势解耦，对全部触控节点无感挂接点击态缩放 (0.96f) 与物理弹性回弹 | 2026-07-14 |
 | 智囊大厅 DropdownMenu 交互收纳 | 将“修改设定”与“请离会议”高危/低频功能收纳至卡片右侧 MoreVert 图标触发的 DropdownMenu，保持首屏界面极其纯净优雅 | 2026-07-14 |
+| 3.1 Lite 摘要列表与 JSON 附件 | 将 20 个角色 46 篇本地 `.md` 资料交由 AI 智能体预处理生成 120-150 字中文主旨摘要存入 `skills_summaries.json`，在决策 Prompt 的文件列表中渲染，并在 `brokerRequest` 携带该摘要 JSON 作 Base64 附件上传以实现 100% 精准推荐 | 2026-07-16 |
 
