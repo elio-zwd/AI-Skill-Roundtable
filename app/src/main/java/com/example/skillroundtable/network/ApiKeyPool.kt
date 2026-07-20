@@ -178,8 +178,9 @@ object ApiKeyPool {
         // 1. 尝试读取该 session 当前绑定的 Key ID
         val boundKeyId = prefs.getString("session_key_$sessionId", null)
         if (boundKeyId != null) {
+            val isManualDisabled = prefs.getBoolean("key_disabled_$boundKeyId", false)
             val banExpire = prefs.getLong("ban_$boundKeyId", 0L)
-            if (banExpire < now) {
+            if (!isManualDisabled && banExpire < now) {
                 val keyInfo = API_KEYS.firstOrNull { it.id == boundKeyId }
                 if (keyInfo != null) {
                     return keyInfo

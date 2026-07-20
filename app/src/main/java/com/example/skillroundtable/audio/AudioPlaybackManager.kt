@@ -56,13 +56,12 @@ object AudioPlaybackManager {
     }
 
     fun pauseAudio() {
+        val player = mediaPlayer ?: return
         try {
-            mediaPlayer?.let {
-                if (it.isPlaying) {
-                    it.pause()
-                    _isPlaying.value = false
-                    Log.d(TAG, "音频已暂停")
-                }
+            if (player.isPlaying) {
+                player.pause()
+                _isPlaying.value = false
+                Log.d(TAG, "音频已暂停")
             }
         } catch (e: Exception) {
             Log.e(TAG, "暂停音频失败", e)
@@ -70,17 +69,16 @@ object AudioPlaybackManager {
     }
 
     fun stopAudio() {
+        val player = mediaPlayer ?: return
+        mediaPlayer = null  // 立即将引用置空，切断重入路径
         try {
-            mediaPlayer?.let {
-                if (it.isPlaying) {
-                    it.stop()
-                }
-                it.release()
+            if (player.isPlaying) {
+                player.stop()
             }
+            player.release()
         } catch (e: Exception) {
             Log.e(TAG, "释放 MediaPlayer 失败", e)
         } finally {
-            mediaPlayer = null
             _currentPlayingMessageId.value = null
             _isPlaying.value = false
             Log.d(TAG, "音频已停止并释放")

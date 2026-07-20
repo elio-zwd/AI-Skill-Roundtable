@@ -1,6 +1,6 @@
 # Gemini 1M 上下文缓存与三模型级联经纪人（Broker）路由架构 (gemini-1m-context-broker.md)
 
-本文件详述了 **AI 智囊圆桌** 中，利用 Gemini 1M 超长上下文与三模型级联经纪人机制进行本地知识选择性加载与实时联网接地搜索的协同架构。该方案通过 3.1lite 模型完成本地文件检索及联网决策，通过 2.5flash 模型配合 google_search 开启多路联网接地，最终通过主力 3.5flash 完成深度思考与圆桌整合回答。
+本文件详述了 **AI 智囊圆桌** 中，利用 Gemini 1M 超长上下文与三模型级联经纪人机制进行本地知识选择性加载与实时联网接地搜索的协同架构。该方案通过 3.1lite 模型完成本地文件检索及联网决策，通过 2.5flash 模型（免费层）配合 google_search 开启多路联网接地，最终通过主力 3.5flash 完成深度思考与圆桌整合回答。
 
 ---
 
@@ -19,7 +19,7 @@
 
 ## 2. 核心架构：三模型级联与联网配合模式
 
-为了闭合与电脑端的回答深度差距，并获取实时前沿事实，本 App 采用 **Gemini 3.1 Lite (双决策路由) + Gemini 2.5 Flash (联网接地) + Gemini 3.5 Flash (高思考回答)** 的三模型级联协作流水线：
+为了闭合与电脑端的回答深度差距，并获取实时前沿事实，本 App 采用 **Gemini 3.1 Lite (双决策路由) + Gemini 2.5 Flash (联网接地，免费层) + Gemini 3.5 Flash (高思考回答)** 的三模型级联协作流水线：
 
 ```
                          用户提交提问 (Query)
@@ -38,7 +38,7 @@
                         【 阶段二：多路联网搜索接地 】
                  4. 若决定联网（或处于强制联网模式），遍历 SearchQueries
                                   ↓
-                 5. 多路调用 gemini-2.5-flash (配置 google_search tool 联网工具)
+                 5. 多路调用 gemini-2.5-flash (配置 google_search tool 联网工具，使用免费层)
                                   ↓
                  6. 提取 2.5flash 联网总结与 groundingMetadata 引用链接，拼成 SearchInfo
                                   
@@ -96,7 +96,7 @@ sequenceDiagram
     participant VM as RoundtableViewModel
     participant SL as SkillLoader (Assets)
     participant ApiLite as Gemini 3.1 Lite (Broker)
-    participant ApiSearch as Gemini 2.5 Flash (Search)
+    participant ApiSearch as Gemini 2.5 Flash (Search, 免费层)
     participant ApiFlash as Gemini 3.5 Flash (LLM)
     participant DB as Room Database
 
@@ -127,5 +127,5 @@ sequenceDiagram
 
 ## 5. 缓存与性能效益
 - **Context Caching 高命中**：本地过滤后的 Few-shots / References 文件可保持高重合度，使同一个主题对话多次触发 Gemini 的隐式上下文前缀缓存，降低请求耗时。
-- **UI 多级模式保障**：通过 `SearchMode`，用户在离线或 API 额度紧张时，可一键切换至 `OFF`（完全不联网，只用本地资料），也可以切换到 `FORCE`（强制调用 2.5flash 实施最新前沿事实索取），或保持 `SMART`（完全交给 3.1lite 自适应抉择）。
+- **UI 多级模式保障**：通过 `SearchMode`，用户在离线或 API 额度紧张时，可一键切换至 `OFF`（完全不联网，只用本地资料），也可以切换到 `FORCE`（强制调用 2.5flash 免费层实施最新前沿事实索取），或保持 `SMART`（完全交给 3.1lite 自适应抉择）。
 - **无感本地合并**：联网获取的元数据和本地数据都在本地 Kotlin 逻辑层面拼装完成，不增加本地向量库对包体的负荷。

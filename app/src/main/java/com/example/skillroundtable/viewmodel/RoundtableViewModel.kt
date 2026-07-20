@@ -15,7 +15,6 @@ import com.example.skillroundtable.network.Part
 import com.example.skillroundtable.network.RetrofitClient
 import com.example.skillroundtable.network.ApiKeyPool
 import com.example.skillroundtable.network.Tool
-import com.example.skillroundtable.network.GoogleSearch
 import com.example.skillroundtable.network.CreateInteractionRequest
 import com.example.skillroundtable.network.Interaction
 import com.example.skillroundtable.network.InteractionStep
@@ -893,7 +892,10 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             Log.d("RoundtableViewModel", "角色 [${character.name}] 的 Broker 选择加载文件: ${decision.selectedFiles}, 联网 queries: ${decision.searchQueries}")
  
             var finalNeedSearch = decision.needSearch
-            val finalQueries = decision.searchQueries.toMutableList()
+            val finalQueries = decision.searchQueries
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .toMutableList()
  
             if (mode == SearchMode.FORCE) {
                 finalNeedSearch = true
@@ -918,7 +920,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     val searchRequest = CreateInteractionRequest(
                         model = "gemini-2.5-flash",
                         input = JsonPrimitive("请针对以下搜索任务进行联网搜索并给出详细总结：\n任务：$query\n脑暴背景：$prompt"),
-                        tools = listOf(Tool(google_search = GoogleSearch()))
+                        tools = listOf(Tool(type = "google_search"))
                     )
  
                     val searchResponse = try {
@@ -947,20 +949,20 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     }
  
                     if (searchResponse != null) {
-                        val searchReplyText = searchResponse.steps
+                        val firstContent = searchResponse.steps
                             .firstOrNull { it.type == "model_output" }
-                            ?.content?.firstOrNull()?.text ?: ""
-                        val googleSearchStep = searchResponse.steps.firstOrNull { it.type == "google_search_result" }
-                        val resultItems = googleSearchStep?.result
+                            ?.content?.firstOrNull()
+                        val searchReplyText = firstContent?.text ?: ""
+                        val annotations = firstContent?.annotations
  
                         val searchInfo = StringBuilder()
                         searchInfo.append("\n【联网搜索结果 #${index + 1}】\n")
                         searchInfo.append("搜索任务：$query\n")
                         searchInfo.append("搜索总结：\n$searchReplyText\n")
  
-                        if (!resultItems.isNullOrEmpty()) {
+                        if (!annotations.isNullOrEmpty()) {
                             searchInfo.append("参考来源：\n")
-                            resultItems.forEach { item ->
+                            annotations.forEach { item ->
                                 val title = item.title ?: "未知来源"
                                 val uri = item.url
                                 if (!uri.isNullOrBlank()) {

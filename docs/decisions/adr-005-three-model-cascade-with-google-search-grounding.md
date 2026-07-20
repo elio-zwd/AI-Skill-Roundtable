@@ -13,7 +13,7 @@
 
 1. **三模型分工**：
    - **模型一 (3.1lite)**：`gemini-3.1-flash-lite-preview`。接收脑暴上下文与本地候选文件。输出 JSON，双决策决定需要加载的本地文件及生成的 1 到多个联网 `searchQueries`。
-   - **模型二 (2.5flash)**：`gemini-2.5-flash`。当决定联网时，针对这组 Query，配置 `google_search` 联网工具（REST `tools` 字段下传入 `google_search`）依次拉取网络总结，并解析返回中的 `groundingMetadata` 拿到真实的网页标题和链接。
+   - **模型二 (2.5flash)**：`gemini-2.5-flash`（免费层）。当决定联网时，针对这组 Query，配置 `google_search` 联网工具（REST `tools` 字段下传入 `google_search`）依次拉取网络总结，并解析返回中的 `groundingMetadata` 拿到真实的网页标题 and 链接。
    - **模型三 (3.5flash)**：`gemini-3.5-flash`。接收本地知识资料与格式化后的联网接地资料（包含引用链接），开启高思考度进行整合，生成最终圆桌作答。
 
 2. **联网模式控制 (SearchMode)**：

@@ -129,12 +129,16 @@ object SkillLoader {
      * @return 剥离后的文本
      */
     fun stripYamlFrontmatter(content: String): String {
-        val lines = content.lines()
+        var cleanContent = content
+        if (cleanContent.startsWith("\uFEFF")) {
+            cleanContent = cleanContent.substring(1)
+        }
+        val lines = cleanContent.lines()
         if (lines.isEmpty()) return ""
 
         val trimmedFirst = lines.first().trim()
         if (trimmedFirst != "---") {
-            return content
+            return cleanContent
         }
 
         var secondMarkerIndex = -1
@@ -150,6 +154,6 @@ object SkillLoader {
             return remainingLines.joinToString("\n").trim()
         }
 
-        return content
+        return cleanContent
     }
 }

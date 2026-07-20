@@ -61,7 +61,6 @@ class AudioTranscodeWorker(
         }
     }
 
-    @Suppress("DEPRECATION")
     private fun encodePcmToAac(wavFile: File, aacFile: File) {
         val sampleRate = 24000
         val channels = 1
@@ -72,66 +71,88 @@ class AudioTranscodeWorker(
         mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
         mediaFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 1024 * 10)
 
-        val encoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC)
-        encoder.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-        encoder.start()
+        var encoder: MediaCodec? = null
+        var fis: FileInputStream? = null
+        var fos: FileOutputStream? = null
 
-        val fis = FileInputStream(wavFile)
-        fis.skip(44)
+        try {
+            encoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC)
+            encoder.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+            encoder.start()
 
-        val fos = FileOutputStream(aacFile)
+            fis = FileInputStream(wavFile)
+            fis.skip(44)
 
-        val inputBuffers = encoder.inputBuffers
-        val outputBuffers = encoder.outputBuffers
-        val bufferInfo = MediaCodec.BufferInfo()
+            fos = FileOutputStream(aacFile)
 
-        val tempBuffer = ByteArray(4096)
-        var hasMoreData = true
-        var presentationTimeUs = 0L
+            val inputBuffers = encoder.inputBuffers
+            val outputBuffers = encoder.outputBuffers
+            val bufferInfo = MediaCodec.BufferInfo()
 
-        while (hasMoreData || bufferInfo.flags != MediaCodec.BUFFER_FLAG_END_OF_STREAM) {
-            if (hasMoreData) {
-                val inputIndex = encoder.dequeueInputBuffer(10000)
-                if (inputIndex >= 0) {
-                    val inputBuffer = inputBuffers[inputIndex]
-                    inputBuffer.clear()
-                    
-                    val bytesRead = fis.read(tempBuffer)
-                    if (bytesRead == -1) {
-                        encoder.queueInputBuffer(inputIndex, 0, 0, 0L, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
-                        hasMoreData = false
-                    } else {
-                        inputBuffer.put(tempBuffer, 0, bytesRead)
-                        encoder.queueInputBuffer(inputIndex, 0, bytesRead, presentationTimeUs, 0)
+            val tempBuffer = ByteArray(4096)
+            var hasMoreData = true
+            var presentationTimeUs = 0L
+
+            while (hasMoreData || bufferInfo.flags != MediaCodec.BUFFER_FLAG_END_OF_STREAM) {
+                if (hasMoreData) {
+                    val inputIndex = encoder.dequeueInputBuffer(10000)
+                    if (inputIndex >= 0) {
+                        val inputBuffer = inputBuffers[inputIndex]
+                        inputBuffer.clear()
                         
-                        val numSamples = bytesRead / 2
-                        presentationTimeUs += (numSamples * 1_000_000L) / sampleRate
+                        val bytesRead = fis.read(tempBuffer)
+                        if (bytesRead == -1) {
+                            encoder.queueInputBuffer(inputIndex, 0, 0, 0L, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                            hasMoreData = false
+                        } else {
+                            inputBuffer.put(tempBuffer, 0, bytesRead)
+                            encoder.queueInputBuffer(inputIndex, 0, bytesRead, presentationTimeUs, 0)
+                            
+                            val numSamples = bytesRead / 2
+                            presentationTimeUs += (numSamples * 1_000_000L) / sampleRate
+                        }
                     }
                 }
+
+                val outputIndex = encoder.dequeueOutputBuffer(bufferInfo, 10000)
+                if (outputIndex >= 0) {
+                    val outputBuffer = outputBuffers[outputIndex]
+                    outputBuffer.position(bufferInfo.offset)
+                    outputBuffer.limit(bufferInfo.offset + bufferInfo.size)
+
+                    val outData = ByteArray(bufferInfo.size)
+                    outputBuffer.get(outData)
+
+                    val adtsHeader = ByteArray(7)
+                    addADTStoPacket(adtsHeader, bufferInfo.size + 7)
+                    fos.write(adtsHeader)
+                    fos.write(outData)
+
+                    encoder.releaseOutputBuffer(outputIndex, false)
+                }
             }
-
-            val outputIndex = encoder.dequeueOutputBuffer(bufferInfo, 10000)
-            if (outputIndex >= 0) {
-                val outputBuffer = outputBuffers[outputIndex]
-                outputBuffer.position(bufferInfo.offset)
-                outputBuffer.limit(bufferInfo.offset + bufferInfo.size)
-
-                val outData = ByteArray(bufferInfo.size)
-                outputBuffer.get(outData)
-
-                val adtsHeader = ByteArray(7)
-                addADTStoPacket(adtsHeader, bufferInfo.size + 7)
-                fos.write(adtsHeader)
-                fos.write(outData)
-
-                encoder.releaseOutputBuffer(outputIndex, false)
+        } finally {
+            try {
+                encoder?.stop()
+            } catch (e: Exception) {
+                Log.e(TAG, "停止编码器失败", e)
+            }
+            try {
+                encoder?.release()
+            } catch (e: Exception) {
+                Log.e(TAG, "释放编码器失败", e)
+            }
+            try {
+                fis?.close()
+            } catch (e: Exception) {
+                Log.e(TAG, "关闭输入流失败", e)
+            }
+            try {
+                fos?.close()
+            } catch (e: Exception) {
+                Log.e(TAG, "关闭输出流失败", e)
             }
         }
-
-        encoder.stop()
-        encoder.release()
-        fis.close()
-        fos.close()
     }
 
     private fun addADTStoPacket(packet: ByteArray, packetLen: Int) {

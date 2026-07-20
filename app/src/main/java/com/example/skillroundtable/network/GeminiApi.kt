@@ -73,11 +73,8 @@ data class Candidate(
 
 @Serializable
 data class Tool(
-    val google_search: GoogleSearch? = null
+    val type: String
 )
-
-@Serializable
-class GoogleSearch
 
 @Serializable
 data class GroundingMetadata(
@@ -137,9 +134,19 @@ data class InteractionStep(
 )
 
 @Serializable
+data class InteractionAnnotation(
+    val type: String? = null,
+    val url: String? = null,
+    val title: String? = null,
+    @SerialName("start_index") val startIndex: Int? = null,
+    @SerialName("end_index") val endIndex: Int? = null
+)
+
+@Serializable
 data class InteractionContent(
     val type: String,
-    val text: String? = null
+    val text: String? = null,
+    val annotations: List<InteractionAnnotation>? = null
 )
 
 @Serializable
@@ -651,6 +658,21 @@ class TelemetryInterceptor : okhttp3.Interceptor {
                                             val part = contentArr.getJSONObject(j)
                                             if (part.has("text")) {
                                                 sbResponse.append(part.getString("text"))
+                                            }
+                                            if (part.has("annotations")) {
+                                                val annotations = part.getJSONArray("annotations")
+                                                if (annotations.length() > 0) {
+                                                    sbResponse.append("\n[Citations:\n")
+                                                    for (k in 0 until annotations.length()) {
+                                                        val ann = annotations.getJSONObject(k)
+                                                        val title = ann.optString("title", "Link")
+                                                        val url = ann.optString("url", "")
+                                                        if (url.isNotBlank()) {
+                                                            sbResponse.append("- $title ($url)\n")
+                                                        }
+                                                    }
+                                                    sbResponse.append("]\n")
+                                                }
                                             }
                                         }
                                     }
