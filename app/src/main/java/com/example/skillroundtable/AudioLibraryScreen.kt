@@ -109,7 +109,10 @@ fun AudioLibraryScreen(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(audioMessages) { message ->
+                items(
+                    items = audioMessages,
+                    key = { it.id }
+                ) { message ->
                     AudioItemCard(
                         message = message,
                         currentPlayingId = currentPlayingId,

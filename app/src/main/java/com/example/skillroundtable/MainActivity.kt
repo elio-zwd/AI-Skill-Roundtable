@@ -422,7 +422,10 @@ fun MainAppContent() {
                         }
 
                         LazyColumn(modifier = Modifier.weight(1f)) {
-                            items(allSessions) { session ->
+                            items(
+                                items = allSessions,
+                                key = { it.id }
+                            ) { session ->
                                 val isSelected = session.id == currentSessionId
                                 @OptIn(ExperimentalFoundationApi::class)
                                 Row(
@@ -647,8 +650,9 @@ fun MainAppContent() {
 
 fun saveMarkdownToLocal(context: android.content.Context, title: String, content: String): String? {
     val resolver = context.contentResolver
+    val safeTitle = title.replace("[\\\\/:*?\"<>|]".toRegex(), "_")
     val contentValues = android.content.ContentValues().apply {
-        put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, "${title}_${System.currentTimeMillis()}.md")
+        put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, "${safeTitle}_${System.currentTimeMillis()}.md")
         put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/markdown")
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
             put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Documents/AI智囊圆桌")
@@ -719,6 +723,12 @@ fun RoundtableRoundBubble(
     
     val pagerState = rememberPagerState(pageCount = { msgs.size })
     val coroutineScope = rememberCoroutineScope()
+    
+    LaunchedEffect(msgs.size) {
+        if (msgs.isNotEmpty()) {
+            pagerState.animateScrollToPage(msgs.size - 1)
+        }
+    }
     
     Column(
         modifier = Modifier
@@ -917,8 +927,13 @@ fun RoundtableBrainstormScreen(
                                     showExportMenu = false
                                     coroutineScope.launch {
                                         val md = viewModel.exportConversation(currentSession.id)
-                                        clipboardManager.setText(AnnotatedString(md))
-                                        Toast.makeText(context, "已复制至剪贴板", Toast.LENGTH_SHORT).show()
+                                        try {
+                                            clipboardManager.setText(AnnotatedString(md))
+                                            Toast.makeText(context, "已复制至剪贴板", Toast.LENGTH_SHORT).show()
+                                        } catch (e: Exception) {
+                                            android.util.Log.e("MainActivity", "复制剪贴板失败", e)
+                                            Toast.makeText(context, "复制失败：剪贴板不可用", Toast.LENGTH_SHORT).show()
+                                        }
                                     }
                                 }
                             )
@@ -1383,8 +1398,13 @@ fun MessageBubble(
                     )
                     .bounceClick()
                     .clickable {
-                        clipboardManager.setText(AnnotatedString(message.text))
-                        Toast.makeText(context, "已复制至剪贴板", Toast.LENGTH_SHORT).show()
+                        try {
+                            clipboardManager.setText(AnnotatedString(message.text))
+                            Toast.makeText(context, "已复制至剪贴板", Toast.LENGTH_SHORT).show()
+                        } catch (e: Exception) {
+                            android.util.Log.e("MainActivity", "复制消息剪贴板失败", e)
+                            Toast.makeText(context, "复制失败：剪贴板不可用", Toast.LENGTH_SHORT).show()
+                        }
                     }
                     .padding(14.dp)
             ) {
@@ -1687,7 +1707,10 @@ fun CharacterHallScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            items(characters) { char ->
+            items(
+                items = characters,
+                key = { it.id }
+            ) { char ->
                 var showMoreMenu by remember { mutableStateOf(false) }
 
                 Card(

@@ -40,14 +40,18 @@ object AudioPlaybackManager {
 
             mediaPlayer = MediaPlayer().apply {
                 setDataSource(filePath)
-                prepare()
-                start()
+                setOnPreparedListener { mp ->
+                    if (mediaPlayer == mp) {
+                        mp.start()
+                        _isPlaying.value = true
+                    }
+                }
                 setOnCompletionListener {
                     stopAudio()
                 }
+                prepareAsync()
             }
             _currentPlayingMessageId.value = messageId
-            _isPlaying.value = true
             Log.d(TAG, "开始播放音频 messageId: $messageId, file: $filePath")
         } catch (e: Exception) {
             Log.e(TAG, "播放音频出错", e)

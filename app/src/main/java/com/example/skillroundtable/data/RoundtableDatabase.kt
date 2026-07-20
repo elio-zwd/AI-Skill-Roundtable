@@ -91,63 +91,43 @@ abstract class RoundtableDatabase : RoomDatabase() {
     ) : RoomDatabase.Callback() {
         override fun onCreate(db: SupportSQLiteDatabase) {
             super.onCreate(db)
-            INSTANCE?.let { database ->
-                scope.launch(Dispatchers.IO) {
-                    val characterDao = database.characterDao()
-                    // 动态从 skills_config.json 中获取初始角色配置，规避在代码中硬编码任何角色数据
-                    val configs = com.example.skillroundtable.skill.SkillLoader.loadSkillsConfig(context)
-                    val initialCharacters = configs.map { config ->
+            scope.launch(Dispatchers.IO) {
+                // 1. 动态从 skills_config.json 中获取初始角色配置，规避在代码中硬编码任何角色数据
+                val configs = com.example.skillroundtable.skill.SkillLoader.loadSkillsConfig(context)
+                db.beginTransaction()
+                try {
+                    configs.forEach { config ->
                         val vectorStr = config.descriptionVector.joinToString(",")
-                        Character(
-                            id = config.id,
-                            name = config.name,
-                            avatar = config.avatar,
-                            tagline = config.tagline,
-                            systemPrompt = "", // 初始置空，由 ViewModel 在运行时动态载入最新 Prompt 并回填
-                            skillAssetPath = config.skillAssetPath,
-                            order = config.order,
-                            isActive = config.isActive,
-                            skillDescriptionVector = vectorStr,
-                            voiceConfig = config.voiceConfig
+                        db.execSQL(
+                            "INSERT OR REPLACE INTO characters (id, name, avatar, tagline, systemPrompt, skillAssetPath, `order`, isActive, skillDescriptionVector, voiceConfig) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            arrayOf(
+                                config.id,
+                                config.name,
+                                config.avatar,
+                                config.tagline,
+                                "",
+                                config.skillAssetPath,
+                                config.order,
+                                if (config.isActive) 1 else 0,
+                                vectorStr,
+                                config.voiceConfig
+                            )
                         )
-                    }
-                    if (initialCharacters.isNotEmpty()) {
-                        characterDao.insertAll(initialCharacters)
                     }
 
                     // Seeding 初始的 4 个特色预设分组
-                    val groupDao = database.characterGroupDao()
-                    val presetGroups = listOf(
-                        CharacterGroup(
-                            id = "silicon_valley_venture",
-                            name = "硅谷创投",
-                            description = "聚焦商业突破、无需许可的杠杆、高科技创业与去中心化浪潮的硅谷科技狂人与投资导师组合",
-                            characterIds = "elon_musk,naval_ravikant,paul_graham,zhang_yiming,changpeng_zhao,tim_cook",
-                            isPreset = true
-                        ),
-                        CharacterGroup(
-                            id = "philosophy_logic",
-                            name = "哲学与心理逻辑",
-                            description = "解构认知偏差，关注尾部风险，探究人性和科学底层的跨学科终身学习大师与思考者",
-                            characterIds = "richard_feynman,charlie_munger,nassim_taleb,sigmund_freud,andrej_karpathy,ilya_sutskever",
-                            isPreset = true
-                        ),
-                        CharacterGroup(
-                            id = "traffic_attention",
-                            name = "流量与注意力经济",
-                            description = "深谙社交媒体、爆款法则、事件营销与流量操盘的全球顶级创作者与博弈专家",
-                            characterIds = "mr_beast,justin_sun,donald_trump,feng_ge,x_mentor",
-                            isPreset = true
-                        ),
-                        CharacterGroup(
-                            id = "planning_growth",
-                            name = "规划与个人成长",
-                            description = "刺破社会幻泡，推崇做对的事与长期主义的个人成长与升学志愿导师",
-                            characterIds = "zhang_xuefeng,duan_yongping,charlie_munger,naval_ravikant",
-                            isPreset = true
-                        )
-                    )
-                    groupDao.insertAll(presetGroups)
+                    val insertGroupSql = "INSERT OR REPLACE INTO character_groups (id, name, description, characterIds, isPreset) VALUES (?, ?, ?, ?, ?)"
+                    db.execSQL(insertGroupSql, arrayOf("silicon_valley_venture", "硅谷创投", "聚焦商业突破、无需许可的杠杆、高科技创业与去中心化浪潮的硅谷科技狂人与投资导师组合", "elon_musk,naval_ravikant,paul_graham,zhang_yiming,changpeng_zhao,tim_cook", 1))
+                    db.execSQL(insertGroupSql, arrayOf("philosophy_logic", "哲学与心理逻辑", "解构认知偏差，关注尾部风险，探究人性和科学底层的跨学科终身学习大师与思考者", "richard_feynman,charlie_munger,nassim_taleb,sigmund_freud,andrej_karpathy,ilya_sutskever", 1))
+                    db.execSQL(insertGroupSql, arrayOf("traffic_attention", "流量与注意力经济", "深谙社交媒体、爆款法则、事件营销与流量操盘的全球顶级创作者与博弈专家", "mr_beast,justin_sun,donald_trump,feng_ge,x_mentor", 1))
+                    db.execSQL(insertGroupSql, arrayOf("planning_growth", "规划与个人成长", "刺破社会幻泡，推崇做对的事与长期主义的个人成长与升学志愿导师", "zhang_xuefeng,duan_yongping,charlie_munger,naval_ravikant", 1))
+
+                    db.setTransactionSuccessful()
+                    android.util.Log.d("RoundtableDatabase", "数据库初始化 Seeding 数据成功")
+                } catch (e: Exception) {
+                    android.util.Log.e("RoundtableDatabase", "数据库初始化 Seeding 失败", e)
+                } finally {
+                    db.endTransaction()
                 }
             }
         }

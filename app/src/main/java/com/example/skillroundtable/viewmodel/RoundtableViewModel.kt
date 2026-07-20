@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.widget.Toast
@@ -152,6 +153,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
     init {
         val context = getApplication<Application>().applicationContext
+        com.example.skillroundtable.network.ApiKeyPool.init(context)
         
         // 从 SharedPreferences 中加载设置
         _isAutoNextEnabled.value = prefs.getBoolean("is_auto_next_enabled", true)
@@ -329,7 +331,8 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     context = context,
                     model = "gemini-3.1-flash-lite",
                     request = request,
-                    sessionId = sessionId
+                    sessionId = sessionId,
+                    disableBan = true
                 )
                 val reply = response.candidates.firstOrNull()?.content?.parts?.firstOrNull()?.text?.trim()
                 if (!reply.isNullOrBlank()) {
@@ -543,7 +546,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 val lastUserMsg = messages[lastUserIndex]
                 try {
                     Log.d("RoundtableViewModel", "语义路由已启用，正在对用户提问获取 Embedding...")
-                    val questionVector = RetrofitClient.embedContentWithFallback(context, lastUserMsg.text, sessionId)
+                    val questionVector = RetrofitClient.embedContentWithFallback(context, lastUserMsg.text, sessionId, disableBan = true)
                     sortedChars = charactersToAnswer.map { character ->
                         val charVector = try {
                             if (character.skillDescriptionVector.isBlank()) emptyList()
@@ -625,7 +628,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         messagesSnapshot: List<Message>,
         apiKey: String
     ) {
-        _typingCharacterIds.value = _typingCharacterIds.value + character.id
+        _typingCharacterIds.update { it + character.id }
 
         val pendingMsgId = chatRepo.insertMessage(
             Message(
@@ -639,7 +642,8 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             )
         )
 
-        val transcript = buildTranscript(messagesSnapshot, character, currentRound)
+        val latestMessages = chatRepo.getMessages(sessionId)
+        val transcript = buildTranscript(latestMessages, character, currentRound)
 
         try {
             val responseText = callGeminiApi(character, transcript, apiKey, sessionId)
@@ -658,7 +662,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             Log.e("RoundtableViewModel", "生成回答出错: ${character.name}", e)
             chatRepo.deleteMessageById(pendingMsgId)
         } finally {
-            _typingCharacterIds.value = _typingCharacterIds.value - character.id
+            _typingCharacterIds.update { it - character.id }
         }
     }
 
@@ -685,7 +689,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         }
 
         sb.append("现在，轮到你——「${currentCharacter.name}」在第 $roundIndex 轮发言了。\n")
-        sb.append("请记住你的设定、说话语气 and 人设。")
+        sb.append("请记住你的设定、说话语气和人设。")
         sb.append("请你站在你自己的专业背景与刺头/支持立场，对用户的提问进行解答，")
         if (roundIndex > 1) {
             sb.append("同时你**必须**参考、评判、补充或反驳前几位智囊在前几轮的发言，展现出真实的脑暴交锋！")
@@ -830,7 +834,8 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 RetrofitClient.createInteractionWithFallback(
                     context = context,
                     request = brokerRequest,
-                    sessionId = sessionId
+                    sessionId = sessionId,
+                    disableBan = true
                 )
             } catch (fallbackEx: Exception) {
                 val userKey = _apiKey.value
@@ -927,7 +932,8 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                         RetrofitClient.createInteractionWithFallback(
                             context = context,
                             request = searchRequest,
-                            sessionId = sessionId
+                            sessionId = sessionId,
+                            disableBan = true
                         )
                     } catch (fallbackEx: Exception) {
                         val userKey = _apiKey.value
@@ -1048,7 +1054,8 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             )
         } catch (e: Exception) {
             if (useChain) {
-                Log.w("RoundtableViewModel", "云端会话链 ${cachedInteractionId} 请求失败，触发优雅退回兜底分支：全量历史发送...")
+                lastInteractionIds.remove(sessionId) // 立即将失效 ID 清理出缓存，防止下轮连环 400 报错
+                Log.w("RoundtableViewModel", "云端会话链 ${cachedInteractionId} 请求失败，已清理坏链缓存，触发优雅退回兜底分支：全量历史发送...")
                 val fallbackRequest = request.copy(
                     input = JsonPrimitive(prompt), // 全量历史
                     previousInteractionId = null   // 不带 ID 重新建链

@@ -12,6 +12,7 @@ data class ApiKeyInfo(
     val account: String
 )
 
+@kotlinx.serialization.Serializable
 data class ApiLog(
     val keyId: String,
     val model: String,
@@ -40,12 +41,55 @@ object ApiKeyPool {
     private const val BAN_DURATION_MS = 24 * 60 * 60 * 1000L // 24小时
 
     val apiLogs = java.util.concurrent.CopyOnWriteArrayList<ApiLog>()
+    private var appContext: Context? = null
+
+    fun init(context: Context) {
+        appContext = context.applicationContext
+        loadLogsFromPrefs()
+    }
+
+    private fun loadLogsFromPrefs() {
+        val context = appContext ?: return
+        val prefs = getPrefs(context)
+        val jsonStr = prefs.getString("telemetry_api_logs_json", null)
+        if (!jsonStr.isNullOrBlank()) {
+            try {
+                val list = kotlinx.serialization.json.Json.decodeFromString(
+                    kotlinx.serialization.builtins.ListSerializer(ApiLog.serializer()),
+                    jsonStr
+                )
+                synchronized(apiLogs) {
+                    apiLogs.clear()
+                    apiLogs.addAll(list)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun saveLogsToPrefs() {
+        val context = appContext ?: return
+        val listCopy = synchronized(apiLogs) { apiLogs.toList() }
+        try {
+            val jsonStr = kotlinx.serialization.json.Json.encodeToString(
+                kotlinx.serialization.builtins.ListSerializer(ApiLog.serializer()),
+                listCopy
+            )
+            getPrefs(context).edit().putString("telemetry_api_logs_json", jsonStr).apply()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 
     fun addLog(log: ApiLog) {
-        apiLogs.add(0, log)
-        if (apiLogs.size > 50) {
-            apiLogs.removeAt(apiLogs.size - 1)
+        synchronized(apiLogs) {
+            apiLogs.add(0, log)
+            while (apiLogs.size > 50) {
+                apiLogs.removeAt(apiLogs.size - 1)
+            }
         }
+        saveLogsToPrefs()
     }
 
     fun isKeyDisabled(context: Context, keyId: String): Boolean {

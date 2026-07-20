@@ -242,7 +242,8 @@ object RetrofitClient {
     suspend fun createInteractionWithFallback(
         context: Context,
         request: CreateInteractionRequest,
-        sessionId: Long
+        sessionId: Long,
+        disableBan: Boolean = false
     ): Interaction {
         var lastException: Exception? = null
         val attempts = mutableListOf<String>()
@@ -267,8 +268,12 @@ object RetrofitClient {
                 Log.w(TAG, "Key ${keyInfo.id} / Interactions API 调用失败，HTTP 状态码: $code")
                 attempts.add("${keyInfo.id}: HTTP $code")
                 if (code == 429) {
-                    ApiKeyPool.banKey(context, keyInfo.id)
-                    Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
+                    if (!disableBan) {
+                        ApiKeyPool.banKey(context, keyInfo.id)
+                        Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
+                    } else {
+                        Log.w(TAG, "Key ${keyInfo.id} 遇到 429 频控，但已跳过熔断标记以防连带污染")
+                    }
                 }
                 lastException = e
             } catch (e: Exception) {
@@ -296,7 +301,8 @@ object RetrofitClient {
         context: Context,
         model: String,
         request: GenerateContentRequest,
-        sessionId: Long
+        sessionId: Long,
+        disableBan: Boolean = false
     ): GenerateContentResponse {
         var lastException: Exception? = null
         val attempts = mutableListOf<String>()
@@ -324,8 +330,12 @@ object RetrofitClient {
                 Log.w(TAG, "Key ${keyInfo.id} / $model 调用失败，HTTP 状态码: $code")
                 attempts.add("${keyInfo.id}/$model: HTTP $code")
                 if (code == 429) {
-                    ApiKeyPool.banKey(context, keyInfo.id)
-                    Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
+                    if (!disableBan) {
+                        ApiKeyPool.banKey(context, keyInfo.id)
+                        Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
+                    } else {
+                        Log.w(TAG, "Key ${keyInfo.id} 遇到 429 频控，但已跳过熔断标记以防连带污染")
+                    }
                 }
                 lastException = e
             } catch (e: Exception) {
@@ -355,7 +365,8 @@ object RetrofitClient {
         context: Context,
         model: String,
         request: GenerateContentRequest,
-        sessionId: Long
+        sessionId: Long,
+        disableBan: Boolean = false
     ): GenerateContentResponse {
         var lastException: Exception? = null
         val attempts = mutableListOf<String>()
@@ -383,8 +394,12 @@ object RetrofitClient {
                 Log.w(TAG, "Key ${keyInfo.id} / Broker $model 失败，状态码: $code")
                 attempts.add("${keyInfo.id}/$model: HTTP $code")
                 if (code == 429) {
-                    ApiKeyPool.banKey(context, keyInfo.id)
-                    Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
+                    if (!disableBan) {
+                        ApiKeyPool.banKey(context, keyInfo.id)
+                        Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
+                    } else {
+                        Log.w(TAG, "Key ${keyInfo.id} 遇到 429 频控，但已跳过熔断标记以防连带污染")
+                    }
                 }
                 lastException = e
             } catch (e: Exception) {
@@ -413,7 +428,8 @@ object RetrofitClient {
     suspend fun embedContentWithFallback(
         context: Context,
         text: String,
-        sessionId: Long
+        sessionId: Long,
+        disableBan: Boolean = false
     ): List<Float> {
         val request = EmbedContentRequest(
             content = Content(parts = listOf(Part(text = text)))
@@ -442,8 +458,12 @@ object RetrofitClient {
                 Log.w(TAG, "Key ${keyInfo.id} 获取 Embedding 失败，HTTP 状态码: $code")
                 attempts.add("${keyInfo.id}: HTTP $code")
                 if (code == 429) {
-                    ApiKeyPool.banKey(context, keyInfo.id)
-                    Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
+                    if (!disableBan) {
+                        ApiKeyPool.banKey(context, keyInfo.id)
+                        Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
+                    } else {
+                        Log.w(TAG, "Key ${keyInfo.id} 遇到 429 频控，但已跳过熔断标记以防连带污染")
+                    }
                 }
                 lastException = e
             } catch (e: Exception) {

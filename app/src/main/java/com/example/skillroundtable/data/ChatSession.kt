@@ -92,6 +92,20 @@ class ChatRepository(private val chatDao: ChatDao) {
     }
 
     suspend fun deleteSession(id: Long) {
+        try {
+            val messages = chatDao.getMessagesForChat(id)
+            messages.forEach { msg ->
+                val path = msg.audioFilePath
+                if (!path.isNullOrBlank()) {
+                    val file = java.io.File(path)
+                    if (file.exists()) {
+                        file.delete()
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         chatDao.deleteSessionById(id)
         chatDao.deleteMessagesByChatId(id)
     }
