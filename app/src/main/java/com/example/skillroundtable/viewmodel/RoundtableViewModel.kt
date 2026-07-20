@@ -20,6 +20,7 @@ import com.example.skillroundtable.network.Interaction
 import com.example.skillroundtable.network.InteractionStep
 import com.example.skillroundtable.network.InteractionContent
 import com.example.skillroundtable.network.InteractionGenerationConfig
+import com.example.skillroundtable.network.outputText
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -661,6 +662,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         } catch (e: Exception) {
             Log.e("RoundtableViewModel", "生成回答出错: ${character.name}", e)
             chatRepo.deleteMessageById(pendingMsgId)
+            _errorMessage.value = "「${character.name}」的回答未显示：${e.localizedMessage ?: "无法读取模型返回内容"}"
         } finally {
             _typingCharacterIds.update { it - character.id }
         }
@@ -856,9 +858,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 }
             }
  
-            val brokerReply = brokerResponse?.steps
-                ?.firstOrNull { it.type == "model_output" }
-                ?.content?.firstOrNull()?.text ?: ""
+            val brokerReply = brokerResponse?.outputText.orEmpty()
             
             val cleanedReply = brokerReply
                 .replace("```json", "")
@@ -955,18 +955,18 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     }
  
                     if (searchResponse != null) {
-                        val firstContent = searchResponse.steps
-                            .firstOrNull { it.type == "model_output" }
-                            ?.content?.firstOrNull()
-                        val searchReplyText = firstContent?.text ?: ""
-                        val annotations = firstContent?.annotations
+                        val searchReplyText = searchResponse.outputText
+                        val annotations = searchResponse.steps
+                            .filter { it.type == "model_output" }
+                            .flatMap { step -> step.content }
+                            .flatMap { content -> content.annotations.orEmpty() }
  
                         val searchInfo = StringBuilder()
                         searchInfo.append("\n【联网搜索结果 #${index + 1}】\n")
                         searchInfo.append("搜索任务：$query\n")
                         searchInfo.append("搜索总结：\n$searchReplyText\n")
  
-                        if (!annotations.isNullOrEmpty()) {
+                        if (annotations.isNotEmpty()) {
                             searchInfo.append("参考来源：\n")
                             annotations.forEach { item ->
                                 val title = item.title ?: "未知来源"
@@ -1099,12 +1099,15 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             Log.d("RoundtableViewModel", "更新会话 $sessionId 的上一步 Interaction ID 为: $newInteractionId")
         }
  
-        var responseText = currentResponse.steps
-            .firstOrNull { it.type == "model_output" }
-            ?.content?.firstOrNull()?.text
+        var responseText = currentResponse.outputText
  
         if (responseText.isNullOrBlank()) {
-            throw Exception("API返回空响应")
+            val stepTypes = currentResponse.steps.joinToString { it.type }
+            Log.w(
+                "RoundtableViewModel",
+                "Interactions API 未返回可展示文本，状态=${currentResponse.status}，步骤=[$stepTypes]"
+            )
+            throw Exception("API 未返回可展示的模型文本")
         }
  
         // 续写处理：在 Interactions API 下同样使用 previous_interaction_id 的链式方式进行续写
@@ -1140,9 +1143,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     throw fallbackEx
                 }
             }
-            val continueText = continueResponse.steps
-                .firstOrNull { it.type == "model_output" }
-                ?.content?.firstOrNull()?.text
+            val continueText = continueResponse.outputText
             if (!continueText.isNullOrBlank()) {
                 responseText += continueText
                 if (continueResponse.id.isNotBlank()) {

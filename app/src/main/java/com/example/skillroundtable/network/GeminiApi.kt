@@ -149,6 +149,23 @@ data class InteractionContent(
     val annotations: List<InteractionAnnotation>? = null
 )
 
+/**
+ * 按 Interactions SDK 的 output_text 语义汇总最终文本。
+ *
+ * 一次交互结尾可能包含多个连续的 model_output 步骤，且单个步骤也可能拆分为多个内容块。
+ * 不能只读取第一个内容块，否则 API 已成功返回时仍会被误判为“空响应”。
+ */
+val Interaction.outputText: String
+    get() = steps.asReversed()
+        .takeWhile { it.type == "model_output" }
+        .asReversed()
+        .asSequence()
+        .flatMap { it.content.asSequence() }
+        .filter { it.type == "text" }
+        .mapNotNull { it.text?.takeIf(String::isNotBlank) }
+        .joinToString(separator = "")
+        .trim()
+
 @Serializable
 data class GoogleSearchResultItem(
     val title: String? = null,
