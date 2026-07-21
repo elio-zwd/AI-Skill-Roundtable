@@ -1,21 +1,21 @@
 package com.example.skillroundtable.network
 
 import android.content.Context
-import android.util.Log
 import com.example.skillroundtable.BuildConfig
 import com.example.skillroundtable.network.keys.ApiKeyLease
-import com.example.skillroundtable.network.keys.ApiKeyScheduler
 import com.example.skillroundtable.network.retry.ApiCallFailure
 import com.example.skillroundtable.network.retry.ApiRetryDecision
 import com.example.skillroundtable.network.retry.ApiRetryPolicy
 import com.example.skillroundtable.roundtable.RequestBudgetTracker
 import com.example.skillroundtable.telemetry.CloudInteractionRequestPolicy
 import com.example.skillroundtable.telemetry.CloudInteractionSettings
+import com.example.skillroundtable.telemetry.PrivacySafeLogger
 import com.example.skillroundtable.telemetry.TelemetryInterceptor
-import com.example.skillroundtable.telemetry.TelemetryRedactor
 import com.example.skillroundtable.telemetry.TelemetryRepository
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -28,10 +28,6 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 import java.util.concurrent.TimeUnit
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.json.JsonElement
-
-
 
 @Serializable
 data class GenerateContentRequest(
@@ -107,7 +103,6 @@ data class WebSource(
     val title: String? = null
 )
 
-// Interactions API 相关的实体类
 @Serializable
 data class CreateInteractionRequest(
     val model: String? = null,
@@ -165,9 +160,7 @@ data class InteractionContent(
 
 /**
  * 按 Interactions SDK 的 output_text 语义汇总最终文本。
- *
  * 一次交互结尾可能包含多个连续的 model_output 步骤，且单个步骤也可能拆分为多个内容块。
- * 不能只读取第一个内容块，否则 API 已成功返回时仍会被误判为“空响应”。
  */
 val Interaction.outputText: String
     get() = steps.asReversed()
@@ -195,7 +188,6 @@ data class InteractionUsage(
     @SerialName("total_tokens") val totalTokens: Int? = null
 )
 
-// Embedding 接口相关的实体类
 @Serializable
 data class EmbedContentConfig(
     @SerialName("output_dimensionality") val outputDimensionality: Int? = 768
@@ -255,7 +247,7 @@ object RetrofitClient {
         .writeTimeout(90, TimeUnit.SECONDS)
         .addInterceptor(TelemetryInterceptor())
         .addInterceptor(HttpLoggingInterceptor { rawMessage ->
-            logD("OkHttp", TelemetryRedactor.redact(rawMessage))
+            PrivacySafeLogger.d("OkHttp", rawMessage)
         }.apply {
             level = if (BuildConfig.DEBUG) {
                 HttpLoggingInterceptor.Level.BASIC
@@ -266,16 +258,16 @@ object RetrofitClient {
         .build()
 
     val service: GeminiApiService by lazy {
-        val json = Json { 
+        val json = Json {
             ignoreUnknownKeys = true
             coerceInputValues = true
         }
-        val retrofit = Retrofit.Builder()
+        Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
-        retrofit.create(GeminiApiService::class.java)
+            .create(GeminiApiService::class.java)
     }
 
     /**
@@ -292,64 +284,51 @@ object RetrofitClient {
         reserveForRequired: Int = 0,
         block: suspend (ApiKeyLease) -> T
     ): T {
-        var lastException: Exception? = null
+        val safeOperationName = sanitizeOperationName(operationName)
         var lastFailure: ApiCallFailure? = null
-        val attempts = mutableListOf<String>()
 
         if (attemptPlan.isEmpty()) {
-            val emptyFailure = ApiCallFailure.Unknown(Exception("No available keys in plan"))
+            val failure = ApiCallFailure.Unknown(Exception("No available keys in plan"))
             throw com.example.skillroundtable.network.retry.ApiExecutionException(
-                failure = emptyFailure,
-                operationName = operationName,
+                failure = failure,
+                operationName = safeOperationName,
                 keyId = null,
-                cause = Exception("操作 [$operationName] 失败：可用的 API 密钥列表为空。")
+                cause = Exception("操作 [$safeOperationName] 失败：可用的 API 密钥列表为空。")
             )
         }
 
         val reserveForOtherRequired = (reserveForRequired - 1).coerceAtLeast(0)
         for (lease in attemptPlan) {
-            // 开始请求前，首先校验并原子消费预算 (REQUIRED 与 OPTIONAL 区别消费，且遵守预留)
             val consumed = if (isRequired) {
                 tracker.tryConsumeRequired(1, reserveForOtherRequired)
             } else {
                 tracker.tryConsumeOptional(1, reserveForRequired)
             }
             if (!consumed) {
-                val budgetFailure = ApiCallFailure.Unknown(Exception("本问题 API 请求预算已耗尽或未满足预留配额。"))
+                val failure = ApiCallFailure.Unknown(Exception("Request budget unavailable"))
                 throw com.example.skillroundtable.network.retry.ApiExecutionException(
-                    failure = budgetFailure,
-                    operationName = operationName,
+                    failure = failure,
+                    operationName = safeOperationName,
                     keyId = lease.keyId,
-                    cause = Exception("操作 [$operationName] 超过了本轮请求预算。已使用: ${tracker.getUsed()}, 预留主回答: $reserveForRequired")
+                    cause = Exception("操作 [$safeOperationName] 超过了本轮请求预算。")
                 )
             }
 
             var sameKeyAttemptCount = 0
             while (true) {
                 try {
-                    logD(TAG, "[$operationName] 正在使用 Key ${lease.keyId} 执行请求...")
+                    PrivacySafeLogger.d(
+                        TAG,
+                        "Executing $safeOperationName with keyId=${lease.keyId}"
+                    )
                     val result = block(lease)
                     ApiRetryPolicy.resetRateLimitCount(context, lease.keyId)
                     ApiKeyPool.bindSessionKey(context, sessionId, lease.keyId)
                     ApiKeyPool.setLastUsedKeyId(context, lease.keyId)
                     return result
-                } catch (e: Exception) {
-                    val failure = when (e) {
-                        is retrofit2.HttpException -> {
-                            val code = e.code()
-                            val retryAfterHeader = e.response()?.headers()?.get("Retry-After")
-                            val retryAfterMs = ApiRetryPolicy.parseRetryAfterMs(retryAfterHeader)
-                            ApiCallFailure.Http(code, retryAfterMs)
-                        }
-                        is java.io.IOException -> ApiCallFailure.Network(e)
-                        is kotlinx.serialization.SerializationException -> ApiCallFailure.Serialization(e)
-                        else -> ApiCallFailure.Unknown(e)
-                    }
-
-                    attempts.add("${lease.keyId}: ${e.message ?: e.javaClass.simpleName}")
-                    lastException = e
+                } catch (error: Exception) {
+                    val failure = classifyFailure(error)
                     lastFailure = failure
-
                     val decision = ApiRetryPolicy.getDecision(failure, sameKeyAttemptCount)
                     ApiRetryPolicy.handleKeyStatusUpdate(context, lease.keyId, failure)
 
@@ -357,15 +336,16 @@ object RetrofitClient {
                         ApiRetryDecision.STOP_REQUEST -> {
                             throw com.example.skillroundtable.network.retry.ApiExecutionException(
                                 failure = failure,
-                                operationName = operationName,
+                                operationName = safeOperationName,
                                 keyId = lease.keyId,
-                                cause = e
+                                cause = sanitizedFailureException(safeOperationName, failure)
                             )
                         }
                         ApiRetryDecision.RETRY_SAME_KEY -> {
                             sameKeyAttemptCount++
-                            // HTTP 5xx 指数退避：第一次重试退避 1000ms，第二次退避 2000ms；其它网络异常默认 1000ms。
-                            val backoffMs = if (failure is ApiCallFailure.Http && failure.code in 500..599) {
+                            val backoffMs = if (
+                                failure is ApiCallFailure.Http && failure.code in 500..599
+                            ) {
                                 sameKeyAttemptCount * 1000L
                             } else {
                                 1000L
@@ -378,30 +358,31 @@ object RetrofitClient {
                                 tracker.tryConsumeOptional(1, reserveForRequired)
                             }
                             if (!retryConsumed) {
+                                val budgetFailure = ApiCallFailure.Unknown(
+                                    Exception("Retry budget unavailable")
+                                )
                                 throw com.example.skillroundtable.network.retry.ApiExecutionException(
-                                    failure = ApiCallFailure.Unknown(Exception("重试时超出预算预留限制")),
-                                    operationName = operationName,
+                                    failure = budgetFailure,
+                                    operationName = safeOperationName,
                                     keyId = lease.keyId,
-                                    cause = Exception("操作 [$operationName] 重试时超过了本轮请求预算或预留配额。")
+                                    cause = Exception("操作 [$safeOperationName] 重试时超过了本轮请求预算。")
                                 )
                             }
                             continue
                         }
                         ApiRetryDecision.TRY_NEXT_KEY,
-                        ApiRetryDecision.COOLDOWN_AND_TRY_NEXT_KEY -> {
-                            break
-                        }
+                        ApiRetryDecision.COOLDOWN_AND_TRY_NEXT_KEY -> break
                     }
                 }
             }
         }
 
-        val detail = attempts.joinToString(", ")
+        val failure = lastFailure ?: ApiCallFailure.Unknown(Exception("All keys failed"))
         throw com.example.skillroundtable.network.retry.ApiExecutionException(
-            failure = lastFailure ?: ApiCallFailure.Unknown(Exception("所有 Key 均尝试失败")),
-            operationName = operationName,
+            failure = failure,
+            operationName = safeOperationName,
             keyId = null,
-            cause = lastException ?: Exception("操作 [$operationName] 失败，已尝试所有 Key。细节: [$detail]")
+            cause = sanitizedFailureException(safeOperationName, failure)
         )
     }
 
@@ -426,7 +407,16 @@ object RetrofitClient {
             store = cloudPolicy.store,
             previousInteractionId = cloudPolicy.previousInteractionId
         )
-        return executeWithBudgetAndRetry(context, sessionId, attemptPlan, tracker, operationName, delayProvider, isRequired, reserveForRequired) { lease ->
+        return executeWithBudgetAndRetry(
+            context,
+            sessionId,
+            attemptPlan,
+            tracker,
+            operationName,
+            delayProvider,
+            isRequired,
+            reserveForRequired
+        ) { lease ->
             service.createInteraction(apiKey = lease.secret, request = privacySafeRequest)
         }
     }
@@ -443,7 +433,17 @@ object RetrofitClient {
         isRequired: Boolean = true,
         reserveForRequired: Int = 0
     ): GenerateContentResponse {
-        return executeWithBudgetAndRetry(context, sessionId, attemptPlan, tracker, operationName, delayProvider, isRequired, reserveForRequired) { lease ->
+        TelemetryRepository.init(context)
+        return executeWithBudgetAndRetry(
+            context,
+            sessionId,
+            attemptPlan,
+            tracker,
+            operationName,
+            delayProvider,
+            isRequired,
+            reserveForRequired
+        ) { lease ->
             service.generateContent(model = model, apiKey = lease.secret, request = request)
         }
     }
@@ -459,27 +459,53 @@ object RetrofitClient {
         isRequired: Boolean = true,
         reserveForRequired: Int = 0
     ): List<Float> {
+        TelemetryRepository.init(context)
         val request = EmbedContentRequest(
             content = Content(parts = listOf(Part(text = text)))
         )
-        return executeWithBudgetAndRetry(context, sessionId, attemptPlan, tracker, operationName, delayProvider, isRequired, reserveForRequired) { lease ->
+        return executeWithBudgetAndRetry(
+            context,
+            sessionId,
+            attemptPlan,
+            tracker,
+            operationName,
+            delayProvider,
+            isRequired,
+            reserveForRequired
+        ) { lease ->
             service.embedContent(apiKey = lease.secret, request = request).embedding.values
         }
     }
-}
 
-private fun logD(tag: String, msg: String) {
-    try {
-        android.util.Log.d(tag, msg)
-    } catch (_: Throwable) {
-        println("[$tag] $msg")
+    private fun classifyFailure(error: Exception): ApiCallFailure = when (error) {
+        is retrofit2.HttpException -> {
+            val retryAfterMs = ApiRetryPolicy.parseRetryAfterMs(
+                error.response()?.headers()?.get("Retry-After")
+            )
+            ApiCallFailure.Http(error.code(), retryAfterMs)
+        }
+        is java.io.IOException -> ApiCallFailure.Network(error)
+        is kotlinx.serialization.SerializationException -> ApiCallFailure.Serialization(error)
+        else -> ApiCallFailure.Unknown(error)
     }
-}
 
-private fun logE(tag: String, msg: String, tr: Throwable? = null) {
-    try {
-        android.util.Log.e(tag, msg, tr)
-    } catch (_: Throwable) {
-        println("[$tag] ERROR: $msg ${tr?.message ?: ""}")
+    private fun sanitizeOperationName(operationName: String): String {
+        val base = operationName.substringBefore('-')
+            .filter { it.isLetterOrDigit() || it == '_' }
+            .take(80)
+        return base.ifBlank { "ApiOperation" }
+    }
+
+    private fun sanitizedFailureException(
+        operationName: String,
+        failure: ApiCallFailure
+    ): Exception {
+        val category = when (failure) {
+            is ApiCallFailure.Http -> "HTTP_${failure.code}"
+            is ApiCallFailure.Network -> "NETWORK"
+            is ApiCallFailure.Serialization -> "SERIALIZATION"
+            is ApiCallFailure.Unknown -> "UNKNOWN"
+        }
+        return Exception("操作 [$operationName] 失败（$category）。")
     }
 }
