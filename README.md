@@ -6,7 +6,7 @@
 
 ## 项目简介
 
-**AI 智囊圆桌**是一款原生 Android 聊天 App。用户提交一个问题，20 个 AI 技能角色（Skills）就像圆桌上的与会者一样，**逐一顺序作答**：每位角色回答完毕后，下一位看到所有前序发言，并在此基础上评论、补充或反驳，形成真正的多智囊脑暴。
+**AI 智囊圆桌**是一款原生 Android 聊天 App。用户提交一个问题，20 个 AI 技能角色（Skills）就像圆桌上的与会者一样参与讨论。当前版本已经具备多角色回答、上下文拼装、联网搜索与语音输出能力；严格顺序圆桌、上下文一致性与 Key 编排将在 PR 02 中进一步收口。
 
 ### 🎨 全员统一莫兰迪 AI 肖像 (v2.1)
 项目已剔除 Emoji 头像，全员 20 位智囊已全部升级为统一美学的 **“低饱和度莫兰迪极简插画风” AI 高画质肖像**，具备 Editorial 杂志级的高级感。
@@ -42,14 +42,13 @@
 
 | 功能模块 | 交付状态 | 核心实现细节 |
 |------|------|-------------|
-| **多智囊脑暴调度** | ✅ 完成 | 自动拼装前序上下文，组内错峰串行间隔，跨组并发调用调度 |
-| **API 备用池与熔断保护** | ✅ 完成 | 支持一键全局开关内置 Key 池，内置 10 个备用 Key 支持微粒度手动启用/禁用，在 429 发生时自动启动倒计时熔断隔离 |
+| **多智囊脑暴调度** | 🚧 重构中 | 当前版本可运行；严格顺序圆桌、上下文一致性与 Key Lease 将在 PR 02 中收口 |
+| **用户 BYOK Key 池与熔断保护** | ✅ 完成 | 支持在客户端批量导入最多 50 个用户自有 Key，可逐个启用或禁用；受限 Key 会被临时熔断，密钥由 Android Keystore 加密存储 |
 | **流式 PCM 音频与 TTS 极速秒播** | ✅ 完成 | Live WebSocket 直接下发 PCM 帧追加 44 字节 WAV 头秒播，后台 ADTS MediaCodec 转码 AAC 压缩 |
 | **音频大厅与库管理面板** | ✅ 完成 | 离线音频批量查看、在线播控、一键全量清理与体积压缩监测 |
 | **智囊大厅预置/自定义分组** | ✅ 完成 | Room v4 注入四大官方预设组，右上角星标一键将激活角色另存为自定义分组 |
 | **画册风 ModalBottomSheet 画像详情** | ✅ 完成 | 点击大厅卡片拉出抽屉，流式读取 SKILL.md 大纲并基于 MarkdownRender 极简渲染其决策 DNA |
 | **莫兰迪极简 AI 高画质肖像** | ✅ 完成 | 全员 20 人头像全 JPG 化物理入库，Assets 本地零依赖安全流式加载，支持 Monogram 汉字降级 |
-
 
 ---
 
@@ -62,7 +61,7 @@
 | JDK | JDK 17（配置为 `JAVA_HOME` 环境变量） |
 | Android SDK | Android SDK Platform 35 及 Build Tools |
 | Gradle | 8.14（默认使用自带 Gradle Wrapper 自动在线下载） |
-| API Key | Google Gemini API Key（在 Android 客户端运行时手动导入，`.env` 仅供本地构建脚本使用） |
+| API Key | Google Gemini API Key（在 Android 客户端运行时手动导入，`.env` 仅供本地辅助脚本使用） |
 
 ---
 
@@ -103,7 +102,7 @@
 3. 密钥将由 Android Keystore（AES-256-GCM）安全地加密保存在本地（排除在系统备份之外），界面仅回显掩码。
 4. 验证成功后，即可开始圆桌提问。
 
-*注意：`.env` 文件仅供本地构建期 Python/PowerShell 辅助脚本使用，Android App 不会也无法在运行时读取 `.env` 里的密钥。*
+*注意：`.env` 文件仅供手动运行的本地 Python/PowerShell 辅助脚本使用，Android App 在编译和运行时都不会读取 `.env`。*
 
 ---
 
@@ -145,21 +144,21 @@ AI-Skill-Roundtable/
 ├── app/                     # Android 应用模块
 │   └── src/main/
 │       ├── java/            # Kotlin 源代码
-│       └── assets/skills/   # 7 个参会名人的原始 SKILL.md (Seeding 数据源)
+│       └── assets/skills/   # 20 个参会角色的原始 SKILL.md（Seeding 数据源）
 ├── docs/                    # 项目设计与架构文档
 │   ├── skills/              # GitHub 原始 Skills 数据参考
 │   ├── architecture/        # 系统架构、数据流与 UI 空间感定位指南
-│   ├── decisions/           # ADR 技术决策记录 (如 Notion 极简 UI / 物理微交互)
+│   ├── decisions/           # ADR 技术决策记录
 │   ├── protocols/           # Gemini API（含 WS Live、音频转码、熔断遥测）协议规范
 │   └── planning/            # 任务执行计划与交付报告
-├── tools/                   # (新增) 运行时 ADB 控制与 OpenCV 图像匹配 API 工具集
-├── test/                    # (新增) 自动化交互工具链连通性集成校验测试用例
+├── tools/                   # 运行时 ADB 控制与 OpenCV 图像匹配工具
+├── test/                    # 自动化交互工具链连通性测试
 ├── workspace/               # 工程预编译辅助区
-│   ├── tools/               # 名人元数据 Embedding 抽取、头像生成等构建期工具
-│   └── tests/               # 数据库 Migration 等特定算法的单元测试
-├── .env                     # API 密钥（不提交）
-├── .env.example             # 密钥模板
-├── AGENTS.md                # AI 代理工作规范规范
+│   ├── tools/               # 元数据 Embedding 抽取、头像生成等本地辅助工具
+│   └── tests/               # 数据库 Migration 等特定算法测试
+├── .env                     # 本地辅助脚本密钥（不提交）
+├── .env.example             # 本地辅助脚本密钥模板
+├── AGENTS.md                # AI 代理工作规范
 └── README.md                # 本文件
 ```
 
@@ -168,8 +167,11 @@ AI-Skill-Roundtable/
 ## 常用命令速查
 
 ```powershell
-# 一键编译安装、拉起应用并实时输出日志（仿 Flutter run）
+# 一键编译安装、拉起应用并实时输出日志
 .\run.ps1
+
+# 仅构建，不检测 adb 或设备
+.\run.ps1 -SkipInstall -NoLogcat
 
 # 环境初始化
 $env:JAVA_HOME = "C:\path\to\jdk-17"; $env:Path = "$env:JAVA_HOME\bin;" + $env:Path
@@ -189,16 +191,17 @@ $env:JAVA_HOME = "C:\path\to\jdk-17"; $env:Path = "$env:JAVA_HOME\bin;" + $env:P
 ## 文档入口
 
 - [AI 代理规范](AGENTS.md) — AI 工作规范、命名规约、技术决策
-- [安卓编译指南](docs/environment/android-compilation-guide.md) — JDK 17 离线编译完整方案
+- [安卓编译指南](docs/environment/android-compilation-guide.md) — JDK 17 编译与可选离线方案
 - [API 协议说明](docs/protocols/gemini-api.md) — Gemini REST API 使用说明
 - [架构文档](docs/architecture/) — 模块边界与数据流说明
-- [历史 Bug 记录](docs/issues/) — 已知问题与解决方案
+- [历史 Bug 记录](docs/bugs/) — 已知问题与解决方案
+- [五阶段重构总控计划](docs/planning/pr-execution-master-plan.md) — PR 01～PR 05 的执行顺序与验收要求
 
 ---
 
 ## 已知限制与待解决问题
 
-1. **API 模型名错误**：`GeminiApi.kt` 中 `gemini-3.5-flash` 不存在，导致所有请求失败
-2. **单 Key 无熔断**：429 错误时直接报错给用户，无 Key 轮换机制
-3. **Skills systemPrompt 简化**：现有 hardcode 内容比 GitHub 上的 SKILL.md 精简很多，角色表现有差距
-4. **数据库 v1**：添加新字段需要 Migration，开发期先用 `fallbackToDestructiveMigration()`
+1. **圆桌调度与 Key 编排**：当前实现仍存在并发上下文和实际 Key 使用一致性问题，计划在 PR 02 中重构。
+2. **隐私与遥测**：默认正文日志、持久化范围和云端会话存储策略将在 PR 03 中收口。
+3. **Release 与 CI**：正式签名、包名、R8、Room Migration 与完整 CI 门禁将在 PR 04 中完成。
+4. **开源治理**：README、AGENTS、第三方 Skill/头像来源及免责声明将在 PR 05 中完成最终统一。
