@@ -20,6 +20,7 @@ import com.example.skillroundtable.network.InteractionStep
 import com.example.skillroundtable.network.InteractionContent
 import com.example.skillroundtable.network.InteractionGenerationConfig
 import com.example.skillroundtable.network.outputText
+import com.example.skillroundtable.telemetry.CloudInteractionSettings
 import com.example.skillroundtable.network.keys.ApiKeyLease
 import com.example.skillroundtable.network.keys.ApiKeyScheduler
 import com.example.skillroundtable.roundtable.RoundtableBudget
@@ -924,7 +925,9 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         // 续写处理（在剩余可用预算不足以保留主回答时，跳过续写）
         val maxTokensLimitation = responseText.length > 6000 && !responseText.trim().endsWith("。") && !responseText.trim().endsWith("}")
         if (maxTokensLimitation) {
-            if (tracker.isExceeded() || (tracker.getRemaining() - reserveForRequired <= 0)) {
+            if (!CloudInteractionSettings.isEnabled(context)) {
+                Log.w("RoundtableViewModel", "云端会话链未开启，跳过依赖 previousInteractionId 的续写")
+            } else if (tracker.isExceeded() || (tracker.getRemaining() - reserveForRequired <= 0)) {
                 Log.w("RoundtableViewModel", "预算已超或配额不足，跳过续写")
             } else {
                 Log.d("RoundtableViewModel", "检测到回复可能被截断，发起 Interactions 续写请求...")

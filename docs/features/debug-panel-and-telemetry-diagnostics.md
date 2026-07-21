@@ -63,3 +63,12 @@
   }
   ```
   通过 `contentResolver.insert` 获取沙盒 Uri，再打开输出流写入生成的 Markdown 字节，全程**完全零动态权限申请**，极佳地保护了系统隐私并提升了应用合规度。
+
+
+## PR03 隐私与遥测规则
+
+- 默认级别为 `METADATA_ONLY`，只保存端点、模型、Key ID、状态码、耗时和错误分类。
+- `CONTENT_DEBUG` 仅允许在 Debug 构建中由用户确认开启，最长 24 小时；请求与响应预览分别限制为 2,000 字符，并执行敏感信息脱敏。
+- 附件正文不会被 Base64 解码写入遥测；Thought Summary 与搜索结果正文不会保存。
+- 遥测独立存储在 `roundtable_telemetry_prefs`，旧 `gemini_api_key_prefs/telemetry_api_logs_json` 首次启动直接删除。
+- 云端 Interaction `store` 默认强制为 `false`；用户显式启用后才允许请求使用持久化 Interaction 链。

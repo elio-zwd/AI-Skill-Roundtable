@@ -9,6 +9,11 @@ import com.example.skillroundtable.network.retry.ApiCallFailure
 import com.example.skillroundtable.network.retry.ApiRetryDecision
 import com.example.skillroundtable.network.retry.ApiRetryPolicy
 import com.example.skillroundtable.roundtable.RequestBudgetTracker
+import com.example.skillroundtable.telemetry.CloudInteractionRequestPolicy
+import com.example.skillroundtable.telemetry.CloudInteractionSettings
+import com.example.skillroundtable.telemetry.TelemetryInterceptor
+import com.example.skillroundtable.telemetry.TelemetryRedactor
+import com.example.skillroundtable.telemetry.TelemetryRepository
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -250,14 +255,10 @@ object RetrofitClient {
         .writeTimeout(90, TimeUnit.SECONDS)
         .addInterceptor(TelemetryInterceptor())
         .addInterceptor(HttpLoggingInterceptor { rawMessage ->
-            val redactedMessage = rawMessage.replace(
-                Regex("([?&]key=)[^&\\s]+"),
-                "$1[REDACTED]"
-            )
-            logD("OkHttp", redactedMessage)
+            logD("OkHttp", TelemetryRedactor.redact(rawMessage))
         }.apply {
             level = if (BuildConfig.DEBUG) {
-                HttpLoggingInterceptor.Level.BODY
+                HttpLoggingInterceptor.Level.BASIC
             } else {
                 HttpLoggingInterceptor.Level.NONE
             }
@@ -415,8 +416,18 @@ object RetrofitClient {
         isRequired: Boolean = true,
         reserveForRequired: Int = 0
     ): Interaction {
+        TelemetryRepository.init(context)
+        val cloudPolicy = CloudInteractionRequestPolicy.apply(
+            enabled = CloudInteractionSettings.isEnabled(context),
+            requestedStore = request.store,
+            requestedPreviousInteractionId = request.previousInteractionId
+        )
+        val privacySafeRequest = request.copy(
+            store = cloudPolicy.store,
+            previousInteractionId = cloudPolicy.previousInteractionId
+        )
         return executeWithBudgetAndRetry(context, sessionId, attemptPlan, tracker, operationName, delayProvider, isRequired, reserveForRequired) { lease ->
-            service.createInteraction(apiKey = lease.secret, request = request)
+            service.createInteraction(apiKey = lease.secret, request = privacySafeRequest)
         }
     }
 
@@ -454,263 +465,6 @@ object RetrofitClient {
         return executeWithBudgetAndRetry(context, sessionId, attemptPlan, tracker, operationName, delayProvider, isRequired, reserveForRequired) { lease ->
             service.embedContent(apiKey = lease.secret, request = request).embedding.values
         }
-    }
-}
-
-class TelemetryInterceptor : okhttp3.Interceptor {
-    override fun intercept(chain: okhttp3.Interceptor.Chain): okhttp3.Response {
-        val request = chain.request()
-        val url = request.url
-        val startTime = System.currentTimeMillis()
-
-        val path = url.encodedPath
-        var model = "unknown"
-        val modelRegex = "models/([^:/]+)".toRegex()
-        val matchResult = modelRegex.find(path)
-        if (matchResult != null) {
-            model = matchResult.groupValues[1]
-        }
-
-        val apiKey = url.queryParameter("key") ?: ""
-        val keyId = if (apiKey.isBlank()) "none" else ApiKeyPool.findKeyId(apiKey)
-
-        var prompt = ""
-        try {
-            val requestBody = request.body
-            if (requestBody != null) {
-                val buffer = okio.Buffer()
-                requestBody.writeTo(buffer)
-                val bodyStr = buffer.readUtf8()
-                if (bodyStr.isNotBlank()) {
-                    val json = org.json.JSONObject(bodyStr)
-                    val sb = java.lang.StringBuilder()
-
-                    // 解析 Interactions API 中的 model 或 agent
-                    if (model == "unknown") {
-                        if (json.has("model")) {
-                            model = json.getString("model")
-                        } else if (json.has("agent")) {
-                            model = json.getString("agent")
-                        }
-                    }
-
-                    // 1. 解析旧版 systemInstruction
-                    if (json.has("systemInstruction")) {
-                        val sysInst = json.getJSONObject("systemInstruction")
-                        if (sysInst.has("parts")) {
-                            val parts = sysInst.getJSONArray("parts")
-                            sb.append("=== System Instruction ===\n")
-                            for (i in 0 until parts.length()) {
-                                val part = parts.getJSONObject(i)
-                                if (part.has("text")) {
-                                    sb.append(part.getString("text")).append("\n")
-                                } else if (part.has("inlineData")) {
-                                    val inlineData = part.getJSONObject("inlineData")
-                                    val mimeType = inlineData.optString("mimeType", "")
-                                    val base64Data = inlineData.optString("data", "")
-                                    if (base64Data.isNotBlank()) {
-                                        val decodedText = try {
-                                            val decodedBytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
-                                            java.lang.String(decodedBytes, Charsets.UTF_8).toString()
-                                        } catch (e: Exception) {
-                                            "[Base64 Decode Error]"
-                                        }
-                                        sb.append("\n[附件 (MIME: $mimeType)]:\n").append(decodedText).append("\n")
-                                    }
-                                }
-                            }
-                            sb.append("\n==========================\n\n")
-                        }
-                    }
-                    
-                    // 2. 解析 Interactions API 中的 system_instruction (String)
-                    if (json.has("system_instruction")) {
-                        sb.append("=== System Instruction ===\n")
-                        sb.append(json.getString("system_instruction")).append("\n")
-                        sb.append("\n==========================\n\n")
-                    }
-
-                    // 3. 解析 previous_interaction_id
-                    if (json.has("previous_interaction_id")) {
-                        sb.append("[Previous ID]: ").append(json.getString("previous_interaction_id")).append("\n")
-                    }
-
-                    // 4. 解析旧版 contents
-                    if (json.has("contents")) {
-                        val contents = json.getJSONArray("contents")
-                        for (i in 0 until contents.length()) {
-                            val turn = contents.getJSONObject(i)
-                            val role = turn.optString("role", "user")
-                            val parts = turn.getJSONArray("parts")
-                            sb.append("【").append(role).append("】: ")
-                            for (j in 0 until parts.length()) {
-                                val part = parts.getJSONObject(j)
-                                if (part.has("text")) {
-                                    sb.append(part.getString("text"))
-                                } else if (part.has("inlineData")) {
-                                    sb.append("[Inline Data Attachment]")
-                                }
-                            }
-                            sb.append("\n")
-                        }
-                    } 
-                    // 5. 解析 Interactions API 中的 input
-                    else if (json.has("input")) {
-                        val inputVal = json.get("input")
-                        if (inputVal is org.json.JSONArray) {
-                            for (i in 0 until inputVal.length()) {
-                                val step = inputVal.getJSONObject(i)
-                                val type = step.optString("type", "")
-                                val contentArr = step.optJSONArray("content")
-                                sb.append("【").append(type).append("】: ")
-                                if (contentArr != null) {
-                                    for (j in 0 until contentArr.length()) {
-                                        val part = contentArr.getJSONObject(j)
-                                        if (part.has("text")) {
-                                            sb.append(part.getString("text"))
-                                        }
-                                    }
-                                }
-                                sb.append("\n")
-                            }
-                        } else {
-                            sb.append("【input】: ").append(inputVal.toString()).append("\n")
-                        }
-                    }
-                    // 6. 解析 Embedding input
-                    else if (json.has("content")) {
-                        val content = json.getJSONObject("content")
-                        val parts = content.getJSONArray("parts")
-                        sb.append("【Embedding Input】: ")
-                        for (i in 0 until parts.length()) {
-                            val part = parts.getJSONObject(i)
-                            if (part.has("text")) {
-                                sb.append(part.getString("text"))
-                            }
-                        }
-                        sb.append("\n")
-                    }
-
-                    prompt = sb.toString().trim()
-                }
-            }
-        } catch (e: Exception) {
-            logE("TelemetryInterceptor", "解析请求 Prompt 失败", e)
-        }
-
-        var response: okhttp3.Response? = null
-        var lastException: Exception? = null
-        try {
-            response = chain.proceed(request)
-        } catch (e: Exception) {
-            lastException = e
-        }
-
-        val responseTime = System.currentTimeMillis()
-        val statusCode = response?.code ?: -1
-        val errorMsg = lastException?.message ?: response?.message
-
-        var responseText: String? = null
-        if (response != null && response.isSuccessful) {
-            try {
-                val responseBody = response.body
-                if (responseBody != null) {
-                    val peekedBody = response.peekBody(1024 * 512)
-                    val bodyStr = peekedBody.string()
-                    if (bodyStr.isNotBlank()) {
-                        val json = org.json.JSONObject(bodyStr)
-                        // 解析旧版 candidates
-                        if (json.has("candidates")) {
-                            val candidates = json.getJSONArray("candidates")
-                            if (candidates.length() > 0) {
-                                val content = candidates.getJSONObject(0).optJSONObject("content")
-                                val parts = content?.optJSONArray("parts")
-                                if (parts != null && parts.length() > 0) {
-                                    responseText = parts.getJSONObject(0).optString("text", "")
-                                }
-                            }
-                        } 
-                        // 解析 Interactions steps
-                        else if (json.has("steps")) {
-                            val steps = json.getJSONArray("steps")
-                            val sbResponse = java.lang.StringBuilder()
-                            for (i in 0 until steps.length()) {
-                                val step = steps.getJSONObject(i)
-                                val type = step.optString("type", "")
-                                if (type == "model_output") {
-                                    val contentArr = step.optJSONArray("content")
-                                    if (contentArr != null) {
-                                        for (j in 0 until contentArr.length()) {
-                                            val part = contentArr.getJSONObject(j)
-                                            if (part.has("text")) {
-                                                sbResponse.append(part.getString("text"))
-                                            }
-                                            if (part.has("annotations")) {
-                                                val annotations = part.getJSONArray("annotations")
-                                                if (annotations.length() > 0) {
-                                                    sbResponse.append("\n[Citations:\n")
-                                                    for (k in 0 until annotations.length()) {
-                                                        val ann = annotations.getJSONObject(k)
-                                                        val title = ann.optString("title", "Link")
-                                                        val url = ann.optString("url", "")
-                                                        if (url.isNotBlank()) {
-                                                            sbResponse.append("- $title ($url)\n")
-                                                        }
-                                                    }
-                                                    sbResponse.append("]\n")
-                                                }
-                                            }
-                                        }
-                                    }
-                                } else if (type == "thought") {
-                                    val summary = step.optString("summary", "")
-                                    if (summary.isNotBlank()) {
-                                        sbResponse.append("\n[Thought Summary: $summary]\n")
-                                    }
-                                } else if (type == "google_search_result") {
-                                    val searchResult = step.optJSONArray("result")
-                                    if (searchResult != null && searchResult.length() > 0) {
-                                        sbResponse.append("\n[Google Search Results:\n")
-                                        for (j in 0 until searchResult.length()) {
-                                            val item = searchResult.getJSONObject(j)
-                                            sbResponse.append("- ").append(item.optString("title", "")).append(" (").append(item.optString("url", "")).append(")\n")
-                                        }
-                                        sbResponse.append("]\n")
-                                    }
-                                }
-                            }
-                            responseText = sbResponse.toString().trim()
-                        }
-                        // 解析 embedding
-                        else if (json.has("embedding")) {
-                            val embedding = json.getJSONObject("embedding")
-                            val values = embedding.optJSONArray("values")
-                            if (values != null) {
-                                responseText = "Embedding Vector: [${values.length()} values]"
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                logE("TelemetryInterceptor", "解析响应文本失败", e)
-            }
-        }
-
-        ApiKeyPool.addLog(ApiLog(
-            keyId = keyId,
-            model = model,
-            requestTime = startTime,
-            responseTime = responseTime,
-            statusCode = statusCode,
-            errorMessage = errorMsg,
-            prompt = prompt,
-            responseText = responseText ?: ""
-        ))
-
-        if (lastException != null) {
-            throw lastException
-        }
-        return response!!
     }
 }
 

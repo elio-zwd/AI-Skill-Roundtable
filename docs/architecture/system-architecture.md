@@ -167,3 +167,8 @@ data class Message(
    - 提取 `ApiKeyPool.getKeyStatuses(context)` 动态计算 10 个 API Key 的 `remainingBanTimeMs`，以高对比度列表实时展示哪些 Key 当前已被本地 SharedPreferences 熔断禁用。
    - 遍历渲染内存中 50 条最近遥测日志，允许用户点击任意一条展开，完整审查发出的 Prompt 与底层的 HTTP 连接错误堆栈。
    - 提供“清除熔断状态（重置计时）”操作，通过重置 Preference 来立即恢复 Key 池的生产能力。
+
+
+## PR03 遥测边界
+
+网络请求先经过独立 `telemetry` 包：默认只产生元数据事件；正文调试由用户显式开启并自动过期。遥测设置、遥测事件和 API Key 状态分别存储，且均不把 Key 或完整附件内容写入遥测。

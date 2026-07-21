@@ -14,6 +14,8 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
+import com.example.skillroundtable.telemetry.CloudInteractionSettings
+import com.example.skillroundtable.telemetry.TelemetryRepository
 
 /**
  * 用户自带 Gemini API Key 的统一管理入口。
@@ -26,7 +28,7 @@ object ApiKeyPool {
     private const val MAX_KEYS = 50
     private const val BAN_DURATION_MS = 24 * 60 * 60 * 1000L
 
-    val apiLogs = CopyOnWriteArrayList<ApiLog>()
+    val apiLogs = TelemetryRepository.legacyLogs
 
     private val _summaries = MutableStateFlow<List<ApiKeySummary>>(emptyList())
     val summaries: StateFlow<List<ApiKeySummary>> = _summaries.asStateFlow()
@@ -49,7 +51,8 @@ object ApiKeyPool {
                 remoteProvider = DisabledRemoteApiKeyProvider
             )
             migrateLegacyCustomKey(context.applicationContext)
-            loadLogsFromPrefs()
+            TelemetryRepository.init(context.applicationContext)
+            CloudInteractionSettings.init(context.applicationContext)
         }
         refreshSummaries(context.applicationContext)
     }
@@ -285,11 +288,7 @@ object ApiKeyPool {
     fun getLastUsedKeyId(context: Context): String? = getPrefs(context).getString(KEY_LAST_USED_ID, null)
 
     fun addLog(log: ApiLog) {
-        synchronized(apiLogs) {
-            apiLogs.add(0, log)
-            while (apiLogs.size > 50) apiLogs.removeAt(apiLogs.lastIndex)
-        }
-        saveLogsToPrefs()
+        TelemetryRepository.recordLegacy(log)
     }
 
     private fun ensureInitialized(context: Context) {
@@ -349,27 +348,4 @@ object ApiKeyPool {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
-    private fun loadLogsFromPrefs() {
-        val context = appContext ?: return
-        val jsonString = getPrefs(context).getString("telemetry_api_logs_json", null) ?: return
-        try {
-            val logs = Json.decodeFromString(ListSerializer(ApiLog.serializer()), jsonString)
-            synchronized(apiLogs) {
-                apiLogs.clear()
-                apiLogs.addAll(logs)
-            }
-        } catch (_: Exception) {
-            // 旧遥测损坏不影响应用启动。
-        }
-    }
-
-    private fun saveLogsToPrefs() {
-        val context = appContext ?: return
-        try {
-            val jsonString = Json.encodeToString(ListSerializer(ApiLog.serializer()), apiLogs.toList())
-            getPrefs(context).edit().putString("telemetry_api_logs_json", jsonString).apply()
-        } catch (_: Exception) {
-            // 遥测写入失败不阻断主请求。
-        }
-    }
 }
