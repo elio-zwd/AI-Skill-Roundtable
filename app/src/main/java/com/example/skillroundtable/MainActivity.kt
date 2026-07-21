@@ -1,5 +1,6 @@
 package com.example.skillroundtable
 
+import com.example.skillroundtable.telemetry.PrivacySafeLogger
 import com.example.skillroundtable.viewmodel.SearchMode
 import android.os.Bundle
 import android.widget.Toast
@@ -151,7 +152,11 @@ fun CharacterAvatar(
                     BitmapFactory.decodeStream(inputStream)?.asImageBitmap()
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                PrivacySafeLogger.e(
+                    "MainActivity",
+                    "角色头像读取失败",
+                    e
+                )
                 null
             }
         } else {
@@ -663,7 +668,11 @@ fun saveMarkdownToLocal(context: android.content.Context, title: String, content
                 uri.path
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            PrivacySafeLogger.e(
+                "MainActivity",
+                "保存 Markdown 失败",
+                e
+            )
         }
     }
     return null
@@ -924,7 +933,11 @@ fun RoundtableBrainstormScreen(
                                             clipboardManager.setText(AnnotatedString(md))
                                             Toast.makeText(context, "已复制至剪贴板", Toast.LENGTH_SHORT).show()
                                         } catch (e: Exception) {
-                                            android.util.Log.e("MainActivity", "复制剪贴板失败", e)
+                                            PrivacySafeLogger.e(
+                                                "MainActivity",
+                                                "复制剪贴板失败",
+                                                e
+                                            )
                                             Toast.makeText(context, "复制失败：剪贴板不可用", Toast.LENGTH_SHORT).show()
                                         }
                                     }
@@ -1452,7 +1465,11 @@ fun MessageBubble(
                             clipboardManager.setText(AnnotatedString(message.text))
                             Toast.makeText(context, "已复制至剪贴板", Toast.LENGTH_SHORT).show()
                         } catch (e: Exception) {
-                            android.util.Log.e("MainActivity", "复制消息剪贴板失败", e)
+                            PrivacySafeLogger.e(
+                                "MainActivity",
+                                "复制消息剪贴板失败",
+                                e
+                            )
                             Toast.makeText(context, "复制失败：剪贴板不可用", Toast.LENGTH_SHORT).show()
                         }
                     }

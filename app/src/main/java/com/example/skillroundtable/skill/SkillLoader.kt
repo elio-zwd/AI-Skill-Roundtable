@@ -1,6 +1,7 @@
 package com.example.skillroundtable.skill
 
 import android.content.Context
+import com.example.skillroundtable.telemetry.PrivacySafeLogger
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.BufferedReader
@@ -51,7 +52,11 @@ object SkillLoader {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            PrivacySafeLogger.e(
+                "SkillLoader",
+                "加载技能配置失败",
+                e
+            )
             emptyList()
         }
     }
@@ -94,7 +99,11 @@ object SkillLoader {
                     }
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                PrivacySafeLogger.e(
+                    "SkillLoader",
+                    "加载已选技能文件失败",
+                    e
+                )
             }
         }
         return sb.toString()
@@ -115,7 +124,11 @@ object SkillLoader {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            PrivacySafeLogger.e(
+                "SkillLoader",
+                "加载技能主文件失败",
+                e
+            )
             ""
         }
         return stripYamlFrontmatter(content)
