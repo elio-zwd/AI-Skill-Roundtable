@@ -32,13 +32,13 @@ object InteractionChainStore {
     fun clearSession(sessionId: Long) {
         interactionIds.keys
             .filter { it.sessionId == sessionId }
-            .forEach(interactionIds::remove)
+            .forEach { key -> interactionIds.remove(key) }
     }
 
     fun clearCharacter(characterId: String) {
         interactionIds.keys
             .filter { it.characterId == characterId }
-            .forEach(interactionIds::remove)
+            .forEach { key -> interactionIds.remove(key) }
     }
 
     fun clearAll() {
