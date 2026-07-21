@@ -15,28 +15,36 @@ object CloudInteractionSettings {
     @Volatile
     private var appContext: Context? = null
 
+    @Volatile
+    private var initialized = false
+
     @Synchronized
     fun init(context: Context) {
+        if (initialized) return
         val applicationContext = context.applicationContext
         appContext = applicationContext
         _enabled.value = applicationContext
             .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getBoolean(KEY_ENABLED, false)
+        initialized = true
     }
 
+    @Synchronized
     fun isEnabled(context: Context): Boolean {
-        if (appContext == null) init(context)
+        if (!initialized) init(context)
         return _enabled.value
     }
 
-    fun setEnabled(context: Context, enabled: Boolean) {
-        if (appContext == null) init(context)
-        _enabled.value = enabled
-        context.applicationContext
+    @Synchronized
+    fun setEnabled(context: Context, enabled: Boolean): Boolean {
+        if (!initialized) init(context)
+        val committed = context.applicationContext
             .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_ENABLED, enabled)
-            .apply()
+            .commit()
+        _enabled.value = if (committed) enabled else false
+        return committed
     }
 }
 
@@ -51,13 +59,10 @@ object CloudInteractionRequestPolicy {
         requestedStore: Boolean?,
         requestedPreviousInteractionId: String?
     ): CloudInteractionPolicyResult {
-        return if (enabled) {
-            CloudInteractionPolicyResult(
-                store = requestedStore == true,
-                previousInteractionId = requestedPreviousInteractionId
-            )
-        } else {
-            CloudInteractionPolicyResult(store = false, previousInteractionId = null)
-        }
+        val store = enabled && requestedStore == true
+        return CloudInteractionPolicyResult(
+            store = store,
+            previousInteractionId = requestedPreviousInteractionId.takeIf { store }
+        )
     }
 }
