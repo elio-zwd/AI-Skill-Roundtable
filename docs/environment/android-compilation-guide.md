@@ -13,11 +13,10 @@
 
 ## 2. 编译前的准备步骤
 
-### 2.1 API 密钥配置 (.env)
-项目在编译时需要获取 `GEMINI_API_KEY`。请在项目根目录下创建 `.env` 文件（或将 `.env.example` 复制重命名为 `.env`），并填入您的 API 密钥：
-```env
-GEMINI_API_KEY=your_actual_api_key
-```
+### 2.1 运行时密钥导入机制与 .env 说明
+Android App 的编译与打包过程**不需要配置任何 API Key**，编译产物也不包含密钥信息以保障发布安全。
+- **App 密钥配置**：首次安装并启动 App 后，请点击首页顶部的密钥设置（齿轮图标），进入 API Key 管理中心手动粘贴导入您的密钥（通过 Android Keystore 加密存储）。
+- **.env 的作用域**：`.env` 文件（或 `.env.example`）**仅供本地 PC 端执行的手动辅助工具**（如本地向量预处理、思维模型打包等脚本）使用。编译部署 Android APK 自身无需也不读取该文件。
 
 ### 2.2 项目 JDK 兼容性调整
 项目原本配置为 Java 21。为了适配本地已有的 JDK 17，已将 [app/build.gradle.kts](../../app/build.gradle.kts) 进行了以下修改：

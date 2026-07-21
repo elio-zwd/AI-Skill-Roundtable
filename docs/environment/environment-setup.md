@@ -57,8 +57,8 @@ GEMINI_API_KEY=AIzaSy...你的真实Key
 
 **Bug 01：Gradle 版本与 AGP 不匹配**
 - 现象：AGP 8.7.2 要求 Gradle ≥ 8.9，旧 Gradle 7.6.4 在评估阶段崩溃
-- 解决：从本地已有项目（palmformance）复制 Gradle 8.14-all Wrapper 配置，离线复用缓存
-- 文档：[../issues/01-gradle-version-mismatch.md](../issues/01-gradle-version-mismatch.md)
+- 解决：使用仓库自带的 Gradle Wrapper，默认在线下载 8.14 版本；或由用户配置使用国内公共镜像源（如腾讯云镜像）、本地离线 zip 分发包
+- 文档：[../bugs/01-gradle-version-mismatch.md](../bugs/01-gradle-version-mismatch.md)
 
 **Bug 02：API 模型名错误**
 - 现象：`GeminiApi.kt` 中 `gemini-3.5-flash` 不存在，所有请求返回 404

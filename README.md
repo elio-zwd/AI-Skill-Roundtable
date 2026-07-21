@@ -43,7 +43,7 @@
 | 功能模块 | 交付状态 | 核心实现细节 |
 |------|------|-------------|
 | **多智囊脑暴调度** | ✅ 完成 | 自动拼装前序上下文，组内错峰串行间隔，跨组并发调用调度 |
-| **API 备用池与熔断保护** | ✅ 完成 | 内置 10 个 API Key 随机负载均衡，在 429 发生时自动启动倒计时熔断隔离 |
+| **API 备用池与熔断保护** | ✅ 完成 | 支持一键全局开关内置 Key 池，内置 10 个备用 Key 支持微粒度手动启用/禁用，在 429 发生时自动启动倒计时熔断隔离 |
 | **流式 PCM 音频与 TTS 极速秒播** | ✅ 完成 | Live WebSocket 直接下发 PCM 帧追加 44 字节 WAV 头秒播，后台 ADTS MediaCodec 转码 AAC 压缩 |
 | **音频大厅与库管理面板** | ✅ 完成 | 离线音频批量查看、在线播控、一键全量清理与体积压缩监测 |
 | **智囊大厅预置/自定义分组** | ✅ 完成 | Room v4 注入四大官方预设组，右上角星标一键将激活角色另存为自定义分组 |
@@ -172,7 +172,7 @@ AI-Skill-Roundtable/
 .\run.ps1
 
 # 环境初始化
-$env:JAVA_HOME = "D:\My_Elio\dev-tools\jdk-17.0.19+10"; $env:Path = "$env:JAVA_HOME\bin;" + $env:Path
+$env:JAVA_HOME = "C:\path\to\jdk-17"; $env:Path = "$env:JAVA_HOME\bin;" + $env:Path
 
 # 编译
 .\gradlew.bat assembleDebug
