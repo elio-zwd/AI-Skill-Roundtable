@@ -20,6 +20,11 @@ import com.example.skillroundtable.network.InteractionStep
 import com.example.skillroundtable.network.InteractionContent
 import com.example.skillroundtable.network.InteractionGenerationConfig
 import com.example.skillroundtable.network.outputText
+import com.example.skillroundtable.network.keys.ApiKeyLease
+import com.example.skillroundtable.network.keys.ApiKeyScheduler
+import com.example.skillroundtable.roundtable.RoundtableBudget
+import com.example.skillroundtable.roundtable.RequestBudgetTracker
+import com.example.skillroundtable.roundtable.TranscriptBuilder
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -70,9 +75,16 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
     private val chatRepo = com.example.skillroundtable.data.ChatRepository(database.chatDao())
     private val groupRepo = com.example.skillroundtable.data.CharacterGroupRepository(database.characterGroupDao())
     
-    // 记录会话ID到上一次云端会话 Interaction ID 的内存缓存（因为免费层只存1天，在内存中管理并自动优雅退回最安全）
-    private val lastInteractionIds = java.util.concurrent.ConcurrentHashMap<Long, String>()
+    data class InteractionChainKey(
+        val sessionId: Long,
+        val characterId: String
+    )
 
+    // 记录 (会话ID, 角色ID) 到上一次云端会话 Interaction ID 的内存缓存，消除多角色共享竞态
+    private val lastInteractionIds = java.util.concurrent.ConcurrentHashMap<InteractionChainKey, String>()
+
+    // 会话序列锁，防止重复触发圆桌执行
+    private val roundtableMutex = kotlinx.coroutines.sync.Mutex()
 
     val allCharacters: StateFlow<List<Character>> = charRepo.allCharacters
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -238,7 +250,8 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
     fun deleteSession(sessionId: Long) {
         viewModelScope.launch {
-            lastInteractionIds.remove(sessionId)
+            val keysToRemove = lastInteractionIds.keys().toList().filter { it.sessionId == sessionId }
+            keysToRemove.forEach { lastInteractionIds.remove(it) }
             chatRepo.deleteSession(sessionId)
             if (_currentSessionId.value == sessionId) {
                 _currentSessionId.value = null
@@ -482,10 +495,19 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             return
         }
 
+        if (!roundtableMutex.tryLock()) {
+            Log.d("RoundtableViewModel", "已有圆桌序列在运行，跳过重复触发。")
+            return
+        }
+
         _isRoundtableRunning.value = true
         _errorMessage.value = null
 
         try {
+            val budget = RoundtableBudget()
+            val tracker = RequestBudgetTracker(budget.maxApiCallsPerQuestion)
+
+            // 1. 确定当前轮次
             val messages = chatRepo.getMessages(sessionId)
             val lastUserIndex = messages.indexOfLast { it.senderId == "user" }
             if (lastUserIndex == -1) return
@@ -515,12 +537,21 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 return
             }
 
+            // 2. 排序与截断角色数量
             var sortedChars = charactersToAnswer
             if (_isSemanticRoutingEnabled.value) {
                 val lastUserMsg = messages[lastUserIndex]
                 try {
                     Log.d("RoundtableViewModel", "语义路由已启用，正在对用户提问获取 Embedding...")
-                    val questionVector = RetrofitClient.embedContentWithFallback(context, lastUserMsg.text, sessionId, disableBan = true)
+                    val attemptPlan = ApiKeyScheduler.createAttemptPlan(context, sessionId)
+                    val questionVector = RetrofitClient.embedContent(
+                        context = context,
+                        text = lastUserMsg.text,
+                        sessionId = sessionId,
+                        attemptPlan = attemptPlan,
+                        tracker = tracker,
+                        operationName = "EmbedQuestion"
+                    )
                     sortedChars = charactersToAnswer.map { character ->
                         val charVector = try {
                             if (character.skillDescriptionVector.isBlank()) emptyList()
@@ -540,50 +571,32 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 }
             }
 
-            // 执行多 Key 组并发与延迟防检测调度 (优化① & 新功能②)
-            kotlinx.coroutines.coroutineScope {
-                if (availableKeys.isEmpty()) {
-                    // 没有内置 Key，串行调度
-                    launch {
-                        sortedChars.forEachIndexed { index, character ->
-                            if (index > 0) {
-                                val delayMs = (2000L..6000L).random()
-                                Log.d("RoundtableViewModel", "串行等待 $delayMs ms...")
-                                kotlinx.coroutines.delay(delayMs)
-                            }
-                            executeCharacterAnswer(character, sessionId, currentRound, messages, availableKeys.firstOrNull()?.key.orEmpty())
-                        }
-                    }
-                } else {
-                    // 使用内置 Key，随机分组
-                    val keyGroups = ApiKeyPool.assignRandomGroups(sortedChars, availableKeys)
-                    keyGroups.forEach { (keyInfo, groupChars) ->
-                        launch {
-                            val startDelayMs = (1000L..3000L).random()
-                            Log.d("RoundtableViewModel", "Key 组 ${keyInfo.id} 起始错开，等待 $startDelayMs ms...")
-                            kotlinx.coroutines.delay(startDelayMs)
-
-                            groupChars.forEachIndexed { index, character ->
-                                if (index > 0) {
-                                    val delayMs = (2000L..6000L).random()
-                                    Log.d("RoundtableViewModel", "Key 组 ${keyInfo.id} 组内串行，等待 $delayMs ms...")
-                                    kotlinx.coroutines.delay(delayMs)
-                                }
-                                executeCharacterAnswer(character, sessionId, currentRound, messages, keyInfo.key)
-                            }
-                        }
-                    }
-                }
+            val selectedCharacters = sortedChars.take(budget.maxCharactersPerQuestion)
+            if (activeChars.size > budget.maxCharactersPerQuestion) {
+                Log.d("RoundtableViewModel", "激活角色数超过预算限制，本轮仅执行前 ${budget.maxCharactersPerQuestion} 位角色。")
             }
 
-            if (_isAutoNextEnabled.value) {
-                kotlinx.coroutines.delay(1500)
-                val updatedMessages = chatRepo.getMessages(sessionId)
-                val updatedSinceLast = updatedMessages.subList(lastUserIndex + 1, updatedMessages.size)
-                val answeredInTarget = updatedSinceLast.filter { it.roundIndex == currentRound }.map { it.senderId }.toSet()
-                if (!activeChars.all { it.id in answeredInTarget }) {
-                    runRoundtableSequence(sessionId)
+            // 3. 严格顺序圆桌，进行串行遍历
+            for (character in selectedCharacters) {
+                // 每次开始前重新读取最新消息列表，保证看到前序已入库的内容
+                val latestMessages = chatRepo.getMessages(sessionId)
+
+                if (tracker.isExceeded()) {
+                    Log.w("RoundtableViewModel", "达到总 API 请求预算上限，停止后续智囊发言。")
+                    _errorMessage.value = "已达到总 API 请求预算上限，停止后续智囊发言。"
+                    break
                 }
+
+                try {
+                    executeCharacterAnswer(character, sessionId, currentRound, latestMessages, tracker, budget)
+                } catch (e: Exception) {
+                    Log.e("RoundtableViewModel", "角色 [${character.name}] 执行脑暴失败: ${e.message}")
+                    // 继续下一个角色，保证流程不永久卡死
+                }
+
+                // 串行错开随机延迟
+                val delayMs = (2000L..5000L).random()
+                kotlinx.coroutines.delay(delayMs)
             }
 
         } catch (e: Exception) {
@@ -592,6 +605,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             chatRepo.removePendingMessages(sessionId)
         } finally {
             _isRoundtableRunning.value = false
+            roundtableMutex.unlock()
         }
     }
 
@@ -599,8 +613,9 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         character: Character,
         sessionId: Long,
         currentRound: Int,
-        messagesSnapshot: List<Message>,
-        apiKey: String
+        latestMessages: List<Message>,
+        tracker: RequestBudgetTracker,
+        budget: RoundtableBudget
     ) {
         _typingCharacterIds.update { it + character.id }
 
@@ -616,11 +631,17 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             )
         )
 
-        val latestMessages = chatRepo.getMessages(sessionId)
-        val transcript = buildTranscript(latestMessages, character, currentRound)
-
         try {
-            val responseText = callGeminiApi(character, transcript, apiKey, sessionId)
+            val transcript = TranscriptBuilder.build(latestMessages, character, currentRound)
+            val context = getApplication<Application>().applicationContext
+            val attemptPlan = ApiKeyScheduler.createAttemptPlan(context, sessionId)
+
+            if (attemptPlan.isEmpty()) {
+                throw Exception("没有可用的 API 密钥。")
+            }
+
+            val responseText = callGeminiApi(character, transcript, attemptPlan, tracker, budget, sessionId)
+            
             chatRepo.deleteMessageById(pendingMsgId)
             chatRepo.insertMessage(
                 Message(
@@ -636,48 +657,18 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             Log.e("RoundtableViewModel", "生成回答出错: ${character.name}", e)
             chatRepo.deleteMessageById(pendingMsgId)
             _errorMessage.value = "「${character.name}」的回答未显示：${e.localizedMessage ?: "无法读取模型返回内容"}"
+            throw e
         } finally {
             _typingCharacterIds.update { it - character.id }
         }
     }
 
-    private fun buildTranscript(allMessages: List<Message>, currentCharacter: Character, roundIndex: Int): String {
-        val sb = StringBuilder()
-        sb.append("【圆桌会议脑暴记录】\n\n")
-
-        val lastUserMsg = allMessages.lastOrNull { it.senderId == "user" }
-
-        if (roundIndex == 1) {
-            if (lastUserMsg != null) {
-                sb.append("用户提问：${lastUserMsg.text}\n\n")
-            }
-        } else {
-            val lastUserIndex = allMessages.indexOfLast { it.senderId == "user" }
-            if (lastUserIndex != -1) {
-                sb.append("用户提问：${lastUserMsg?.text}\n\n")
-                val charMessages = allMessages.subList(lastUserIndex + 1, allMessages.size)
-                for (msg in charMessages) {
-                    if (msg.isPending) continue
-                    sb.append("智囊「${msg.senderName}」在第 ${msg.roundIndex} 轮发言：\n${msg.text}\n\n")
-                }
-            }
-        }
-
-        sb.append("现在，轮到你——「${currentCharacter.name}」在第 $roundIndex 轮发言了。\n")
-        sb.append("请记住你的设定、说话语气和人设。")
-        sb.append("请你站在你自己的专业背景与刺头/支持立场，对用户的提问进行解答，")
-        if (roundIndex > 1) {
-            sb.append("同时你**必须**参考、评判、补充或反驳前几位智囊在前几轮的发言，展现出真实的脑暴交锋！")
-        }
-        sb.append("第一句话请直接切入重点，给出明确的判断或观点，千万别废话铺垫！")
-
-        return sb.toString()
-    }
-
     private suspend fun callGeminiApi(
         character: Character,
         prompt: String,
-        apiKey: String,
+        attemptPlan: List<ApiKeyLease>,
+        tracker: RequestBudgetTracker,
+        budget: RoundtableBudget,
         sessionId: Long
     ): String = withContext(Dispatchers.IO) {
         val context = getApplication<Application>().applicationContext
@@ -806,33 +797,20 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             )
  
             val brokerResponse = try {
-                RetrofitClient.createInteractionWithFallback(
+                RetrofitClient.createInteraction(
                     context = context,
                     request = brokerRequest,
                     sessionId = sessionId,
-                    disableBan = true
+                    attemptPlan = attemptPlan,
+                    tracker = tracker,
+                    operationName = "BrokerDecision"
                 )
-            } catch (fallbackEx: Exception) {
-                val userKey = alternativeApiKey(context, apiKey)
-                if (userKey.isNotBlank()) {
-                    Log.d("RoundtableViewModel", "内置 Key 池 Broker 调用失败，尝试使用用户 API Key 直连...")
-                    try {
-                        RetrofitClient.service.createInteraction(
-                            apiKey = userKey,
-                            request = brokerRequest
-                        )
-                    } catch (e: Exception) {
-                        Log.e("RoundtableViewModel", "用户 API Key 调用 Broker 失败: ${e.message}")
-                        null
-                    }
-                } else {
-                    Log.e("RoundtableViewModel", "所有 Key 池均不可用，跳过 Broker 决策阶段")
-                    null
-                }
+            } catch (e: Exception) {
+                Log.e("RoundtableViewModel", "调用 Broker 失败，跳过决策阶段: ${e.message}")
+                null
             }
  
             val brokerReply = brokerResponse?.outputText.orEmpty()
-            
             val cleanedReply = brokerReply
                 .replace("```json", "")
                 .replace("```", "")
@@ -870,10 +848,13 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             Log.d("RoundtableViewModel", "角色 [${character.name}] 的 Broker 选择加载文件: ${decision.selectedFiles}, 联网 queries: ${decision.searchQueries}")
  
             var finalNeedSearch = decision.needSearch
-            val finalQueries = decision.searchQueries
+            val rawQueries = decision.searchQueries
                 .map { it.trim() }
                 .filter { it.isNotBlank() }
-                .toMutableList()
+                .distinct()
+            
+            // 限制搜索 query 最多 3 条
+            val finalQueries = rawQueries.take(budget.maxSearchQueriesPerCharacter).toMutableList()
  
             if (mode == SearchMode.FORCE) {
                 finalNeedSearch = true
@@ -902,29 +883,17 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     )
  
                     val searchResponse = try {
-                        RetrofitClient.createInteractionWithFallback(
+                        RetrofitClient.createInteraction(
                             context = context,
                             request = searchRequest,
                             sessionId = sessionId,
-                            disableBan = true
+                            attemptPlan = attemptPlan,
+                            tracker = tracker,
+                            operationName = "GoogleSearch-$query"
                         )
-                    } catch (fallbackEx: Exception) {
-                        val userKey = alternativeApiKey(context, apiKey)
-                        if (userKey.isNotBlank() && userKey != apiKey) {
-                            Log.d("RoundtableViewModel", "内置多 Key 联网搜索失败，尝试使用用户 Key 直连...")
-                            try {
-                                RetrofitClient.service.createInteraction(
-                                    apiKey = userKey,
-                                    request = searchRequest
-                                )
-                            } catch (e: Exception) {
-                                Log.e("RoundtableViewModel", "用户 API Key 联网搜索失败: ${e.message}")
-                                null
-                            }
-                        } else {
-                            Log.e("RoundtableViewModel", "内置 Key 池与用户 Key 均不可用，跳过: $query")
-                            null
-                        }
+                    } catch (e: Exception) {
+                        Log.e("RoundtableViewModel", "联网搜索失败，跳过: $query, 错误: ${e.message}")
+                        null
                     }
  
                     if (searchResponse != null) {
@@ -961,7 +930,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             selectedReferences.addAll(decision.selectedFiles.filter { it in referenceFiles })
         }
  
-        // 拼接参考资料纯文本 (不编码为 base64) 追加于 system_instruction
+        // 拼接参考资料纯文本 追加于 system_instruction
         val referencesText = buildString {
             append(mainSkillPrompt)
             append(allSearchInfoText)
@@ -984,9 +953,9 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             }
         }
  
-        // 主力脑暴请求逻辑
-        // 从内存读取 interactionId，如果存在则进行增量链式对话
-        val cachedInteractionId = lastInteractionIds[sessionId]
+        // 主力脑暴请求逻辑，通过 (sessionId, characterId) 获取专属云端会话链
+        val chainKey = InteractionChainKey(sessionId, character.id)
+        val cachedInteractionId = lastInteractionIds[chainKey]
         val roundIndex = try {
             val lastUserMsgIndex = prompt.lineSequence().count { it.contains("在第") && it.contains("轮发言：") } + 1
             lastUserMsgIndex
@@ -1008,119 +977,97 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             store = true,
             previousInteractionId = if (useChain) cachedInteractionId else null,
             generationConfig = InteractionGenerationConfig(
-                maxOutputTokens = 8192,
+                maxOutputTokens = budget.maxOutputTokensPerAnswer,
                 thinkingLevel = "high",
                 thinkingSummaries = "auto"
             )
         )
  
-        var currentResponse = try {
+        val currentResponse = try {
             if (useChain) {
                 Log.d("RoundtableViewModel", "尝试通过云端会话链调用主力模型，ID: $cachedInteractionId, Role: ${character.name}")
             } else {
                 Log.d("RoundtableViewModel", "首轮或无云端会话，执行全量上传，Role: ${character.name}")
             }
-            RetrofitClient.createInteractionWithFallback(
+            RetrofitClient.createInteraction(
                 context = context,
                 request = request,
-                sessionId = sessionId
+                sessionId = sessionId,
+                attemptPlan = attemptPlan,
+                tracker = tracker,
+                operationName = "MainAnswer-${character.id}"
             )
         } catch (e: Exception) {
             if (useChain) {
-                lastInteractionIds.remove(sessionId) // 立即将失效 ID 清理出缓存，防止下轮连环 400 报错
+                lastInteractionIds.remove(chainKey) // 立即将失效 ID 清理出缓存，防止下轮连环 400 报错
                 Log.w("RoundtableViewModel", "云端会话链 ${cachedInteractionId} 请求失败，已清理坏链缓存，触发优雅退回兜底分支：全量历史发送...")
                 val fallbackRequest = request.copy(
                     input = JsonPrimitive(prompt), // 全量历史
                     previousInteractionId = null   // 不带 ID 重新建链
                 )
-                try {
-                    RetrofitClient.createInteractionWithFallback(
-                        context = context,
-                        request = fallbackRequest,
-                        sessionId = sessionId
-                    )
-                } catch (ex: Exception) {
-                    val userKey = alternativeApiKey(context, apiKey)
-                    if (userKey.isNotBlank() && userKey != apiKey) {
-                        Log.d("RoundtableViewModel", "内置 Key 池兜底失败，尝试用户 API Key 全量发送...")
-                        RetrofitClient.service.createInteraction(
-                            apiKey = userKey,
-                            request = fallbackRequest
-                        )
-                    } else {
-                        throw ex
-                    }
-                }
+                RetrofitClient.createInteraction(
+                    context = context,
+                    request = fallbackRequest,
+                    sessionId = sessionId,
+                    attemptPlan = attemptPlan,
+                    tracker = tracker,
+                    operationName = "MainAnswerFallback-${character.id}"
+                )
             } else {
-                val userKey = alternativeApiKey(context, apiKey)
-                if (userKey.isNotBlank() && userKey != apiKey) {
-                    Log.d("RoundtableViewModel", "内置 Key 池首发失败，尝试使用用户 API Key 直连...")
-                    RetrofitClient.service.createInteraction(
-                        apiKey = userKey,
-                        request = request
-                    )
-                } else {
-                    throw e
-                }
+                throw e
             }
         }
  
         // 记录最新 Interaction ID 到内存缓存，用于后续轮次
         val newInteractionId = currentResponse.id
         if (newInteractionId.isNotBlank()) {
-            lastInteractionIds[sessionId] = newInteractionId
-            Log.d("RoundtableViewModel", "更新会话 $sessionId 的上一步 Interaction ID 为: $newInteractionId")
+            lastInteractionIds[chainKey] = newInteractionId
+            Log.d("RoundtableViewModel", "更新会话 $sessionId 的角色 ${character.name} 的上一步 Interaction ID 为: $newInteractionId")
         }
  
         var responseText = currentResponse.outputText
- 
         if (responseText.isNullOrBlank()) {
-            val stepTypes = currentResponse.steps.joinToString { it.type }
-            Log.w(
-                "RoundtableViewModel",
-                "Interactions API 未返回可展示文本，状态=${currentResponse.status}，步骤=[$stepTypes]"
-            )
             throw Exception("API 未返回可展示的模型文本")
         }
  
         // 续写处理：在 Interactions API 下同样使用 previous_interaction_id 的链式方式进行续写
         val maxTokensLimitation = responseText.length > 6000 && !responseText.trim().endsWith("。") && !responseText.trim().endsWith("}")
         if (maxTokensLimitation) {
-            Log.d("RoundtableViewModel", "检测到回复可能被截断，发起 Interactions 续写请求...")
-            val continueRequest = CreateInteractionRequest(
-                model = "gemini-3.5-flash",
-                input = JsonPrimitive("请继续"),
-                systemInstruction = referencesText,
-                store = true,
-                previousInteractionId = newInteractionId,
-                generationConfig = InteractionGenerationConfig(
-                    maxOutputTokens = 8192,
-                    thinkingLevel = "high",
-                    thinkingSummaries = "auto"
-                )
-            )
-            val continueResponse = try {
-                RetrofitClient.createInteractionWithFallback(
-                    context = context,
-                    request = continueRequest,
-                    sessionId = sessionId
-                )
-            } catch (fallbackEx: Exception) {
-                val userKey = alternativeApiKey(context, apiKey)
-                if (userKey.isNotBlank() && userKey != apiKey) {
-                    RetrofitClient.service.createInteraction(
-                        apiKey = userKey,
-                        request = continueRequest
+            if (tracker.isExceeded()) {
+                Log.w("RoundtableViewModel", "预算已超，跳过续写")
+            } else {
+                Log.d("RoundtableViewModel", "检测到回复可能被截断，发起 Interactions 续写请求...")
+                val continueRequest = CreateInteractionRequest(
+                    model = "gemini-3.5-flash",
+                    input = JsonPrimitive("请继续"),
+                    systemInstruction = referencesText,
+                    store = true,
+                    previousInteractionId = newInteractionId,
+                    generationConfig = InteractionGenerationConfig(
+                        maxOutputTokens = budget.maxOutputTokensPerAnswer,
+                        thinkingLevel = "high",
+                        thinkingSummaries = "auto"
                     )
-                } else {
-                    throw fallbackEx
+                )
+                val continueResponse = try {
+                    RetrofitClient.createInteraction(
+                        context = context,
+                        request = continueRequest,
+                        sessionId = sessionId,
+                        attemptPlan = attemptPlan,
+                        tracker = tracker,
+                        operationName = "ContinueAnswer-${character.id}"
+                    )
+                } catch (e: Exception) {
+                    Log.e("RoundtableViewModel", "续写失败: ${e.message}")
+                    null
                 }
-            }
-            val continueText = continueResponse.outputText
-            if (!continueText.isNullOrBlank()) {
-                responseText += continueText
-                if (continueResponse.id.isNotBlank()) {
-                    lastInteractionIds[sessionId] = continueResponse.id
+                val continueText = continueResponse?.outputText
+                if (!continueText.isNullOrBlank()) {
+                    responseText += continueText
+                    if (continueResponse.id.isNotBlank()) {
+                        lastInteractionIds[chainKey] = continueResponse.id
+                    }
                 }
             }
         }

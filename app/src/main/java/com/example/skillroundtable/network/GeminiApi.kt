@@ -3,6 +3,12 @@ package com.example.skillroundtable.network
 import android.content.Context
 import android.util.Log
 import com.example.skillroundtable.BuildConfig
+import com.example.skillroundtable.network.keys.ApiKeyLease
+import com.example.skillroundtable.network.keys.ApiKeyScheduler
+import com.example.skillroundtable.network.retry.ApiCallFailure
+import com.example.skillroundtable.network.retry.ApiRetryDecision
+import com.example.skillroundtable.network.retry.ApiRetryPolicy
+import com.example.skillroundtable.roundtable.RequestBudgetTracker
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -19,6 +25,7 @@ import retrofit2.http.Query
 import java.util.concurrent.TimeUnit
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.JsonElement
+
 
 
 @Serializable
@@ -271,66 +278,140 @@ object RetrofitClient {
     }
 
     /**
-     * 调用 Interactions API 接口，在出错熔断时自动换绑。
+     * 底层通用网络请求执行引擎，实现确定的租约尝试、错误分类与重试策略、预算控制。
      */
+    suspend fun <T> executeWithBudgetAndRetry(
+        context: Context,
+        sessionId: Long,
+        attemptPlan: List<ApiKeyLease>,
+        tracker: RequestBudgetTracker,
+        operationName: String,
+        block: suspend (ApiKeyLease) -> T
+    ): T {
+        var lastException: Exception? = null
+        val attempts = mutableListOf<String>()
+
+        if (attemptPlan.isEmpty()) {
+            throw Exception("操作 [$operationName] 失败：可用的 API 密钥列表为空。")
+        }
+
+        for (lease in attemptPlan) {
+            // 在开始请求前，首先校验预算
+            if (!tracker.tryConsume(1)) {
+                throw Exception("操作 [$operationName] 超过了本轮请求预算。已使用请求数: ${tracker.getUsed()}")
+            }
+
+            var sameKeyAttemptCount = 0
+            while (true) {
+                try {
+                    Log.d(TAG, "[$operationName] 正在使用 Key ${lease.keyId} 执行请求...")
+                    val result = block(lease)
+                    // 成功后，清除该 Key 的冷却计数
+                    ApiRetryPolicy.resetRateLimitCount(context, lease.keyId)
+                    // 绑定当前成功的 key
+                    ApiKeyPool.bindSessionKey(context, sessionId, lease.keyId)
+                    ApiKeyPool.setLastUsedKeyId(context, lease.keyId)
+                    return result
+                } catch (e: Exception) {
+                    val failure = when (e) {
+                        is retrofit2.HttpException -> {
+                            val code = e.code()
+                            val retryAfterHeader = e.response()?.headers()?.get("Retry-After")
+                            val retryAfterMs = retryAfterHeader?.toLongOrNull()?.times(1000L)
+                            ApiCallFailure.Http(code, retryAfterMs)
+                        }
+                        is java.io.IOException -> ApiCallFailure.Network(e)
+                        is kotlinx.serialization.SerializationException -> ApiCallFailure.Serialization(e)
+                        else -> ApiCallFailure.Unknown(e)
+                    }
+
+                    attempts.add("${lease.keyId}: ${e.message ?: e.javaClass.simpleName}")
+                    lastException = e
+
+                    val decision = ApiRetryPolicy.getDecision(failure, sameKeyAttemptCount)
+                    ApiRetryPolicy.handleKeyStatusUpdate(context, lease.keyId, failure)
+
+                    when (decision) {
+                        ApiRetryDecision.STOP_REQUEST -> {
+                            throw Exception("请求被停止 [$operationName]。细节: [$attempts]. 根因: ${e.message}", e)
+                        }
+                        ApiRetryDecision.RETRY_SAME_KEY -> {
+                            sameKeyAttemptCount++
+                            kotlinx.coroutines.delay(1000)
+                            if (!tracker.tryConsume(1)) {
+                                throw Exception("操作 [$operationName] 重试时超过了本轮请求预算。")
+                            }
+                            continue
+                        }
+                        ApiRetryDecision.TRY_NEXT_KEY,
+                        ApiRetryDecision.COOLDOWN_AND_TRY_NEXT_KEY -> {
+                            break
+                        }
+                    }
+                }
+            }
+        }
+
+        val detail = attempts.joinToString(", ")
+        throw Exception("操作 [$operationName] 失败，已尝试计划内的所有 Key。细节: [$detail]. 根因: ${lastException?.message ?: "未知错误"}", lastException)
+    }
+
+    suspend fun createInteraction(
+        context: Context,
+        request: CreateInteractionRequest,
+        sessionId: Long,
+        attemptPlan: List<ApiKeyLease>,
+        tracker: RequestBudgetTracker,
+        operationName: String = "CreateInteraction"
+    ): Interaction {
+        return executeWithBudgetAndRetry(context, sessionId, attemptPlan, tracker, operationName) { lease ->
+            service.createInteraction(apiKey = lease.secret, request = request)
+        }
+    }
+
+    suspend fun generateContent(
+        context: Context,
+        model: String,
+        request: GenerateContentRequest,
+        sessionId: Long,
+        attemptPlan: List<ApiKeyLease>,
+        tracker: RequestBudgetTracker,
+        operationName: String = "GenerateContent"
+    ): GenerateContentResponse {
+        return executeWithBudgetAndRetry(context, sessionId, attemptPlan, tracker, operationName) { lease ->
+            service.generateContent(model = model, apiKey = lease.secret, request = request)
+        }
+    }
+
+    suspend fun embedContent(
+        context: Context,
+        text: String,
+        sessionId: Long,
+        attemptPlan: List<ApiKeyLease>,
+        tracker: RequestBudgetTracker,
+        operationName: String = "EmbedContent"
+    ): List<Float> {
+        val request = EmbedContentRequest(
+            content = Content(parts = listOf(Part(text = text)))
+        )
+        return executeWithBudgetAndRetry(context, sessionId, attemptPlan, tracker, operationName) { lease ->
+            service.embedContent(apiKey = lease.secret, request = request).embedding.values
+        }
+    }
+
+    @Deprecated("Use lease-based overload")
     suspend fun createInteractionWithFallback(
         context: Context,
         request: CreateInteractionRequest,
         sessionId: Long,
         disableBan: Boolean = false
     ): Interaction {
-        var lastException: Exception? = null
-        val attempts = mutableListOf<String>()
-
-        for (attempt in 0 until ApiKeyPool.getAttemptCount(context)) {
-            val keyInfo = ApiKeyPool.getOrBindSessionKey(context, sessionId)
-            if (keyInfo == null) {
-                throw Exception("当前无可用内置 API Key，全部已被频控熔断。")
-            }
-
-            try {
-                Log.d(TAG, "正在使用会话级 Key ${keyInfo.id} 尝试调用 Interactions API (Model: ${request.model ?: request.agent})...")
-                val response = service.createInteraction(
-                    apiKey = keyInfo.key,
-                    request = request
-                )
-                ApiKeyPool.setLastUsedKeyId(context, keyInfo.id)
-                Log.d(TAG, "Key ${keyInfo.id} / Interactions API 调用成功！")
-                return response
-            } catch (e: retrofit2.HttpException) {
-                val code = e.code()
-                Log.w(TAG, "Key ${keyInfo.id} / Interactions API 调用失败，HTTP 状态码: $code")
-                attempts.add("${keyInfo.id}: HTTP $code")
-                if (code == 429) {
-                    if (!disableBan) {
-                        ApiKeyPool.banKey(context, keyInfo.id)
-                        Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
-                    } else {
-                        Log.w(TAG, "Key ${keyInfo.id} 遇到 429 频控，但已跳过熔断标记以防连带污染")
-                    }
-                }
-                lastException = e
-            } catch (e: Exception) {
-                Log.w(TAG, "Key ${keyInfo.id} / Interactions API 调用失败，非 HTTP 异常: ${e.message}")
-                attempts.add("${keyInfo.id}: ${e.message ?: "未知错误"}")
-                lastException = e
-            }
-
-            val nextKey = ApiKeyPool.getAvailableKeys(context).firstOrNull { it.id != keyInfo.id }
-            if (nextKey != null) {
-                Log.d(TAG, "会话 $sessionId 失败，换绑下一个 Key: ${nextKey.id}")
-                ApiKeyPool.bindSessionKey(context, sessionId, nextKey.id)
-            } else {
-                Log.w(TAG, "无其他备用可用 Key 可为会话 $sessionId 换绑")
-            }
-        }
-        val detail = attempts.joinToString(", ")
-        throw Exception("Interactions 请求失败，已尝试轮询会话换绑 API Key。细节: [$detail]. 错误: ${lastException?.message ?: "未知错误"}")
+        val plan = ApiKeyScheduler.createAttemptPlan(context, sessionId)
+        val tracker = RequestBudgetTracker(ApiKeyPool.getAttemptCount(context) * 3)
+        return createInteraction(context, request, sessionId, plan, tracker, "CreateInteractionWithFallback")
     }
 
-    /**
-     * 对话级 API Key 绑定，在出错熔断时自动换绑。
-     */
+    @Deprecated("Use lease-based overload")
     suspend fun generateContentWithFallback(
         context: Context,
         model: String,
@@ -338,63 +419,12 @@ object RetrofitClient {
         sessionId: Long,
         disableBan: Boolean = false
     ): GenerateContentResponse {
-        var lastException: Exception? = null
-        val attempts = mutableListOf<String>()
-        val prompt = request.contents.firstOrNull()?.parts?.firstOrNull()?.text ?: ""
-
-        for (attempt in 0 until ApiKeyPool.getAttemptCount(context)) {
-            val keyInfo = ApiKeyPool.getOrBindSessionKey(context, sessionId)
-            if (keyInfo == null) {
-                throw Exception("当前无可用内置 API Key，全部已被频控熔断。")
-            }
-
-            val startTime = System.currentTimeMillis()
-            try {
-                Log.d(TAG, "正在使用会话级 Key ${keyInfo.id} 尝试调用 $model...")
-                val response = service.generateContent(
-                    model = model,
-                    apiKey = keyInfo.key,
-                    request = request
-                )
-                ApiKeyPool.setLastUsedKeyId(context, keyInfo.id)
-                Log.d(TAG, "Key ${keyInfo.id} / $model 调用成功！")
-                return response
-            } catch (e: retrofit2.HttpException) {
-                val code = e.code()
-                Log.w(TAG, "Key ${keyInfo.id} / $model 调用失败，HTTP 状态码: $code")
-                attempts.add("${keyInfo.id}/$model: HTTP $code")
-                if (code == 429) {
-                    if (!disableBan) {
-                        ApiKeyPool.banKey(context, keyInfo.id)
-                        Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
-                    } else {
-                        Log.w(TAG, "Key ${keyInfo.id} 遇到 429 频控，但已跳过熔断标记以防连带污染")
-                    }
-                }
-                lastException = e
-            } catch (e: Exception) {
-                Log.w(TAG, "Key ${keyInfo.id} / $model 调用失败，非 HTTP 异常: ${e.message}")
-                attempts.add("${keyInfo.id}/$model: ${e.message ?: "未知错误"}")
-                lastException = e
-            }
-
-            val nextKey = ApiKeyPool.getAvailableKeys(context).firstOrNull { it.id != keyInfo.id }
-            if (nextKey != null) {
-                Log.d(TAG, "会话 $sessionId 失败，换绑下一个 Key: ${nextKey.id}")
-                ApiKeyPool.bindSessionKey(context, sessionId, nextKey.id)
-            } else {
-                Log.w(TAG, "无其他备用可用 Key 可为会话 $sessionId 换绑")
-            }
-        }
-        val detail = attempts.joinToString(", ")
-        throw Exception("请求失败，已尝试轮询会话换绑 API Key。细节: [$detail]. 错误: ${lastException?.message ?: "未知错误"}")
+        val plan = ApiKeyScheduler.createAttemptPlan(context, sessionId)
+        val tracker = RequestBudgetTracker(ApiKeyPool.getAttemptCount(context) * 3)
+        return generateContent(context, model, request, sessionId, plan, tracker, "GenerateContentWithFallback")
     }
 
-    /**
-     * 调用 Gemini 1M Context Broker 路由器。
-     * 策略：使用指定的 model（通常为 gemini-3.1-flash-lite-preview），
-     * 在失败时换绑下一个 Key 重新请求。
-     */
+    @Deprecated("Use lease-based overload")
     suspend fun callBrokerRouterWithFallback(
         context: Context,
         model: String,
@@ -402,121 +432,21 @@ object RetrofitClient {
         sessionId: Long,
         disableBan: Boolean = false
     ): GenerateContentResponse {
-        var lastException: Exception? = null
-        val attempts = mutableListOf<String>()
-        val prompt = request.contents.firstOrNull()?.parts?.firstOrNull()?.text ?: ""
-
-        for (attempt in 0 until ApiKeyPool.getAttemptCount(context)) {
-            val keyInfo = ApiKeyPool.getOrBindSessionKey(context, sessionId)
-            if (keyInfo == null) {
-                throw Exception("当前无可用内置 API Key，全部已被熔断。")
-            }
-
-            val startTime = System.currentTimeMillis()
-            try {
-                Log.d(TAG, "正在使用会话级 Key ${keyInfo.id} 尝试调用 Broker $model...")
-                val response = service.generateContent(
-                    model = model,
-                    apiKey = keyInfo.key,
-                    request = request
-                )
-                ApiKeyPool.setLastUsedKeyId(context, keyInfo.id)
-                Log.d(TAG, "Key ${keyInfo.id} / Broker $model 调用成功！")
-                return response
-            } catch (e: retrofit2.HttpException) {
-                val code = e.code()
-                Log.w(TAG, "Key ${keyInfo.id} / Broker $model 失败，状态码: $code")
-                attempts.add("${keyInfo.id}/$model: HTTP $code")
-                if (code == 429) {
-                    if (!disableBan) {
-                        ApiKeyPool.banKey(context, keyInfo.id)
-                        Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
-                    } else {
-                        Log.w(TAG, "Key ${keyInfo.id} 遇到 429 频控，但已跳过熔断标记以防连带污染")
-                    }
-                }
-                lastException = e
-            } catch (e: Exception) {
-                Log.w(TAG, "Key ${keyInfo.id} / Broker $model 失败，非 HTTP 异常: ${e.message}")
-                attempts.add("${keyInfo.id}/$model: ${e.message ?: "未知错误"}")
-                lastException = e
-            }
-
-            // 出错时，自动换绑下一个可用的 Key
-            val nextKey = ApiKeyPool.getAvailableKeys(context).firstOrNull { it.id != keyInfo.id }
-            if (nextKey != null) {
-                Log.d(TAG, "会话 $sessionId Broker 失败，换绑下一个 Key: ${nextKey.id}")
-                ApiKeyPool.bindSessionKey(context, sessionId, nextKey.id)
-            } else {
-                Log.w(TAG, "无其他备用可用 Key 可为会话 $sessionId 换绑")
-            }
-        }
-        val detail = attempts.joinToString(", ")
-        throw Exception("Broker 路由器请求失败。细节: [$detail]. 错误: ${lastException?.message ?: "未知错误"}")
+        val plan = ApiKeyScheduler.createAttemptPlan(context, sessionId)
+        val tracker = RequestBudgetTracker(ApiKeyPool.getAttemptCount(context) * 3)
+        return generateContent(context, model, request, sessionId, plan, tracker, "BrokerRouterWithFallback")
     }
 
-    /**
-     * 提取输入文本的 Embedding 向量。
-     * 策略：使用会话级 API Key 绑定，在出错熔断时换绑。
-     */
+    @Deprecated("Use lease-based overload")
     suspend fun embedContentWithFallback(
         context: Context,
         text: String,
         sessionId: Long,
         disableBan: Boolean = false
     ): List<Float> {
-        val request = EmbedContentRequest(
-            content = Content(parts = listOf(Part(text = text)))
-        )
-
-        var lastException: Exception? = null
-        val attempts = mutableListOf<String>()
-
-        for (attempt in 0 until ApiKeyPool.getAttemptCount(context)) {
-            val keyInfo = ApiKeyPool.getOrBindSessionKey(context, sessionId)
-            if (keyInfo == null) {
-                throw Exception("当前无可用内置 API Key 获取 Embedding，全部已被熔断。")
-            }
-
-            try {
-                Log.d(TAG, "正在使用会话级 Key ${keyInfo.id} 获取 Embedding...")
-                val response = service.embedContent(
-                    apiKey = keyInfo.key,
-                    request = request
-                )
-                ApiKeyPool.setLastUsedKeyId(context, keyInfo.id)
-                Log.d(TAG, "Key ${keyInfo.id} 获取 Embedding 成功！")
-                return response.embedding.values
-            } catch (e: retrofit2.HttpException) {
-                val code = e.code()
-                Log.w(TAG, "Key ${keyInfo.id} 获取 Embedding 失败，HTTP 状态码: $code")
-                attempts.add("${keyInfo.id}: HTTP $code")
-                if (code == 429) {
-                    if (!disableBan) {
-                        ApiKeyPool.banKey(context, keyInfo.id)
-                        Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
-                    } else {
-                        Log.w(TAG, "Key ${keyInfo.id} 遇到 429 频控，但已跳过熔断标记以防连带污染")
-                    }
-                }
-                lastException = e
-            } catch (e: Exception) {
-                Log.w(TAG, "Key ${keyInfo.id} 获取 Embedding 失败，非 HTTP 异常: ${e.message}")
-                attempts.add("${keyInfo.id}: ${e.message ?: "未知错误"}")
-                lastException = e
-            }
-
-            // 出错时，自动换绑下一个可用的 Key
-            val nextKey = ApiKeyPool.getAvailableKeys(context).firstOrNull { it.id != keyInfo.id }
-            if (nextKey != null) {
-                Log.d(TAG, "会话 $sessionId Embedding 失败，换绑下一个 Key: ${nextKey.id}")
-                ApiKeyPool.bindSessionKey(context, sessionId, nextKey.id)
-            } else {
-                Log.w(TAG, "无其他备用可用 Key 可为会话 $sessionId 换绑")
-            }
-        }
-        val detail = attempts.joinToString(", ")
-        throw Exception("获取 Embedding 失败，已尝试轮询 Key。细节: [$detail]. 错误: ${lastException?.message ?: "未知错误"}")
+        val plan = ApiKeyScheduler.createAttemptPlan(context, sessionId)
+        val tracker = RequestBudgetTracker(ApiKeyPool.getAttemptCount(context) * 3)
+        return embedContent(context, text, sessionId, plan, tracker, "EmbedContentWithFallback")
     }
 }
 
