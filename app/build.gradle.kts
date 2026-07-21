@@ -1,9 +1,52 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.serialization)
+}
+
+val releaseSigningPropertiesFile = rootProject.file("keystore.properties")
+val releaseSigningProperties = Properties().apply {
+    if (releaseSigningPropertiesFile.isFile) {
+        releaseSigningPropertiesFile.inputStream().use { load(it) }
+    }
+}
+
+val releaseSigningValue: (String, String) -> String? = { propertyName, environmentName ->
+    releaseSigningProperties.getProperty(propertyName)
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+        ?: providers.environmentVariable(environmentName).orNull
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+}
+
+val releaseStoreFilePath = releaseSigningValue("storeFile", "RELEASE_STORE_FILE")
+val releaseStorePassword = releaseSigningValue("storePassword", "RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = releaseSigningValue("keyAlias", "RELEASE_KEY_ALIAS")
+val releaseKeyPassword = releaseSigningValue("keyPassword", "RELEASE_KEY_PASSWORD")
+val releaseSigningValues = listOf(
+    releaseStoreFilePath,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+)
+val hasAnyReleaseSigningValue = releaseSigningValues.any { it != null }
+val hasCompleteReleaseSigningConfig = releaseSigningValues.all { it != null }
+
+if (hasAnyReleaseSigningValue && !hasCompleteReleaseSigningConfig) {
+    error(
+        "Release signing configuration is incomplete. Provide storeFile, storePassword, " +
+            "keyAlias and keyPassword in keystore.properties, or provide all RELEASE_* environment variables.",
+    )
+}
+
+val releaseStoreFile = releaseStoreFilePath?.let(rootProject::file)
+if (releaseStoreFile != null && !releaseStoreFile.isFile) {
+    error("Release keystore does not exist: ${releaseStoreFile.absolutePath}")
 }
 
 android {
@@ -14,20 +57,36 @@ android {
         applicationId = "com.example.skillroundtable"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = providers.gradleProperty("VERSION_CODE").orElse("1").get().toInt()
+        versionName = providers.gradleProperty("VERSION_NAME").orElse("0.1.0").get()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (hasCompleteReleaseSigningConfig) {
+            create("release") {
+                storeFile = releaseStoreFile
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            isDebuggable = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
+
+            if (hasCompleteReleaseSigningConfig) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     compileOptions {
