@@ -53,10 +53,34 @@ jobs:
       - name: Assemble debug APK
         run: ./gradlew --no-daemon --stacktrace assembleDebug
 
-      - name: Assemble release APK
+      - name: Assemble optimized release APK
         run: ./gradlew --no-daemon --stacktrace assembleRelease
 
-      - name: Upload test and lint reports
+      - name: Verify public release APK is unsigned
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_apk="$(find app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print -quit)"
+          if [[ -z "${release_apk}" ]]; then
+            echo "::error::Release APK was not generated."
+            exit 1
+          fi
+
+          apksigner="$(find "${ANDROID_HOME}/build-tools" -type f -name apksigner -print | sort -V | tail -n 1)"
+          if [[ -z "${apksigner}" ]]; then
+            echo "::error::Unable to locate apksigner in the Android SDK."
+            exit 1
+          fi
+
+          if "${apksigner}" verify "${release_apk}" >/dev/null 2>&1; then
+            echo "::error::Public CI release APK is unexpectedly signed."
+            exit 1
+          fi
+
+          echo "Confirmed unsigned public release APK: ${release_apk}"
+
+      - name: Upload test, lint and R8 reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -66,6 +90,8 @@ jobs:
             app/build/reports/lint-results-debug.xml
             app/build/test-results/testDebugUnitTest/**
             app/build/reports/tests/testDebugUnitTest/**
+            app/build/outputs/mapping/release/**
+            app/build/outputs/logs/**
           if-no-files-found: ignore
           retention-days: 7
 
