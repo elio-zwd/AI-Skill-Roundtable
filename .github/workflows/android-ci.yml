@@ -53,6 +53,43 @@ jobs:
       - name: Assemble debug APK
         run: ./gradlew --no-daemon --stacktrace assembleDebug
 
+      - name: Generate ephemeral release test keystore
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ci_release_password="$(openssl rand -hex 24)"
+          echo "::add-mask::${ci_release_password}"
+          echo "CI_RELEASE_PASSWORD=${ci_release_password}" >> "${GITHUB_ENV}"
+
+          keytool -genkeypair \
+            -keystore "${RUNNER_TEMP}/ci-release-test.jks" \
+            -storetype JKS \
+            -storepass "${ci_release_password}" \
+            -keypass "${ci_release_password}" \
+            -alias ci-release \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 1 \
+            -dname "CN=CI Release Test,OU=CI,O=AI Skill Roundtable,L=Test,ST=Test,C=US"
+
+      - name: Validate optional Gradle release signing configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          export RELEASE_STORE_FILE="${RUNNER_TEMP}/ci-release-test.jks"
+          export RELEASE_STORE_PASSWORD="${CI_RELEASE_PASSWORD}"
+          export RELEASE_KEY_ALIAS="ci-release"
+          export RELEASE_KEY_PASSWORD="${CI_RELEASE_PASSWORD}"
+
+          ./gradlew --no-daemon --stacktrace :app:validateSigningRelease
+
+      - name: Remove ephemeral release test keystore
+        if: always()
+        shell: bash
+        run: rm -f "${RUNNER_TEMP}/ci-release-test.jks"
+
       - name: Assemble optimized release APK
         run: ./gradlew --no-daemon --stacktrace assembleRelease
 
