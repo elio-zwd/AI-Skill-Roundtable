@@ -150,37 +150,35 @@ UI_MAPPING = {
     }
 }
 
-# 10 个备用内置 Key
-BACKUP_KEYS = [
-    "REDACTED_GEMINI_API_KEY",
-    "REDACTED_GEMINI_API_KEY",
-    "REDACTED_GEMINI_API_KEY",
-    "REDACTED_GEMINI_API_KEY",
-    "REDACTED_GEMINI_API_KEY",
-    "REDACTED_GEMINI_API_KEY",
-    "REDACTED_GEMINI_API_KEY",
-    "REDACTED_GEMINI_API_KEY",
-    "REDACTED_GEMINI_API_KEY",
-    "REDACTED_GEMINI_API_KEY"
-]
+BACKUP_KEYS = []
 
-def load_api_key(env_path):
+def parse_api_keys(raw_value):
+    """解析英文逗号、中文逗号、换行和可选方括号格式。"""
+    normalized = (raw_value or "").strip().strip("[]").replace("，", ",").replace("\r", "\n")
+    values = []
+    for line in normalized.split("\n"):
+        for token in line.split(","):
+            key = token.strip().strip('"').strip("'")
+            if key and key != "your_gemini_api_key_here" and key not in values:
+                values.append(key)
+    return values
+
+def load_api_keys(env_path):
     """
-    从项目根目录的 .env 文件中加载 GEMINI_API_KEY
+    优先从环境变量读取 Key，再从项目根目录的 .env 文件补充。
     """
-    if not os.path.exists(env_path):
-        return None
-    try:
-        with open(env_path, 'r', encoding='utf-8') as f:
-            for line in f:
-                line = line.strip()
-                if line.startswith('GEMINI_API_KEY='):
-                    val = line.split('GEMINI_API_KEY=', 1)[1].strip().strip('"').strip("'")
-                    if val and val != "your_gemini_api_key_here":
-                        return val
-    except Exception as e:
-        print(f"读取 .env 文件异常: {e}")
-    return None
+    keys = parse_api_keys(os.environ.get("GEMINI_API_KEYS", ""))
+    keys.extend(key for key in parse_api_keys(os.environ.get("GEMINI_API_KEY", "")) if key not in keys)
+    if os.path.exists(env_path):
+        try:
+            with open(env_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    name, separator, value = line.partition('=')
+                    if separator and name.strip() in {"GEMINI_API_KEY", "GEMINI_API_KEYS"}:
+                        keys.extend(key for key in parse_api_keys(value) if key not in keys)
+        except Exception as e:
+            print(f"读取 .env 文件异常: {e}")
+    return keys
 
 def get_embedding(text, api_key):
     """
@@ -342,6 +340,7 @@ def parse_frontmatter(file_path):
     }
 
 def main():
+    global BACKUP_KEYS
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     docs_skills_dir = os.path.join(base_dir, "docs", "skills")
     assets_skills_dir = os.path.join(base_dir, "app", "src", "main", "assets", "skills")
@@ -349,7 +348,9 @@ def main():
     env_path = os.path.join(base_dir, ".env")
 
     # 加载 API Key
-    api_key = load_api_key(env_path)
+    api_keys = load_api_keys(env_path)
+    api_key = api_keys[0] if api_keys else None
+    BACKUP_KEYS = api_keys[1:]
     if not api_key:
         print("未在 .env 中找到有效密钥，自动进入本地离线 Mock 模式。")
         NETWORK_AVAILABLE = False

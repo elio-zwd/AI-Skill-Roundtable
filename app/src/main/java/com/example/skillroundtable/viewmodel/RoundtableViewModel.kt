@@ -4,7 +4,6 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.skillroundtable.BuildConfig
 import com.example.skillroundtable.data.Character
 import com.example.skillroundtable.data.ChatSession
 import com.example.skillroundtable.data.Message
@@ -141,16 +140,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         prefs.edit().putString("search_mode", mode.name).apply()
     }
 
-    // 默认保留 API key 状态（兼容 UI 配置）
-    private val _apiKey = MutableStateFlow("")
-    val apiKey: StateFlow<String> = _apiKey.asStateFlow()
-
-    private fun isApiKeyValid(key: String): Boolean {
-        return key.isNotBlank() &&
-                !key.equals("your_gemini_api_key_here", ignoreCase = true) &&
-                !key.startsWith("your_") &&
-                !key.contains("PLACEHOLDER")
-    }
+    val apiKeySummaries = ApiKeyPool.summaries
 
     init {
         val context = getApplication<Application>().applicationContext
@@ -166,15 +156,6 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             SearchMode.SMART
         }
 
-        val savedKey = com.example.skillroundtable.network.ApiKeyPool.getCustomApiKey(context)
-        if (!savedKey.isNullOrBlank() && isApiKeyValid(savedKey)) {
-            _apiKey.value = savedKey
-        } else {
-            val configKey = BuildConfig.GEMINI_API_KEY
-            if (!configKey.isNullOrBlank() && isApiKeyValid(configKey)) {
-                _apiKey.value = configKey
-            }
-        }
         ensureCoreCharactersExist()
     }
 
@@ -234,12 +215,6 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 charRepo.deleteById(extraId)
             }
         }
-    }
-
-    fun setApiKey(key: String) {
-        _apiKey.value = key
-        val context = getApplication<Application>().applicationContext
-        com.example.skillroundtable.network.ApiKeyPool.saveCustomApiKey(context, key)
     }
 
     fun clearError() {
@@ -405,9 +380,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         }
 
         viewModelScope.launch {
-            val apiKeyToUse = _apiKey.value.ifBlank {
-                com.example.skillroundtable.network.ApiKeyPool.getAvailableKeys(context).firstOrNull()?.key ?: ""
-            }
+            val apiKeyToUse = ApiKeyPool.getAvailableKeys(context).firstOrNull()?.key.orEmpty()
             if (apiKeyToUse.isBlank()) {
                 _errorMessage.value = "无法播放语音：无可用 API Key"
                 return@launch
@@ -504,7 +477,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
         val context = getApplication<Application>().applicationContext
         val availableKeys = ApiKeyPool.getAvailableKeys(context)
-        if (_apiKey.value.isBlank() && availableKeys.isEmpty()) {
+        if (availableKeys.isEmpty()) {
             _errorMessage.value = "当前没有可用的 API 密钥，请稍后再试或在“我的配置”中填写密钥。"
             return
         }
@@ -578,7 +551,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                                 Log.d("RoundtableViewModel", "串行等待 $delayMs ms...")
                                 kotlinx.coroutines.delay(delayMs)
                             }
-                            executeCharacterAnswer(character, sessionId, currentRound, messages, _apiKey.value)
+                            executeCharacterAnswer(character, sessionId, currentRound, messages, availableKeys.firstOrNull()?.key.orEmpty())
                         }
                     }
                 } else {
@@ -840,7 +813,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     disableBan = true
                 )
             } catch (fallbackEx: Exception) {
-                val userKey = _apiKey.value
+                val userKey = alternativeApiKey(context, apiKey)
                 if (userKey.isNotBlank()) {
                     Log.d("RoundtableViewModel", "内置 Key 池 Broker 调用失败，尝试使用用户 API Key 直连...")
                     try {
@@ -936,7 +909,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                             disableBan = true
                         )
                     } catch (fallbackEx: Exception) {
-                        val userKey = _apiKey.value
+                        val userKey = alternativeApiKey(context, apiKey)
                         if (userKey.isNotBlank() && userKey != apiKey) {
                             Log.d("RoundtableViewModel", "内置多 Key 联网搜索失败，尝试使用用户 Key 直连...")
                             try {
@@ -1067,7 +1040,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                         sessionId = sessionId
                     )
                 } catch (ex: Exception) {
-                    val userKey = _apiKey.value
+                    val userKey = alternativeApiKey(context, apiKey)
                     if (userKey.isNotBlank() && userKey != apiKey) {
                         Log.d("RoundtableViewModel", "内置 Key 池兜底失败，尝试用户 API Key 全量发送...")
                         RetrofitClient.service.createInteraction(
@@ -1079,7 +1052,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     }
                 }
             } else {
-                val userKey = _apiKey.value
+                val userKey = alternativeApiKey(context, apiKey)
                 if (userKey.isNotBlank() && userKey != apiKey) {
                     Log.d("RoundtableViewModel", "内置 Key 池首发失败，尝试使用用户 API Key 直连...")
                     RetrofitClient.service.createInteraction(
@@ -1133,7 +1106,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     sessionId = sessionId
                 )
             } catch (fallbackEx: Exception) {
-                val userKey = _apiKey.value
+                val userKey = alternativeApiKey(context, apiKey)
                 if (userKey.isNotBlank() && userKey != apiKey) {
                     RetrofitClient.service.createInteraction(
                         apiKey = userKey,
@@ -1214,6 +1187,13 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             Log.e("RoundtableViewModel", "读取 Asset 转 String 失败: $assetPath", e)
             null
         }
+    }
+
+    private fun alternativeApiKey(context: android.content.Context, currentKey: String): String {
+        return ApiKeyPool.getAvailableKeys(context)
+            .firstOrNull { it.key != currentKey }
+            ?.key
+            .orEmpty()
     }
 
     private fun readAssetFileAsBase64(context: android.content.Context, assetPath: String): String? {

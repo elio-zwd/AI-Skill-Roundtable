@@ -43,29 +43,6 @@ android {
     }
 }
 
-// Env value helper for loading keys
-fun getEnvValue(key: String, defaultValue: String = ""): String {
-    val envValue = System.getenv(key)
-    if (!envValue.isNullOrEmpty()) return envValue
-    
-    // Fallback to reading .env file in rootDir
-    val envFile = rootProject.file(".env")
-    if (envFile.exists()) {
-        val lines = envFile.readLines()
-        for (line in lines) {
-            val parts = line.split("=", limit = 2)
-            if (parts.size == 2 && parts[0].trim() == key) {
-                return parts[1].trim().removeSurrounding("\"", "\"")
-            }
-        }
-    }
-    return defaultValue
-}
-
-android.defaultConfig {
-    buildConfigField("String", "GEMINI_API_KEY", "\"${getEnvValue("GEMINI_API_KEY")}\"")
-}
-
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -92,4 +69,6 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation("com.github.jeziellago:compose-markdown:0.5.4")
     implementation("androidx.work:work-runtime-ktx:2.9.0")
+
+    testImplementation("junit:junit:4.13.2")
 }

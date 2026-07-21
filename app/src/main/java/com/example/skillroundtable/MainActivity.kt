@@ -235,7 +235,7 @@ fun MainAppContent() {
     val isRoundtableRunning by viewModel.isRoundtableRunning.collectAsState()
     val typingCharacterIds by viewModel.typingCharacterIds.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
-    val apiKey by viewModel.apiKey.collectAsState()
+    val apiKeySummaries by viewModel.apiKeySummaries.collectAsState()
     val isAutoNextEnabled by viewModel.isAutoNextEnabled.collectAsState()
     val isSemanticRoutingEnabled by viewModel.isSemanticRoutingEnabled.collectAsState()
     val searchMode by viewModel.searchMode.collectAsState()
@@ -243,7 +243,7 @@ fun MainAppContent() {
     var selectedTab by remember { mutableIntStateOf(0) }
     var showAddCharacterDialog by remember { mutableStateOf(false) }
     var editingCharacter by remember { mutableStateOf<Character?>(null) }
-    var showApiKeyDialog by remember { mutableStateOf(false) }
+    var showApiKeyManagerScreen by remember { mutableStateOf(false) }
     var showDrawer by remember { mutableStateOf(false) }
 
     var renameSessionId by remember { mutableStateOf<Long?>(null) }
@@ -257,6 +257,12 @@ fun MainAppContent() {
         ApiTelemetryScreen(
             currentSessionId = currentSessionId,
             onBack = { showTelemetryScreen = false }
+        )
+    } else if (showApiKeyManagerScreen) {
+        ApiKeyManagerScreen(
+            currentSessionId = currentSessionId,
+            onBack = { showApiKeyManagerScreen = false },
+            onOpenTelemetry = { showTelemetryScreen = true }
         )
     } else {
         Scaffold(
@@ -334,12 +340,12 @@ fun MainAppContent() {
                         allCharacters = allCharacters,
                         isRoundtableRunning = isRoundtableRunning,
                         typingCharacterIds = typingCharacterIds,
-                        apiKey = apiKey,
+                        hasApiKeys = apiKeySummaries.any { it.enabled },
                         isAutoNextEnabled = isAutoNextEnabled,
                         isSemanticRoutingEnabled = isSemanticRoutingEnabled,
                         searchMode = searchMode,
                         onSearchModeChange = { viewModel.setSearchMode(it) },
-                        onOpenApiKeyConfig = { showApiKeyDialog = true },
+                        onOpenApiKeyConfig = { showApiKeyManagerScreen = true },
                         onToggleDrawer = { showDrawer = !showDrawer },
                         onRenameSession = { id, title ->
                             renameSessionId = id
@@ -569,22 +575,6 @@ fun MainAppContent() {
             }
 
             // Dialogs
-            if (showApiKeyDialog) {
-                ApiKeyConfigDialog(
-                    currentKey = apiKey,
-                    onDismiss = { showApiKeyDialog = false },
-                    onSave = { newKey ->
-                        viewModel.setApiKey(newKey)
-                        showApiKeyDialog = false
-                        Toast.makeText(context, "API Key 配置成功", Toast.LENGTH_SHORT).show()
-                    },
-                    onOpenDebugPanel = {
-                        showApiKeyDialog = false
-                        showTelemetryScreen = true
-                    }
-                )
-            }
-
             if (showAddCharacterDialog) {
                 AddEditCharacterDialog(
                     character = null,
@@ -832,7 +822,7 @@ fun RoundtableBrainstormScreen(
     allCharacters: List<Character>,
     isRoundtableRunning: Boolean,
     typingCharacterIds: Set<String>,
-    apiKey: String,
+    hasApiKeys: Boolean,
     isAutoNextEnabled: Boolean,
     isSemanticRoutingEnabled: Boolean,
     searchMode: SearchMode,
@@ -960,7 +950,7 @@ fun RoundtableBrainstormScreen(
                     Icon(
                         Icons.Default.Settings,
                         contentDescription = "密钥设置",
-                        tint = if (apiKey.isNotBlank()) SecondaryAccent else GoldAccent
+                        tint = if (hasApiKeys) SecondaryAccent else GoldAccent
                     )
                 }
             }
@@ -2008,101 +1998,6 @@ fun CharacterHallScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ApiKeyConfigDialog(
-    currentKey: String,
-    onDismiss: () -> Unit,
-    onSave: (String) -> Unit,
-    onOpenDebugPanel: () -> Unit
-) {
-    val context = LocalContext.current
-    var keyText by remember { mutableStateOf(currentKey) }
-    var useBuiltIn by remember {
-        mutableStateOf(com.example.skillroundtable.network.ApiKeyPool.getUseBuiltInKeys(context))
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Settings, contentDescription = null, tint = GoldAccent)
-                Spacer(Modifier.width(8.dp))
-                Text("配置 Gemini API 密钥")
-            }
-        },
-        text = {
-            Column {
-                Text(
-                    text = "请在下方填入你的 Gemini API Key。圆桌会议脑暴由 Gemini 提供底层大语言能力支持。",
-                    fontSize = 13.sp,
-                    color = TextSecondary
-                )
-                Spacer(Modifier.height(12.dp))
-                TextField(
-                    value = keyText,
-                    onValueChange = { keyText = it },
-                    placeholder = { Text("AI Studio 密钥或标准 API Key...") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "启用内置备用 API 密钥池",
-                        fontSize = 13.sp,
-                        color = TextPrimary
-                    )
-                    Switch(
-                        checked = useBuiltIn,
-                        onCheckedChange = { checked ->
-                            useBuiltIn = checked
-                            com.example.skillroundtable.network.ApiKeyPool.setUseBuiltInKeys(context, checked)
-                        },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = GoldAccent,
-                            checkedTrackColor = PrimaryAccent
-                        )
-                    )
-                }
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = "提示：自定义 API 密钥将本地持久化保存。如不启用内置池，请务必填写有效密钥。",
-                    fontSize = 11.sp,
-                    color = GoldAccent
-                )
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onOpenDebugPanel, modifier = Modifier.bounceClick()) {
-                        Text("熔断诊断与遥测日志", color = GoldAccent, fontSize = 12.sp)
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onSave(keyText) },
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryAccent)
-            ) {
-                Text("保存并连接")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("取消", color = TextSecondary)
-            }
-        },
-        containerColor = CardBg
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
 fun AddEditCharacterDialog(
     character: Character?,
     onDismiss: () -> Unit,
@@ -2283,9 +2178,9 @@ fun ApiTelemetryScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 2. 内置 10 个 Key 的熔断状态
+                // 2. 用户 Key 池的熔断状态
                 Text(
-                    text = "备用 Key 熔断状态 (24小时冷却期)",
+                    text = "API Key 熔断状态（24小时冷却期）",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary
@@ -2327,11 +2222,12 @@ fun ApiTelemetryScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
-                                    text = status.id,
+                                    text = status.displayName,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 12.sp,
                                     color = if (isManualDisabled) TextSecondary else TextPrimary
                                 )
+                                Text(status.maskedKey, fontSize = 8.sp, color = TextSecondary)
                                 Spacer(modifier = Modifier.height(2.dp))
                                 when {
                                     isBanned -> {

@@ -2,311 +2,369 @@ package com.example.skillroundtable.network
 
 import android.content.Context
 import android.content.SharedPreferences
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
+import java.util.UUID
+import java.util.concurrent.CopyOnWriteArrayList
 
 /**
- * 封装的 API 密钥信息实体。
- */
-data class ApiKeyInfo(
-    val id: String,
-    val key: String,
-    val account: String
-)
-
-@kotlinx.serialization.Serializable
-data class ApiLog(
-    val keyId: String,
-    val model: String,
-    val requestTime: Long,
-    val responseTime: Long,
-    val statusCode: Int,
-    val errorMessage: String? = null,
-    val prompt: String = "",
-    val responseText: String = ""
-)
-
-data class KeyStatus(
-    val id: String,
-    val isBanned: Boolean,
-    val banExpireTime: Long,
-    val remainingBanTimeMs: Long,
-    val isManualDisabled: Boolean = false
-)
-
-/**
- * API Key 管理池，提供 10 个备用 Key 的轮询机制，以及 API 429 频控错误的 24 小时熔断保护。
+ * 用户自带 Gemini API Key 的统一管理入口。
+ *
+ * 完整 Key 只在网络调用边界短暂出现；UI 只能读取掩码摘要。
  */
 object ApiKeyPool {
     private const val PREFS_NAME = "gemini_api_key_prefs"
     private const val KEY_LAST_USED_ID = "last_used_key_id"
-    private const val BAN_DURATION_MS = 24 * 60 * 60 * 1000L // 24小时
+    private const val MAX_KEYS = 50
+    private const val BAN_DURATION_MS = 24 * 60 * 60 * 1000L
 
-    val apiLogs = java.util.concurrent.CopyOnWriteArrayList<ApiLog>()
+    val apiLogs = CopyOnWriteArrayList<ApiLog>()
+
+    private val _summaries = MutableStateFlow<List<ApiKeySummary>>(emptyList())
+    val summaries: StateFlow<List<ApiKeySummary>> = _summaries.asStateFlow()
+
+    private val _storageError = MutableStateFlow<String?>(null)
+    val storageError: StateFlow<String?> = _storageError.asStateFlow()
+
     private var appContext: Context? = null
+    private var store: EncryptedApiKeyStore? = null
+    private var provider: CompositeApiKeyProvider? = null
 
+    @Synchronized
     fun init(context: Context) {
-        appContext = context.applicationContext
-        loadLogsFromPrefs()
-    }
-
-    private fun loadLogsFromPrefs() {
-        val context = appContext ?: return
-        val prefs = getPrefs(context)
-        val jsonStr = prefs.getString("telemetry_api_logs_json", null)
-        if (!jsonStr.isNullOrBlank()) {
-            try {
-                val list = kotlinx.serialization.json.Json.decodeFromString(
-                    kotlinx.serialization.builtins.ListSerializer(ApiLog.serializer()),
-                    jsonStr
-                )
-                synchronized(apiLogs) {
-                    apiLogs.clear()
-                    apiLogs.addAll(list)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
-
-    private fun saveLogsToPrefs() {
-        val context = appContext ?: return
-        val listCopy = synchronized(apiLogs) { apiLogs.toList() }
-        try {
-            val jsonStr = kotlinx.serialization.json.Json.encodeToString(
-                kotlinx.serialization.builtins.ListSerializer(ApiLog.serializer()),
-                listCopy
+        if (appContext == null) {
+            appContext = context.applicationContext
+            val localStore = EncryptedApiKeyStore(context.applicationContext)
+            store = localStore
+            provider = CompositeApiKeyProvider(
+                localProvider = LocalApiKeyProvider(localStore),
+                remoteProvider = DisabledRemoteApiKeyProvider
             )
-            getPrefs(context).edit().putString("telemetry_api_logs_json", jsonStr).apply()
-        } catch (e: Exception) {
-            e.printStackTrace()
+            migrateLegacyCustomKey(context.applicationContext)
+            loadLogsFromPrefs()
         }
+        refreshSummaries(context.applicationContext)
     }
 
-    fun addLog(log: ApiLog) {
-        synchronized(apiLogs) {
-            apiLogs.add(0, log)
-            while (apiLogs.size > 50) {
-                apiLogs.removeAt(apiLogs.size - 1)
+    fun importBatch(context: Context, raw: String): BatchImportResult {
+        ensureInitialized(context)
+        val parsed = ApiKeyBatchParser.parse(raw)
+        val existing = localRecords().toMutableList()
+        val existingFingerprints = existing.mapTo(mutableSetOf()) { it.fingerprint }
+        var duplicates = parsed.duplicates
+        val candidates = parsed.keys.filter { key ->
+            val isNew = existingFingerprints.add(fingerprintApiKey(key))
+            if (!isNew) duplicates++
+            isNew
+        }
+        val capacity = (MAX_KEYS - allRecords().size).coerceAtLeast(0)
+        val accepted = candidates.take(capacity)
+        val overflow = candidates.size - accepted.size
+        var nextNumber = existing.mapNotNull { it.displayName.removePrefix("K").toIntOrNull() }.maxOrNull()?.plus(1) ?: 1
+        val created = accepted.map { key ->
+            ApiKeyRecord(
+                id = "local-${UUID.randomUUID()}",
+                displayName = "K${nextNumber++}",
+                key = key,
+                fingerprint = fingerprintApiKey(key)
+            )
+        }
+        if (created.isNotEmpty()) {
+            saveLocal(existing + created)
+        }
+        return BatchImportResult(
+            added = created.size,
+            duplicates = duplicates,
+            invalid = parsed.invalid,
+            overflow = overflow,
+            importedIds = created.map(ApiKeyRecord::id)
+        )
+    }
+
+    suspend fun validateKeys(context: Context, keyIds: List<String>) = coroutineScope {
+        ensureInitialized(context)
+        val semaphore = Semaphore(2)
+        keyIds.distinct().map { keyId ->
+            async { semaphore.withPermit { validateKey(context, keyId) } }
+        }.awaitAll()
+    }
+
+    suspend fun validateKey(context: Context, keyId: String): ApiKeyValidationState {
+        ensureInitialized(context)
+        val record = localRecords().firstOrNull { it.id == keyId } ?: return ApiKeyValidationState.INVALID
+        updateRecord(keyId) {
+            it.copy(validationState = ApiKeyValidationState.CHECKING, validationMessage = null)
+        }
+        var state: ApiKeyValidationState
+        var message: String?
+        try {
+            val response = RetrofitClient.service.validateApiKey(apiKey = record.key)
+            when (response.code()) {
+                in 200..299 -> {
+                    state = ApiKeyValidationState.AVAILABLE
+                    message = null
+                }
+                400, 401, 403 -> {
+                    state = ApiKeyValidationState.INVALID
+                    message = "鉴权失败（HTTP ${response.code()}）"
+                }
+                429 -> {
+                    state = ApiKeyValidationState.RATE_LIMITED
+                    message = "请求频率受限"
+                    banKey(context, keyId)
+                }
+                else -> {
+                    state = ApiKeyValidationState.NETWORK_ERROR
+                    message = "验证服务返回 HTTP ${response.code()}"
+                }
             }
+        } catch (error: Exception) {
+            state = ApiKeyValidationState.NETWORK_ERROR
+            message = "网络验证失败"
         }
-        saveLogsToPrefs()
-    }
-
-    fun isKeyDisabled(context: Context, keyId: String): Boolean {
-        return getPrefs(context).getBoolean("key_disabled_$keyId", false)
+        updateRecord(keyId) {
+            it.copy(
+                validationState = state,
+                validationMessage = message,
+                lastValidatedAt = System.currentTimeMillis()
+            )
+        }
+        return state
     }
 
     fun setKeyDisabled(context: Context, keyId: String, disabled: Boolean) {
-        getPrefs(context).edit().putBoolean("key_disabled_$keyId", disabled).apply()
+        ensureInitialized(context)
+        updateRecord(keyId) { it.copy(enabled = !disabled) }
+    }
+
+    fun deleteKey(context: Context, keyId: String): Boolean {
+        ensureInitialized(context)
+        val remaining = localRecords().filterNot { it.id == keyId }
+        if (!saveLocal(remaining)) return false
+        val prefs = getPrefs(context)
+        val editor = prefs.edit().remove("ban_$keyId")
+        prefs.all.forEach { (name, value) ->
+            if (name.startsWith("session_key_") && value == keyId) editor.remove(name)
+        }
+        editor.apply()
+        return true
+    }
+
+    fun clearAllKeys(context: Context): Boolean {
+        ensureInitialized(context)
+        val success = store?.clear() == true
+        if (success) {
+            val prefs = getPrefs(context)
+            val editor = prefs.edit()
+            prefs.all.keys.filter { it.startsWith("session_key_") || it.startsWith("ban_") }
+                .forEach(editor::remove)
+            editor.apply()
+            refreshSummaries(context)
+        }
+        return success
+    }
+
+    fun getAvailableKeys(context: Context): List<ApiKeyInfo> {
+        ensureInitialized(context)
+        val prefs = getPrefs(context)
+        val now = System.currentTimeMillis()
+        return allRecords()
+            .filter { record ->
+                record.enabled &&
+                    record.validationState != ApiKeyValidationState.INVALID &&
+                    prefs.getLong("ban_${record.id}", 0L) <= now
+            }
+            .map { record ->
+                ApiKeyInfo(record.id, record.key, record.displayName, record.source)
+            }
+    }
+
+    fun getOrBindSessionKey(context: Context, sessionId: Long): ApiKeyInfo? {
+        ensureInitialized(context)
+        val prefs = getPrefs(context)
+        val available = getAvailableKeys(context)
+        val boundId = prefs.getString("session_key_$sessionId", null)
+        available.firstOrNull { it.id == boundId }?.let { return it }
+        val selected = getKeyAttemptOrder(context).firstOrNull() ?: return null
+        bindSessionKey(context, sessionId, selected.id)
+        return selected
+    }
+
+    fun bindSessionKey(context: Context, sessionId: Long, keyId: String) {
+        getPrefs(context).edit().putString("session_key_$sessionId", keyId).apply()
+    }
+
+    fun getKeyAttemptOrder(context: Context): List<ApiKeyInfo> {
+        val available = getAvailableKeys(context)
+        val lastUsedId = getLastUsedKeyId(context)
+        if (available.size <= 1 || lastUsedId == null) return available
+        return available.filter { it.id != lastUsedId } + available.filter { it.id == lastUsedId }
+    }
+
+    fun getAttemptCount(context: Context): Int = getAvailableKeys(context).size.coerceAtLeast(1)
+
+    fun findKeyId(key: String): String {
+        val fingerprint = fingerprintApiKey(key)
+        return allRecords().firstOrNull { it.fingerprint == fingerprint }?.displayName ?: "用户密钥"
     }
 
     fun getKeyStatuses(context: Context): List<KeyStatus> {
+        ensureInitialized(context)
         val prefs = getPrefs(context)
         val now = System.currentTimeMillis()
-        return API_KEYS.map { apiKey ->
-            val banExpire = prefs.getLong("ban_${apiKey.id}", 0L)
-            val isBanned = banExpire > now
-            val remaining = if (isBanned) banExpire - now else 0L
-            val isManualDisabled = prefs.getBoolean("key_disabled_${apiKey.id}", false)
-            KeyStatus(apiKey.id, isBanned, banExpire, remaining, isManualDisabled)
+        return allRecords().map { record ->
+            val banExpire = prefs.getLong("ban_${record.id}", 0L)
+            KeyStatus(
+                id = record.id,
+                displayName = record.displayName,
+                maskedKey = maskApiKey(record.key),
+                source = record.source,
+                validationState = record.validationState,
+                validationMessage = record.validationMessage,
+                isBanned = banExpire > now,
+                banExpireTime = banExpire,
+                remainingBanTimeMs = (banExpire - now).coerceAtLeast(0L),
+                isManualDisabled = !record.enabled
+            )
         }
     }
 
-    // 内置 10 个来自 life-archive-app 的备用 Key
-    val API_KEYS = listOf(
-        ApiKeyInfo("w1", "REDACTED_GEMINI_API_KEY", "a1"),
-        ApiKeyInfo("w2", "REDACTED_GEMINI_API_KEY", "a1"),
-        ApiKeyInfo("w3", "REDACTED_GEMINI_API_KEY", "a1"),
-        ApiKeyInfo("w4", "REDACTED_GEMINI_API_KEY", "a1"),
-        ApiKeyInfo("w5", "REDACTED_GEMINI_API_KEY", "a1"),
-        ApiKeyInfo("w6", "REDACTED_GEMINI_API_KEY", "a1"),
-        ApiKeyInfo("w7", "REDACTED_GEMINI_API_KEY", "a1"),
-        ApiKeyInfo("w8", "REDACTED_GEMINI_API_KEY", "a1"),
-        ApiKeyInfo("w9", "REDACTED_GEMINI_API_KEY", "a1"),
-        ApiKeyInfo("w10", "REDACTED_GEMINI_API_KEY", "a1")
-    )
-
-    private fun getPrefs(context: Context): SharedPreferences {
-        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    fun getSummary(context: Context, keyId: String): ApiKeySummary? {
+        ensureInitialized(context)
+        return summaries.value.firstOrNull { it.id == keyId }
     }
 
-    /**
-     * 将特定 Key 禁用 24 小时（熔断）
-     */
     fun banKey(context: Context, keyId: String) {
-        val expireTime = System.currentTimeMillis() + BAN_DURATION_MS
-        getPrefs(context).edit()
-            .putLong("ban_$keyId", expireTime)
-            .apply()
+        getPrefs(context).edit().putLong("ban_$keyId", System.currentTimeMillis() + BAN_DURATION_MS).apply()
+        refreshSummaries(context)
     }
 
-    /**
-     * 记录上一次使用的 Key ID
-     */
+    fun clearBans(context: Context) {
+        ensureInitialized(context)
+        val editor = getPrefs(context).edit()
+        allRecords().forEach { editor.remove("ban_${it.id}") }
+        editor.apply()
+        refreshSummaries(context)
+    }
+
     fun setLastUsedKeyId(context: Context, keyId: String) {
-        getPrefs(context).edit()
-            .putString(KEY_LAST_USED_ID, keyId)
-            .apply()
+        getPrefs(context).edit().putString(KEY_LAST_USED_ID, keyId).apply()
     }
 
-    /**
-     * 获取上一次使用的 Key ID
-     */
-    fun getLastUsedKeyId(context: Context): String? {
-        return getPrefs(context).getString(KEY_LAST_USED_ID, null)
-    }
+    fun getLastUsedKeyId(context: Context): String? = getPrefs(context).getString(KEY_LAST_USED_ID, null)
 
-    /**
-     * 获取持久化保存的自定义 API Key
-     */
-    fun getCustomApiKey(context: Context): String? {
-        return getPrefs(context).getString("custom_api_key", null)
-    }
-
-    /**
-     * 持久化保存自定义 API Key
-     */
-    fun saveCustomApiKey(context: Context, key: String) {
-        getPrefs(context).edit()
-            .putString("custom_api_key", key)
-            .apply()
-    }
-
-    fun getUseBuiltInKeys(context: Context): Boolean {
-        return getPrefs(context).getBoolean("use_built_in_keys", true)
-    }
-
-    fun setUseBuiltInKeys(context: Context, use: Boolean) {
-        getPrefs(context).edit().putBoolean("use_built_in_keys", use).apply()
-    }
-
-    /**
-     * 获取当前所有未处于熔断期的可用 Key
-     */
-    fun getAvailableKeys(context: Context): List<ApiKeyInfo> {
-        val prefs = getPrefs(context)
-        val now = System.currentTimeMillis()
-        
-        if (!getUseBuiltInKeys(context)) {
-            val customKey = getCustomApiKey(context)
-            if (!customKey.isNullOrBlank()) {
-                return listOf(ApiKeyInfo("custom", customKey, "user"))
-            }
-            return emptyList()
-        }
-        
-        return API_KEYS.filter { apiKey ->
-            val isManualDisabled = prefs.getBoolean("key_disabled_${apiKey.id}", false)
-            if (isManualDisabled) return@filter false
-            
-            val banExpire = prefs.getLong("ban_${apiKey.id}", 0L)
-            banExpire < now
-        }
-    }
-
-    /**
-     * 获取指定 Session 绑定的 Key。若无绑定或该 Key 已熔断，则自动在可用 Key 中分配绑定并返回。
-     */
-    fun getOrBindSessionKey(context: Context, sessionId: Long): ApiKeyInfo? {
-        val prefs = getPrefs(context)
-        val now = System.currentTimeMillis()
-        
-        if (!getUseBuiltInKeys(context)) {
-            val customKey = getCustomApiKey(context)
-            if (!customKey.isNullOrBlank()) {
-                return ApiKeyInfo("custom", customKey, "user")
-            }
-            return null
-        }
-        
-        // 1. 尝试读取该 session 当前绑定的 Key ID
-        val boundKeyId = prefs.getString("session_key_$sessionId", null)
-        if (boundKeyId != null) {
-            val isManualDisabled = prefs.getBoolean("key_disabled_$boundKeyId", false)
-            val banExpire = prefs.getLong("ban_$boundKeyId", 0L)
-            if (!isManualDisabled && banExpire < now) {
-                val keyInfo = API_KEYS.firstOrNull { it.id == boundKeyId }
-                if (keyInfo != null) {
-                    return keyInfo
-                }
-            }
-        }
-        
-        // 2. 无绑定或已熔断，分配第一个当前可用的 Key
-        val availableKeys = getAvailableKeys(context)
-        if (availableKeys.isEmpty()) return null
-        
-        val newKey = availableKeys.first()
-        bindSessionKey(context, sessionId, newKey.id)
-        return newKey
-    }
-
-    /**
-     * 强行绑定 Session 与 Key ID 的对应关系
-     */
-    fun bindSessionKey(context: Context, sessionId: Long, keyId: String) {
-        getPrefs(context).edit()
-            .putString("session_key_$sessionId", keyId)
-            .apply()
-    }
-
-    /**
-     * 获取本次请求的可尝试 Key 顺序。
-     * 如果可用 Key 的数量大于 1 且存在上一次成功使用的 Key ID，
-     * 则优先尝试其他可用 Key，避免连续对同一个 Key 发起并发请求导致频控。
-     */
-    fun getKeyAttemptOrder(context: Context): List<ApiKeyInfo> {
-        val availableKeys = getAvailableKeys(context)
-        val lastUsedId = getLastUsedKeyId(context)
-
-        if (availableKeys.size <= 1 || lastUsedId == null) {
-            return availableKeys
-        }
-
-        val preferredKeys = availableKeys.filter { it.id != lastUsedId }
-        val deferredKeys = availableKeys.filter { it.id == lastUsedId }
-
-        return preferredKeys + deferredKeys
-    }
-
-    /**
-     * 将角色分配给可用的 API 密钥（随机分组策略）
-     * 每次会话开始时，将参与角色随机打乱后，每 1~3 个随机分配给一个可用 API Key。
-     * 返回 Map<ApiKeyInfo, List<Character>> 代表 keyId 到该组角色的映射。
-     */
     fun assignRandomGroups(
         characters: List<com.example.skillroundtable.data.Character>,
         availableKeys: List<ApiKeyInfo>
     ): Map<ApiKeyInfo, List<com.example.skillroundtable.data.Character>> {
         if (characters.isEmpty() || availableKeys.isEmpty()) return emptyMap()
-        
-        val shuffledChars = characters.shuffled()
-        val groups = mutableListOf<List<com.example.skillroundtable.data.Character>>()
-        var remaining = shuffledChars
-        
+        val result = linkedMapOf<ApiKeyInfo, MutableList<com.example.skillroundtable.data.Character>>()
+        var remaining = characters.shuffled()
+        var groupIndex = 0
         while (remaining.isNotEmpty()) {
-            val groupSize = (1..3).random()
-            val takeSize = minOf(groupSize, remaining.size)
-            groups.add(remaining.take(takeSize))
+            val takeSize = minOf((1..3).random(), remaining.size)
+            val keyInfo = availableKeys[groupIndex % availableKeys.size]
+            result.getOrPut(keyInfo) { mutableListOf() }.addAll(remaining.take(takeSize))
             remaining = remaining.drop(takeSize)
+            groupIndex++
         }
-        
-        val result = mutableMapOf<ApiKeyInfo, List<com.example.skillroundtable.data.Character>>()
-        groups.forEachIndexed { index, group ->
-            val keyInfo = availableKeys[index % availableKeys.size]
-            result[keyInfo] = group
-        }
-        return result
+        return result.mapValues { it.value.toList() }
     }
 
-    /**
-     * 清空所有被熔断 Key 的状态（用于调试或后台状态重置）
-     */
-    fun clearBans(context: Context) {
-        val editor = getPrefs(context).edit()
-        API_KEYS.forEach { apiKey ->
-            editor.remove("ban_${apiKey.id}")
+    fun addLog(log: ApiLog) {
+        synchronized(apiLogs) {
+            apiLogs.add(0, log)
+            while (apiLogs.size > 50) apiLogs.removeAt(apiLogs.lastIndex)
         }
-        editor.apply()
+        saveLogsToPrefs()
+    }
+
+    private fun ensureInitialized(context: Context) {
+        if (appContext == null) init(context)
+    }
+
+    private fun allRecords(): List<ApiKeyRecord> = provider?.getRecords().orEmpty()
+
+    private fun localRecords(): List<ApiKeyRecord> = store?.read().orEmpty()
+
+    private fun saveLocal(records: List<ApiKeyRecord>): Boolean {
+        val success = store?.write(records) == true
+        appContext?.let(::refreshSummaries)
+        return success
+    }
+
+    private fun updateRecord(keyId: String, transform: (ApiKeyRecord) -> ApiKeyRecord) {
+        val records = localRecords()
+        if (records.none { it.id == keyId }) return
+        saveLocal(records.map { if (it.id == keyId) transform(it) else it })
+    }
+
+    private fun refreshSummaries(context: Context) {
+        val prefs = getPrefs(context)
+        val now = System.currentTimeMillis()
+        _storageError.value = store?.lastError
+        _summaries.value = allRecords().map { record ->
+            val banExpire = prefs.getLong("ban_${record.id}", 0L)
+            ApiKeySummary(
+                id = record.id,
+                displayName = record.displayName,
+                maskedKey = maskApiKey(record.key),
+                source = record.source,
+                enabled = record.enabled,
+                validationState = record.validationState,
+                validationMessage = record.validationMessage,
+                lastValidatedAt = record.lastValidatedAt,
+                banExpireTime = banExpire,
+                remainingBanTimeMs = (banExpire - now).coerceAtLeast(0L)
+            )
+        }
+    }
+
+    private fun migrateLegacyCustomKey(context: Context) {
+        val prefs = getPrefs(context)
+        val legacy = prefs.getString("custom_api_key", null)?.trim()
+        if (!legacy.isNullOrBlank() && legacy != "your_gemini_api_key_here" && localRecords().isEmpty()) {
+            importBatch(context, legacy)
+        }
+        prefs.edit()
+            .remove("custom_api_key")
+            .remove("use_built_in_keys")
+            .apply()
+    }
+
+    private fun getPrefs(context: Context): SharedPreferences {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
+    private fun loadLogsFromPrefs() {
+        val context = appContext ?: return
+        val jsonString = getPrefs(context).getString("telemetry_api_logs_json", null) ?: return
+        try {
+            val logs = Json.decodeFromString(ListSerializer(ApiLog.serializer()), jsonString)
+            synchronized(apiLogs) {
+                apiLogs.clear()
+                apiLogs.addAll(logs)
+            }
+        } catch (_: Exception) {
+            // 旧遥测损坏不影响应用启动。
+        }
+    }
+
+    private fun saveLogsToPrefs() {
+        val context = appContext ?: return
+        try {
+            val jsonString = Json.encodeToString(ListSerializer(ApiLog.serializer()), apiLogs.toList())
+            getPrefs(context).edit().putString("telemetry_api_logs_json", jsonString).apply()
+        } catch (_: Exception) {
+            // 遥测写入失败不阻断主请求。
+        }
     }
 }

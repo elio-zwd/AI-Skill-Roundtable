@@ -2,6 +2,7 @@ package com.example.skillroundtable.network
 
 import android.content.Context
 import android.util.Log
+import com.example.skillroundtable.BuildConfig
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -11,6 +12,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.Header
+import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -205,6 +207,11 @@ data class Embedding(
 )
 
 interface GeminiApiService {
+    @GET("v1beta/models/gemini-3.1-flash-lite")
+    suspend fun validateApiKey(
+        @Query("key") apiKey: String
+    ): retrofit2.Response<JsonElement>
+
     @POST("v1beta/models/{model}:generateContent")
     suspend fun generateContent(
         @Path("model") model: String,
@@ -235,8 +242,18 @@ object RetrofitClient {
         .readTimeout(300, TimeUnit.SECONDS)
         .writeTimeout(90, TimeUnit.SECONDS)
         .addInterceptor(TelemetryInterceptor())
-        .addInterceptor(HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+        .addInterceptor(HttpLoggingInterceptor { rawMessage ->
+            val redactedMessage = rawMessage.replace(
+                Regex("([?&]key=)[^&\\s]+"),
+                "$1[REDACTED]"
+            )
+            Log.d("OkHttp", redactedMessage)
+        }.apply {
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BODY
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
         })
         .build()
 
@@ -265,7 +282,7 @@ object RetrofitClient {
         var lastException: Exception? = null
         val attempts = mutableListOf<String>()
 
-        for (attempt in 0 until ApiKeyPool.API_KEYS.size) {
+        for (attempt in 0 until ApiKeyPool.getAttemptCount(context)) {
             val keyInfo = ApiKeyPool.getOrBindSessionKey(context, sessionId)
             if (keyInfo == null) {
                 throw Exception("当前无可用内置 API Key，全部已被频控熔断。")
@@ -325,7 +342,7 @@ object RetrofitClient {
         val attempts = mutableListOf<String>()
         val prompt = request.contents.firstOrNull()?.parts?.firstOrNull()?.text ?: ""
 
-        for (attempt in 0 until ApiKeyPool.API_KEYS.size) {
+        for (attempt in 0 until ApiKeyPool.getAttemptCount(context)) {
             val keyInfo = ApiKeyPool.getOrBindSessionKey(context, sessionId)
             if (keyInfo == null) {
                 throw Exception("当前无可用内置 API Key，全部已被频控熔断。")
@@ -389,7 +406,7 @@ object RetrofitClient {
         val attempts = mutableListOf<String>()
         val prompt = request.contents.firstOrNull()?.parts?.firstOrNull()?.text ?: ""
 
-        for (attempt in 0 until ApiKeyPool.API_KEYS.size) {
+        for (attempt in 0 until ApiKeyPool.getAttemptCount(context)) {
             val keyInfo = ApiKeyPool.getOrBindSessionKey(context, sessionId)
             if (keyInfo == null) {
                 throw Exception("当前无可用内置 API Key，全部已被熔断。")
@@ -455,7 +472,7 @@ object RetrofitClient {
         var lastException: Exception? = null
         val attempts = mutableListOf<String>()
 
-        for (attempt in 0 until ApiKeyPool.API_KEYS.size) {
+        for (attempt in 0 until ApiKeyPool.getAttemptCount(context)) {
             val keyInfo = ApiKeyPool.getOrBindSessionKey(context, sessionId)
             if (keyInfo == null) {
                 throw Exception("当前无可用内置 API Key 获取 Embedding，全部已被熔断。")
@@ -518,12 +535,7 @@ class TelemetryInterceptor : okhttp3.Interceptor {
         }
 
         val apiKey = url.queryParameter("key") ?: ""
-        val keyInfo = ApiKeyPool.API_KEYS.firstOrNull { it.key == apiKey }
-        val keyId = keyInfo?.id ?: if (apiKey.isNotBlank()) {
-            if (apiKey.length > 8) "custom(${apiKey.take(8)}...)" else "custom"
-        } else {
-            "none"
-        }
+        val keyId = if (apiKey.isBlank()) "none" else ApiKeyPool.findKeyId(apiKey)
 
         var prompt = ""
         try {

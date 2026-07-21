@@ -9,8 +9,36 @@ import urllib.error
 # 设置字符编码
 sys.stdout.reconfigure(encoding='utf-8')
 
-# API 配置
-API_KEY = "REDACTED_GEMINI_API_KEY"
+def parse_api_keys(raw_value):
+    """解析单个或批量环境变量中的 API Key。"""
+    normalized = (raw_value or "").strip().strip("[]").replace("，", ",").replace("\r", "\n")
+    return [
+        token.strip().strip('"').strip("'")
+        for line in normalized.split("\n")
+        for token in line.split(",")
+        if token.strip().strip('"').strip("'")
+    ]
+
+def load_api_key():
+    """从环境变量或项目根目录 .env 读取首个可用 Key。"""
+    for name in ("GEMINI_API_KEYS", "GEMINI_API_KEY"):
+        keys = parse_api_keys(os.environ.get(name, ""))
+        if keys:
+            return keys[0]
+    env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
+    if os.path.exists(env_path):
+        with open(env_path, "r", encoding="utf-8") as env_file:
+            for line in env_file:
+                name, separator, value = line.partition("=")
+                if separator and name.strip() in {"GEMINI_API_KEY", "GEMINI_API_KEYS"}:
+                    keys = parse_api_keys(value)
+                    if keys:
+                        return keys[0]
+    return None
+
+API_KEY = load_api_key()
+if not API_KEY:
+    raise SystemExit("未配置 GEMINI_API_KEY 或 GEMINI_API_KEYS，已停止执行。")
 API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
 
 PROMPT_TEMPLATE = """你是一个专业的文档知识提取与主旨提炼助手。
