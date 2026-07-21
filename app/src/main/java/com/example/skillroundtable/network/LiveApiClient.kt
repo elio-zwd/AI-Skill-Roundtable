@@ -2,8 +2,12 @@ package com.example.skillroundtable.network
 
 import android.content.Context
 import android.util.Base64
-import android.util.Log
-import okhttp3.*
+import com.example.skillroundtable.telemetry.PrivacySafeLogger
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
@@ -44,9 +48,8 @@ object LiveApiClient {
 
         val listener = object : WebSocketListener() {
             override fun onOpen(ws: WebSocket, response: Response) {
-                Log.d(TAG, "WebSocket 连接成功")
+                PrivacySafeLogger.d(TAG, "WebSocket connected")
                 try {
-                    // 1. 发送 Setup 配置
                     val setupJson = JSONObject().apply {
                         put("setup", JSONObject().apply {
                             put("model", "models/gemini-3.1-flash-live-preview")
@@ -64,7 +67,6 @@ object LiveApiClient {
                     }
                     ws.send(setupJson.toString())
 
-                    // 2. 发送合成文本请求
                     val contentJson = JSONObject().apply {
                         put("clientContent", JSONObject().apply {
                             put("turns", JSONArray().apply {
@@ -81,12 +83,10 @@ object LiveApiClient {
                         })
                     }
                     ws.send(contentJson.toString())
-                } catch (e: Exception) {
-                    Log.e(TAG, "发送初始化 JSON 失败", e)
+                } catch (error: Exception) {
+                    PrivacySafeLogger.e(TAG, "WebSocket setup failed", error)
                     ws.close(1001, "Setup fail")
-                    if (continuation.isActive) {
-                        continuation.resumeWithException(e)
-                    }
+                    if (continuation.isActive) continuation.resumeWithException(error)
                 }
             }
 
@@ -98,12 +98,12 @@ object LiveApiClient {
                     if (modelTurn != null) {
                         val parts = modelTurn.optJSONArray("parts")
                         if (parts != null) {
-                            for (i in 0 until parts.length()) {
-                                val part = parts.getJSONObject(i)
+                            for (index in 0 until parts.length()) {
+                                val part = parts.getJSONObject(index)
                                 val inlineData = part.optJSONObject("inlineData") ?: continue
-                                val mimeType = inlineData.optString("mimeType") ?: ""
+                                val mimeType = inlineData.optString("mimeType")
                                 if (mimeType.startsWith("audio/pcm")) {
-                                    val base64Data = inlineData.optString("data") ?: ""
+                                    val base64Data = inlineData.optString("data")
                                     val pcmBytes = Base64.decode(base64Data, Base64.DEFAULT)
                                     pcmBuffer.write(pcmBytes)
                                 }
@@ -111,29 +111,21 @@ object LiveApiClient {
                         }
                     }
 
-                    // 检查是否结束
-                    val turnComplete = serverContent.optBoolean("turnComplete", false)
-                    if (turnComplete) {
+                    if (serverContent.optBoolean("turnComplete", false)) {
                         ws.close(1000, "Normal closure")
                         writeWavFile(pcmBuffer.toByteArray(), outputFile)
-                        if (continuation.isActive) {
-                            continuation.resume(outputFile.absolutePath)
-                        }
+                        if (continuation.isActive) continuation.resume(outputFile.absolutePath)
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "解析 WebSocket 消息出错", e)
+                } catch (error: Exception) {
+                    PrivacySafeLogger.e(TAG, "WebSocket response parsing failed", error)
                     ws.close(1001, "Error parse")
-                    if (continuation.isActive) {
-                        continuation.resumeWithException(e)
-                    }
+                    if (continuation.isActive) continuation.resumeWithException(error)
                 }
             }
 
-            override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
-                Log.e(TAG, "WebSocket 失败: ${t.message}", t)
-                if (continuation.isActive) {
-                    continuation.resumeWithException(t)
-                }
+            override fun onFailure(ws: WebSocket, error: Throwable, response: Response?) {
+                PrivacySafeLogger.e(TAG, "WebSocket request failed", error)
+                if (continuation.isActive) continuation.resumeWithException(error)
             }
 
             override fun onClosing(ws: WebSocket, code: Int, reason: String) {
@@ -141,7 +133,7 @@ object LiveApiClient {
             }
 
             override fun onClosed(ws: WebSocket, code: Int, reason: String) {
-                Log.d(TAG, "WebSocket 已关闭: $code / $reason")
+                PrivacySafeLogger.d(TAG, "WebSocket closed (code=$code)")
                 if (continuation.isActive) {
                     continuation.resumeWithException(Exception("WebSocket 意外关闭，未收到结束标识。"))
                 }
@@ -181,7 +173,7 @@ object LiveApiClient {
             out.write(intToBytes(dataSize))
             out.write(pcmData)
         }
-        Log.d(TAG, "已写入 WAV 文件: ${outputFile.absolutePath}, 大小: ${outputFile.length()} bytes")
+        PrivacySafeLogger.d(TAG, "WAV written (bytes=${outputFile.length()})")
     }
 
     private fun intToBytes(value: Int): ByteArray {
