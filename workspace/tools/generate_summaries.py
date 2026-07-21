@@ -146,8 +146,9 @@ def extract_summary(file_path, file_content):
     return selected_text
 
 def main():
-    skills_dir = r"d:\My_Elio\AI-Skill-Roundtable\app\src\main\assets\skills"
-    output_file = r"d:\My_Elio\AI-Skill-Roundtable\app\src\main\assets\skills_summaries.json"
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    skills_dir = os.path.join(base_dir, "app", "src", "main", "assets", "skills")
+    output_file = os.path.join(base_dir, "app", "src", "main", "assets", "skills_summaries.json")
     
     if not os.path.exists(skills_dir):
         print(f"Error: Skills directory '{skills_dir}' does not exist.")

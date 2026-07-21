@@ -14,7 +14,7 @@ $repos = @(
     "https://github.com/heywanrong/tim-cook-skill.git"
 )
 
-$targetDir = "d:\My_Elio\AI-Skill-Roundtable\docs\skills"
+$targetDir = Join-Path $PSScriptRoot "..\..\docs\skills"
 $successList = @()
 $failList = @()
 

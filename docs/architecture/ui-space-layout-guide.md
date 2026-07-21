@@ -187,10 +187,10 @@
 
 ### 7.2 视觉级多尺度图像模板匹配定位 (`find_icon.py`)
 当 XML 树无任何文本反馈（如 Canvas 绘制的极简占位符），或在真机与模拟器 DPI 变化时，可以通过预存的图标特征图进行**多尺度视觉搜寻**：
-- **原理**：调用 [find_icon.py](file:///d:/My_Elio/AI-Skill-Roundtable/tools/find_icon.py) 读取 `tools/templates/` 目录下的基准图标（如 `setting.png` 或 `menu.png`），自动截取当前屏幕，并进行 $0.5 \sim 1.5$ 倍的多尺度滑动窗口匹配。
+- **原理**：调用 [find_icon.py](../../tools/find_icon.py) 读取 `tools/templates/` 目录下的基准图标（如 `setting.png` 或 `menu.png`），自动截取当前屏幕，并进行 $0.5 \sim 1.5$ 倍的多尺度滑动窗口匹配。
 - **预设模板位置**：
-  * 齿轮设置特征图：[setting.png](file:///d:/My_Elio/AI-Skill-Roundtable/tools/templates/setting.png)
-  * 三横菜单特征图：[menu.png](file:///d:/My_Elio/AI-Skill-Roundtable/tools/templates/menu.png)
+  * 齿轮设置特征图：[setting.png](../../tools/templates/setting.png)
+  * 三横菜单特征图：[menu.png](../../tools/templates/menu.png)
 - **使用示例**：
   ```bash
   python tools/find_icon.py -t tools/templates/setting.png

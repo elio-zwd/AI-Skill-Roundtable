@@ -16,7 +16,7 @@ An exception occurred applying plugin request [id: 'com.android.application', ve
 
 ## 2. 原因分析
 1. **构建评估期校验机制**：Gradle 在执行任何 task（哪怕是纯粹用于升级/生成 Wrapper 的 `wrapper` 任务）之前，都会先对整个项目进行配置评估（Evaluation Phase）。
-2. **插件兼容性硬性限制**：在评估期，配置加载了 [app/build.gradle.kts](file:///d:/My_Elio/AI-Skill-Roundtable/app/build.gradle.kts) 并应用了版本为 `8.7.2` 的 Android Application 插件。该插件内部有硬编码检查，要求 Gradle 版本必须 $\ge 8.9$。而当前命令启动所使用的是 `Gradle 7.6.4`，因此触发了崩溃，使得 `wrapper` 任务根本没有机会运行去生成新的脚本。
+2. **插件兼容性硬性限制**：在评估期，配置加载了 [app/build.gradle.kts](../../app/build.gradle.kts) 并应用了版本为 `8.7.2` 的 Android Application 插件。该插件内部有硬编码检查，要求 Gradle 版本必须 $\ge 8.9$。而当前命令启动所使用的是 `Gradle 7.6.4`，因此触发了崩溃，使得 `wrapper` 任务根本没有机会运行去生成新的脚本。
 
 ---
 
@@ -29,9 +29,9 @@ An exception occurred applying plugin request [id: 'com.android.application', ve
 1. 发现本地同级项目 `palmformance` 已经配置了完美的 `Gradle 8.14-all` 并且其本地缓存目录已处于解压可用状态。
 2. 直接通过 PowerShell 拷贝其 Wrapper 脚本及配置：
    ```powershell
-   Copy-Item "D:\01_EK_Projects\palmformance\android\gradlew" "d:\My_Elio\AI-Skill-Roundtable\gradlew"
-   Copy-Item "D:\01_EK_Projects\palmformance\android\gradlew.bat" "d:\My_Elio\AI-Skill-Roundtable\gradlew.bat"
-   New-Item -ItemType Directory -Force -Path "d:\My_Elio\AI-Skill-Roundtable\gradle\wrapper"
-   Copy-Item "D:\01_EK_Projects\palmformance\android\gradle\wrapper\*" "d:\My_Elio\AI-Skill-Roundtable\gradle\wrapper" -Recurse -Force
+   Copy-Item "C:\path\to\other\gradlew" ".\gradlew"
+   Copy-Item "C:\path\to\other\gradlew.bat" ".\gradlew.bat"
+   New-Item -ItemType Directory -Force -Path ".\gradle\wrapper"
+   Copy-Item "C:\path\to\other\gradle\wrapper\*" ".\gradle\wrapper" -Recurse -Force
    ```
 3. 拷贝后，由于本地已经有 `gradle-8.14-all` 的全局缓存，直接运行 `.\gradlew.bat assembleDebug` 会直接复用缓存，不仅避免了版本报错，还实现了**完全离线秒级启动**。

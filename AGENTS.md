@@ -50,7 +50,7 @@
 | 编译工具 | Gradle 8.14-all | — |
 
 **关键依赖路径**：
-- JDK 17：`D:\My_Elio\dev-tools\jdk-17.0.19+10`
+- JDK 17：用户本地 JDK 17 安装目录（例：`C:\path\to\jdk-17`）
 - Gradle 缓存：本地离线缓存（无需联网）
 - Markdown 仓库源：在 `settings.gradle.kts` 中加入了 `https://jitpack.io`
 
@@ -59,8 +59,8 @@
 ## 3. 安装、运行与编译命令
 
 ```powershell
-# 设置 JDK 17 环境（每次新开 shell 必须执行）
-$env:JAVA_HOME = "D:\My_Elio\dev-tools\jdk-17.0.19+10"
+# 设置 JDK 17 环境（请替换为您的实际 JDK 17 路径）
+$env:JAVA_HOME = "C:\path\to\jdk-17"
 $env:Path = "$env:JAVA_HOME\bin;" + $env:Path
 
 # 验证 Java 版本

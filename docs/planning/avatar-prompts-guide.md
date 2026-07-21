@@ -43,6 +43,6 @@
 1. **网页端生成**：您在网页端生图工具（如 Gemini Advanced、Midjourney、DALL-E 3 等）中，一键复制上述右侧的 `English Prompt` 即可生成对应的高端头像。
 2. **文件名对齐**：请确保导出的图片格式为 **PNG** 或 **JPG**，并将其重命名为上面表格中对应的 `导出文件名`（例如 `tim_cook.png`）。
 3. **物理覆盖**：将图片拖入项目目录：
-   - 路径：`D:\My_Elio\AI-Skill-Roundtable\app\src\main\assets\avatars\`
+   - 路径：项目根目录下的 `app/src/main/assets/avatars/` (若不存在则创建)
    - 直接选择“覆盖”替换原来的单字占位图。
 4. **即时生效**：重新运行项目（无需重新跑打包脚本，因为 json 中的文件名完全没变），手机端界面将立即显示您最新生成的艺术大作！

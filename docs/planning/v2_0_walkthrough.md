@@ -42,14 +42,15 @@
 ### 编译成功
 在 pwsh（PowerShell 7）环境配置 JDK 17 下完成构建：
 ```powershell
-$env:JAVA_HOME = "D:\My_Elio\dev-tools\jdk-17.0.19+10"
+# 设置 JDK 17 环境（请替换为您的实际 JDK 路径）
+$env:JAVA_HOME = "C:\path\to\jdk-17"
 $env:Path = "$env:JAVA_HOME\bin;" + $env:Path
 .\gradlew.bat compileDebugKotlin   # 零错误通过
 .\gradlew.bat assembleDebug        # 打包成功
 ```
 
 ### 交付包文件
-- **最新可运行 APK 包**：[app-debug.apk](file:///d:/My_Elio/AI-Skill-Roundtable/app/build/outputs/apk/debug/app-debug.apk) (双击或使用 ADB 安装到您的 Windows 10 连接的设备上进行真机测试)。
+- **最新可运行 APK 包**：[app-debug.apk](../../app/build/outputs/apk/debug/app-debug.apk) (双击或使用 ADB 安装到您的 Windows 10 连接的设备上进行真机测试)。
 
 ---
 

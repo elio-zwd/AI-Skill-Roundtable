@@ -6,9 +6,9 @@
 |------|-------------|
 | 操作系统 | Windows 10 x64 |
 | Shell | PowerShell 7（`pwsh.exe`），禁止使用 `powershell.exe` |
-| JDK 版本 | OpenJDK 17（`jdk-17.0.19+10`） |
-| JDK 路径 | `D:\My_Elio\dev-tools\jdk-17.0.19+10` |
-| Gradle 版本 | 8.14-all（离线缓存） |
+| JDK 版本 | OpenJDK 17 |
+| JDK 路径 | 用户本地安装目录（例：`C:\path\to\jdk-17`） |
+| Gradle 版本 | 8.14-bin（默认官方在线下载，可选离线） |
 | AGP 版本 | Android Gradle Plugin 8.7.2 |
 | Compile SDK | 35 |
 | Min SDK | 26（Android 8.0） |
@@ -17,7 +17,8 @@
 ## 2. JDK 环境初始化（每次新开终端必须执行）
 
 ```powershell
-$env:JAVA_HOME = "D:\My_Elio\dev-tools\jdk-17.0.19+10"
+# 设置 JDK 17 环境（请替换为您的实际 JDK 路径）
+$env:JAVA_HOME = "C:\path\to\jdk-17"
 $env:Path = "$env:JAVA_HOME\bin;" + $env:Path
 
 # 验证
@@ -61,5 +62,27 @@ GEMINI_API_KEY=AIzaSy...你的真实Key
 
 **Bug 02：API 模型名错误**
 - 现象：`GeminiApi.kt` 中 `gemini-3.5-flash` 不存在，所有请求返回 404
-- 解决：修改为 `gemini-2.0-flash`（主）/ `gemini-1.5-flash`（备）
 - 状态：🚧 待修复
+
+---
+
+## 6. 在线与离线构建方案选择
+
+### 默认方案：官方在线 Wrapper 构建
+项目默认配置使用官方的 Gradle Wrapper 下载并运行 Gradle，无需在机器上安装全局的 Gradle 软件。
+- 确保您的网络能够顺畅访问 Gradle 官方分发地址（例如 `https://services.gradle.org`）。
+- 首次构建时，Gradle 会自动下载并缓存所需要的 Gradle 版本（8.14）。
+
+### 可选方案：本地离线缓存构建
+在没有互联网连接，或者因代理/网络限制无法下载官方 Gradle 时的离线替代方案：
+1. 下载 `gradle-8.14-bin.zip`（或 `-all.zip`）到本地路径。
+2. 修改 `gradle/wrapper/gradle-wrapper.properties` 中 `distributionUrl` 的值，将其指向本地绝对路径或搭建的内部镜像源，例如：
+   ```properties
+   distributionUrl=file:///C:/path/to/gradle-8.14-bin.zip
+   ```
+   *注意：禁止提交任何包含本机绝对路径的修改到公共 Git 仓库中。*
+3. 执行构建命令时，可以通过 `-o` 参数开启 Gradle 的离线模式（前提是所需的依赖包已经在全局依赖缓存中存在）：
+   ```powershell
+   ./gradlew.bat assembleDebug --offline
+   ```
+

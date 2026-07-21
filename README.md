@@ -57,63 +57,53 @@
 
 | 工具 | 要求 |
 |------|------|
-| OS | Windows 10 x64 |
+| OS | Windows 10 x64（或支持 Android 构建的系统） |
 | Shell | PowerShell 7（`pwsh.exe`） |
-| JDK | JDK 17（路径：`D:\My_Elio\dev-tools\jdk-17.0.19+10`） |
-| Android SDK | 已通过 Gradle 离线缓存配置 |
-| Gradle | 8.14-all（离线模式，无需联网） |
-| API Key | Google Gemini API Key（填入 `.env`） |
+| JDK | JDK 17（配置为 `JAVA_HOME` 环境变量） |
+| Android SDK | Android SDK Platform 35 及 Build Tools |
+| Gradle | 8.14（默认使用自带 Gradle Wrapper 自动在线下载） |
+| API Key | Google Gemini API Key（在 Android 客户端运行时手动导入，`.env` 仅供本地构建脚本使用） |
 
 ---
 
 ## 安装与启动
 
-### 1. 配置 API 密钥
+### 1. 编译并部署 App
 
-复制密钥模板并填入真实值：
+确保您的测试设备（真机或模拟器）已通过 USB 连接并开启了 USB 调试。
 
-```powershell
-Copy-Item .env.example .env
-# 编辑 .env，填入 GEMINI_API_KEY=你的Key
-```
-
-### 2. 配置 JDK 环境（每次新开终端都需要）
-
-```powershell
-$env:JAVA_HOME = "D:\My_Elio\dev-tools\jdk-17.0.19+10"
-$env:Path = "$env:JAVA_HOME\bin;" + $env:Path
-java -version   # 应输出 openjdk 17
-```
-
-### 3. 编译 Debug 包
-
-```powershell
-.\gradlew.bat assembleDebug
-```
-
-生成的 APK 路径：`app\build\outputs\apk\debug\app-debug.apk`
-
-### 4. 安装到设备
-
-```powershell
-.\gradlew.bat installDebug
-```
-
-### 5. 一键编译运行与实时调试（仿 Flutter run 体验）
-
-项目中提供了一键式运行脚本 `run.ps1`。你只需连接手机，在项目根目录下执行以下命令：
-
+**便捷方式（一键部署与日志追踪）：**
+项目内置了一键运行脚本 `run.ps1`，它会自动检测您的 JDK 17 和 adb 环境，编译并启动 App。在根目录下执行：
 ```powershell
 .\run.ps1
 ```
+*提示：该脚本启动后会流式输出 App 日志，终端中按 `Ctrl + C` 可随时安全退出。*
 
-该脚本会自动帮你：
-1. 配置编译所需的 JDK 17 环境变量。
-2. 执行 Gradle 编译并安装应用到你的测试手机。
-3. 自动在手机上拉起本应用的主页面。
-4. 清空旧日志，提取当前 App 的进程 PID，在终端中**流式实时输出**该应用的 Debug 调试日志。
+**手动方式：**
+1. 配置 JDK 17 环境（替换为您实际的 JDK 17 路径）：
+   ```powershell
+   $env:JAVA_HOME = "C:\path\to\jdk-17"
+   $env:Path = "$env:JAVA_HOME\bin;" + $env:Path
+   ```
+2. 编译 Debug APK：
+   ```powershell
+   .\gradlew.bat assembleDebug
+   ```
+   生成的 APK 路径：`app\build\outputs\apk\debug\app-debug.apk`
+3. 安装到设备：
+   ```powershell
+   .\gradlew.bat installDebug
+   ```
 
-> 💡 **提示**：在终端中随时按下 **`Ctrl + C`** 键即可安全退出日志追踪。
+### 2. 运行时导入 Gemini API 密钥 (BYOK)
+
+应用采用安全的客户端密钥管理中心：
+1. 启动应用后，点击首页顶部的“密钥设置”（齿轮图标）进入 **API Key 管理中心**。
+2. 输入您的 Google Gemini API Key（支持单个或批量以逗号、换行分隔导入）。
+3. 密钥将由 Android Keystore（AES-256-GCM）安全地加密保存在本地（排除在系统备份之外），界面仅回显掩码。
+4. 验证成功后，即可开始圆桌提问。
+
+*注意：`.env` 文件仅供本地构建期 Python/PowerShell 辅助脚本使用，Android App 不会也无法在运行时读取 `.env` 里的密钥。*
 
 ---
 
@@ -144,7 +134,7 @@ java -version   # 应输出 openjdk 17
 | **核心关注** | **运行时交互与自动化 (Runtime E2E)** | **构建期预编译与资产抽取 (Build-phase Compile)** |
 | **主要职责** | 控制在线设备或模拟器执行截图调试、模拟触控、XML 树语义匹配、OpenCV 图像匹配定位等。 | 抽取名人 SKILL.md 思维模型、提取向量写入 Seeding 预设 JSON、生成莫兰迪插画 JPG 头像资产等。 |
 | **主要消费方** | 本地调试运行的 AI 代理（如 Antigravity）与运行期集成校验。 | Gradle 构建自动化脚本与打包静态 assets 资源。 |
-| **参考文档** | [tools/README.md](file:///d:/My_Elio/AI-Skill-Roundtable/tools/README.md) \| [test/README.md](file:///d:/My_Elio/AI-Skill-Roundtable/test/README.md) | [workspace/tools/README.md](file:///d:/My_Elio/AI-Skill-Roundtable/workspace/tools/README.md) |
+| **参考文档** | [tools/README.md](tools/README.md) \| [test/README.md](test/README.md) | [workspace/tools/README.md](workspace/tools/README.md) |
 
 ---
 
