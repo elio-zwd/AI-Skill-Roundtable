@@ -27,20 +27,27 @@ java -version
 
 ## 3. API 密钥配置
 
-密钥通过根目录 `.env` 文件注入，由 `app/build.gradle.kts` 中的 `getEnvValue()` 读取并注入 `BuildConfig`。
+应用采用安全的密钥管理中心（BYOK 模式），不在源码或 APK 中硬编码或硬注入任何 API Key，保证发布安全。
 
-```
-# .env 文件格式（不提交 Git）
+### 客户端密钥配置
+- 启动应用后，点击首页的密钥设置（齿轮图标）进入 **API Key 管理中心**。
+- 支持单个或批量导入（支持方括号、逗号、换行等多种分隔格式）。
+- 密钥经由 Android Keystore 加密（AES-256-GCM）后安全存储在本地 `noBackupFilesDir` 下，且已从自动备份规则中排除。
+- 界面永不回显明文，仅显示掩码指纹，确保运行时安全。
+
+### 本地脚本工具配置
+若需在 PC 端运行向量生成或摘要生成等 Python 脚本，需在项目根目录创建 `.env` 文件：
+```env
+# .env 文件（已被 .gitignore 忽略，禁止提交）
 GEMINI_API_KEY=AIzaSy...你的真实Key
 ```
-
-密钥在代码中通过 `BuildConfig.GEMINI_API_KEY` 访问，或从 ViewModel 的 SharedPreferences 读取（用户在设置页面配置）。
+本地 Python 工具在构建期将自动读取该环境变量。
 
 ## 4. 本地与生产环境差异
 
 | 项目 | 本地开发 | 生产 |
 |------|---------|------|
-| API Key | `.env` 文件注入 | 用户在 App 内自行填写 |
+| API Key | 客户端管理中心手动导入 / 本地脚本从 `.env` 读取 | 客户端管理中心手动导入 / 预留服务器下发 |
 | 数据库 | `fallbackToDestructiveMigration()` | 正式 Migration |
 | 编译模式 | Debug | Release（待配置签名） |
 | 日志级别 | OkHttp BODY 级别日志 | 关闭敏感日志 |

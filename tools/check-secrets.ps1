@@ -17,7 +17,8 @@ foreach ($file in $trackedSensitiveFiles) {
     if ($file) { $violations.Add("禁止跟踪敏感文件: $file") }
 }
 
-$workingMatches = git grep -n -I -E $combinedPattern -- ':!*.apk' ':!*.aab' 2>$null
+$gitGrepArgs = @('grep', '-n', '-I', '-E', $combinedPattern, '--', ':!*.apk', ':!*.aab')
+$workingMatches = & git $gitGrepArgs 2>$null
 if ($LASTEXITCODE -notin @(0, 1)) {
     throw "工作树密钥扫描失败。"
 }
@@ -25,7 +26,8 @@ foreach ($match in $workingMatches) {
     $violations.Add("工作树疑似密钥: $($match -replace ':.+$', ': [已遮蔽]')")
 }
 
-$forbiddenArchitecture = git grep -n -I -E 'REDACTED_GEMINI_API_KEY|BuildConfig\.GEMINI_API_KEY' -- ':!tools/check-secrets.ps1' 2>$null
+$gitArchArgs = @('grep', '-n', '-I', '-E', 'REDACTED_GEMINI_API_KEY|BuildConfig\.GEMINI_API_KEY', '--', ':!tools/check-secrets.ps1')
+$forbiddenArchitecture = & git $gitArchArgs 2>$null
 if ($LASTEXITCODE -notin @(0, 1)) {
     throw "密钥架构扫描失败。"
 }
@@ -39,7 +41,8 @@ foreach ($match in ($stagedPatch | Select-String -Pattern $combinedPattern)) {
 }
 
 if ($IncludeHistory) {
-    $historyMatches = git log -p --no-color HEAD -- . ':!*.apk' ':!*.aab' | Select-String -Pattern $combinedPattern
+    $gitLogArgs = @('log', '-p', '--no-color', 'HEAD', '--', '.', ':!*.apk', ':!*.aab')
+    $historyMatches = & git $gitLogArgs | Select-String -Pattern $combinedPattern
     foreach ($match in $historyMatches) {
         $violations.Add("HEAD 可达历史疑似密钥: 第 $($match.LineNumber) 行")
     }
