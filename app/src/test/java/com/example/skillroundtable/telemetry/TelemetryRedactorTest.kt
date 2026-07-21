@@ -19,13 +19,35 @@ class TelemetryRedactorTest {
     }
 
     @Test
-    fun redactsJwtAndGithubTokenWithoutDestroyingChineseText() {
+    fun redactsJwtGithubTokenAndJsonCredentialFieldsWithoutDestroyingChineseText() {
         val jwt = "eyJabcdefghijk.eyJabcdefghijk.abcdefghijklm"
         val github = "gh" + "p_" + "A".repeat(24)
-        val result = TelemetryRedactor.redact("普通中文内容 $jwt $github")
+        val result = TelemetryRedactor.redact(
+            "普通中文内容 $jwt $github {\"apiKey\":\"plain-secret-value\"}"
+        )
         assertTrue(result.startsWith("普通中文内容"))
         assertTrue(result.contains("[REDACTED_JWT]"))
         assertTrue(result.contains("[REDACTED_GITHUB_TOKEN]"))
+        assertFalse(result.contains("plain-secret-value"))
+    }
+
+    @Test
+    fun stripsUrlQueriesAndFragments() {
+        assertEquals(
+            "wss://example.test/live?[REDACTED_QUERY]",
+            TelemetryRedactor.stripUrlQuery("wss://example.test/live?key=secret#fragment")
+        )
+        assertEquals(
+            "https://example.test/path#[REDACTED_FRAGMENT]",
+            TelemetryRedactor.stripUrlQuery("https://example.test/path#access-token")
+        )
+    }
+
+    @Test
+    fun longInputAndNonPositiveTruncationDoNotThrow() {
+        val result = TelemetryRedactor.redact("普通内容".repeat(20_000))
+        assertTrue(result.isNotBlank())
+        assertEquals("…[已截断，原始长度 3]", truncateTelemetryText("123", 0))
     }
 
     @Test
