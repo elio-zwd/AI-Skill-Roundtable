@@ -6,6 +6,7 @@ import com.example.skillroundtable.network.keys.ApiKeyLease
 import com.example.skillroundtable.network.retry.ApiCallFailure
 import com.example.skillroundtable.network.retry.ApiRetryDecision
 import com.example.skillroundtable.network.retry.ApiRetryPolicy
+import com.example.skillroundtable.network.retry.safeCategory
 import com.example.skillroundtable.roundtable.RequestBudgetTracker
 import com.example.skillroundtable.telemetry.CloudInteractionRequestPolicy
 import com.example.skillroundtable.telemetry.CloudInteractionSettings
@@ -139,8 +140,8 @@ data class InteractionStep(
     val type: String,
     val content: List<InteractionContent> = emptyList(),
     val signature: String? = null,
-    val summary: String? = null,
-    val result: List<GoogleSearchResultItem>? = null
+    val summary: List<InteractionContent> = emptyList(),
+    val result: JsonElement? = null
 )
 
 @Serializable
@@ -331,6 +332,10 @@ object RetrofitClient {
                     return result
                 } catch (error: Exception) {
                     val failure = classifyFailure(error)
+                    PrivacySafeLogger.e(
+                        TAG,
+                        "API call failed (operation=$safeOperationName, category=${failure.safeCategory()})"
+                    )
                     lastFailure = failure
                     val decision = ApiRetryPolicy.getDecision(failure, sameKeyAttemptCount)
                     ApiRetryPolicy.handleKeyStatusUpdate(context, lease.keyId, failure)
