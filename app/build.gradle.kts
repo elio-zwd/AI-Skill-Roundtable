@@ -50,11 +50,11 @@ if (releaseStoreFile != null && !releaseStoreFile.isFile) {
 }
 
 android {
-    namespace = "com.example.skillroundtable"
+    namespace = "com.elio.skillroundtable"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.skillroundtable"
+        applicationId = "com.elio.skillroundtable"
         minSdk = 26
         targetSdk = 35
         versionCode = providers.gradleProperty("VERSION_CODE").orElse("1").get().toInt()

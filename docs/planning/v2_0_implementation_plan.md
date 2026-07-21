@@ -60,8 +60,8 @@ graph TD
 - 在 `callGeminiApi()` 中增加 `finishReason` 检查，若为 `MAX_TOKENS` 则追加提示词「请继续」续写
 
 **涉及文件**：
-- [`GeminiApi.kt`](file:///d:/My_Elio/AI-Skill-Roundtable/app/src/main/java/com/example/skillroundtable/network/GeminiApi.kt#L123-L130)
-- [`RoundtableViewModel.kt`](file:///d:/My_Elio/AI-Skill-Roundtable/app/src/main/java/com/example/skillroundtable/viewmodel/RoundtableViewModel.kt)
+- [`GeminiApi.kt`](file:///d:/My_Elio/AI-Skill-Roundtable/app/src/main/java/com/elio/skillroundtable/network/GeminiApi.kt#L123-L130)
+- [`RoundtableViewModel.kt`](file:///d:/My_Elio/AI-Skill-Roundtable/app/src/main/java/com/elio/skillroundtable/viewmodel/RoundtableViewModel.kt)
 
 ---
 
@@ -99,8 +99,8 @@ suspend fun runRoundtable(userQuestion: String, round: Int) {
 - [ ] 修改 prompt 拼装逻辑：第一轮不注入其他角色发言，第二轮注入上一轮完整发言
 
 **涉及文件**：
-- [`ChatSession.kt`](file:///d:/My_Elio/AI-Skill-Roundtable/app/src/main/java/com/example/skillroundtable/data/ChatSession.kt) — `Message` 实体新增 `roundIndex` 字段
-- [`RoundtableViewModel.kt`](file:///d:/My_Elio/AI-Skill-Roundtable/app/src/main/java/com/example/skillroundtable/viewmodel/RoundtableViewModel.kt) — 重构 `runRoundtable()`
+- [`ChatSession.kt`](file:///d:/My_Elio/AI-Skill-Roundtable/app/src/main/java/com/elio/skillroundtable/data/ChatSession.kt) — `Message` 实体新增 `roundIndex` 字段
+- [`RoundtableViewModel.kt`](file:///d:/My_Elio/AI-Skill-Roundtable/app/src/main/java/com/elio/skillroundtable/viewmodel/RoundtableViewModel.kt) — 重构 `runRoundtable()`
 
 ---
 
@@ -157,7 +157,7 @@ coroutineScope {
 ```
 
 **涉及文件**：
-- [`ApiKeyPool.kt`](file:///d:/My_Elio/AI-Skill-Roundtable/app/src/main/java/com/example/skillroundtable/network/ApiKeyPool.kt) — 新增 `assignRandomGroups(characters, availableKeys)` 函数
+- [`ApiKeyPool.kt`](file:///d:/My_Elio/AI-Skill-Roundtable/app/src/main/java/com/elio/skillroundtable/network/ApiKeyPool.kt) — 新增 `assignRandomGroups(characters, availableKeys)` 函数
 - `RoundtableViewModel.kt` — 调用时按随机分组 + 延迟策略编排
 
 ---
@@ -195,7 +195,7 @@ coroutineScope {
 
 **涉及文件**：
 - `RoundtableViewModel.kt` — 新增 `generateSessionTitle(sessionId, firstQuestion)` 函数
-- [`ChatSession.kt`](file:///d:/My_Elio/AI-Skill-Roundtable/app/src/main/java/com/example/skillroundtable/data/ChatSession.kt) — 新增 `updateSessionTitle(id, title)` DAO 方法
+- [`ChatSession.kt`](file:///d:/My_Elio/AI-Skill-Roundtable/app/src/main/java/com/elio/skillroundtable/data/ChatSession.kt) — 新增 `updateSessionTitle(id, title)` DAO 方法
 - `MainActivity.kt` — 对话列表 + 顶栏标题支持长按重命名
 
 ---
@@ -313,7 +313,7 @@ coroutineScope {
 ```
 
 **数据层变更**（Room Migration v4→v5）：
-- [`ChatSession.kt`](file:///d:/My_Elio/AI-Skill-Roundtable/app/src/main/java/com/example/skillroundtable/data/ChatSession.kt) — `Message` 实体新增：
+- [`ChatSession.kt`](file:///d:/My_Elio/AI-Skill-Roundtable/app/src/main/java/com/elio/skillroundtable/data/ChatSession.kt) — `Message` 实体新增：
   - `audioFilePath: String?` — 当前有效音频路径（`.wav` 或 `.aac`）
   - `audioFormat: String?` — `"wav"` 或 `"aac"`，标记当前格式
   - `audioSizeBytes: Long?` — 音频文件大小（字节），供音频库展示

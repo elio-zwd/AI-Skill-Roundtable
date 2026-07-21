@@ -9,7 +9,7 @@ RoundtableDatabase version = 5
 当前 Schema 由 Room/KSP 自动生成并提交到：
 
 ```text
-app/schemas/com.example.skillroundtable.data.RoundtableDatabase/5.json
+app/schemas/com.elio.skillroundtable.data.RoundtableDatabase/5.json
 ```
 
 禁止手工编造或修改 Schema JSON。实体或数据库版本发生变化后，应通过 Gradle 编译重新生成 Schema，并将真实差异与迁移实现一同提交。
@@ -98,7 +98,7 @@ voiceConfig TEXT NOT NULL DEFAULT 'Aoede'
 Instrumentation 测试文件：
 
 ```text
-app/src/androidTest/java/com/example/skillroundtable/data/RoundtableDatabaseMigrationTest.kt
+app/src/androidTest/java/com/elio/skillroundtable/data/RoundtableDatabaseMigrationTest.kt
 ```
 
 覆盖：
