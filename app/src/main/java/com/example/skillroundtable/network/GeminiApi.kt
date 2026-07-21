@@ -3,6 +3,12 @@ package com.example.skillroundtable.network
 import android.content.Context
 import android.util.Log
 import com.example.skillroundtable.BuildConfig
+import com.example.skillroundtable.network.keys.ApiKeyLease
+import com.example.skillroundtable.network.keys.ApiKeyScheduler
+import com.example.skillroundtable.network.retry.ApiCallFailure
+import com.example.skillroundtable.network.retry.ApiRetryDecision
+import com.example.skillroundtable.network.retry.ApiRetryPolicy
+import com.example.skillroundtable.roundtable.RequestBudgetTracker
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -19,6 +25,7 @@ import retrofit2.http.Query
 import java.util.concurrent.TimeUnit
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.JsonElement
+
 
 
 @Serializable
@@ -247,7 +254,7 @@ object RetrofitClient {
                 Regex("([?&]key=)[^&\\s]+"),
                 "$1[REDACTED]"
             )
-            Log.d("OkHttp", redactedMessage)
+            logD("OkHttp", redactedMessage)
         }.apply {
             level = if (BuildConfig.DEBUG) {
                 HttpLoggingInterceptor.Level.BODY
@@ -271,252 +278,182 @@ object RetrofitClient {
     }
 
     /**
-     * 调用 Interactions API 接口，在出错熔断时自动换绑。
+     * 底层通用网络请求执行引擎，实现确定的租约尝试、错误分类与重试策略、预算控制与指数退避。
      */
-    suspend fun createInteractionWithFallback(
+    suspend fun <T> executeWithBudgetAndRetry(
+        context: Context,
+        sessionId: Long,
+        attemptPlan: List<ApiKeyLease>,
+        tracker: RequestBudgetTracker,
+        operationName: String,
+        delayProvider: com.example.skillroundtable.roundtable.DelayProvider = com.example.skillroundtable.roundtable.DefaultDelayProvider,
+        isRequired: Boolean = true,
+        reserveForRequired: Int = 0,
+        block: suspend (ApiKeyLease) -> T
+    ): T {
+        var lastException: Exception? = null
+        var lastFailure: ApiCallFailure? = null
+        val attempts = mutableListOf<String>()
+
+        if (attemptPlan.isEmpty()) {
+            val emptyFailure = ApiCallFailure.Unknown(Exception("No available keys in plan"))
+            throw com.example.skillroundtable.network.retry.ApiExecutionException(
+                failure = emptyFailure,
+                operationName = operationName,
+                keyId = null,
+                cause = Exception("操作 [$operationName] 失败：可用的 API 密钥列表为空。")
+            )
+        }
+
+        val reserveForOtherRequired = (reserveForRequired - 1).coerceAtLeast(0)
+        for (lease in attemptPlan) {
+            // 开始请求前，首先校验并原子消费预算 (REQUIRED 与 OPTIONAL 区别消费，且遵守预留)
+            val consumed = if (isRequired) {
+                tracker.tryConsumeRequired(1, reserveForOtherRequired)
+            } else {
+                tracker.tryConsumeOptional(1, reserveForRequired)
+            }
+            if (!consumed) {
+                val budgetFailure = ApiCallFailure.Unknown(Exception("本问题 API 请求预算已耗尽或未满足预留配额。"))
+                throw com.example.skillroundtable.network.retry.ApiExecutionException(
+                    failure = budgetFailure,
+                    operationName = operationName,
+                    keyId = lease.keyId,
+                    cause = Exception("操作 [$operationName] 超过了本轮请求预算。已使用: ${tracker.getUsed()}, 预留主回答: $reserveForRequired")
+                )
+            }
+
+            var sameKeyAttemptCount = 0
+            while (true) {
+                try {
+                    logD(TAG, "[$operationName] 正在使用 Key ${lease.keyId} 执行请求...")
+                    val result = block(lease)
+                    ApiRetryPolicy.resetRateLimitCount(context, lease.keyId)
+                    ApiKeyPool.bindSessionKey(context, sessionId, lease.keyId)
+                    ApiKeyPool.setLastUsedKeyId(context, lease.keyId)
+                    return result
+                } catch (e: Exception) {
+                    val failure = when (e) {
+                        is retrofit2.HttpException -> {
+                            val code = e.code()
+                            val retryAfterHeader = e.response()?.headers()?.get("Retry-After")
+                            val retryAfterMs = ApiRetryPolicy.parseRetryAfterMs(retryAfterHeader)
+                            ApiCallFailure.Http(code, retryAfterMs)
+                        }
+                        is java.io.IOException -> ApiCallFailure.Network(e)
+                        is kotlinx.serialization.SerializationException -> ApiCallFailure.Serialization(e)
+                        else -> ApiCallFailure.Unknown(e)
+                    }
+
+                    attempts.add("${lease.keyId}: ${e.message ?: e.javaClass.simpleName}")
+                    lastException = e
+                    lastFailure = failure
+
+                    val decision = ApiRetryPolicy.getDecision(failure, sameKeyAttemptCount)
+                    ApiRetryPolicy.handleKeyStatusUpdate(context, lease.keyId, failure)
+
+                    when (decision) {
+                        ApiRetryDecision.STOP_REQUEST -> {
+                            throw com.example.skillroundtable.network.retry.ApiExecutionException(
+                                failure = failure,
+                                operationName = operationName,
+                                keyId = lease.keyId,
+                                cause = e
+                            )
+                        }
+                        ApiRetryDecision.RETRY_SAME_KEY -> {
+                            sameKeyAttemptCount++
+                            // HTTP 5xx 指数退避：第一次重试退避 1000ms，第二次退避 2000ms；其它网络异常默认 1000ms。
+                            val backoffMs = if (failure is ApiCallFailure.Http && failure.code in 500..599) {
+                                sameKeyAttemptCount * 1000L
+                            } else {
+                                1000L
+                            }
+                            delayProvider.delay(backoffMs)
+
+                            val retryConsumed = if (isRequired) {
+                                tracker.tryConsumeRequired(1, reserveForOtherRequired)
+                            } else {
+                                tracker.tryConsumeOptional(1, reserveForRequired)
+                            }
+                            if (!retryConsumed) {
+                                throw com.example.skillroundtable.network.retry.ApiExecutionException(
+                                    failure = ApiCallFailure.Unknown(Exception("重试时超出预算预留限制")),
+                                    operationName = operationName,
+                                    keyId = lease.keyId,
+                                    cause = Exception("操作 [$operationName] 重试时超过了本轮请求预算或预留配额。")
+                                )
+                            }
+                            continue
+                        }
+                        ApiRetryDecision.TRY_NEXT_KEY,
+                        ApiRetryDecision.COOLDOWN_AND_TRY_NEXT_KEY -> {
+                            break
+                        }
+                    }
+                }
+            }
+        }
+
+        val detail = attempts.joinToString(", ")
+        throw com.example.skillroundtable.network.retry.ApiExecutionException(
+            failure = lastFailure ?: ApiCallFailure.Unknown(Exception("所有 Key 均尝试失败")),
+            operationName = operationName,
+            keyId = null,
+            cause = lastException ?: Exception("操作 [$operationName] 失败，已尝试所有 Key。细节: [$detail]")
+        )
+    }
+
+    suspend fun createInteraction(
         context: Context,
         request: CreateInteractionRequest,
         sessionId: Long,
-        disableBan: Boolean = false
+        attemptPlan: List<ApiKeyLease>,
+        tracker: RequestBudgetTracker,
+        operationName: String = "CreateInteraction",
+        delayProvider: com.example.skillroundtable.roundtable.DelayProvider = com.example.skillroundtable.roundtable.DefaultDelayProvider,
+        isRequired: Boolean = true,
+        reserveForRequired: Int = 0
     ): Interaction {
-        var lastException: Exception? = null
-        val attempts = mutableListOf<String>()
-
-        for (attempt in 0 until ApiKeyPool.getAttemptCount(context)) {
-            val keyInfo = ApiKeyPool.getOrBindSessionKey(context, sessionId)
-            if (keyInfo == null) {
-                throw Exception("当前无可用内置 API Key，全部已被频控熔断。")
-            }
-
-            try {
-                Log.d(TAG, "正在使用会话级 Key ${keyInfo.id} 尝试调用 Interactions API (Model: ${request.model ?: request.agent})...")
-                val response = service.createInteraction(
-                    apiKey = keyInfo.key,
-                    request = request
-                )
-                ApiKeyPool.setLastUsedKeyId(context, keyInfo.id)
-                Log.d(TAG, "Key ${keyInfo.id} / Interactions API 调用成功！")
-                return response
-            } catch (e: retrofit2.HttpException) {
-                val code = e.code()
-                Log.w(TAG, "Key ${keyInfo.id} / Interactions API 调用失败，HTTP 状态码: $code")
-                attempts.add("${keyInfo.id}: HTTP $code")
-                if (code == 429) {
-                    if (!disableBan) {
-                        ApiKeyPool.banKey(context, keyInfo.id)
-                        Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
-                    } else {
-                        Log.w(TAG, "Key ${keyInfo.id} 遇到 429 频控，但已跳过熔断标记以防连带污染")
-                    }
-                }
-                lastException = e
-            } catch (e: Exception) {
-                Log.w(TAG, "Key ${keyInfo.id} / Interactions API 调用失败，非 HTTP 异常: ${e.message}")
-                attempts.add("${keyInfo.id}: ${e.message ?: "未知错误"}")
-                lastException = e
-            }
-
-            val nextKey = ApiKeyPool.getAvailableKeys(context).firstOrNull { it.id != keyInfo.id }
-            if (nextKey != null) {
-                Log.d(TAG, "会话 $sessionId 失败，换绑下一个 Key: ${nextKey.id}")
-                ApiKeyPool.bindSessionKey(context, sessionId, nextKey.id)
-            } else {
-                Log.w(TAG, "无其他备用可用 Key 可为会话 $sessionId 换绑")
-            }
+        return executeWithBudgetAndRetry(context, sessionId, attemptPlan, tracker, operationName, delayProvider, isRequired, reserveForRequired) { lease ->
+            service.createInteraction(apiKey = lease.secret, request = request)
         }
-        val detail = attempts.joinToString(", ")
-        throw Exception("Interactions 请求失败，已尝试轮询会话换绑 API Key。细节: [$detail]. 错误: ${lastException?.message ?: "未知错误"}")
     }
 
-    /**
-     * 对话级 API Key 绑定，在出错熔断时自动换绑。
-     */
-    suspend fun generateContentWithFallback(
+    suspend fun generateContent(
         context: Context,
         model: String,
         request: GenerateContentRequest,
         sessionId: Long,
-        disableBan: Boolean = false
+        attemptPlan: List<ApiKeyLease>,
+        tracker: RequestBudgetTracker,
+        operationName: String = "GenerateContent",
+        delayProvider: com.example.skillroundtable.roundtable.DelayProvider = com.example.skillroundtable.roundtable.DefaultDelayProvider,
+        isRequired: Boolean = true,
+        reserveForRequired: Int = 0
     ): GenerateContentResponse {
-        var lastException: Exception? = null
-        val attempts = mutableListOf<String>()
-        val prompt = request.contents.firstOrNull()?.parts?.firstOrNull()?.text ?: ""
-
-        for (attempt in 0 until ApiKeyPool.getAttemptCount(context)) {
-            val keyInfo = ApiKeyPool.getOrBindSessionKey(context, sessionId)
-            if (keyInfo == null) {
-                throw Exception("当前无可用内置 API Key，全部已被频控熔断。")
-            }
-
-            val startTime = System.currentTimeMillis()
-            try {
-                Log.d(TAG, "正在使用会话级 Key ${keyInfo.id} 尝试调用 $model...")
-                val response = service.generateContent(
-                    model = model,
-                    apiKey = keyInfo.key,
-                    request = request
-                )
-                ApiKeyPool.setLastUsedKeyId(context, keyInfo.id)
-                Log.d(TAG, "Key ${keyInfo.id} / $model 调用成功！")
-                return response
-            } catch (e: retrofit2.HttpException) {
-                val code = e.code()
-                Log.w(TAG, "Key ${keyInfo.id} / $model 调用失败，HTTP 状态码: $code")
-                attempts.add("${keyInfo.id}/$model: HTTP $code")
-                if (code == 429) {
-                    if (!disableBan) {
-                        ApiKeyPool.banKey(context, keyInfo.id)
-                        Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
-                    } else {
-                        Log.w(TAG, "Key ${keyInfo.id} 遇到 429 频控，但已跳过熔断标记以防连带污染")
-                    }
-                }
-                lastException = e
-            } catch (e: Exception) {
-                Log.w(TAG, "Key ${keyInfo.id} / $model 调用失败，非 HTTP 异常: ${e.message}")
-                attempts.add("${keyInfo.id}/$model: ${e.message ?: "未知错误"}")
-                lastException = e
-            }
-
-            val nextKey = ApiKeyPool.getAvailableKeys(context).firstOrNull { it.id != keyInfo.id }
-            if (nextKey != null) {
-                Log.d(TAG, "会话 $sessionId 失败，换绑下一个 Key: ${nextKey.id}")
-                ApiKeyPool.bindSessionKey(context, sessionId, nextKey.id)
-            } else {
-                Log.w(TAG, "无其他备用可用 Key 可为会话 $sessionId 换绑")
-            }
+        return executeWithBudgetAndRetry(context, sessionId, attemptPlan, tracker, operationName, delayProvider, isRequired, reserveForRequired) { lease ->
+            service.generateContent(model = model, apiKey = lease.secret, request = request)
         }
-        val detail = attempts.joinToString(", ")
-        throw Exception("请求失败，已尝试轮询会话换绑 API Key。细节: [$detail]. 错误: ${lastException?.message ?: "未知错误"}")
     }
 
-    /**
-     * 调用 Gemini 1M Context Broker 路由器。
-     * 策略：使用指定的 model（通常为 gemini-3.1-flash-lite-preview），
-     * 在失败时换绑下一个 Key 重新请求。
-     */
-    suspend fun callBrokerRouterWithFallback(
-        context: Context,
-        model: String,
-        request: GenerateContentRequest,
-        sessionId: Long,
-        disableBan: Boolean = false
-    ): GenerateContentResponse {
-        var lastException: Exception? = null
-        val attempts = mutableListOf<String>()
-        val prompt = request.contents.firstOrNull()?.parts?.firstOrNull()?.text ?: ""
-
-        for (attempt in 0 until ApiKeyPool.getAttemptCount(context)) {
-            val keyInfo = ApiKeyPool.getOrBindSessionKey(context, sessionId)
-            if (keyInfo == null) {
-                throw Exception("当前无可用内置 API Key，全部已被熔断。")
-            }
-
-            val startTime = System.currentTimeMillis()
-            try {
-                Log.d(TAG, "正在使用会话级 Key ${keyInfo.id} 尝试调用 Broker $model...")
-                val response = service.generateContent(
-                    model = model,
-                    apiKey = keyInfo.key,
-                    request = request
-                )
-                ApiKeyPool.setLastUsedKeyId(context, keyInfo.id)
-                Log.d(TAG, "Key ${keyInfo.id} / Broker $model 调用成功！")
-                return response
-            } catch (e: retrofit2.HttpException) {
-                val code = e.code()
-                Log.w(TAG, "Key ${keyInfo.id} / Broker $model 失败，状态码: $code")
-                attempts.add("${keyInfo.id}/$model: HTTP $code")
-                if (code == 429) {
-                    if (!disableBan) {
-                        ApiKeyPool.banKey(context, keyInfo.id)
-                        Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
-                    } else {
-                        Log.w(TAG, "Key ${keyInfo.id} 遇到 429 频控，但已跳过熔断标记以防连带污染")
-                    }
-                }
-                lastException = e
-            } catch (e: Exception) {
-                Log.w(TAG, "Key ${keyInfo.id} / Broker $model 失败，非 HTTP 异常: ${e.message}")
-                attempts.add("${keyInfo.id}/$model: ${e.message ?: "未知错误"}")
-                lastException = e
-            }
-
-            // 出错时，自动换绑下一个可用的 Key
-            val nextKey = ApiKeyPool.getAvailableKeys(context).firstOrNull { it.id != keyInfo.id }
-            if (nextKey != null) {
-                Log.d(TAG, "会话 $sessionId Broker 失败，换绑下一个 Key: ${nextKey.id}")
-                ApiKeyPool.bindSessionKey(context, sessionId, nextKey.id)
-            } else {
-                Log.w(TAG, "无其他备用可用 Key 可为会话 $sessionId 换绑")
-            }
-        }
-        val detail = attempts.joinToString(", ")
-        throw Exception("Broker 路由器请求失败。细节: [$detail]. 错误: ${lastException?.message ?: "未知错误"}")
-    }
-
-    /**
-     * 提取输入文本的 Embedding 向量。
-     * 策略：使用会话级 API Key 绑定，在出错熔断时换绑。
-     */
-    suspend fun embedContentWithFallback(
+    suspend fun embedContent(
         context: Context,
         text: String,
         sessionId: Long,
-        disableBan: Boolean = false
+        attemptPlan: List<ApiKeyLease>,
+        tracker: RequestBudgetTracker,
+        operationName: String = "EmbedContent",
+        delayProvider: com.example.skillroundtable.roundtable.DelayProvider = com.example.skillroundtable.roundtable.DefaultDelayProvider,
+        isRequired: Boolean = true,
+        reserveForRequired: Int = 0
     ): List<Float> {
         val request = EmbedContentRequest(
             content = Content(parts = listOf(Part(text = text)))
         )
-
-        var lastException: Exception? = null
-        val attempts = mutableListOf<String>()
-
-        for (attempt in 0 until ApiKeyPool.getAttemptCount(context)) {
-            val keyInfo = ApiKeyPool.getOrBindSessionKey(context, sessionId)
-            if (keyInfo == null) {
-                throw Exception("当前无可用内置 API Key 获取 Embedding，全部已被熔断。")
-            }
-
-            try {
-                Log.d(TAG, "正在使用会话级 Key ${keyInfo.id} 获取 Embedding...")
-                val response = service.embedContent(
-                    apiKey = keyInfo.key,
-                    request = request
-                )
-                ApiKeyPool.setLastUsedKeyId(context, keyInfo.id)
-                Log.d(TAG, "Key ${keyInfo.id} 获取 Embedding 成功！")
-                return response.embedding.values
-            } catch (e: retrofit2.HttpException) {
-                val code = e.code()
-                Log.w(TAG, "Key ${keyInfo.id} 获取 Embedding 失败，HTTP 状态码: $code")
-                attempts.add("${keyInfo.id}: HTTP $code")
-                if (code == 429) {
-                    if (!disableBan) {
-                        ApiKeyPool.banKey(context, keyInfo.id)
-                        Log.w(TAG, "已熔断 Key ${keyInfo.id} 24小时")
-                    } else {
-                        Log.w(TAG, "Key ${keyInfo.id} 遇到 429 频控，但已跳过熔断标记以防连带污染")
-                    }
-                }
-                lastException = e
-            } catch (e: Exception) {
-                Log.w(TAG, "Key ${keyInfo.id} 获取 Embedding 失败，非 HTTP 异常: ${e.message}")
-                attempts.add("${keyInfo.id}: ${e.message ?: "未知错误"}")
-                lastException = e
-            }
-
-            // 出错时，自动换绑下一个可用的 Key
-            val nextKey = ApiKeyPool.getAvailableKeys(context).firstOrNull { it.id != keyInfo.id }
-            if (nextKey != null) {
-                Log.d(TAG, "会话 $sessionId Embedding 失败，换绑下一个 Key: ${nextKey.id}")
-                ApiKeyPool.bindSessionKey(context, sessionId, nextKey.id)
-            } else {
-                Log.w(TAG, "无其他备用可用 Key 可为会话 $sessionId 换绑")
-            }
+        return executeWithBudgetAndRetry(context, sessionId, attemptPlan, tracker, operationName, delayProvider, isRequired, reserveForRequired) { lease ->
+            service.embedContent(apiKey = lease.secret, request = request).embedding.values
         }
-        val detail = attempts.joinToString(", ")
-        throw Exception("获取 Embedding 失败，已尝试轮询 Key。细节: [$detail]. 错误: ${lastException?.message ?: "未知错误"}")
     }
 }
 
@@ -658,7 +595,7 @@ class TelemetryInterceptor : okhttp3.Interceptor {
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("TelemetryInterceptor", "解析请求 Prompt 失败", e)
+            logE("TelemetryInterceptor", "解析请求 Prompt 失败", e)
         }
 
         var response: okhttp3.Response? = null
@@ -755,7 +692,7 @@ class TelemetryInterceptor : okhttp3.Interceptor {
                     }
                 }
             } catch (e: Exception) {
-                android.util.Log.e("TelemetryInterceptor", "解析响应文本失败", e)
+                logE("TelemetryInterceptor", "解析响应文本失败", e)
             }
         }
 
@@ -774,5 +711,21 @@ class TelemetryInterceptor : okhttp3.Interceptor {
             throw lastException
         }
         return response!!
+    }
+}
+
+private fun logD(tag: String, msg: String) {
+    try {
+        android.util.Log.d(tag, msg)
+    } catch (_: Throwable) {
+        println("[$tag] $msg")
+    }
+}
+
+private fun logE(tag: String, msg: String, tr: Throwable? = null) {
+    try {
+        android.util.Log.e(tag, msg, tr)
+    } catch (_: Throwable) {
+        println("[$tag] ERROR: $msg ${tr?.message ?: ""}")
     }
 }

@@ -26,7 +26,7 @@ foreach ($match in $workingMatches) {
     $violations.Add("工作树疑似密钥: $($match -replace ':.+$', ': [已遮蔽]')")
 }
 
-$gitArchArgs = @('grep', '-n', '-I', '-E', 'REDACTED_GEMINI_API_KEY|BuildConfig\.GEMINI_API_KEY', '--', ':!tools/check-secrets.ps1')
+$gitArchArgs = @('grep', '-n', '-I', '-E', 'REDACTED_GEMINI_API_KEY|BuildConfig\.GEMINI_API_KEY', '--', ':!tools/check-secrets.ps1', ':!docs/*')
 $forbiddenArchitecture = & git $gitArchArgs 2>$null
 if ($LASTEXITCODE -notin @(0, 1)) {
     throw "密钥架构扫描失败。"

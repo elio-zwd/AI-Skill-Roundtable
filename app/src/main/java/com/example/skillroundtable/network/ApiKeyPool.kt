@@ -247,6 +247,29 @@ object ApiKeyPool {
         refreshSummaries(context)
     }
 
+    /**
+     * 将特定 Key 标记为 INVALID 状态并存储消息。
+     */
+    fun markKeyInvalid(context: Context, keyId: String, message: String) {
+        ensureInitialized(context)
+        updateRecord(keyId) {
+            it.copy(
+                validationState = ApiKeyValidationState.INVALID,
+                validationMessage = message,
+                lastValidatedAt = System.currentTimeMillis()
+            )
+        }
+    }
+
+    /**
+     * 将特定 Key 标记为冷却状态，定义具体冷却时长。
+     */
+    fun banKeyWithDuration(context: Context, keyId: String, durationMs: Long) {
+        ensureInitialized(context)
+        getPrefs(context).edit().putLong("ban_$keyId", System.currentTimeMillis() + durationMs).apply()
+        refreshSummaries(context)
+    }
+
     fun clearBans(context: Context) {
         ensureInitialized(context)
         val editor = getPrefs(context).edit()
@@ -260,24 +283,6 @@ object ApiKeyPool {
     }
 
     fun getLastUsedKeyId(context: Context): String? = getPrefs(context).getString(KEY_LAST_USED_ID, null)
-
-    fun assignRandomGroups(
-        characters: List<com.example.skillroundtable.data.Character>,
-        availableKeys: List<ApiKeyInfo>
-    ): Map<ApiKeyInfo, List<com.example.skillroundtable.data.Character>> {
-        if (characters.isEmpty() || availableKeys.isEmpty()) return emptyMap()
-        val result = linkedMapOf<ApiKeyInfo, MutableList<com.example.skillroundtable.data.Character>>()
-        var remaining = characters.shuffled()
-        var groupIndex = 0
-        while (remaining.isNotEmpty()) {
-            val takeSize = minOf((1..3).random(), remaining.size)
-            val keyInfo = availableKeys[groupIndex % availableKeys.size]
-            result.getOrPut(keyInfo) { mutableListOf() }.addAll(remaining.take(takeSize))
-            remaining = remaining.drop(takeSize)
-            groupIndex++
-        }
-        return result.mapValues { it.value.toList() }
-    }
 
     fun addLog(log: ApiLog) {
         synchronized(apiLogs) {
