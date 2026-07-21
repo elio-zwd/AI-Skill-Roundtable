@@ -78,6 +78,12 @@ class RoundtableBudgetManager(val budget: RoundtableBudget = RoundtableBudget())
     private val answeredCharacters = ConcurrentHashMap<Long, MutableSet<String>>()
     private val selectedParticipants = ConcurrentHashMap<Long, List<String>>()
 
+    /**
+     * 保存本问题第一次锁定时的角色快照。角色在问题进行中被停用、编辑或删除时，
+     * 当前问题仍使用原快照完成后续轮次，避免锁定 ID 与当前激活列表不一致导致死锁。
+     */
+    private val selectedParticipantSnapshots = ConcurrentHashMap<Long, List<Character>>()
+
     fun getTracker(questionRunId: Long): RequestBudgetTracker {
         return trackers.computeIfAbsent(questionRunId) {
             RequestBudgetTracker(budget.maxApiCallsPerQuestion)
@@ -101,13 +107,25 @@ class RoundtableBudgetManager(val budget: RoundtableBudget = RoundtableBudget())
     }
 
     fun setSelectedParticipants(questionRunId: Long, ids: List<String>) {
-        selectedParticipants[questionRunId] = ids
+        selectedParticipants[questionRunId] = ids.toList()
+        selectedParticipantSnapshots.remove(questionRunId)
+    }
+
+    fun getSelectedParticipantSnapshots(questionRunId: Long): List<Character>? {
+        return selectedParticipantSnapshots[questionRunId]
+    }
+
+    fun setSelectedParticipantSnapshots(questionRunId: Long, participants: List<Character>) {
+        val snapshots = participants.toList()
+        selectedParticipantSnapshots[questionRunId] = snapshots
+        selectedParticipants[questionRunId] = snapshots.map { it.id }
     }
 
     fun clearQuestion(questionRunId: Long) {
         trackers.remove(questionRunId)
         answeredCharacters.remove(questionRunId)
         selectedParticipants.remove(questionRunId)
+        selectedParticipantSnapshots.remove(questionRunId)
     }
 }
 
@@ -143,75 +161,103 @@ class RoundtableOrchestrator(
         val budget = budgetManager.budget
 
         try {
-            val activeChars = dbGateway.getActiveCharacters()
-            if (activeChars.isEmpty()) {
-                return OrchestrationResult(emptyList(), emptyList(), tracker.getUsed(), false, false)
+            if (tracker.isExceeded()) {
+                return OrchestrationResult(emptyList(), emptyList(), tracker.getUsed(), true, false)
             }
 
-            // 1. 获取消息，用以分析 question 文本 (如果在第一次运行需要 Embedding 的话)
+            val activeChars = dbGateway.getActiveCharacters()
+
+            // 1. 获取消息，用以分析 question 文本（第一次运行且需要 Embedding 时使用）。
             val messages = dbGateway.getMessages(sessionId)
             val runMsgIndex = messages.indexOfFirst { it.id == questionRunId }
             if (runMsgIndex == -1) {
                 return OrchestrationResult(emptyList(), emptyList(), tracker.getUsed(), false, false)
             }
 
-            // 2. 确定当前提问所选定的 6 个角色（同一个问题第一次确定后名单即固化，后续绝对不再混入第 7 位角色）
+            // 2. 确定并固化本问题参与者。首次锁定角色对象快照，后续轮次不受角色
+            // 激活状态、编辑或删除影响，也绝不补入第 7 位角色。
+            val cachedSnapshots = budgetManager.getSelectedParticipantSnapshots(questionRunId)
             val cachedSelectedIds = budgetManager.getSelectedParticipants(questionRunId)
-            val selectedParticipantIds = if (cachedSelectedIds != null) {
-                cachedSelectedIds
-            } else {
-                // 第一次执行，需要在此确定并固化名单
-                val sortedAllIds = if (isSemanticRoutingEnabled) {
-                    // 开启语义路由：对全部激活角色排序，再取相似度最高的前 6 位
-                    val lastUserMsg = messages[runMsgIndex]
-                    try {
-                        val attemptPlan = createAttemptPlan(context, sessionId)
-                        val requiredCount = minOf(activeChars.size, budget.maxCharactersPerQuestion)
-                        val questionVector = answerGateway.getEmbedding(
-                            context = context,
-                            text = lastUserMsg.text,
-                            sessionId = sessionId,
-                            attemptPlan = attemptPlan,
-                            tracker = tracker,
-                            isRequired = false,
-                            reserveForRequired = requiredCount
-                        )
-                        activeChars.map { character ->
-                            val charVector = try {
-                                if (character.skillDescriptionVector.isBlank()) emptyList()
-                                else character.skillDescriptionVector.split(",").map { it.toFloat() }
-                            } catch (e: Exception) {
-                                emptyList()
-                            }
-                            val similarity = if (charVector.isNotEmpty() && questionVector.isNotEmpty()) {
-                                calculateCosineSimilarity(questionVector, charVector)
-                            } else {
-                                0f
-                            }
-                            Pair(character.id, similarity)
-                        }.sortedByDescending { it.second }.map { it.first }
-                    } catch (e: Exception) {
-                        activeChars.map { it.id }
+            val selectedChars = when {
+                cachedSnapshots != null -> cachedSnapshots
+                cachedSelectedIds != null -> {
+                    // 兼容进程内旧状态或测试直接写入 ID 的情况。只能从当前可用列表恢复，
+                    // 不会使用新角色替换缺失角色。
+                    val restored = cachedSelectedIds.mapNotNull { id ->
+                        activeChars.firstOrNull { it.id == id }
                     }
-                } else {
-                    activeChars.map { it.id }
+                    if (restored.isNotEmpty()) {
+                        budgetManager.setSelectedParticipantSnapshots(questionRunId, restored)
+                    }
+                    restored
                 }
-                val topSix = sortedAllIds.take(budget.maxCharactersPerQuestion)
-                budgetManager.setSelectedParticipants(questionRunId, topSix)
-                topSix
+                else -> {
+                    if (activeChars.isEmpty()) {
+                        emptyList()
+                    } else {
+                        val sortedAllChars = if (isSemanticRoutingEnabled) {
+                            val lastUserMsg = messages[runMsgIndex]
+                            try {
+                                val attemptPlan = createAttemptPlan(context, sessionId)
+                                val requiredCount = minOf(activeChars.size, budget.maxCharactersPerQuestion)
+                                val questionVector = answerGateway.getEmbedding(
+                                    context = context,
+                                    text = lastUserMsg.text,
+                                    sessionId = sessionId,
+                                    attemptPlan = attemptPlan,
+                                    tracker = tracker,
+                                    isRequired = false,
+                                    reserveForRequired = requiredCount
+                                )
+                                activeChars.map { character ->
+                                    val charVector = try {
+                                        if (character.skillDescriptionVector.isBlank()) emptyList()
+                                        else character.skillDescriptionVector.split(",").map { it.toFloat() }
+                                    } catch (e: Exception) {
+                                        emptyList()
+                                    }
+                                    val similarity = if (charVector.isNotEmpty() && questionVector.isNotEmpty()) {
+                                        calculateCosineSimilarity(questionVector, charVector)
+                                    } else {
+                                        0f
+                                    }
+                                    Pair(character, similarity)
+                                }.sortedByDescending { it.second }.map { it.first }
+                            } catch (e: Exception) {
+                                activeChars
+                            }
+                        } else {
+                            activeChars
+                        }
+
+                        val selected = sortedAllChars.take(budget.maxCharactersPerQuestion)
+                        budgetManager.setSelectedParticipantSnapshots(questionRunId, selected)
+                        selected
+                    }
+                }
             }
 
-            // 根据固化的 selectedParticipantIds 顺序还原 Character 对象
-            val selectedChars = selectedParticipantIds.mapNotNull { id -> activeChars.find { it.id == id } }
+            val selectedParticipantIds = selectedChars.map { it.id }
+            if (selectedParticipantIds.isEmpty()) {
+                // 没有任何已锁定角色可执行时将问题关闭，避免操作栏不断允许无效重试。
+                tracker.close()
+                return OrchestrationResult(emptyList(), emptyList(), tracker.getUsed(), false, false)
+            }
 
-            // 3. 计算当前轮次
-            val messagesSinceRun = messages.subList(runMsgIndex + 1, messages.size)
+            // 3. 只处理当前用户问题到下一条用户消息之前的消息。
+            val messagesSinceRun = messages
+                .subList(runMsgIndex + 1, messages.size)
+                .takeWhile { it.senderId != "user" }
+
             val currentRound = if (messagesSinceRun.isEmpty()) {
                 1
             } else {
-                val maxRound = messagesSinceRun.maxOf { it.roundIndex }
-                val currentRoundMessages = messagesSinceRun.filter { it.roundIndex == maxRound }
-                val answeredInCurrentRound = currentRoundMessages.map { it.senderId }.toSet()
+                val completedMessages = messagesSinceRun.filterNot { it.isPending }
+                val maxRound = completedMessages.maxOfOrNull { it.roundIndex } ?: 1
+                val answeredInCurrentRound = completedMessages
+                    .filter { it.roundIndex == maxRound }
+                    .map { it.senderId }
+                    .toSet()
 
                 if (selectedParticipantIds.all { it in answeredInCurrentRound }) {
                     maxRound + 1
@@ -220,25 +266,35 @@ class RoundtableOrchestrator(
                 }
             }
 
-            val messagesInTargetRound = messagesSinceRun.filter { it.roundIndex == currentRound && !it.isPending }
+            val messagesInTargetRound = messagesSinceRun.filter {
+                it.roundIndex == currentRound && !it.isPending
+            }
             val answeredInTargetRound = messagesInTargetRound.map { it.senderId }.toSet()
-            
             val sortedChars = selectedChars.filter { it.id !in answeredInTargetRound }
 
             if (sortedChars.isEmpty()) {
+                tracker.close()
                 return OrchestrationResult(emptyList(), emptyList(), tracker.getUsed(), false, false)
             }
 
-            // 4. 严格串行执行
+            // 当前剩余额度不足以保证每个待回答角色至少一次主回答时，不启动部分轮次。
+            if (tracker.getRemaining() < sortedChars.size) {
+                tracker.close()
+                return OrchestrationResult(emptyList(), emptyList(), tracker.getUsed(), true, false)
+            }
+
+            // 保护当前轮所有待回答角色。标题等异步 OPTIONAL 请求也必须遵守该保护额度。
+            tracker.setRequiredReserve(sortedChars.size)
+
+            // 4. 严格串行执行。
             for ((index, character) in sortedChars.withIndex()) {
-                // 限额限制（只在有新角色加入时校验 6 个不同角色上限）
+                // 限额限制只约束不同参与角色数量，不阻止锁定角色进入后续轮次。
                 if (!answered.contains(character.id) && answered.size >= budget.maxCharactersPerQuestion) {
                     isLimitExceeded = true
                     break
                 }
 
-                // 预算超额熔断（主回答预留至少 1 次额度）
-                if (tracker.isExceeded() || tracker.getUsed() >= budget.maxApiCallsPerQuestion) {
+                if (tracker.isExceeded()) {
                     isStoppedByBudget = true
                     break
                 }
@@ -264,7 +320,7 @@ class RoundtableOrchestrator(
                         throw IllegalStateException("没有可用的 API 密钥计划")
                     }
 
-                    // 尚未回答主回答的角色总人数（包括当前角色本身），用以可选请求的预留额度判定
+                    // 包含当前角色本身。底层网络执行器会转换为“为其他角色保留”的数量。
                     val remainingParticipantsCount = sortedChars.size - index
 
                     val reply = answerGateway.callGeminiApi(
@@ -292,7 +348,6 @@ class RoundtableOrchestrator(
 
                     completed.add(character.id)
                     answered.add(character.id)
-
                 } catch (e: Exception) {
                     OrchestratorLogger.e("RoundtableOrchestrator", "智囊回答失败: ${character.name}", e)
                     dbGateway.deleteMessageById(pendingMsgId)
@@ -304,6 +359,14 @@ class RoundtableOrchestrator(
                 }
             }
 
+            // 根据数据库中的真实完成状态，保护完成当前轮或开启下一整轮所需的最低额度。
+            // 如果余额已不足，则关闭该问题，防止之后只产生半轮回答。
+            updateRequiredReserveForNextStep(
+                sessionId = sessionId,
+                questionRunId = questionRunId,
+                selectedParticipantIds = selectedParticipantIds,
+                tracker = tracker
+            )
         } finally {
             roundtableMutex.unlock()
         }
@@ -315,6 +378,48 @@ class RoundtableOrchestrator(
             isStoppedByBudget = isStoppedByBudget,
             isLimitExceeded = isLimitExceeded
         )
+    }
+
+    private suspend fun updateRequiredReserveForNextStep(
+        sessionId: Long,
+        questionRunId: Long,
+        selectedParticipantIds: List<String>,
+        tracker: RequestBudgetTracker
+    ) {
+        if (selectedParticipantIds.isEmpty()) {
+            tracker.close()
+            return
+        }
+
+        val latestMessages = dbGateway.getMessages(sessionId)
+        val runMsgIndex = latestMessages.indexOfFirst { it.id == questionRunId }
+        if (runMsgIndex == -1) {
+            tracker.close()
+            return
+        }
+
+        val messagesSinceRun = latestMessages
+            .subList(runMsgIndex + 1, latestMessages.size)
+            .takeWhile { it.senderId != "user" }
+            .filterNot { it.isPending }
+
+        val maxRound = messagesSinceRun.maxOfOrNull { it.roundIndex } ?: 1
+        val answeredInLatestRound = messagesSinceRun
+            .filter { it.roundIndex == maxRound }
+            .map { it.senderId }
+            .toSet()
+
+        val missingInCurrentRound = selectedParticipantIds.count { it !in answeredInLatestRound }
+        val requiredForNextStep = if (missingInCurrentRound > 0) {
+            missingInCurrentRound
+        } else {
+            selectedParticipantIds.size
+        }
+
+        tracker.setRequiredReserve(requiredForNextStep)
+        if (tracker.getRemaining() < requiredForNextStep) {
+            tracker.close()
+        }
     }
 
     private fun calculateCosineSimilarity(vectorA: List<Float>, vectorB: List<Float>): Float {
