@@ -9,6 +9,7 @@ import com.example.skillroundtable.network.retry.ApiRetryPolicy
 import com.example.skillroundtable.roundtable.RequestBudgetTracker
 import com.example.skillroundtable.telemetry.CloudInteractionRequestPolicy
 import com.example.skillroundtable.telemetry.CloudInteractionSettings
+import com.example.skillroundtable.telemetry.InteractionChainStore
 import com.example.skillroundtable.telemetry.PrivacySafeLogger
 import com.example.skillroundtable.telemetry.TelemetryInterceptor
 import com.example.skillroundtable.telemetry.TelemetryRepository
@@ -240,6 +241,8 @@ interface GeminiApiService {
 object RetrofitClient {
     private const val TAG = "RetrofitClient"
     private const val BASE_URL = "https://generativelanguage.googleapis.com/"
+    private const val MAIN_ANSWER_PREFIX = "MainAnswer-"
+    private const val CONTINUE_ANSWER_PREFIX = "ContinueAnswer-"
 
     private val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(90, TimeUnit.SECONDS)
@@ -398,16 +401,25 @@ object RetrofitClient {
         reserveForRequired: Int = 0
     ): Interaction {
         TelemetryRepository.init(context)
+        val cloudEnabled = CloudInteractionSettings.isEnabled(context)
+        val characterId = interactionCharacterId(operationName)
+        val requestedPreviousId = request.previousInteractionId
+            ?.takeIf(String::isNotBlank)
+            ?: if (cloudEnabled && operationName.startsWith(MAIN_ANSWER_PREFIX) && characterId != null) {
+                InteractionChainStore.get(sessionId, characterId)
+            } else {
+                null
+            }
         val cloudPolicy = CloudInteractionRequestPolicy.apply(
-            enabled = CloudInteractionSettings.isEnabled(context),
+            enabled = cloudEnabled,
             requestedStore = request.store,
-            requestedPreviousInteractionId = request.previousInteractionId
+            requestedPreviousInteractionId = requestedPreviousId
         )
         val privacySafeRequest = request.copy(
             store = cloudPolicy.store,
             previousInteractionId = cloudPolicy.previousInteractionId
         )
-        return executeWithBudgetAndRetry(
+        val response = executeWithBudgetAndRetry(
             context,
             sessionId,
             attemptPlan,
@@ -419,6 +431,14 @@ object RetrofitClient {
         ) { lease ->
             service.createInteraction(apiKey = lease.secret, request = privacySafeRequest)
         }
+        if (
+            cloudPolicy.store &&
+            characterId != null &&
+            CloudInteractionSettings.isEnabled(context)
+        ) {
+            InteractionChainStore.put(sessionId, characterId, response.id)
+        }
+        return response
     }
 
     suspend fun generateContent(
@@ -494,6 +514,23 @@ object RetrofitClient {
             .filter { it.isLetterOrDigit() || it == '_' }
             .take(80)
         return base.ifBlank { "ApiOperation" }
+    }
+
+    private fun interactionCharacterId(operationName: String): String? {
+        val raw = when {
+            operationName.startsWith(MAIN_ANSWER_PREFIX) -> {
+                operationName.removePrefix(MAIN_ANSWER_PREFIX)
+            }
+            operationName.startsWith(CONTINUE_ANSWER_PREFIX) -> {
+                operationName.removePrefix(CONTINUE_ANSWER_PREFIX)
+            }
+            else -> return null
+        }
+        return raw.takeIf { characterId ->
+            characterId.isNotBlank() &&
+                characterId.length <= 100 &&
+                characterId.all { it.isLetterOrDigit() || it == '_' || it == '-' }
+        }
     }
 
     private fun sanitizedFailureException(
