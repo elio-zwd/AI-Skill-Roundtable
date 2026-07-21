@@ -1,8 +1,6 @@
 package com.example.skillroundtable.data
 
 import android.content.Context
-import android.database.sqlite.SQLiteDatabase
-import androidx.room.Room
 import androidx.room.testing.MigrationTestHelper
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
@@ -11,10 +9,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -25,7 +21,7 @@ class RoundtableDatabaseMigrationTest {
     @get:Rule
     val migrationHelper = MigrationTestHelper(
         InstrumentationRegistry.getInstrumentation(),
-        RoundtableDatabase::class.java,
+        RoundtableDatabase::class.java
     )
 
     private val context: Context
@@ -42,143 +38,206 @@ class RoundtableDatabaseMigrationTest {
     }
 
     @Test
-    fun migration3To4_addsRoundIndexAndPreservesMessages() {
-        val legacyHelper = createLegacyDatabase(version = 3, ::createVersion3Schema)
-        val database = legacyHelper.writableDatabase
-        insertVersion3Data(database)
+    fun migration1To5_matchesCurrentSchemaAndPreservesData() {
+        val migrated = migrateLegacyDatabase(
+            version = 1,
+            createSchema = ::createVersion1Schema
+        )
 
-        RoundtableDatabase.MIGRATION_3_4.migrate(database)
-
-        assertTrue(columnExists(database, "messages", "roundIndex"))
-        database.query(
-            "SELECT text, roundIndex FROM messages WHERE id = 1",
-        ).use { cursor ->
-            assertTrue(cursor.moveToFirst())
-            assertEquals("legacy message", cursor.getString(cursor.getColumnIndexOrThrow("text")))
-            assertEquals(0, cursor.getInt(cursor.getColumnIndexOrThrow("roundIndex")))
-        }
-
-        legacyHelper.close()
+        assertMigratedData(
+            database = migrated,
+            expectedSkillAssetPath = "",
+            expectedSkillDescriptionVector = "",
+            expectedRoundIndex = 0
+        )
+        migrated.close()
     }
 
     @Test
-    fun migration4To5_matchesCurrentSchemaAndPreservesData() {
-        val legacyHelper = createLegacyDatabase(version = 4, ::createVersion4Schema)
-        val database = legacyHelper.writableDatabase
-        insertVersion4Data(database)
-        legacyHelper.close()
-
-        val migrated = migrationHelper.runMigrationsAndValidate(
-            TEST_DATABASE,
-            5,
-            true,
-            RoundtableDatabase.MIGRATION_4_5,
+    fun migration2To5_matchesCurrentSchemaAndPreservesData() {
+        val migrated = migrateLegacyDatabase(
+            version = 2,
+            createSchema = ::createVersion2Schema
         )
 
-        migrated.query(
-            "SELECT text, roundIndex, audioFilePath, audioFormat, audioSizeBytes FROM messages WHERE id = 1",
-        ).use { cursor ->
-            assertTrue(cursor.moveToFirst())
-            assertEquals("round four message", cursor.getString(cursor.getColumnIndexOrThrow("text")))
-            assertEquals(7, cursor.getInt(cursor.getColumnIndexOrThrow("roundIndex")))
-            assertNull(cursor.getString(cursor.getColumnIndexOrThrow("audioFilePath")))
-            assertNull(cursor.getString(cursor.getColumnIndexOrThrow("audioFormat")))
-            assertEquals(0L, cursor.getLong(cursor.getColumnIndexOrThrow("audioSizeBytes")))
-        }
-
-        migrated.query(
-            "SELECT name, voiceConfig FROM characters WHERE id = 'legacy_character'",
-        ).use { cursor ->
-            assertTrue(cursor.moveToFirst())
-            assertEquals("Legacy Character", cursor.getString(cursor.getColumnIndexOrThrow("name")))
-            assertEquals("Aoede", cursor.getString(cursor.getColumnIndexOrThrow("voiceConfig")))
-        }
-
+        assertMigratedData(
+            database = migrated,
+            expectedSkillAssetPath = LEGACY_SKILL_PATH,
+            expectedSkillDescriptionVector = "",
+            expectedRoundIndex = 0
+        )
         migrated.close()
     }
 
     @Test
     fun migration3To5_matchesCurrentSchemaAndPreservesData() {
-        val legacyHelper = createLegacyDatabase(version = 3, ::createVersion3Schema)
+        val migrated = migrateLegacyDatabase(
+            version = 3,
+            createSchema = ::createVersion3Schema
+        )
+
+        assertMigratedData(
+            database = migrated,
+            expectedSkillAssetPath = LEGACY_SKILL_PATH,
+            expectedSkillDescriptionVector = LEGACY_VECTOR,
+            expectedRoundIndex = 0
+        )
+        migrated.close()
+    }
+
+    @Test
+    fun migration4To5_matchesCurrentSchemaAndPreservesData() {
+        val migrated = migrateLegacyDatabase(
+            version = 4,
+            createSchema = ::createVersion4Schema
+        )
+
+        assertMigratedData(
+            database = migrated,
+            expectedSkillAssetPath = LEGACY_SKILL_PATH,
+            expectedSkillDescriptionVector = LEGACY_VECTOR,
+            expectedRoundIndex = LEGACY_ROUND_INDEX
+        )
+        migrated.close()
+    }
+
+    @Test
+    fun migration4To5_preservesAnExistingCustomGroup() {
+        val legacyHelper = createLegacyDatabase(version = 4) { database ->
+            createVersion4Schema(database)
+            createCharacterGroupsTable(database)
+        }
         val database = legacyHelper.writableDatabase
-        insertVersion3Data(database)
+        insertLegacyData(database, version = 4)
+        database.execSQL(
+            """
+            INSERT INTO character_groups (
+                id, name, description, characterIds, isPreset
+            ) VALUES (
+                'custom_group', 'Custom Group', 'user data', 'legacy_character', 0
+            )
+            """.trimIndent()
+        )
         legacyHelper.close()
 
         val migrated = migrationHelper.runMigrationsAndValidate(
             TEST_DATABASE,
             5,
             true,
-            RoundtableDatabase.MIGRATION_3_4,
-            RoundtableDatabase.MIGRATION_4_5,
+            *RoundtableDatabase.ALL_MIGRATIONS
         )
 
         migrated.query(
-            "SELECT text, roundIndex, audioFilePath, audioFormat, audioSizeBytes FROM messages WHERE id = 1",
+            "SELECT name, description, characterIds, isPreset " +
+                "FROM character_groups WHERE id = 'custom_group'"
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("Custom Group", cursor.getString(cursor.getColumnIndexOrThrow("name")))
+            assertEquals("user data", cursor.getString(cursor.getColumnIndexOrThrow("description")))
+            assertEquals(
+                "legacy_character",
+                cursor.getString(cursor.getColumnIndexOrThrow("characterIds"))
+            )
+            assertEquals(0, cursor.getInt(cursor.getColumnIndexOrThrow("isPreset")))
+        }
+        assertPresetGroups(migrated, expectedGroupCount = 5)
+        migrated.close()
+    }
+
+    private fun migrateLegacyDatabase(
+        version: Int,
+        createSchema: (SupportSQLiteDatabase) -> Unit
+    ): SupportSQLiteDatabase {
+        val legacyHelper = createLegacyDatabase(version, createSchema)
+        insertLegacyData(legacyHelper.writableDatabase, version)
+        legacyHelper.close()
+
+        return migrationHelper.runMigrationsAndValidate(
+            TEST_DATABASE,
+            5,
+            true,
+            *RoundtableDatabase.ALL_MIGRATIONS
+        )
+    }
+
+    private fun assertMigratedData(
+        database: SupportSQLiteDatabase,
+        expectedSkillAssetPath: String,
+        expectedSkillDescriptionVector: String,
+        expectedRoundIndex: Int
+    ) {
+        database.query(
+            """
+            SELECT name, systemPrompt, skillAssetPath, skillDescriptionVector, voiceConfig
+            FROM characters
+            WHERE id = 'legacy_character'
+            """.trimIndent()
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("Legacy Character", cursor.getString(cursor.getColumnIndexOrThrow("name")))
+            assertEquals("legacy prompt", cursor.getString(cursor.getColumnIndexOrThrow("systemPrompt")))
+            assertEquals(
+                expectedSkillAssetPath,
+                cursor.getString(cursor.getColumnIndexOrThrow("skillAssetPath"))
+            )
+            assertEquals(
+                expectedSkillDescriptionVector,
+                cursor.getString(cursor.getColumnIndexOrThrow("skillDescriptionVector"))
+            )
+            assertEquals("Aoede", cursor.getString(cursor.getColumnIndexOrThrow("voiceConfig")))
+        }
+
+        database.query(
+            "SELECT title, createdAt FROM chat_sessions WHERE id = 10"
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("Legacy Session", cursor.getString(cursor.getColumnIndexOrThrow("title")))
+            assertEquals(1000L, cursor.getLong(cursor.getColumnIndexOrThrow("createdAt")))
+        }
+
+        database.query(
+            """
+            SELECT text, roundIndex, audioFilePath, audioFormat, audioSizeBytes
+            FROM messages
+            WHERE id = 1
+            """.trimIndent()
         ).use { cursor ->
             assertTrue(cursor.moveToFirst())
             assertEquals("legacy message", cursor.getString(cursor.getColumnIndexOrThrow("text")))
-            assertEquals(0, cursor.getInt(cursor.getColumnIndexOrThrow("roundIndex")))
+            assertEquals(expectedRoundIndex, cursor.getInt(cursor.getColumnIndexOrThrow("roundIndex")))
             assertNull(cursor.getString(cursor.getColumnIndexOrThrow("audioFilePath")))
             assertNull(cursor.getString(cursor.getColumnIndexOrThrow("audioFormat")))
             assertEquals(0L, cursor.getLong(cursor.getColumnIndexOrThrow("audioSizeBytes")))
         }
 
-        migrated.query(
-            "SELECT name, voiceConfig FROM characters WHERE id = 'legacy_character'",
-        ).use { cursor ->
-            assertTrue(cursor.moveToFirst())
-            assertEquals("Legacy Character", cursor.getString(cursor.getColumnIndexOrThrow("name")))
-            assertEquals("Aoede", cursor.getString(cursor.getColumnIndexOrThrow("voiceConfig")))
-        }
-
-        migrated.close()
+        assertPresetGroups(database, expectedGroupCount = 4)
     }
 
-    @Test
-    fun unsupportedVersionFailsWithoutDeletingDatabase() {
-        val legacyHelper = createLegacyDatabase(version = 2) { database ->
-            database.execSQL("CREATE TABLE legacy_marker (value TEXT NOT NULL)")
-            database.execSQL("INSERT INTO legacy_marker (value) VALUES ('preserve-me')")
-        }
-        legacyHelper.close()
-
-        val roomDatabase = Room.databaseBuilder(
-            context,
-            RoundtableDatabase::class.java,
-            TEST_DATABASE,
-        )
-            .addMigrations(
-                RoundtableDatabase.MIGRATION_3_4,
-                RoundtableDatabase.MIGRATION_4_5,
-            )
-            .build()
-
-        try {
-            roomDatabase.openHelper.writableDatabase
-            fail("Opening an unsupported database version must fail without destructive migration.")
-        } catch (_: IllegalStateException) {
-            // Expected: no migration path from version 2 to version 5.
-        } finally {
-            roomDatabase.close()
-        }
-
-        val databaseFile = context.getDatabasePath(TEST_DATABASE)
-        assertTrue(databaseFile.exists())
-        val preservedDatabase = SQLiteDatabase.openDatabase(
-            databaseFile.path,
-            null,
-            SQLiteDatabase.OPEN_READONLY,
-        )
-        preservedDatabase.rawQuery("SELECT value FROM legacy_marker", null).use { cursor ->
+    private fun assertPresetGroups(
+        database: SupportSQLiteDatabase,
+        expectedGroupCount: Int
+    ) {
+        database.query("SELECT COUNT(*) AS groupCount FROM character_groups").use { cursor ->
             assertTrue(cursor.moveToFirst())
-            assertEquals("preserve-me", cursor.getString(0))
+            assertEquals(
+                expectedGroupCount,
+                cursor.getInt(cursor.getColumnIndexOrThrow("groupCount"))
+            )
         }
-        preservedDatabase.close()
+
+        database.query(
+            "SELECT name, isPreset FROM character_groups " +
+                "WHERE id = 'silicon_valley_venture'"
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("硅谷创投", cursor.getString(cursor.getColumnIndexOrThrow("name")))
+            assertEquals(1, cursor.getInt(cursor.getColumnIndexOrThrow("isPreset")))
+        }
     }
 
     private fun createLegacyDatabase(
         version: Int,
-        createSchema: (SupportSQLiteDatabase) -> Unit,
+        createSchema: (SupportSQLiteDatabase) -> Unit
     ): SupportSQLiteOpenHelper {
         val configuration = SupportSQLiteOpenHelper.Configuration.builder(context)
             .name(TEST_DATABASE)
@@ -191,11 +250,14 @@ class RoundtableDatabaseMigrationTest {
                     override fun onUpgrade(
                         database: SupportSQLiteDatabase,
                         oldVersion: Int,
-                        newVersion: Int,
+                        newVersion: Int
                     ) {
-                        error("Unexpected upgrade while creating legacy test database: $oldVersion -> $newVersion")
+                        error(
+                            "Unexpected upgrade while creating legacy test database: " +
+                                "$oldVersion -> $newVersion"
+                        )
                     }
-                },
+                }
             )
             .build()
 
@@ -204,18 +266,58 @@ class RoundtableDatabaseMigrationTest {
         }
     }
 
+    private fun createVersion1Schema(database: SupportSQLiteDatabase) {
+        createCommonTables(
+            database = database,
+            includeSkillAssetPath = false,
+            includeSkillDescriptionVector = false,
+            includeRoundIndex = false
+        )
+    }
+
+    private fun createVersion2Schema(database: SupportSQLiteDatabase) {
+        createCommonTables(
+            database = database,
+            includeSkillAssetPath = true,
+            includeSkillDescriptionVector = false,
+            includeRoundIndex = false
+        )
+    }
+
     private fun createVersion3Schema(database: SupportSQLiteDatabase) {
-        createCommonTables(database, includeRoundIndex = false)
+        createCommonTables(
+            database = database,
+            includeSkillAssetPath = true,
+            includeSkillDescriptionVector = true,
+            includeRoundIndex = false
+        )
     }
 
     private fun createVersion4Schema(database: SupportSQLiteDatabase) {
-        createCommonTables(database, includeRoundIndex = true)
+        createCommonTables(
+            database = database,
+            includeSkillAssetPath = true,
+            includeSkillDescriptionVector = true,
+            includeRoundIndex = true
+        )
     }
 
     private fun createCommonTables(
         database: SupportSQLiteDatabase,
-        includeRoundIndex: Boolean,
+        includeSkillAssetPath: Boolean,
+        includeSkillDescriptionVector: Boolean,
+        includeRoundIndex: Boolean
     ) {
+        val skillAssetPathColumn = if (includeSkillAssetPath) {
+            ", skillAssetPath TEXT NOT NULL"
+        } else {
+            ""
+        }
+        val skillDescriptionVectorColumn = if (includeSkillDescriptionVector) {
+            ", skillDescriptionVector TEXT NOT NULL"
+        } else {
+            ""
+        }
         database.execSQL(
             """
             CREATE TABLE characters (
@@ -223,14 +325,12 @@ class RoundtableDatabaseMigrationTest {
                 name TEXT NOT NULL,
                 avatar TEXT NOT NULL,
                 tagline TEXT NOT NULL,
-                systemPrompt TEXT NOT NULL,
-                skillAssetPath TEXT NOT NULL,
+                systemPrompt TEXT NOT NULL$skillAssetPathColumn,
                 `order` INTEGER NOT NULL,
-                isActive INTEGER NOT NULL,
-                skillDescriptionVector TEXT NOT NULL,
+                isActive INTEGER NOT NULL$skillDescriptionVectorColumn,
                 PRIMARY KEY(id)
             )
-            """.trimIndent(),
+            """.trimIndent()
         )
         database.execSQL(
             """
@@ -239,7 +339,7 @@ class RoundtableDatabaseMigrationTest {
                 title TEXT NOT NULL,
                 createdAt INTEGER NOT NULL
             )
-            """.trimIndent(),
+            """.trimIndent()
         )
 
         val roundIndexColumn = if (includeRoundIndex) {
@@ -259,8 +359,11 @@ class RoundtableDatabaseMigrationTest {
                 timestamp INTEGER NOT NULL,
                 isPending INTEGER NOT NULL$roundIndexColumn
             )
-            """.trimIndent(),
+            """.trimIndent()
         )
+    }
+
+    private fun createCharacterGroupsTable(database: SupportSQLiteDatabase) {
         database.execSQL(
             """
             CREATE TABLE character_groups (
@@ -271,67 +374,81 @@ class RoundtableDatabaseMigrationTest {
                 isPreset INTEGER NOT NULL,
                 PRIMARY KEY(id)
             )
-            """.trimIndent(),
+            """.trimIndent()
         )
     }
 
-    private fun insertVersion3Data(database: SupportSQLiteDatabase) {
-        insertLegacyCharacter(database)
-        database.execSQL(
-            """
-            INSERT INTO messages (
-                id, chatId, senderId, senderName, avatar, text, timestamp, isPending
-            ) VALUES (
-                1, 10, 'legacy_character', 'Legacy Character', 'L', 'legacy message', 1234, 0
-            )
-            """.trimIndent(),
+    private fun insertLegacyData(database: SupportSQLiteDatabase, version: Int) {
+        val characterColumns = mutableListOf(
+            "id",
+            "name",
+            "avatar",
+            "tagline",
+            "systemPrompt"
         )
-    }
-
-    private fun insertVersion4Data(database: SupportSQLiteDatabase) {
-        insertLegacyCharacter(database)
-        database.execSQL(
-            """
-            INSERT INTO messages (
-                id, chatId, senderId, senderName, avatar, text, timestamp, isPending, roundIndex
-            ) VALUES (
-                1, 10, 'legacy_character', 'Legacy Character', 'L', 'round four message', 1234, 0, 7
-            )
-            """.trimIndent(),
+        val characterValues = mutableListOf(
+            "'legacy_character'",
+            "'Legacy Character'",
+            "'L'",
+            "'legacy tagline'",
+            "'legacy prompt'"
         )
-    }
-
-    private fun insertLegacyCharacter(database: SupportSQLiteDatabase) {
-        database.execSQL(
-            """
-            INSERT INTO characters (
-                id, name, avatar, tagline, systemPrompt, skillAssetPath,
-                `order`, isActive, skillDescriptionVector
-            ) VALUES (
-                'legacy_character', 'Legacy Character', 'L', 'legacy tagline',
-                'legacy prompt', 'skills/legacy', 1, 1, '0.1,0.2'
-            )
-            """.trimIndent(),
-        )
-    }
-
-    private fun columnExists(
-        database: SupportSQLiteDatabase,
-        tableName: String,
-        columnName: String,
-    ): Boolean {
-        database.query("PRAGMA table_info(`$tableName`)").use { cursor ->
-            val nameIndex = cursor.getColumnIndexOrThrow("name")
-            while (cursor.moveToNext()) {
-                if (cursor.getString(nameIndex).equals(columnName, ignoreCase = true)) {
-                    return true
-                }
-            }
+        if (version >= 2) {
+            characterColumns += "skillAssetPath"
+            characterValues += "'$LEGACY_SKILL_PATH'"
         }
-        return false
+        characterColumns += listOf("`order`", "isActive")
+        characterValues += listOf("1", "1")
+        if (version >= 3) {
+            characterColumns += "skillDescriptionVector"
+            characterValues += "'$LEGACY_VECTOR'"
+        }
+        database.execSQL(
+            "INSERT INTO characters (${characterColumns.joinToString(", ")}) " +
+                "VALUES (${characterValues.joinToString(", ")})"
+        )
+
+        database.execSQL(
+            """
+            INSERT INTO chat_sessions (id, title, createdAt)
+            VALUES (10, 'Legacy Session', 1000)
+            """.trimIndent()
+        )
+
+        val messageColumns = mutableListOf(
+            "id",
+            "chatId",
+            "senderId",
+            "senderName",
+            "avatar",
+            "text",
+            "timestamp",
+            "isPending"
+        )
+        val messageValues = mutableListOf(
+            "1",
+            "10",
+            "'legacy_character'",
+            "'Legacy Character'",
+            "'L'",
+            "'legacy message'",
+            "1234",
+            "0"
+        )
+        if (version >= 4) {
+            messageColumns += "roundIndex"
+            messageValues += LEGACY_ROUND_INDEX.toString()
+        }
+        database.execSQL(
+            "INSERT INTO messages (${messageColumns.joinToString(", ")}) " +
+                "VALUES (${messageValues.joinToString(", ")})"
+        )
     }
 
     companion object {
         private const val TEST_DATABASE = "roundtable-migration-test"
+        private const val LEGACY_SKILL_PATH = "skills/legacy/SKILL.md"
+        private const val LEGACY_VECTOR = "0.1,0.2"
+        private const val LEGACY_ROUND_INDEX = 7
     }
 }
