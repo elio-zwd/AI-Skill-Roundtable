@@ -4,16 +4,15 @@ import android.content.Context
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaFormat
-import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.example.skillroundtable.data.RoundtableDatabase
+import com.example.skillroundtable.telemetry.PrivacySafeLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import java.nio.ByteBuffer
 
 class AudioTranscodeWorker(
     context: Context,
@@ -27,37 +26,28 @@ class AudioTranscodeWorker(
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val messageId = inputData.getLong("message_id", -1L)
         val wavPath = inputData.getString("wav_path") ?: return@withContext Result.failure()
-        
         if (messageId == -1L) return@withContext Result.failure()
-        
+
         val wavFile = File(wavPath)
         if (!wavFile.exists()) {
-            Log.e(TAG, "待转码 WAV 文件不存在: $wavPath")
+            PrivacySafeLogger.e(TAG, "Source audio file does not exist")
             return@withContext Result.failure()
         }
 
-        val aacPath = wavPath.replace(".wav", ".aac")
-        val aacFile = File(aacPath)
-
+        val aacFile = File(wavPath.replace(".wav", ".aac"))
         try {
-            Log.d(TAG, "开始后台转码: $wavPath -> $aacPath")
+            PrivacySafeLogger.d(TAG, "Audio transcoding started")
             encodePcmToAac(wavFile, aacFile)
-            
-            val database = RoundtableDatabase.getDatabase(applicationContext, this)
-            val size = aacFile.length()
-            database.chatDao().updateMessageAudio(messageId, aacPath, "aac", size)
 
-            if (wavFile.exists()) {
-                wavFile.delete()
-            }
-            Log.d(TAG, "转码成功完成并已删除原 WAV")
-            return@withContext Result.success()
-        } catch (e: Exception) {
-            Log.e(TAG, "音频转码发生异常", e)
-            if (aacFile.exists()) {
-                aacFile.delete()
-            }
-            return@withContext Result.failure()
+            val database = RoundtableDatabase.getDatabase(applicationContext, this)
+            database.chatDao().updateMessageAudio(messageId, aacFile.absolutePath, "aac", aacFile.length())
+            if (wavFile.exists()) wavFile.delete()
+            PrivacySafeLogger.d(TAG, "Audio transcoding completed")
+            Result.success()
+        } catch (error: Exception) {
+            PrivacySafeLogger.e(TAG, "Audio transcoding failed", error)
+            if (aacFile.exists()) aacFile.delete()
+            Result.failure()
         }
     }
 
@@ -66,29 +56,31 @@ class AudioTranscodeWorker(
         val channels = 1
         val bitRate = 64000
 
-        val mediaFormat = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, sampleRate, channels)
+        val mediaFormat = MediaFormat.createAudioFormat(
+            MediaFormat.MIMETYPE_AUDIO_AAC,
+            sampleRate,
+            channels
+        )
         mediaFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC)
         mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
         mediaFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 1024 * 10)
 
         var encoder: MediaCodec? = null
-        var fis: FileInputStream? = null
-        var fos: FileOutputStream? = null
+        var input: FileInputStream? = null
+        var output: FileOutputStream? = null
 
         try {
             encoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC)
             encoder.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
             encoder.start()
 
-            fis = FileInputStream(wavFile)
-            fis.skip(44)
-
-            fos = FileOutputStream(aacFile)
+            input = FileInputStream(wavFile)
+            input.skip(44)
+            output = FileOutputStream(aacFile)
 
             val inputBuffers = encoder.inputBuffers
             val outputBuffers = encoder.outputBuffers
             val bufferInfo = MediaCodec.BufferInfo()
-
             val tempBuffer = ByteArray(4096)
             var hasMoreData = true
             var presentationTimeUs = 0L
@@ -99,15 +91,19 @@ class AudioTranscodeWorker(
                     if (inputIndex >= 0) {
                         val inputBuffer = inputBuffers[inputIndex]
                         inputBuffer.clear()
-                        
-                        val bytesRead = fis.read(tempBuffer)
+                        val bytesRead = input.read(tempBuffer)
                         if (bytesRead == -1) {
-                            encoder.queueInputBuffer(inputIndex, 0, 0, 0L, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                            encoder.queueInputBuffer(
+                                inputIndex,
+                                0,
+                                0,
+                                0L,
+                                MediaCodec.BUFFER_FLAG_END_OF_STREAM
+                            )
                             hasMoreData = false
                         } else {
                             inputBuffer.put(tempBuffer, 0, bytesRead)
                             encoder.queueInputBuffer(inputIndex, 0, bytesRead, presentationTimeUs, 0)
-                            
                             val numSamples = bytesRead / 2
                             presentationTimeUs += (numSamples * 1_000_000L) / sampleRate
                         }
@@ -119,46 +115,31 @@ class AudioTranscodeWorker(
                     val outputBuffer = outputBuffers[outputIndex]
                     outputBuffer.position(bufferInfo.offset)
                     outputBuffer.limit(bufferInfo.offset + bufferInfo.size)
-
                     val outData = ByteArray(bufferInfo.size)
                     outputBuffer.get(outData)
-
                     val adtsHeader = ByteArray(7)
                     addADTStoPacket(adtsHeader, bufferInfo.size + 7)
-                    fos.write(adtsHeader)
-                    fos.write(outData)
-
+                    output.write(adtsHeader)
+                    output.write(outData)
                     encoder.releaseOutputBuffer(outputIndex, false)
                 }
             }
         } finally {
-            try {
-                encoder?.stop()
-            } catch (e: Exception) {
-                Log.e(TAG, "停止编码器失败", e)
-            }
-            try {
-                encoder?.release()
-            } catch (e: Exception) {
-                Log.e(TAG, "释放编码器失败", e)
-            }
-            try {
-                fis?.close()
-            } catch (e: Exception) {
-                Log.e(TAG, "关闭输入流失败", e)
-            }
-            try {
-                fos?.close()
-            } catch (e: Exception) {
-                Log.e(TAG, "关闭输出流失败", e)
-            }
+            runCatching { encoder?.stop() }
+                .onFailure { PrivacySafeLogger.e(TAG, "Audio encoder stop failed", it) }
+            runCatching { encoder?.release() }
+                .onFailure { PrivacySafeLogger.e(TAG, "Audio encoder release failed", it) }
+            runCatching { input?.close() }
+                .onFailure { PrivacySafeLogger.e(TAG, "Audio input close failed", it) }
+            runCatching { output?.close() }
+                .onFailure { PrivacySafeLogger.e(TAG, "Audio output close failed", it) }
         }
     }
 
     private fun addADTStoPacket(packet: ByteArray, packetLen: Int) {
-        val profile = 2  
-        val freqIdx = 6  
-        val chanCfg = 1  
+        val profile = 2
+        val freqIdx = 6
+        val chanCfg = 1
 
         packet[0] = 0xFF.toByte()
         packet[1] = 0xF9.toByte()

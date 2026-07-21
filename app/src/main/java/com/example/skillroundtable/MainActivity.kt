@@ -1,5 +1,6 @@
 package com.example.skillroundtable
 
+import com.example.skillroundtable.telemetry.PrivacySafeLogger
 import com.example.skillroundtable.viewmodel.SearchMode
 import android.os.Bundle
 import android.widget.Toast
@@ -151,7 +152,11 @@ fun CharacterAvatar(
                     BitmapFactory.decodeStream(inputStream)?.asImageBitmap()
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                PrivacySafeLogger.e(
+                    "MainActivity",
+                    "角色头像读取失败",
+                    e
+                )
                 null
             }
         } else {
@@ -663,7 +668,11 @@ fun saveMarkdownToLocal(context: android.content.Context, title: String, content
                 uri.path
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            PrivacySafeLogger.e(
+                "MainActivity",
+                "保存 Markdown 失败",
+                e
+            )
         }
     }
     return null
@@ -924,7 +933,11 @@ fun RoundtableBrainstormScreen(
                                             clipboardManager.setText(AnnotatedString(md))
                                             Toast.makeText(context, "已复制至剪贴板", Toast.LENGTH_SHORT).show()
                                         } catch (e: Exception) {
-                                            android.util.Log.e("MainActivity", "复制剪贴板失败", e)
+                                            PrivacySafeLogger.e(
+                                                "MainActivity",
+                                                "复制剪贴板失败",
+                                                e
+                                            )
                                             Toast.makeText(context, "复制失败：剪贴板不可用", Toast.LENGTH_SHORT).show()
                                         }
                                     }
@@ -1452,7 +1465,11 @@ fun MessageBubble(
                             clipboardManager.setText(AnnotatedString(message.text))
                             Toast.makeText(context, "已复制至剪贴板", Toast.LENGTH_SHORT).show()
                         } catch (e: Exception) {
-                            android.util.Log.e("MainActivity", "复制消息剪贴板失败", e)
+                            PrivacySafeLogger.e(
+                                "MainActivity",
+                                "复制消息剪贴板失败",
+                                e
+                            )
                             Toast.makeText(context, "复制失败：剪贴板不可用", Toast.LENGTH_SHORT).show()
                         }
                     }
@@ -2163,293 +2180,177 @@ fun ApiTelemetryScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        com.example.skillroundtable.network.ApiKeyPool.init(context)
+        com.example.skillroundtable.telemetry.TelemetryRepository.init(context)
+        com.example.skillroundtable.telemetry.CloudInteractionSettings.init(context)
+    }
+    val events by com.example.skillroundtable.telemetry.TelemetryRepository.events.collectAsState()
+    val level by com.example.skillroundtable.telemetry.TelemetryRepository.level.collectAsState()
+    val storageError by com.example.skillroundtable.telemetry.TelemetryRepository.storageError.collectAsState()
+    val cloudInteractionEnabled by com.example.skillroundtable.telemetry.CloudInteractionSettings.enabled.collectAsState()
+    var expandedEventId by remember { mutableStateOf<String?>(null) }
+    var showContentDebugWarning by remember { mutableStateOf(false) }
+    var showCloudWarning by remember { mutableStateOf(false) }
     var refreshTrigger by remember { mutableStateOf(0) }
+
     val keyStatuses = remember(currentSessionId, refreshTrigger) {
         com.example.skillroundtable.network.ApiKeyPool.getKeyStatuses(context)
     }
-    val currentKeyInfo = remember(currentSessionId) {
+    val currentKeyInfo = remember(currentSessionId, refreshTrigger) {
         currentSessionId?.let { com.example.skillroundtable.network.ApiKeyPool.getOrBindSessionKey(context, it) }
     }
-    val logs = remember { com.example.skillroundtable.network.ApiKeyPool.apiLogs }
-    var expandedLogIndex by remember { mutableStateOf(-1) }
+    val expiresAt = com.example.skillroundtable.telemetry.TelemetryRepository.contentDebugExpiresAt(context)
+    val remainingMinutes = expiresAt?.let { ((it - System.currentTimeMillis()).coerceAtLeast(0L) / 60_000L) }
+    val estimatedBytes = com.example.skillroundtable.telemetry.TelemetryRepository.estimatedBytes()
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = SlateBg
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-        ) {
-            // 1. 顶部返回导航栏
+    Surface(modifier = Modifier.fillMaxSize(), color = SlateBg) {
+        Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .padding(horizontal = 8.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = onBack,
-                    modifier = Modifier.bounceClick()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "返回",
-                        tint = TextPrimary
-                    )
+                IconButton(onClick = onBack, modifier = Modifier.bounceClick()) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "返回", tint = TextPrimary)
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "API 熔断诊断与遥测日志",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
+                Spacer(Modifier.width(8.dp))
+                Text("隐私、遥测与 API 诊断", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
             }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 24.dp)
             ) {
-                // 1. 当前会话分配
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.5f)),
-                    border = BorderStroke(1.dp, TextSecondary.copy(alpha = 0.1f))
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Text(
-                            text = "当前会话绑定 API Key ID: ${currentKeyInfo?.id ?: "未分配（或当前无活跃会话）"}",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            color = GoldAccent
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "绑定账号: ${currentKeyInfo?.account ?: "无"}",
-                            fontSize = 11.sp,
-                            color = TextSecondary
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // 2. 用户 Key 池的熔断状态
-                Text(
-                    text = "API Key 熔断状态（24小时冷却期）",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(keyStatuses) { status ->
-                        val isBanned = status.isBanned
-                        val isManualDisabled = status.isManualDisabled
-                        Card(
-                            modifier = Modifier
-                                .bounceClick()
-                                .clickable(enabled = !isBanned) {
-                                    com.example.skillroundtable.network.ApiKeyPool.setKeyDisabled(context, status.id, !isManualDisabled)
-                                    refreshTrigger++
+                item {
+                    Card(colors = CardDefaults.cardColors(containerColor = CardBg)) {
+                        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("遥测隐私级别", fontWeight = FontWeight.Bold, color = TextPrimary)
+                            Text(
+                                when (level) {
+                                    com.example.skillroundtable.telemetry.TelemetryLevel.OFF -> "关闭：不创建本地遥测事件"
+                                    com.example.skillroundtable.telemetry.TelemetryLevel.METADATA_ONLY -> "仅元数据（默认）：不读取或保存请求/回复正文"
+                                    com.example.skillroundtable.telemetry.TelemetryLevel.CONTENT_DEBUG -> "临时正文调试：本机保存脱敏、截断预览，剩余约 ${remainingMinutes ?: 0} 分钟"
                                 },
-                            colors = CardDefaults.cardColors(
-                                containerColor = when {
-                                    isBanned -> Color.Red.copy(alpha = 0.08f)
-                                    isManualDisabled -> Color.Gray.copy(alpha = 0.12f)
-                                    else -> PrimaryAccent.copy(alpha = 0.03f)
-                                }
-                            ),
-                            border = BorderStroke(
-                                width = 1.dp,
-                                color = when {
-                                    isBanned -> Color.Red.copy(alpha = 0.3f)
-                                    isManualDisabled -> Color.Gray.copy(alpha = 0.4f)
-                                    else -> PrimaryAccent.copy(alpha = 0.15f)
-                                }
+                                fontSize = 12.sp,
+                                color = TextSecondary
                             )
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = status.displayName,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    color = if (isManualDisabled) TextSecondary else TextPrimary
-                                )
-                                Text(status.maskedKey, fontSize = 8.sp, color = TextSecondary)
-                                Spacer(modifier = Modifier.height(2.dp))
-                                when {
-                                    isBanned -> {
-                                        Text("熔断", fontSize = 10.sp, color = Color.Red)
-                                        val minutes = status.remainingBanTimeMs / 1000 / 60
-                                        Text("余 ${minutes}m", fontSize = 8.sp, color = TextSecondary)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(onClick = {
+                                    com.example.skillroundtable.telemetry.TelemetryRepository.setLevel(
+                                        context,
+                                        com.example.skillroundtable.telemetry.TelemetryLevel.OFF
+                                    )
+                                }) { Text("关闭") }
+                                OutlinedButton(onClick = {
+                                    com.example.skillroundtable.telemetry.TelemetryRepository.setLevel(
+                                        context,
+                                        com.example.skillroundtable.telemetry.TelemetryLevel.METADATA_ONLY
+                                    )
+                                }) { Text("仅元数据") }
+                                Button(onClick = {
+                                    if (level == com.example.skillroundtable.telemetry.TelemetryLevel.CONTENT_DEBUG) {
+                                        com.example.skillroundtable.telemetry.TelemetryRepository.disableContentDebugAndPurgePreviews(context)
+                                    } else {
+                                        showContentDebugWarning = true
                                     }
-                                    isManualDisabled -> {
-                                        Text("禁用", fontSize = 10.sp, color = GoldAccent)
-                                    }
-                                    else -> {
-                                        Text("可用", fontSize = 10.sp, color = Color.Green)
-                                    }
+                                }) { Text(if (level == com.example.skillroundtable.telemetry.TelemetryLevel.CONTENT_DEBUG) "关闭正文调试" else "临时正文调试") }
+                            }
+                            Divider(color = TextSecondary.copy(alpha = 0.15f))
+                            Text("事件 ${events.size} 条 · 估算占用 ${estimatedBytes} bytes · Metadata 最长 7 天", fontSize = 11.sp, color = TextSecondary)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(onClick = {
+                                    val ok = com.example.skillroundtable.telemetry.TelemetryRepository.clearAllTelemetry(context)
+                                    Toast.makeText(context, if (ok) "遥测已清空" else "遥测清空失败", Toast.LENGTH_SHORT).show()
+                                }) { Text("立即清空全部遥测") }
+                                if (level == com.example.skillroundtable.telemetry.TelemetryLevel.CONTENT_DEBUG) {
+                                    OutlinedButton(onClick = {
+                                        com.example.skillroundtable.telemetry.TelemetryRepository.disableContentDebugAndPurgePreviews(context)
+                                    }) { Text("关闭并删除预览") }
                                 }
                             }
+                            storageError?.let { Text(it, color = Color.Red, fontSize = 11.sp) }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                item {
+                    Card(colors = CardDefaults.cardColors(containerColor = CardBg)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("云端会话链优化", fontWeight = FontWeight.Bold, color = TextPrimary)
+                                Text(
+                                    "默认关闭。关闭不会阻止模型请求发送给 Gemini，只是不额外启用持久化 Interaction 链。",
+                                    fontSize = 11.sp,
+                                    color = TextSecondary
+                                )
+                            }
+                            Switch(
+                                checked = cloudInteractionEnabled,
+                                onCheckedChange = { enabled ->
+                                    if (enabled) showCloudWarning = true
+                                    else com.example.skillroundtable.telemetry.CloudInteractionSettings.setEnabled(context, false)
+                                }
+                            )
+                        }
+                    }
+                }
 
-                // 3. API 日志列表
-                Text(
-                    text = "最近 API 请求遥测日志",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                if (logs.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("无任何请求日志记录", fontSize = 12.sp, color = TextSecondary)
+                item {
+                    Card(colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.6f))) {
+                        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("当前会话与 Key", fontWeight = FontWeight.Bold, color = TextPrimary)
+                            Text("Key ID：${currentKeyInfo?.id ?: "未分配"}", fontSize = 12.sp, color = GoldAccent)
+                            Text("显示名：${currentKeyInfo?.account ?: "无"}", fontSize = 11.sp, color = TextSecondary)
+                            Text("Key 状态：${keyStatuses.count { !it.isBanned && !it.isManualDisabled }} 可用 / ${keyStatuses.size} 总数", fontSize = 11.sp, color = TextSecondary)
+                        }
+                    }
+                }
+
+                item {
+                    Text("最近本地遥测事件", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                }
+
+                if (events.isEmpty()) {
+                    item {
+                        Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
+                            Text("暂无遥测事件", color = TextSecondary)
+                        }
                     }
                 } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        itemsIndexed(logs.toList()) { index, log ->
-                            val isSuccess = log.statusCode == 200
-                            val duration = log.responseTime - log.requestTime
-                            val timeStr = android.text.format.DateFormat.format("HH:mm:ss", log.requestTime).toString()
-
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .bounceClick()
-                                    .clickable {
-                                        expandedLogIndex = if (expandedLogIndex == index) -1 else index
-                                    },
-                                colors = CardDefaults.cardColors(containerColor = CardBg),
-                                border = BorderStroke(
-                                    1.dp,
-                                    if (isSuccess) PrimaryAccent.copy(alpha = 0.15f) else Color.Red.copy(alpha = 0.2f)
-                                )
-                            ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(6.dp)
-                                                    .background(
-                                                        if (isSuccess) Color.Green else Color.Red,
-                                                        CircleShape
-                                                    )
-                                            )
-                                            Spacer(Modifier.width(8.dp))
-                                            Text(
-                                                text = "[${log.keyId}] ${log.model}",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = TextPrimary
-                                            )
-                                        }
-                                        Text(
-                                            text = "$timeStr | ${duration}ms",
-                                            fontSize = 10.sp,
-                                            color = TextSecondary
-                                        )
+                    items(events, key = { it.id }) { event ->
+                        val success = event.statusCode?.let { it in 200..299 } == true
+                        Card(
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                if (event.containsContentPreview) {
+                                    expandedEventId = if (expandedEventId == event.id) null else event.id
+                                }
+                            },
+                            colors = CardDefaults.cardColors(containerColor = CardBg),
+                            border = BorderStroke(1.dp, if (success) PrimaryAccent.copy(alpha = 0.2f) else Color.Red.copy(alpha = 0.25f))
+                        ) {
+                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("[${event.keyId ?: "none"}] ${event.model ?: event.endpoint}", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    Text("${event.statusCode ?: "ERR"} · ${event.durationMs}ms", fontSize = 10.sp, color = TextSecondary)
+                                }
+                                Text(event.endpoint, fontSize = 10.sp, color = TextSecondary)
+                                event.failureType?.let { Text("错误分类：$it", fontSize = 10.sp, color = Color.Red) }
+                                if (event.hasThoughtStep) Text("响应包含 thought step（摘要未保存）", fontSize = 10.sp, color = GoldAccent)
+                                if (event.containsContentPreview) {
+                                    Text("含脱敏截断预览，点击展开", fontSize = 10.sp, color = GoldAccent)
+                                }
+                                if (expandedEventId == event.id) {
+                                    event.requestPreview?.let {
+                                        Text("请求预览", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = GoldAccent)
+                                        Text(it, fontSize = 10.sp, color = TextSecondary)
                                     }
-
-                                    if (log.statusCode != 200 && log.errorMessage != null) {
-                                        Text(
-                                            text = "错误原因: ${log.errorMessage}",
-                                            color = Color.Red,
-                                            fontSize = 10.sp,
-                                            modifier = Modifier.padding(top = 6.dp)
-                                        )
-                                    }
-
-                                    if (expandedLogIndex == index) {
-                                        Spacer(modifier = Modifier.height(12.dp))
-
-                                        Text(
-                                            text = "请求 Prompt 预览:",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = GoldAccent
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .heightIn(max = 140.dp)
-                                                .background(Color.Black.copy(alpha = 0.2f), shape = RoundedCornerShape(4.dp))
-                                                .padding(8.dp)
-                                        ) {
-                                            val scrollState = rememberScrollState()
-                                            Text(
-                                                text = log.prompt.ifBlank { "（空）" },
-                                                fontSize = 10.sp,
-                                                color = TextSecondary,
-                                                lineHeight = 14.sp,
-                                                modifier = Modifier
-                                                    .verticalScroll(scrollState)
-                                                    .fillMaxWidth()
-                                            )
-                                        }
-
-                                        Spacer(modifier = Modifier.height(10.dp))
-
-                                        Text(
-                                            text = "API 返回结果预览:",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = GoldAccent
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .heightIn(max = 140.dp)
-                                                .background(Color.Black.copy(alpha = 0.2f), shape = RoundedCornerShape(4.dp))
-                                                .padding(8.dp)
-                                        ) {
-                                            val scrollState = rememberScrollState()
-                                            Text(
-                                                text = if (log.statusCode == 200) {
-                                                    log.responseText.ifBlank { "（空返回）" }
-                                                } else {
-                                                    "请求失败，无返回文本。HTTP 状态码: ${log.statusCode}"
-                                                },
-                                                fontSize = 10.sp,
-                                                color = TextSecondary,
-                                                lineHeight = 14.sp,
-                                                modifier = Modifier
-                                                    .verticalScroll(scrollState)
-                                                    .fillMaxWidth()
-                                            )
-                                        }
+                                    event.responsePreview?.let {
+                                        Text("响应预览", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = GoldAccent)
+                                        Text(it, fontSize = 10.sp, color = TextSecondary)
                                     }
                                 }
                             }
@@ -2458,5 +2359,36 @@ fun ApiTelemetryScreen(
                 }
             }
         }
+    }
+
+    if (showContentDebugWarning) {
+        AlertDialog(
+            onDismissRequest = { showContentDebugWarning = false },
+            title = { Text("开启临时正文调试？") },
+            text = { Text("开启后，应用会在本机临时保存经过脱敏和截断的请求/回复预览，最长 24 小时。请勿在调试期间输入密码、私钥或其他高度敏感信息。Release 构建不允许开启。") },
+            confirmButton = {
+                Button(onClick = {
+                    val ok = com.example.skillroundtable.telemetry.TelemetryRepository.enableContentDebug(context)
+                    Toast.makeText(context, if (ok) "正文调试已开启，24 小时后自动过期" else "当前构建不允许开启", Toast.LENGTH_SHORT).show()
+                    showContentDebugWarning = false
+                }) { Text("确认开启") }
+            },
+            dismissButton = { TextButton(onClick = { showContentDebugWarning = false }) { Text("取消") } }
+        )
+    }
+
+    if (showCloudWarning) {
+        AlertDialog(
+            onDismissRequest = { showCloudWarning = false },
+            title = { Text("启用云端会话链优化？") },
+            text = { Text("开启后，请求上下文会继续发送给 Google Gemini，并允许服务商使用持久化 Interaction 链维持续写。服务商侧保留受其政策约束，本应用无法控制远端保留或保证远端删除。") },
+            confirmButton = {
+                Button(onClick = {
+                    com.example.skillroundtable.telemetry.CloudInteractionSettings.setEnabled(context, true)
+                    showCloudWarning = false
+                }) { Text("确认启用") }
+            },
+            dismissButton = { TextButton(onClick = { showCloudWarning = false }) { Text("取消") } }
+        )
     }
 }

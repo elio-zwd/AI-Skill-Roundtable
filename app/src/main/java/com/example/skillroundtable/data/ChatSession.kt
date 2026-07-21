@@ -7,6 +7,8 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import com.example.skillroundtable.telemetry.InteractionChainStore
+import com.example.skillroundtable.telemetry.PrivacySafeLogger
 import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "chat_sessions")
@@ -34,7 +36,6 @@ data class Message(
 
 @Dao
 interface ChatDao {
-    // Session Queries
     @Query("SELECT * FROM chat_sessions ORDER BY createdAt DESC")
     fun getAllSessions(): Flow<List<ChatSession>>
 
@@ -53,7 +54,6 @@ interface ChatDao {
     @Query("DELETE FROM messages WHERE chatId = :chatId")
     suspend fun deleteMessagesByChatId(chatId: Long)
 
-    // Message Queries
     @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp ASC")
     fun getMessagesForChatFlow(chatId: Long): Flow<List<Message>>
 
@@ -65,20 +65,19 @@ interface ChatDao {
 
     @Query("DELETE FROM messages WHERE id = :id")
     suspend fun deleteMessageById(id: Long)
-    
+
     @Query("DELETE FROM messages WHERE chatId = :chatId AND isPending = 1")
     suspend fun removePendingMessages(chatId: Long)
 
     @Query("UPDATE messages SET audioFilePath = :path, audioFormat = :format, audioSizeBytes = :size WHERE id = :id")
     suspend fun updateMessageAudio(id: Long, path: String?, format: String?, size: Long)
-    
+
     @Query("SELECT * FROM messages WHERE audioFilePath IS NOT NULL AND audioFilePath != '' ORDER BY timestamp DESC")
     fun getAudioMessagesFlow(): Flow<List<Message>>
 }
 
 class ChatRepository(private val chatDao: ChatDao) {
     val allSessions: Flow<List<ChatSession>> = chatDao.getAllSessions()
-
     val audioMessages: Flow<List<Message>> = chatDao.getAudioMessagesFlow()
 
     fun getMessagesFlow(chatId: Long): Flow<List<Message>> = chatDao.getMessagesForChatFlow(chatId)
@@ -92,19 +91,18 @@ class ChatRepository(private val chatDao: ChatDao) {
     }
 
     suspend fun deleteSession(id: Long) {
+        InteractionChainStore.clearSession(id)
         try {
             val messages = chatDao.getMessagesForChat(id)
-            messages.forEach { msg ->
-                val path = msg.audioFilePath
+            messages.forEach { message ->
+                val path = message.audioFilePath
                 if (!path.isNullOrBlank()) {
                     val file = java.io.File(path)
-                    if (file.exists()) {
-                        file.delete()
-                    }
+                    if (file.exists()) file.delete()
                 }
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
+        } catch (error: Exception) {
+            PrivacySafeLogger.e("ChatRepository", "Session audio cleanup failed", error)
         }
         chatDao.deleteSessionById(id)
         chatDao.deleteMessagesByChatId(id)

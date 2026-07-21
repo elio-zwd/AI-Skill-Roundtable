@@ -2,168 +2,155 @@
 
 ## 1. 整体架构
 
-本应用采用 Android MVVM 架构，使用 Jetpack Compose 构建声明式 UI。整个系统分为 UI 层、ViewModel 层、网络及音频编解码层与 Room 数据持久化层。
+应用采用 Android MVVM、Jetpack Compose、Room、Retrofit/OkHttp、Kotlin Coroutines 和 WorkManager。核心控制流由生产 `RoundtableOrchestrator` 负责，ViewModel 只桥接 UI、数据库和网络网关。
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                            UI 层                            │
-│   MainActivity.kt（Compose 主路由）                          │
-│   ├── RoundtableBrainstormScreen（圆桌脑暴页）               │
-│   │   ├── RoundtableSeatingDiagram（席位图控制）             │
-│   │   ├── HorizontalPager（分轮次横向滑动发言卡片）          │
-│   │   └── TypingIndicatorBubble（多角色思考状态 indicator）  │
-│   ├── CharacterHallScreen（智囊大厅 + 组合预设一键应用）     │
-│   │   └── CharacterDetailBottomSheet（画像 SKILL.md 可视化）│
-│   └── AudioLibraryScreen（🎵 离线音频库管理界面）            │
-└─────────────────────────────────────────────────────────────┘
-                               ↕ StateFlow
-┌─────────────────────────────────────────────────────────────┐
-│                          ViewModel 层                       │
-│   RoundtableViewModel                                       │
-│   ├── askQuestion() → runRoundtableSequence()               │
-│   │   ├── 语义路由判定 (Cosine Similarity)                  │
-│   │   ├── 组间并发 + 组内串行调度 + 随机错峰与防封间隔延迟   │
-│   │   └── 多角色并发触发 → callGeminiApi()                  │
-│   ├── 离线音频与转码业务 (transcodeAudio)                   │
-│   └── 组合预设管理 (applyGroup / saveCustomGroup)           │
-└─────────────────────────────────────────────────────────────┘
-         ↕ Coroutines/IO       ↕ Retrofit / WS      ↕ WorkManager
-┌──────────────────────┐  ┌─────────────────────────┐  ┌─────────────┐
-│       数据层         │  │         网络层          │  │  音频引擎   │
-│  RoundtableDatabase  │  │  GeminiApi.kt           │  │ (audio/)    │
-│  ├── CharacterDao    │  │  ├── ApiKeyPool         │  │ ├──Playback │
-│  ├── ChatDao         │  │  ├── callBrokerRouter   │  │ │  Manager  │
-│  └── Room v3 → v5    │  │  └── LiveApiClient (WS) │  │ └──Transcode│
-└──────────────────────┘  └─────────────────────────┘  └─────────────┘
-                                       ↕ HTTPS / WSS
-                            Google Gemini REST & Live API
+```text
+Compose UI
+  ├─ 圆桌会话、角色与组合管理
+  ├─ API Key 管理
+  ├─ 隐私、遥测与 API 诊断
+  └─ 音频库
+          │ StateFlow
+          ▼
+RoundtableViewModel
+          │
+          ├─ RoundtableOrchestrator
+          │    ├─ RoundtableBudgetManager / RequestBudgetTracker
+          │    ├─ RoundtableDatabaseGateway
+          │    └─ CharacterAnswerGateway
+          │
+          ├─ Room repositories
+          ├─ RetrofitClient / ApiKeyScheduler
+          └─ LiveApiClient / WorkManager audio pipeline
 ```
 
-## 2. 核心数据模型
+## 2. 圆桌编排边界
 
-### 2.1 Character（智囊角色）
-```kotlin
-@Entity(tableName = "characters")
-data class Character(
-    @PrimaryKey val id: String,     // 唯一标识 (例如 "elon_musk")
-    val name: String,               // 中文名称
-    val avatar: String,             // Emoji 头像
-    val tagline: String,            // tagline 简介
-    val systemPrompt: String,       // 动态加载并剥离 YAML frontmatter 后的提示词
-    val skillAssetPath: String,     // 资产文件在 assets 中的相对路径
-    val order: Int,                 // 默认发言顺序
-    val isActive: Boolean,          // 是否处于激活状态
-    val skillDescriptionVector: String = "", // 768维描述向量，以逗号分隔存储
-    val voiceConfig: String = "Aoede" // 角色匹配的 Gemini Live 预设声音名
-)
+### 2.1 问题级角色快照
+
+- 首次执行时对全部激活角色进行可选的语义排序。
+- 按排序结果锁定最多 6 位参与角色，并保存角色对象快照。
+- 后续轮次复用首次快照，不引入第 7 位角色。
+- 角色在问题处理中被停用、编辑或删除，不会使旧问题死锁，也不会由新角色补位。
+
+### 2.2 严格串行
+
+- 每位角色在前一位角色发言完成后才开始。
+- 每个角色读取当前问题范围内的前序发言。
+- 不使用多组并发、随机分组或随机延迟。
+- 固定的最小请求间隔只用于基础速率保护，不改变串行语义。
+
+### 2.3 请求预算
+
+- 每个问题共享最多 30 次 API 请求预算。
+- REQUIRED 与 OPTIONAL 请求采用原子预留。
+- 同 Key 重试和换 Key 都在同一操作预算内执行，不得抢占后续角色主回答预留。
+- 若剩余额度不足以完成当前整轮，不启动半轮回答。
+- 问题预算当前只保存在进程内；进程重启后的预算持久化仍是已知限制。
+
+## 3. 网络与 API Key 架构
+
+### 3.1 BYOK
+
+- 项目不内置生产 API Key。
+- 用户 Key 通过 Android Keystore + AES-GCM 加密，密文写入 `noBackupFilesDir`。
+- UI 和遥测只读取内部 Key ID、显示名与掩码摘要。
+
+### 3.2 Key Lease 与重试
+
+`ApiKeyScheduler` 生成确定的尝试顺序，综合：
+
+1. 调用方 preferred Key；
+2. 当前会话绑定 Key；
+3. 其他可用候选；
+4. last-used 轮转状态。
+
+重试策略：
+
+- 5xx：同 Key 最多重试两次，退避 1 秒、2 秒；
+- 408 / 网络异常：按策略有限重试；
+- 429：解析 `Retry-After` 秒数并冷却后切换 Key；
+- 401 / 403：标记当前 Key 不可用并切换；
+- 400 / 404 / 序列化错误：停止当前操作。
+
+异常对外只暴露稳定错误分类、操作名和内部 Key ID，不拼接原始 URL、服务商错误正文或 Throwable 消息。
+
+## 4. Broker、搜索与主回答
+
+每位角色的回答链路为：
+
+```text
+当前问题与圆桌前序发言
+        │
+        ├─ 可选 Broker：选择必要的本地 example/reference 文件
+        ├─ 可选 Google Search：受 OPTIONAL 预算和每角色查询数限制
+        └─ 主回答：REQUIRED 请求，读取 Skill 与已选资料
 ```
 
-### 2.2 Message（发言消息）
-```kotlin
-@Entity(tableName = "messages")
-data class Message(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val chatId: Long,
-    val senderId: String,
-    val senderName: String,
-    val avatar: String,
-    val text: String,
-    val timestamp: Long = System.currentTimeMillis(),
-    val isPending: Boolean = false,
-    val roundIndex: Int = 0,             // 轮次索引，用于 HorizontalPager 物理分组
-    val audioFilePath: String? = null,   // 离线音频本地绝对路径 (WAV/AAC)
-    val audioFormat: String? = null,     // 音频文件编码格式 ("wav"/"aac")
-    val audioSizeBytes: Long = 0L        // 音频大小（字节）供音频库体积统计
-)
+- Broker 和搜索属于可选请求，预算不足时直接跳过。
+- 搜索词、Broker 原文和搜索结果正文不写入操作日志或默认遥测。
+- 云端 Interaction 默认关闭，所有请求强制 `store=false` 且不发送 `previousInteractionId`。
+- 用户显式开启后，主回答按“会话 ID × 角色 ID”维护独立的进程内游标，同一角色后续轮次只复用自己的上一条 Interaction。
+- 截断续写使用当前角色刚返回的 Interaction ID，并在成功后推进该角色游标。
+- Broker、Embedding、标题生成和联网搜索不进入角色 Interaction 链。
+- 关闭开关清空全部本地游标；删除本地会话清理该会话的游标。游标不写入磁盘或系统备份。
+
+## 5. 遥测与隐私架构
+
+网络请求经过独立 `telemetry` 包：
+
+```text
+OkHttp request
+   │
+   ├─ TelemetryInterceptor
+   │    ├─ OFF：直接透传
+   │    ├─ METADATA_ONLY：不读取 request/response body
+   │    └─ CONTENT_DEBUG：受构建类型、到期时间、大小限制控制
+   │
+   ├─ TelemetryPreviewExtractor
+   ├─ TelemetryRedactor
+   └─ TelemetryRepository
 ```
 
+### 5.1 默认元数据
 
-## 3. 核心业务与控制流
+默认只持久化时间、耗时、端点路径、模型、内部 Key ID、状态码和错误分类。默认不保存 Prompt、system instruction、附件正文、模型回复、搜索正文、Thought Summary、完整 Interaction ID 或 URL query。
 
-### 3.1 向量语义路由 (Vector Semantic Routing)
-当用户在 UI 开启“专家先发”模式时，流程如下：
-1. 用户提交问题。
-2. ViewModel 调用 `RetrofitClient.embedContentWithFallback(..., questionText)` 获取提问的 768 维特征向量。
-3. 计算该问题向量与每一个处于 Active 状态角色的 `skillDescriptionVector` 相似度（使用 **余弦相似度算法** ）。
-4. 对可用角色按照相似度由高到低重新排序。
-5. 按照重排后的“专家先发”顺序开始圆桌循环发言。
+### 5.2 临时正文调试
 
-### 3.2 双模型 Context Broker 决策流水线 (Dual-Model Broker Pipeline)
-为了在搭载百万级上下文的 Gemini 模型中最高效地拼合 Few-shot 示例及参考文献，且避免 Token 膨胀冷启动，系统设计了双模型动态 Broker 机制：
-```
-           用户输入与脑暴历史 (prompt)
-                      │
-                      ▼
- ┌──────────────────────────────────────────┐
- │       Broker (gemini-3.1-flash-lite)     │  1. 快速判定并分析最相关资料
- └──────────────────────────────────────────┘
-                      │
-        返回选定的文件名 JSON 数组 (例如 ["01-writings.md"])
-                      │
-                      ▼
- ┌──────────────────────────────────────────┐
- │            SkillLoader 加载拼合           │  2. 动态读取并与 SKILL.md 组装
- └──────────────────────────────────────────┘
-                      │
-                拼合后的完整 Prompt
-                      │
-                      ▼
- ┌──────────────────────────────────────────┐
- │       主力模型 (gemini-3.5-flash)        │  3. 开启高强度思考 (Thinking Config)
- └──────────────────────────────────────────┘
-                      │
-                 输出角色作答
-```
+- 仅 Debug 构建可启用；
+- 用户必须确认隐私警告；
+- 24 小时自动过期；
+- request 最多读取 16 KiB，response 最多 `peek` 32 KiB；
+- 预览各最多 2,000 字符；
+- Base64 附件、Thought Summary、签名和搜索正文直接省略；
+- Interaction ID 掩码，所有预览统一脱敏。
 
-### 3.3 会话级 API Key 并发分组、熔断保护与防屏蔽延迟
-- **多 Key 并发分组**：会话开始时将所有活跃智囊角色随机乱序，并打乱分成多组（每组 1~3 个角色），每个组绑定一个内置 API Key。
-- **组间并发与组内串行**：绑定不同 Key 的角色组之间**并行**发起 API 请求；绑定相同 Key 组内的智囊角色则**串行**发起请求，以最大化复用 Gemini 内部的前缀缓存。
-- **错峰与间隔随机延迟 (Anti-blocking)**：
-  - 用户发言后，各个 Key 组的首次请求会随机错开 **1~3 秒** 启动。
-  - 同一个 Key 组内，上一个智囊作答完毕后，会随机等待 **2~6 秒**，再发起该组内下一智囊的请求。
-- **动态换绑**：一旦某组的 Key 请求接口返回 HTTP 429 报错，该 Key 被写回 SharedPreferences 熔断 24 小时，并在剩余可用 Key 中重选第一个绑定至该组。
+### 5.3 保留与备份
 
-### 3.4 Gemini Live 语音合成 (TTS) 与后台 MediaCodec 异步转码
-离线语音交互逻辑分为两阶段流水线：
-1. **第一阶段：WAV 流式拉取与秒级开播**：
-   - 用户点击气泡上的 🔊 按钮时，首先在 `LocalFiles` 检查以 `messageId` 命名的音频缓存（支持 `.wav` 和 `.aac` 格式）。
-   - 若无缓存，启动 `LiveApiClient` 建立 WebSocket，配置对应的 `voiceConfig` 音色，向 Live API 提交文字生成纯 `AUDIO` 多模态流。
-   - 流式接收 PCM 音频包并在内存累加，结束后追加 44 字节 WAV 头文件并写入 `.wav` 路径，直接交由 `MediaPlayer` 播放，避免转码导致的长时间阻塞。
-2. **第二阶段：后台异步转码 (AAC 瘦身)**：
-   - 播放触发后或在音频管理库中，可通过 WorkManager 后台自动触发 `AudioTranscodeWorker` 异步任务。
-   - `MediaCodec` 会在后台线程读取 PCM 音频输入流进行 AAC 编码压缩。
-   - 为确保原生播放器的通用识别，转码过程中每帧添加 **7 字节 ADTS 头部**，最终保存为 `.aac`（`.m4a`）文件。
-   - 成功后，自动覆写数据库记录，并安全删除占用存储空间的原始 `.wav` 文件（体积减少 85%+）。
+- Metadata：最长 7 天、最多 100 条；
+- Content Debug：最长 24 小时、最多 20 条；
+- 过期数据在启动、读取和写入时裁剪，并从磁盘同步删除；
+- 遥测设置、事件和云端 Interaction 开关使用独立 Preferences；
+- 上述 Preferences 均排除 Android 自动备份和设备迁移。
 
-### 3.5 API 调试与请求遥测拦截数据流 (Telemetry Logging Pipeline)
+## 6. 日志架构
 
-为了提供频控 Key 看板并支持运行时排错，项目设计了高密度 API 遥测诊断流水线：
+- Release 的 OkHttp 日志级别为 `NONE`。
+- Debug 默认只使用 `BASIC`，不打印 BODY。
+- 应用操作日志统一经 `PrivacySafeLogger`：仅 Debug 输出，写入前脱敏和截断，不输出 Throwable 堆栈或原始异常消息。
+- 内容调试预览只进入受控的本地遥测仓库，不进入全局 Logcat。
 
-```
- Gemini API 发起网络请求 (REST / WebSocket)
-                   │
-                   ▼
-  网络请求层捕获响应与异常 (callGeminiApi / embedContent)
-                   │
-  ┌────────────────┴────────────────┐
-  │     异常捕获 / 响应解析处理     │
-  └────────────────┬────────────────┘
-                   │
-            生成 ApiLog 记录
-                   │
-                   ▼
-   ┌──────────────────────────────┐
-   │  ApiKeyPool.addLog(apiLog)   │  最近 50 条内存队列（头插法）
-   └───────────────┬──────────────┘
-                   │
-                   ▼
-  ┌─────────────────────────────────┐
-  │   ApiDebugPanelDialog (UI悬浮)  │  实时观察 10 个 Key 状态与日志 Prompt 堆栈
-  └─────────────────────────────────┘
-```
+## 7. Room 与音频
 
-1. **请求拦截注入**：无论是 Embedding 还是主力生成模型请求，在网络调用结束或抛出 HTTP 429、网络连接超时异常时，都会回调 `ApiKeyPool.addLog(ApiLog)`，将请求时段的性能指标、状态码、Prompt 与报错信息存储进内存链表。
-2. **诊断渲染**：通过 UI 右上角的齿轮（密钥设置）进入，点击“熔断诊断与遥测日志”链接，拉起 `ApiDebugPanelDialog` 调试面板：
-   - 提取 `ApiKeyPool.getKeyStatuses(context)` 动态计算 10 个 API Key 的 `remainingBanTimeMs`，以高对比度列表实时展示哪些 Key 当前已被本地 SharedPreferences 熔断禁用。
-   - 遍历渲染内存中 50 条最近遥测日志，允许用户点击任意一条展开，完整审查发出的 Prompt 与底层的 HTTP 连接错误堆栈。
-   - 提供“清除熔断状态（重置计时）”操作，通过重置 Preference 来立即恢复 Key 池的生产能力。
+### 7.1 Room
+
+Room 保存角色、会话、消息、组合和音频索引。普通聊天数据库整体加密不属于 PR03；后续安全工作可单独设计迁移方案。
+
+### 7.2 音频
+
+- Gemini Live WebSocket 返回 PCM 音频；
+- 应用先在缓存目录生成 WAV；
+- WorkManager 使用 MediaCodec 转为带 ADTS 头的 AAC；
+- 成功后更新 Room 索引并删除临时 WAV；
+- 日志不记录音频路径或用户正文。
