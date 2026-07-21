@@ -89,8 +89,11 @@ RoundtableViewModel
 
 - Broker 和搜索属于可选请求，预算不足时直接跳过。
 - 搜索词、Broker 原文和搜索结果正文不写入操作日志或默认遥测。
-- 主回答请求的 `previousInteractionId` 固定从 `null` 开始，不恢复多角色共享云端链。
-- 只有用户显式启用云端会话链后，同一角色的截断续写才允许使用该次响应的 Interaction ID。
+- 云端 Interaction 默认关闭，所有请求强制 `store=false` 且不发送 `previousInteractionId`。
+- 用户显式开启后，主回答按“会话 ID × 角色 ID”维护独立的进程内游标，同一角色后续轮次只复用自己的上一条 Interaction。
+- 截断续写使用当前角色刚返回的 Interaction ID，并在成功后推进该角色游标。
+- Broker、Embedding、标题生成和联网搜索不进入角色 Interaction 链。
+- 关闭开关清空全部本地游标；删除本地会话清理该会话的游标。游标不写入磁盘或系统备份。
 
 ## 5. 遥测与隐私架构
 
