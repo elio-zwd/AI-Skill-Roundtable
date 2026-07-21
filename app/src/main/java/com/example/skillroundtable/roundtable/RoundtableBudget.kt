@@ -28,8 +28,36 @@ class RequestBudgetTracker(val limit: Int) {
         return false
     }
 
+    /**
+     * 针对主回答等 REQUIRED 请求消费预算。只要未超限即可。
+     */
+    @Synchronized
+    fun tryConsumeRequired(count: Int = 1): Boolean {
+        if (used + count <= limit) {
+            used += count
+            return true
+        }
+        return false
+    }
+
+    /**
+     * 针对可选请求（OPTIONAL，如 Broker, 搜索, 续写, 标题）进行消费预算。
+     * 必须保证消费后，剩余的可用预算至少能够承载预留的主回答次数 [reserveForRequired]。
+     */
+    @Synchronized
+    fun tryConsumeOptional(count: Int = 1, reserveForRequired: Int): Boolean {
+        if (used + count + reserveForRequired <= limit) {
+            used += count
+            return true
+        }
+        return false
+    }
+
     @Synchronized
     fun getUsed(): Int = used
+
+    @Synchronized
+    fun getRemaining(): Int = limit - used
 
     @Synchronized
     fun isExceeded(): Boolean = used >= limit

@@ -570,7 +570,7 @@ tools/check-doc-consistency.ps1
 
 - 作者绝对路径。
 - `file:///`。
-- `BuildConfig.GEMINI_API_KEY`。
+- `BuildConfig.[GEMINI_API_KEY]`。
 - `内置 10 个 Key`。
 - `反检测`。
 - `组间并发`。

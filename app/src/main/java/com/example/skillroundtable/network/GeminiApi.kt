@@ -254,7 +254,7 @@ object RetrofitClient {
                 Regex("([?&]key=)[^&\\s]+"),
                 "$1[REDACTED]"
             )
-            Log.d("OkHttp", redactedMessage)
+            logD("OkHttp", redactedMessage)
         }.apply {
             level = if (BuildConfig.DEBUG) {
                 HttpLoggingInterceptor.Level.BODY
@@ -287,6 +287,8 @@ object RetrofitClient {
         tracker: RequestBudgetTracker,
         operationName: String,
         delayProvider: com.example.skillroundtable.roundtable.DelayProvider = com.example.skillroundtable.roundtable.DefaultDelayProvider,
+        isRequired: Boolean = true,
+        reserveForRequired: Int = 0,
         block: suspend (ApiKeyLease) -> T
     ): T {
         var lastException: Exception? = null
@@ -304,21 +306,26 @@ object RetrofitClient {
         }
 
         for (lease in attemptPlan) {
-            // 开始请求前，首先校验预算
-            if (!tracker.tryConsume(1)) {
-                val budgetFailure = ApiCallFailure.Unknown(Exception("本问题 API 请求预算已耗尽。"))
+            // 开始请求前，首先校验并原子消费预算 (REQUIRED 与 OPTIONAL 区别消费，且遵守预留)
+            val consumed = if (isRequired) {
+                tracker.tryConsumeRequired(1)
+            } else {
+                tracker.tryConsumeOptional(1, reserveForRequired)
+            }
+            if (!consumed) {
+                val budgetFailure = ApiCallFailure.Unknown(Exception("本问题 API 请求预算已耗尽或未满足预留配额。"))
                 throw com.example.skillroundtable.network.retry.ApiExecutionException(
                     failure = budgetFailure,
                     operationName = operationName,
                     keyId = lease.keyId,
-                    cause = Exception("操作 [$operationName] 超过了本轮请求预算。已使用请求数: ${tracker.getUsed()}")
+                    cause = Exception("操作 [$operationName] 超过了本轮请求预算。已使用: ${tracker.getUsed()}, 预留主回答: $reserveForRequired")
                 )
             }
 
             var sameKeyAttemptCount = 0
             while (true) {
                 try {
-                    Log.d(TAG, "[$operationName] 正在使用 Key ${lease.keyId} 执行请求...")
+                    logD(TAG, "[$operationName] 正在使用 Key ${lease.keyId} 执行请求...")
                     val result = block(lease)
                     ApiRetryPolicy.resetRateLimitCount(context, lease.keyId)
                     ApiKeyPool.bindSessionKey(context, sessionId, lease.keyId)
@@ -363,12 +370,17 @@ object RetrofitClient {
                             }
                             delayProvider.delay(backoffMs)
 
-                            if (!tracker.tryConsume(1)) {
+                            val retryConsumed = if (isRequired) {
+                                tracker.tryConsumeRequired(1)
+                            } else {
+                                tracker.tryConsumeOptional(1, reserveForRequired)
+                            }
+                            if (!retryConsumed) {
                                 throw com.example.skillroundtable.network.retry.ApiExecutionException(
-                                    failure = ApiCallFailure.Unknown(Exception("重试时超出预算")),
+                                    failure = ApiCallFailure.Unknown(Exception("重试时超出预算预留限制")),
                                     operationName = operationName,
                                     keyId = lease.keyId,
-                                    cause = Exception("操作 [$operationName] 重试时超过了本轮请求预算。")
+                                    cause = Exception("操作 [$operationName] 重试时超过了本轮请求预算或预留配额。")
                                 )
                             }
                             continue
@@ -398,9 +410,11 @@ object RetrofitClient {
         attemptPlan: List<ApiKeyLease>,
         tracker: RequestBudgetTracker,
         operationName: String = "CreateInteraction",
-        delayProvider: com.example.skillroundtable.roundtable.DelayProvider = com.example.skillroundtable.roundtable.DefaultDelayProvider
+        delayProvider: com.example.skillroundtable.roundtable.DelayProvider = com.example.skillroundtable.roundtable.DefaultDelayProvider,
+        isRequired: Boolean = true,
+        reserveForRequired: Int = 0
     ): Interaction {
-        return executeWithBudgetAndRetry(context, sessionId, attemptPlan, tracker, operationName, delayProvider) { lease ->
+        return executeWithBudgetAndRetry(context, sessionId, attemptPlan, tracker, operationName, delayProvider, isRequired, reserveForRequired) { lease ->
             service.createInteraction(apiKey = lease.secret, request = request)
         }
     }
@@ -413,9 +427,11 @@ object RetrofitClient {
         attemptPlan: List<ApiKeyLease>,
         tracker: RequestBudgetTracker,
         operationName: String = "GenerateContent",
-        delayProvider: com.example.skillroundtable.roundtable.DelayProvider = com.example.skillroundtable.roundtable.DefaultDelayProvider
+        delayProvider: com.example.skillroundtable.roundtable.DelayProvider = com.example.skillroundtable.roundtable.DefaultDelayProvider,
+        isRequired: Boolean = true,
+        reserveForRequired: Int = 0
     ): GenerateContentResponse {
-        return executeWithBudgetAndRetry(context, sessionId, attemptPlan, tracker, operationName, delayProvider) { lease ->
+        return executeWithBudgetAndRetry(context, sessionId, attemptPlan, tracker, operationName, delayProvider, isRequired, reserveForRequired) { lease ->
             service.generateContent(model = model, apiKey = lease.secret, request = request)
         }
     }
@@ -427,12 +443,14 @@ object RetrofitClient {
         attemptPlan: List<ApiKeyLease>,
         tracker: RequestBudgetTracker,
         operationName: String = "EmbedContent",
-        delayProvider: com.example.skillroundtable.roundtable.DelayProvider = com.example.skillroundtable.roundtable.DefaultDelayProvider
+        delayProvider: com.example.skillroundtable.roundtable.DelayProvider = com.example.skillroundtable.roundtable.DefaultDelayProvider,
+        isRequired: Boolean = true,
+        reserveForRequired: Int = 0
     ): List<Float> {
         val request = EmbedContentRequest(
             content = Content(parts = listOf(Part(text = text)))
         )
-        return executeWithBudgetAndRetry(context, sessionId, attemptPlan, tracker, operationName, delayProvider) { lease ->
+        return executeWithBudgetAndRetry(context, sessionId, attemptPlan, tracker, operationName, delayProvider, isRequired, reserveForRequired) { lease ->
             service.embedContent(apiKey = lease.secret, request = request).embedding.values
         }
     }
@@ -576,7 +594,7 @@ class TelemetryInterceptor : okhttp3.Interceptor {
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("TelemetryInterceptor", "解析请求 Prompt 失败", e)
+            logE("TelemetryInterceptor", "解析请求 Prompt 失败", e)
         }
 
         var response: okhttp3.Response? = null
@@ -673,7 +691,7 @@ class TelemetryInterceptor : okhttp3.Interceptor {
                     }
                 }
             } catch (e: Exception) {
-                android.util.Log.e("TelemetryInterceptor", "解析响应文本失败", e)
+                logE("TelemetryInterceptor", "解析响应文本失败", e)
             }
         }
 
@@ -692,5 +710,21 @@ class TelemetryInterceptor : okhttp3.Interceptor {
             throw lastException
         }
         return response!!
+    }
+}
+
+private fun logD(tag: String, msg: String) {
+    try {
+        android.util.Log.d(tag, msg)
+    } catch (_: Throwable) {
+        println("[$tag] $msg")
+    }
+}
+
+private fun logE(tag: String, msg: String, tr: Throwable? = null) {
+    try {
+        android.util.Log.e(tag, msg, tr)
+    } catch (_: Throwable) {
+        println("[$tag] ERROR: $msg ${tr?.message ?: ""}")
     }
 }

@@ -111,4 +111,60 @@ class ApiKeyAttemptPlanTest {
         assertEquals("第二个应当是 key_a", "key_a", plan[1].keyId)
         assertEquals("第三个应当是 key_c", "key_c", plan[2].keyId)
     }
+
+    @Test
+    fun testKeyPlanPreferredBoundLastUsedPriority() {
+        val context = mock(Context::class.java)
+        // 绑定 session_key_100 到 key_b，Last Used Key 设为 key_a
+        val fakePrefs = FakeSharedPreferences(mapOf(
+            "session_key_100" to "key_b",
+            "last_used_key_id" to "key_a"
+        ))
+        `when`(context.getSharedPreferences("gemini_api_key_prefs", Context.MODE_PRIVATE)).thenReturn(fakePrefs)
+
+        val recordsList = listOf(
+            ApiKeyRecord(id = "key_c", displayName = "Acc C", key = "secret_c", fingerprint = "fp_c", source = ApiKeySource.LOCAL, validationState = ApiKeyValidationState.AVAILABLE),
+            ApiKeyRecord(id = "key_a", displayName = "Acc A", key = "secret_a", fingerprint = "fp_a", source = ApiKeySource.LOCAL, validationState = ApiKeyValidationState.AVAILABLE),
+            ApiKeyRecord(id = "key_b", displayName = "Acc B", key = "secret_b", fingerprint = "fp_b", source = ApiKeySource.LOCAL, validationState = ApiKeyValidationState.AVAILABLE)
+        )
+
+        setupMockKeys(recordsList, context)
+
+        // 显式将 preferredKeyId 传为 key_c
+        val plan = ApiKeyScheduler.createAttemptPlan(context, sessionId = 100, preferredKeyId = "key_c")
+
+        // 预期排序：Preferred (key_c) -> Bound (key_b) -> 其他，但 Last Used (key_a) 必须被移到末尾！
+        assertEquals("Preferred key_c 应该排第一", "key_c", plan[0].keyId)
+        assertEquals("Bound key_b 应该排第二", "key_b", plan[1].keyId)
+        assertEquals("Last Used key_a 应该被轮转到末尾", "key_a", plan[2].keyId)
+    }
+
+    @Test
+    fun testKeyPlanFiltersDisabledInvalidAndCoolingKeys() {
+        val context = mock(Context::class.java)
+        // 模拟 key_cooling 处于冷却时间（截止时间在未来）
+        val futureTime = System.currentTimeMillis() + 100000L
+        val fakePrefs = FakeSharedPreferences(mapOf(
+            "ban_key_cooling" to futureTime
+        ))
+        `when`(context.getSharedPreferences("gemini_api_key_prefs", Context.MODE_PRIVATE)).thenReturn(fakePrefs)
+
+        val recordsList = listOf(
+            // 正常
+            ApiKeyRecord(id = "key_normal", displayName = "Normal", key = "secret_normal", fingerprint = "fp_n", source = ApiKeySource.LOCAL, validationState = ApiKeyValidationState.AVAILABLE),
+            // 无效（INVALID）
+            ApiKeyRecord(id = "key_invalid", displayName = "Invalid", key = "secret_invalid", fingerprint = "fp_i", source = ApiKeySource.LOCAL, validationState = ApiKeyValidationState.INVALID),
+            // 被禁用（DISABLED）—— 将 record 设为 enabled = false
+            ApiKeyRecord(id = "key_disabled", displayName = "Disabled", key = "secret_disabled", fingerprint = "fp_d", source = ApiKeySource.LOCAL, validationState = ApiKeyValidationState.AVAILABLE, enabled = false),
+            // 冷却中（COOLING）
+            ApiKeyRecord(id = "key_cooling", displayName = "Cooling", key = "secret_cooling", fingerprint = "fp_c", source = ApiKeySource.LOCAL, validationState = ApiKeyValidationState.AVAILABLE)
+        )
+
+        setupMockKeys(recordsList, context)
+
+        val plan = ApiKeyScheduler.createAttemptPlan(context, sessionId = 100)
+
+        assertEquals("计划里应该只包含唯一正常的 key_normal", 1, plan.size)
+        assertEquals("过滤后的 Key 应该是 key_normal", "key_normal", plan[0].keyId)
+    }
 }

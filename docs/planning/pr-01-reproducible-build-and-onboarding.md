@@ -29,7 +29,7 @@
 - 不升级 Kotlin、AGP、Compose、Room 或 Retrofit。
 - 不实现 Release 签名。
 - 不改变包名。
-- 不恢复 `.env -> BuildConfig.GEMINI_API_KEY` 注入。
+- 不恢复 `.env -> BuildConfig.[GEMINI_API_KEY]` 注入.
 - 不删除现有本地离线开发能力；只把它改成可选配置，不能成为默认路径。
 
 ---
@@ -407,7 +407,7 @@ git grep -n -I -E '([A-Za-z]:\\|file:///|My_Elio|MobileApp)'
 允许通用示例路径，但不得出现作者真实目录。
 
 ```powershell
-git grep -n -I 'BuildConfig.GEMINI_API_KEY'
+git grep -n -I 'BuildConfig.[GEMINI_API_KEY]'
 ```
 
 结果必须为空，或只出现在明确解释“旧架构已移除”的历史文档中；最好同步删除过时表述。
