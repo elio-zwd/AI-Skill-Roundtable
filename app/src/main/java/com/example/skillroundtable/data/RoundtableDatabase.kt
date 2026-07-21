@@ -73,7 +73,6 @@ abstract class RoundtableDatabase : RoomDatabase() {
                     "roundtable_database"
                 )
                     .addMigrations(MIGRATION_3_4, MIGRATION_4_5)
-                    .fallbackToDestructiveMigration()
                     .addCallback(DatabaseCallback(scope, context.applicationContext))
                     .build()
                 INSTANCE = instance
