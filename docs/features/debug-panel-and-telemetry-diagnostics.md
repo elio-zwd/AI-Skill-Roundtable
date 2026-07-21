@@ -1,74 +1,93 @@
-# 熔断调试面板与语音/文件导出功能技术说明书
+# 隐私、遥测与 API 诊断技术说明
 
-本说明书详细介绍 **AI 智囊圆桌** 的核心调试机制（API 熔断诊断与遥测日志），并同步补全音频后台转码（Tab 2）与一键导出功能的技术实现细节。
+本文说明 AI Skill Roundtable 当前的 API Key 诊断、本地遥测、云端 Interaction 存储和调试日志边界。代码行为以 PR02 的串行圆桌与 Key Lease 编排为基础，并由 PR03 增加隐私加固。
 
----
+## 1. API Key 与请求诊断
 
-## 1. API 熔断诊断与请求日志遥测
+### 1.1 BYOK 与本地密钥存储
 
-为了解决 Google Gemini API 固有的 QPM（每分钟请求数）与 RPM 限制，防止因并发拉取 7 位智囊角色作答导致账号被封禁或持续返回 HTTP `429` 错误，系统设计了底层的 **API 降级熔断与遥测诊断机制**。
+- 项目不内置生产 API Key；用户通过本地 BYOK 方式导入。
+- 完整 Key 使用 Android Keystore 派生密钥进行 AES-GCM 加密，密文写入 `noBackupFilesDir`。
+- UI、遥测和日志只允许出现内部 Key ID 或显示名，禁止记录完整 Key。
+- Key 校验、禁用、冷却和会话绑定状态仍由 `ApiKeyPool` 管理，遥测事件不再写入 Key Preferences。
 
-### 1.1 内置备用 Key 池与本地 24h 熔断
-- **Key 池管理**：在 [ApiKeyPool](../../app/src/main/java/com/example/skillroundtable/network/ApiKeyPool.kt) 中预设了 10 个备用 API 密钥（标识为 `w1` 到 `w10`）。
-- **24小时熔断（Ban）**：一旦某个 API Key 在调用时返回了 HTTP `429`（配额超限）或发生特定的网络异常，系统会调用 `ApiKeyPool.banKey(context, keyId)`，在本地 SharedPreferences 中写入该 Key 的过期时间戳（当前系统毫秒值 + 24小时）。在过期时间戳到达前，该 Key 会被标记为 Banned 并在 Key 选择器中被自动屏蔽。
+### 1.2 确定性重试与预算
 
-### 1.2 会话级 Key 锁定与缓存优化
-- **隐式上下文缓存 (Implicit Context Cache)**：Gemini API 具备隐式缓存机制，当相同的 API 密钥连续接收到前缀相同的超长 Prompt 时，会自动命中缓存，缩短首次字延迟（TTFT）。
-- **锁定策略**：系统通过 `getOrBindSessionKey(context, sessionId)` 将当前脑暴会话的 `sessionId` 锁定在某一个未熔断的特定 Key 上。只有当该 Key 触发 429 熔断报错或连接超时时，系统才会自动切换并绑定至下一个可用的备用 Key。
+- 圆桌角色严格串行执行，不使用随机延迟。
+- HTTP 5xx 的同 Key 重试退避固定为 1 秒、2 秒。
+- `Retry-After` 支持秒数解析。
+- REQUIRED 与 OPTIONAL 请求使用原子预算预留；OPTIONAL 请求不得消耗为后续主回答保留的额度。
+- 当前问题剩余额度不足以完成整轮时，不启动半轮回答。
 
-### 1.3 错峰与随机延迟节拍 (Anti-blocking)
-在并发拉取所有参会角色的回答时，为了防范短时间内高并发请求被 API 网关屏蔽，系统设计了双重控制流：
-1. **组间并发**：根据可用 Key 数量，将所有参会角色随机分入不同的 Key 组（每组 1~3 人）。各组之间**同时（并发）**发起网络请求。不同组的首次请求会在启动时随机错开 **1~3 秒**，实现微观错峰。
-2. **组内串行**：绑定相同 Key 的组内成员必须**串行**排队请求，以便最大化命中前缀缓存。前一个角色回答完毕后，该组必须强制随机休眠 **2~6 秒**，再拉起组内下一个角色的请求，规避频控。
+## 2. 本地遥测级别
 
-### 1.4 调试面板 (ApiDebugPanelDialog)
-调试面板为开发者与高阶用户提供了一个直观的频控诊断浮层：
-- **入口路径**：点击主屏右上角齿轮（密钥配置）图标 $\rightarrow$ 弹窗内点击橙黄色高对比度超链接“熔断诊断与遥测日志”即可唤起。
-- **内置 Key 熔断倒计时**：实时列出 `w1` 到 `w10` 的熔断倒计时（格式化为 `HH:mm:ss`，若已解禁则显示“可用”）。
-- **最近 50 条遥测日志**：流式展现内存中最近 50 条 API 请求。每条日志卡片包含状态码（如 `200` 绿标，`429` / `-1` 红标）、模型名、耗时等。
-  - **Prompt 折叠展开**：用户可点击任意一条日志卡片将其展开，直观审查发给大模型的**完整 Prompt 文本**与底层 HTTP 报错堆栈，极利于提示词调试与网络排错。
-  - **一键重置**：面板底部提供“清除熔断状态（重置计时）”按钮，点击可同步清除 Preference 里的熔断记录，方便在调试时立即重试。
+### 2.1 `OFF`
 
----
+- 不创建本地遥测事件。
+- 不读取请求正文。
+- 不读取或 `peek` 响应正文。
 
-## 2. 离线语音管理与后台 ADTS-AAC 转码 (Tab 2)
+### 2.2 `METADATA_ONLY`（默认）
 
-为了支持首次秒播同时最大化节省手机存储空间，语音收录与播放采用了 **WAV直存播放 $\rightarrow$ 后台 MediaCodec 异步打包转码** 的二级流水线：
+默认只保存：
 
-### 2.1 WAV 裸流直存与极速秒播
-- **拉取与直存**：使用 Gemini Live WebSocket 协议，配置对应的 `voiceConfig` 专属音色建立 PCM 流式接收。流传输结束时，在内存数据头部追加 **44 字节的标准 WAV 头信息**（含采样率 16kHz、单声道、16位深度），直接以 `.wav` 文件写入本地私有目录。
-- **秒播机制**：WAV 文件生成后，不经过任何耗时的压缩转码，立即送入原生 `MediaPlayer` 进行首次发声播放，消除了用户的等待感知。
+- 时间与耗时；
+- HTTP 方法和不含 query 的端点路径；
+- 模型名；
+- 内部 Key ID；
+- HTTP 状态码和稳定错误分类；
+- 可用时的重试或 Token 元数据。
 
-### 2.2 后台 WorkManager 异步转码 (AAC 压缩)
-- **触发时机**：播放完成后，或者用户在 Tab 2（音频库）界面手动触发转码时，系统会将该 WAV 文件信息包装并提交给 WorkManager。
-- **MediaCodec 编码**：系统拉起 `AudioTranscodeWorker` (CoroutineWorker)，在后台线程调用 Android 原生的 `MediaCodec` 编码器，将 PCM 音频帧输入队列，异步编码输出 AAC 高保真音频数据。
-- **ADTS 头部封装**：为了使输出的 AAC 文件能被各种系统播放器零依赖解码播放，在写入文件时，每一帧 AAC 帧前都会手动封装一个 **7 字节的 ADTS (Audio Data Transport Stream) 头部**。
-- **物理覆写与空间释放**：AAC 封装写入完毕后，覆写 Room 数据库中该消息记录的 `audioFormat = "aac"` 和最新文件大小，并同步调用物理删除 API 彻底抹除原 `.wav` 文件。转码后的 AAC 文件体积相比 WAV **缩减了 85% 以上**（如 2MB 物理文件压缩至 240KB 左右），极大释放了磁盘空间。
+默认不保存：
 
----
+- 用户问题、system instruction、Skill 正文；
+- 附件正文或 Base64 解码内容；
+- 模型完整回复；
+- 搜索词、搜索结果正文或 Thought Summary；
+- 完整 Interaction ID；
+- URL query、Authorization 或完整异常消息。
 
-## 3. 免动态权限 Markdown 一键导出
+### 2.3 `CONTENT_DEBUG`
 
-在圆桌脑暴结束后，用户可一键将整场脑暴纪要导出为标准的 Markdown 文档。
+- 仅 Debug 构建可用。
+- 必须由用户在隐私警告后显式开启。
+- 最长 24 小时，到期自动降回 `METADATA_ONLY` 并删除已有正文预览。
+- 请求体最多读取 16 KiB，响应最多 `peek` 32 KiB。
+- 请求和响应预览各最多 2,000 字符，并再次经过统一脱敏。
+- 附件只显示 MIME 类型和编码长度，不解码正文。
+- Interaction ID 只保留掩码；Thought Summary、签名和搜索正文直接省略。
 
-### 3.1 MediaStore 物理沙盒写入
-传统的 Android 文件物理写入往往需要申请高危的 `WRITE_EXTERNAL_STORAGE` 动态权限，容易引起用户安全警惕。为此，项目采用了原生的 **MediaStore API 写入沙盒**：
-- **存储路径**：利用 `MediaStore.Downloads` 端点，在公共下载目录中自动创建 `AI_Brainstorm/` 子文件夹。
-- **逻辑实现**：
-  ```kotlin
-  val values = ContentValues().apply {
-      put(MediaStore.Downloads.DISPLAY_NAME, "${title}.md")
-      put(MediaStore.Downloads.MIME_TYPE, "text/markdown")
-      put(MediaStore.Downloads.RELATIVE_PATH, "Download/AI_Brainstorm")
-  }
-  ```
-  通过 `contentResolver.insert` 获取沙盒 Uri，再打开输出流写入生成的 Markdown 字节，全程**完全零动态权限申请**，极佳地保护了系统隐私并提升了应用合规度。
+## 3. 保留与本地存储
 
+- 遥测设置存储在 `telemetry_settings`。
+- 遥测事件存储在 `roundtable_telemetry_prefs`。
+- 云端 Interaction 开关存储在 `roundtable_privacy_settings`。
+- 三者均从 Android 自动备份和设备迁移中排除。
+- Metadata 最长保留 7 天且最多 100 条。
+- Content Debug 预览最长保留 24 小时且最多 20 条。
+- 启动、读取和写入时都会执行裁剪；过期事件会同步从持久化存储删除。
+- 旧 `gemini_api_key_prefs/telemetry_api_logs_json` 会在首次迁移时删除；删除失败时保留迁移未完成状态，下次启动重试。
+- 诊断页展示当前级别、到期时间、事件数和估算占用，并支持一键清空。
 
-## PR03 隐私与遥测规则
+## 4. 云端 Interaction 存储
 
-- 默认级别为 `METADATA_ONLY`，只保存端点、模型、Key ID、状态码、耗时和错误分类。
-- `CONTENT_DEBUG` 仅允许在 Debug 构建中由用户确认开启，最长 24 小时；请求与响应预览分别限制为 2,000 字符，并执行敏感信息脱敏。
-- 附件正文不会被 Base64 解码写入遥测；Thought Summary 与搜索结果正文不会保存。
-- 遥测独立存储在 `roundtable_telemetry_prefs`，旧 `gemini_api_key_prefs/telemetry_api_logs_json` 首次启动直接删除。
-- 云端 Interaction `store` 默认强制为 `false`；用户显式启用后才允许请求使用持久化 Interaction 链。
+- 默认强制 `store=false`。
+- 用户显式开启“云端会话链优化”后，调用方明确请求 `store=true` 时才允许持久化 Interaction。
+- `previousInteractionId` 只有在同一请求实际允许 `store=true` 时才会发送。
+- 主回答仍以 `previousInteractionId=null` 开始；不恢复多角色共享 Interaction ID。
+- 关闭云端会话链不会阻止普通 Gemini 请求发送，只是不额外启用持久化 Interaction 链。
+- 服务商侧保留和删除受其政策约束，本应用无法保证远端删除。
+
+## 5. Logcat 边界
+
+- Release 构建的 OkHttp 日志级别为 `NONE`。
+- Debug 构建默认只启用 OkHttp `BASIC`，不打印 BODY。
+- 应用内操作日志统一通过 Debug-only 的 `PrivacySafeLogger` 输出，并在写入 Logcat 前脱敏和截断。
+- Broker 原文、搜索词、模型回复、文件路径、完整异常消息和 Throwable 堆栈不进入操作日志。
+- 即使开启 `CONTENT_DEBUG`，正文预览也只写入受保留策略控制的本地遥测仓库，不写入全局 Logcat。
+
+## 6. 音频与导出数据
+
+- Gemini Live 返回的 PCM 音频先写入应用缓存 WAV，再由 WorkManager 转为 AAC；日志不记录本地文件路径。
+- 用户主动导出的 Markdown 会包含其会话正文，这是显式导出行为，不属于遥测。
+- 普通聊天数据库整体加密不在 PR03 范围内，后续安全 PR 可单独评估。
