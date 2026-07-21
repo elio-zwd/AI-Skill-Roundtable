@@ -101,11 +101,10 @@ object TelemetryRepository {
     @Synchronized
     fun contentDebugExpiresAt(context: Context): Long? {
         ensureInitialized(context)
-        enforceExpiry(System.currentTimeMillis())
+        val now = System.currentTimeMillis()
+        enforceExpiry(now)
         if (_level.value != TelemetryLevel.CONTENT_DEBUG) return null
-        val value = context.applicationContext.getSharedPreferences(SETTINGS_PREFS, Context.MODE_PRIVATE)
-            .getLong(KEY_DEBUG_EXPIRES_AT, 0L)
-        return value.takeIf { it > 0L }
+        return readActiveContentDebugExpiry(context.applicationContext, now)
     }
 
     @Synchronized
@@ -125,13 +124,16 @@ object TelemetryRepository {
     @Synchronized
     fun record(event: TelemetryEvent) {
         val context = appContext ?: return
+        val now = System.currentTimeMillis()
         val activeLevel = currentLevel()
         if (activeLevel == TelemetryLevel.OFF) return
-        val normalized = normalizeEvent(event, activeLevel, context)
-        val updated = TelemetryRetentionPolicy.prune(
-            listOf(normalized) + _events.value,
-            System.currentTimeMillis()
-        )
+        val contentExpiresAt = if (activeLevel == TelemetryLevel.CONTENT_DEBUG) {
+            readActiveContentDebugExpiry(context, now)
+        } else {
+            null
+        }
+        val normalized = normalizeEvent(event, contentExpiresAt)
+        val updated = TelemetryRetentionPolicy.prune(listOf(normalized) + _events.value, now)
         _events.value = updated
         updateLegacyLogs(updated)
         persistEvents(context, updated)
@@ -147,7 +149,7 @@ object TelemetryRepository {
             model = log.model,
             keyId = log.keyId,
             statusCode = log.statusCode.takeIf { it >= 0 },
-            failureType = log.errorMessage?.let { "LEGACY_ERROR: $it" },
+            failureType = log.errorMessage?.let { "LEGACY_ERROR" },
             requestPreview = log.prompt.takeIf { it.isNotBlank() },
             responsePreview = log.responseText.takeIf { it.isNotBlank() }
         )
@@ -180,16 +182,18 @@ object TelemetryRepository {
         if (!initialized) init(context)
     }
 
-    private fun normalizeEvent(event: TelemetryEvent, activeLevel: TelemetryLevel, context: Context): TelemetryEvent {
-        val contentEnabled = activeLevel == TelemetryLevel.CONTENT_DEBUG
-        val expiresAt = if (contentEnabled) contentDebugExpiresAt(context) else null
+    private fun normalizeEvent(event: TelemetryEvent, contentExpiresAt: Long?): TelemetryEvent {
+        val contentEnabled = contentExpiresAt != null
         return event.copy(
             durationMs = event.durationMs.coerceAtLeast(0L),
             endpoint = sanitizeMetadata(event.endpoint),
             model = event.model?.let(::sanitizeMetadata),
             keyId = event.keyId?.let(::sanitizeMetadata),
             failureType = event.failureType?.let {
-                truncateTelemetryText(TelemetryRedactor.redact(it), TelemetryPreviewExtractor.MAX_ERROR_MESSAGE_CHARS)
+                truncateTelemetryText(
+                    TelemetryRedactor.redact(it),
+                    TelemetryPreviewExtractor.MAX_ERROR_MESSAGE_CHARS
+                )
             },
             retryCount = event.retryCount.coerceAtLeast(0),
             inputTokens = event.inputTokens?.coerceAtLeast(0),
@@ -200,8 +204,15 @@ object TelemetryRepository {
             responsePreview = event.responsePreview
                 ?.takeIf { contentEnabled }
                 ?.let { sanitizePreview(it, TelemetryPreviewExtractor.MAX_RESPONSE_PREVIEW_CHARS) },
-            expiresAt = expiresAt
+            expiresAt = contentExpiresAt
         )
+    }
+
+    private fun readActiveContentDebugExpiry(context: Context, now: Long): Long? {
+        if (_level.value != TelemetryLevel.CONTENT_DEBUG) return null
+        return context.getSharedPreferences(SETTINGS_PREFS, Context.MODE_PRIVATE)
+            .getLong(KEY_DEBUG_EXPIRES_AT, 0L)
+            .takeIf { it > now }
     }
 
     private fun sanitizeMetadata(value: String): String {
