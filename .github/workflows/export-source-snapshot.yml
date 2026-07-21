@@ -28,13 +28,7 @@ jobs:
       - name: Apply reviewed migration
         run: python3 tools/apply_pr04e_migration.py
 
-      - name: Remove temporary migration files
-        shell: bash
-        run: |
-          rm -f tools/apply_pr04e_migration.py
-          rm -f .github/workflows/export-source-snapshot.yml
-
-      - name: Commit migrated source tree
+      - name: Commit migrated application tree
         shell: bash
         run: |
           set -euo pipefail
@@ -43,6 +37,6 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
+          git add AGENTS.md app docs run.ps1 .github/workflows/android-ci.yml
           git commit -m "refactor: migrate official package and app branding"
           git push origin HEAD:refactor/pr-04-package-branding
