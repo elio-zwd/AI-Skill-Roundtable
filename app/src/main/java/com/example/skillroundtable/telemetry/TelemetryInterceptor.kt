@@ -10,38 +10,40 @@ import okhttp3.Response
 class TelemetryInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
-        val level = TelemetryRepository.currentLevel()
-        if (level == TelemetryLevel.OFF) return chain.proceed(request)
+        val initialLevel = TelemetryRepository.currentLevel()
+        if (initialLevel == TelemetryLevel.OFF) return chain.proceed(request)
 
         val startedAt = System.currentTimeMillis()
         val endpoint = "${request.method} ${request.url.encodedPath}"
         val model = Regex("models/([^:/]+)").find(request.url.encodedPath)?.groupValues?.getOrNull(1)
         val apiKey = request.url.queryParameter("key")
         val keyId = apiKey?.takeIf(String::isNotBlank)?.let(ApiKeyPool::findKeyId)
-        val contentDebug = level == TelemetryLevel.CONTENT_DEBUG && BuildConfig.DEBUG
-        val requestPreview = if (contentDebug) TelemetryPreviewExtractor.requestPreview(request) else null
+        val contentDebugAtStart = initialLevel == TelemetryLevel.CONTENT_DEBUG && BuildConfig.DEBUG
+        val requestPreview = if (contentDebugAtStart) TelemetryPreviewExtractor.requestPreview(request) else null
 
         var response: Response? = null
         var failure: Throwable? = null
         var responsePreview: String? = null
         var hasThoughtStep = false
+        var contentDebugAtCompletion = false
         try {
             response = chain.proceed(request)
-            if (contentDebug) {
+            contentDebugAtCompletion = contentDebugAtStart &&
+                TelemetryRepository.currentLevel() == TelemetryLevel.CONTENT_DEBUG
+            if (contentDebugAtCompletion) {
                 val preview = TelemetryPreviewExtractor.responsePreview(response)
                 responsePreview = preview.preview
                 hasThoughtStep = preview.hasThoughtStep
             }
-            return response!!
+            return response
         } catch (error: Throwable) {
             failure = error
             throw error
         } finally {
             runCatching {
                 val completedAt = System.currentTimeMillis()
-                val failureType = classifyFailure(failure, response?.code)
                 val event = TelemetryEventFactory.create(
-                    level = level,
+                    level = initialLevel,
                     id = UUID.randomUUID().toString(),
                     timestamp = startedAt,
                     durationMs = (completedAt - startedAt).coerceAtLeast(0L),
@@ -49,11 +51,15 @@ class TelemetryInterceptor : Interceptor {
                     model = model,
                     keyId = keyId,
                     statusCode = response?.code,
-                    failureType = failureType,
+                    failureType = classifyFailure(failure, response?.code),
                     requestPreview = requestPreview,
                     responsePreview = responsePreview,
                     hasThoughtStep = hasThoughtStep,
-                    contentExpiresAt = TelemetryRepository.contentDebugExpiresAtOrNull()
+                    contentExpiresAt = if (contentDebugAtCompletion) {
+                        TelemetryRepository.contentDebugExpiresAtOrNull()
+                    } else {
+                        null
+                    }
                 )
                 if (event != null) TelemetryRepository.record(event)
             }
