@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 @Database(
     entities = [Character::class, ChatSession::class, Message::class, CharacterGroup::class],
     version = 5,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class RoundtableDatabase : RoomDatabase() {
     abstract fun characterDao(): CharacterDao
