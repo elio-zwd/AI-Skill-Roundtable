@@ -9,7 +9,7 @@ $patterns = @(
 $combinedPattern = $patterns -join '|'
 $violations = [System.Collections.Generic.List[string]]::new()
 
-$trackedSensitiveFiles = git ls-files -- .env local.properties secrets.properties '*.jks' '*.keystore' '*.p12' '*.pem'
+$trackedSensitiveFiles = git ls-files -- .env local.properties secrets.properties keystore.properties '*.jks' '*.keystore' '*.p12' '*.pem'
 if ($LASTEXITCODE -ne 0) {
     throw "无法读取 Git 跟踪文件列表。"
 }
