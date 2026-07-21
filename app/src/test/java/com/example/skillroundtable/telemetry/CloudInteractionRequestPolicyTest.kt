@@ -1,5 +1,6 @@
 package com.example.skillroundtable.telemetry
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -14,9 +15,16 @@ class CloudInteractionRequestPolicyTest {
     }
 
     @Test
-    fun enabledPreservesOnlyExplicitStoreAndRoleLocalPreviousId() {
+    fun enabledPreservesExplicitStoreAndPreviousId() {
         val result = CloudInteractionRequestPolicy.apply(true, true, "interaction-123")
         assertTrue(result.store)
-        assertTrue(result.previousInteractionId == "interaction-123")
+        assertEquals("interaction-123", result.previousInteractionId)
+    }
+
+    @Test
+    fun enabledStillDropsPreviousIdWhenRequestIsNotStored() {
+        val result = CloudInteractionRequestPolicy.apply(true, false, "interaction-123")
+        assertFalse(result.store)
+        assertNull(result.previousInteractionId)
     }
 }
