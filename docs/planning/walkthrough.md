@@ -29,12 +29,12 @@
 
 在根目录下设计了面向 AI 代理与 E2E 自动化测试的运行时控制脚本，并在 `.gitignore` 中追加了隔离目录 `/tmp_debug_media/`：
 
-1. **[screencap.py](file:///d:/My_Elio/AI-Skill-Roundtable/tools/screencap.py)**：极简截图拉取。成功时**仅输出**本地保存的绝对路径。
-2. **[click.py](file:///d:/My_Elio/AI-Skill-Roundtable/tools/click.py)**：模拟点击（`x y`）、长按（`-l Ms`）、滑动（`-s`）、文本输入（`-t`）与物理按键（`-k`），成功时仅输出 `OK: ...`。
-3. **[uidump.py](file:///d:/My_Elio/AI-Skill-Roundtable/tools/uidump.py)**：XML 树智能搜寻。内置了菜单/设置/添加/存组等常用按钮的“同义词联想映射”。匹配成功时，**仅输出中点物理坐标值：`X Y`** (如 `975 142`)。
-4. **[find_icon.py](file:///d:/My_Elio/AI-Skill-Roundtable/tools/find_icon.py)**：视觉级多尺度图像特征搜寻（基于 OpenCV 和 NumPy）。支持在 $0.5 \sim 1.5$ 范围内自适应缩放特征图查找，**完美兼容模拟器 (1080x2400) 与真机小米 14 Ultra (1440x3200) 不同 DPI 与分辨率**。
-5. **[adb_verbose_diagnose.py](file:///d:/My_Elio/AI-Skill-Roundtable/tools/adb_verbose_diagnose.py)**：Verbose 版详细诊断脚本，用于排查设备 DPI、物理分辨率、顶层 Activity 焦点及 ADB 连通性。
-6. **[ui-space-layout-guide.md](file:///d:/My_Elio/AI-Skill-Roundtable/docs/architecture/ui-space-layout-guide.md)**：新增 UI 空间感定位指南。记录了在 $1080 \times 2400$ 规格下所有常用按钮在模拟器和小米 14 Ultra（1.33333 倍拉伸）真机上的坐标对照与盲操连招使用说明。
+1. **[screencap.py](../../tools/screencap.py)**：极简截图拉取。成功时**仅输出**本地保存的绝对路径。
+2. **[click.py](../../tools/click.py)**：模拟点击（`x y`）、长按（`-l Ms`）、滑动（`-s`）、文本输入（`-t`）与物理按键（`-k`），成功时仅输出 `OK: ...`。
+3. **[uidump.py](../../tools/uidump.py)**：XML 树智能搜寻。内置了菜单/设置/添加/存组等常用按钮的“同义词联想映射”。匹配成功时，**仅输出中点物理坐标值：`X Y`** (如 `975 142`)。
+4. **[find_icon.py](../../tools/find_icon.py)**：视觉级多尺度图像特征搜寻（基于 OpenCV 和 NumPy）。支持在 $0.5 \sim 1.5$ 范围内自适应缩放特征图查找，**完美兼容模拟器 (1080x2400) 与真机小米 14 Ultra (1440x3200) 不同 DPI 与分辨率**。
+5. **[adb_verbose_diagnose.py](../../tools/adb_verbose_diagnose.py)**：Verbose 版详细诊断脚本，用于排查设备 DPI、物理分辨率、顶层 Activity 焦点及 ADB 连通性。
+6. **[ui-space-layout-guide.md](../architecture/ui-space-layout-guide.md)**：新增 UI 空间感定位指南。记录了在 $1080 \times 2400$ 规格下所有常用按钮在模拟器和小米 14 Ultra（1.33333 倍拉伸）真机上的坐标对照与盲操连招使用说明。
 
 ---
 

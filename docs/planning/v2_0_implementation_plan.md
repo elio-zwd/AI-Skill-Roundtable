@@ -379,7 +379,8 @@ coroutineScope {
 
 ### 每个 Wave 完成后执行
 ```powershell
-$env:JAVA_HOME = "D:\My_Elio\dev-tools\jdk-17.0.19+10"
+# 设置 JDK 17 环境（请替换为您的实际 JDK 路径）
+$env:JAVA_HOME = "C:\path\to\jdk-17"
 $env:Path = "$env:JAVA_HOME\bin;" + $env:Path
 .\gradlew.bat compileDebugKotlin   # 零错误
 .\gradlew.bat assembleDebug        # 生成 APK

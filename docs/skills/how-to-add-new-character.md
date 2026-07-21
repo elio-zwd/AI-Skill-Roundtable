@@ -15,7 +15,7 @@
 ---
 
 ## 2. 配置 Python 脚本映射表
-打开 [extract_skills_metadata.py](file:///d:/My_Elio/AI-Skill-Roundtable/workspace/tools/extract_skills_metadata.py) 脚本，在顶部的 `UI_MAPPING` 字典中，新增该角色文件夹与 UI 展示属性的映射：
+打开 [extract_skills_metadata.py](../../workspace/tools/extract_skills_metadata.py) 脚本，在顶部的 `UI_MAPPING` 字典中，新增该角色文件夹与 UI 展示属性的映射：
 
 ```python
 UI_MAPPING = {
@@ -43,7 +43,7 @@ python workspace/tools/extract_skills_metadata.py
 此脚本执行时会自动：
 1. 清洗并递归拷贝新技能文件夹到 `app/src/main/assets/skills/`，并**自动过滤排斥** `.jpg` / `.gif` / `.mp4` 等大体积二进制文件。
 2. 读取根目录的 `.env` Key，调用 Google `text-embedding-004` 向量接口计算新角色 `description` 向量（若超时或离线则自动 Mock 生成 768 维兼容向量）。
-3. 自动重新生成 [skills_config.json](file:///d:/My_Elio/AI-Skill-Roundtable/app/src/main/assets/skills_config.json) 资产配置文件。
+3. 自动重新生成 [skills_config.json](../../app/src/main/assets/skills_config.json) 资产配置文件。
 
 ---
 
@@ -51,7 +51,8 @@ python workspace/tools/extract_skills_metadata.py
 在命令行中执行编译安装：
 
 ```powershell
-$env:JAVA_HOME = "D:\My_Elio\dev-tools\jdk-17.0.19+10"
+# 设置 JDK 17 环境（请替换为您的实际 JDK 路径）
+$env:JAVA_HOME = "C:\path\to\jdk-17"
 $env:Path = "$env:JAVA_HOME\bin;" + $env:Path
 .\gradlew.bat installDebug
 ```

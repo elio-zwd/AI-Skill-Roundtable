@@ -113,8 +113,9 @@ def call_gemini_api(content):
                 return content[:200].strip()
 
 def main():
-    skills_dir = r"d:\My_Elio\AI-Skill-Roundtable\app\src\main\assets\skills"
-    output_file = r"d:\My_Elio\AI-Skill-Roundtable\app\src\main\assets\skills_summaries.json"
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    skills_dir = os.path.join(base_dir, "app", "src", "main", "assets", "skills")
+    output_file = os.path.join(base_dir, "app", "src", "main", "assets", "skills_summaries.json")
     
     if not os.path.exists(skills_dir):
         print(f"错误: 技能目录 {skills_dir} 不存在。")

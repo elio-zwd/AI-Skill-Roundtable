@@ -9,7 +9,7 @@
 为了解决 Google Gemini API 固有的 QPM（每分钟请求数）与 RPM 限制，防止因并发拉取 7 位智囊角色作答导致账号被封禁或持续返回 HTTP `429` 错误，系统设计了底层的 **API 降级熔断与遥测诊断机制**。
 
 ### 1.1 内置备用 Key 池与本地 24h 熔断
-- **Key 池管理**：在 [ApiKeyPool](file:///d:/My_Elio/AI-Skill-Roundtable/app/src/main/java/com/example/skillroundtable/network/ApiKeyPool.kt) 中预设了 10 个备用 API 密钥（标识为 `w1` 到 `w10`）。
+- **Key 池管理**：在 [ApiKeyPool](../../app/src/main/java/com/example/skillroundtable/network/ApiKeyPool.kt) 中预设了 10 个备用 API 密钥（标识为 `w1` 到 `w10`）。
 - **24小时熔断（Ban）**：一旦某个 API Key 在调用时返回了 HTTP `429`（配额超限）或发生特定的网络异常，系统会调用 `ApiKeyPool.banKey(context, keyId)`，在本地 SharedPreferences 中写入该 Key 的过期时间戳（当前系统毫秒值 + 24小时）。在过期时间戳到达前，该 Key 会被标记为 Banned 并在 Key 选择器中被自动屏蔽。
 
 ### 1.2 会话级 Key 锁定与缓存优化
