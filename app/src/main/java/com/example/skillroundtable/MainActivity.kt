@@ -239,6 +239,7 @@ fun MainAppContent() {
     val isAutoNextEnabled by viewModel.isAutoNextEnabled.collectAsState()
     val isSemanticRoutingEnabled by viewModel.isSemanticRoutingEnabled.collectAsState()
     val searchMode by viewModel.searchMode.collectAsState()
+    val roundActionState by viewModel.roundActionState.collectAsState()
 
     var selectedTab by remember { mutableIntStateOf(0) }
     var showAddCharacterDialog by remember { mutableStateOf(false) }
@@ -344,6 +345,7 @@ fun MainAppContent() {
                         isAutoNextEnabled = isAutoNextEnabled,
                         isSemanticRoutingEnabled = isSemanticRoutingEnabled,
                         searchMode = searchMode,
+                        roundActionState = roundActionState,
                         onSearchModeChange = { viewModel.setSearchMode(it) },
                         onOpenApiKeyConfig = { showApiKeyManagerScreen = true },
                         onToggleDrawer = { showDrawer = !showDrawer },
@@ -826,6 +828,7 @@ fun RoundtableBrainstormScreen(
     isAutoNextEnabled: Boolean,
     isSemanticRoutingEnabled: Boolean,
     searchMode: SearchMode,
+    roundActionState: com.example.skillroundtable.viewmodel.RoundActionState,
     onSearchModeChange: (SearchMode) -> Unit,
     onOpenApiKeyConfig: () -> Unit,
     onToggleDrawer: () -> Unit,
@@ -1055,46 +1058,103 @@ fun RoundtableBrainstormScreen(
         AnimatedVisibility(visible = currentSession != null && !isRoundtableRunning && currentMessages.isNotEmpty()) {
             val hasActiveChars = allCharacters.any { it.isActive }
             if (hasActiveChars) {
-                val lastQuestionIndex = currentMessages.indexOfLast { it.senderId == "user" }
-                val messagesSinceQuestion = if (lastQuestionIndex != -1) currentMessages.subList(lastQuestionIndex + 1, currentMessages.size) else emptyList()
-                val activeCount = allCharacters.count { it.isActive }
-                val repliedCount = messagesSinceQuestion.map { it.senderId }.distinct().count()
-
-                if (repliedCount < activeCount) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Surface(
-                            onClick = { viewModel.triggerNextCharacterManual() },
-                            color = SecondaryAccent.copy(alpha = 0.08f),
-                            contentColor = SecondaryAccent,
-                            shape = RoundedCornerShape(18.dp),
-                            border = BorderStroke(1.dp, SecondaryAccent.copy(alpha = 0.25f)),
-                            modifier = Modifier
-                                .wrapContentWidth()
-                                .bounceClick()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    when (roundActionState) {
+                        com.example.skillroundtable.viewmodel.RoundActionState.CONTINUE_ROUND -> {
+                            Surface(
+                                onClick = { viewModel.triggerNextCharacterManual() },
+                                color = SecondaryAccent.copy(alpha = 0.08f),
+                                contentColor = SecondaryAccent,
+                                shape = RoundedCornerShape(18.dp),
+                                border = BorderStroke(1.dp, SecondaryAccent.copy(alpha = 0.25f)),
+                                modifier = Modifier
+                                    .wrapContentWidth()
+                                    .bounceClick()
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
-                                    tint = SecondaryAccent
-                                )
-                                Spacer(Modifier.width(6.dp))
-                                Text(
-                                    text = "催促剩余智囊作答 (${repliedCount}/${activeCount} 已言)",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = SecondaryAccent
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = SecondaryAccent
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        text = "继续本轮",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = SecondaryAccent
+                                    )
+                                }
+                            }
+                        }
+                        com.example.skillroundtable.viewmodel.RoundActionState.START_NEXT_ROUND -> {
+                            Surface(
+                                onClick = { viewModel.triggerNextCharacterManual() },
+                                color = GoldAccent.copy(alpha = 0.08f),
+                                contentColor = GoldAccent,
+                                shape = RoundedCornerShape(18.dp),
+                                border = BorderStroke(1.dp, GoldAccent.copy(alpha = 0.25f)),
+                                modifier = Modifier
+                                    .wrapContentWidth()
+                                    .bounceClick()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = GoldAccent
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        text = "开启下一轮",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = GoldAccent
+                                    )
+                                }
+                            }
+                        }
+                        com.example.skillroundtable.viewmodel.RoundActionState.BUDGET_EXCEEDED -> {
+                            Surface(
+                                color = Color(0xFF2D3748),
+                                contentColor = TextSecondary,
+                                shape = RoundedCornerShape(18.dp),
+                                modifier = Modifier.wrapContentWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Info,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = TextSecondary
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        text = "本问题已达安全预算上限",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = TextSecondary
+                                    )
+                                }
                             }
                         }
                     }

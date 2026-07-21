@@ -260,4 +260,16 @@ class ApiRetryPolicyTest {
         val banTime = fakePrefs.getLong("ban_key_cooldown", 0L)
         assertTrue("应当写入了远在未来的冷却截止时间", banTime > System.currentTimeMillis() + 14000L)
     }
+
+    @Test
+    fun testParseRetryAfterMs() {
+        val parsed15 = ApiRetryPolicy.parseRetryAfterMs("15")
+        assertEquals("字符串 15 应被成功解析为 15000L", 15000L, parsed15)
+
+        val parsedNull = ApiRetryPolicy.parseRetryAfterMs(null)
+        assertEquals("null 应解析为 null", null, parsedNull)
+
+        val parsedInvalid = ApiRetryPolicy.parseRetryAfterMs("invalid")
+        assertEquals("非数字格式应解析为 null", null, parsedInvalid)
+    }
 }

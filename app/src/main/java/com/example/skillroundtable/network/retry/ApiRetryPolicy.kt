@@ -93,4 +93,10 @@ object ApiRetryPolicy {
         val prefs = context.getSharedPreferences("gemini_api_key_prefs", Context.MODE_PRIVATE)
         prefs.edit().remove("rate_limit_count_$keyId").apply()
     }
+
+    fun parseRetryAfterMs(headerValue: String?): Long? {
+        if (headerValue == null) return null
+        val seconds = headerValue.toLongOrNull()
+        return if (seconds != null) seconds * 1000L else null
+    }
 }

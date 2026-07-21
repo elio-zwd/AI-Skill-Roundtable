@@ -96,6 +96,14 @@ class RoundtableBudgetManager(val budget: RoundtableBudget = RoundtableBudget())
         }
     }
 
+    fun getSelectedParticipants(questionRunId: Long): List<String>? {
+        return selectedParticipants[questionRunId]
+    }
+
+    fun setSelectedParticipants(questionRunId: Long, ids: List<String>) {
+        selectedParticipants[questionRunId] = ids
+    }
+
     fun clearQuestion(questionRunId: Long) {
         trackers.remove(questionRunId)
         answeredCharacters.remove(questionRunId)
@@ -140,20 +148,64 @@ class RoundtableOrchestrator(
                 return OrchestrationResult(emptyList(), emptyList(), tracker.getUsed(), false, false)
             }
 
-            // 1. 确定当前提问所选定的 6 个角色（同一个问题第一次确定后名单即固化，后续绝对不再混入第 7 位角色）
-            val activeCharIds = activeChars.map { it.id }
-            val selectedParticipantIds = budgetManager.getOrSetSelectedParticipants(questionRunId, activeCharIds)
-            val selectedChars = activeChars.filter { it.id in selectedParticipantIds }
-
-            // 2. 获取当前用户提问后面的消息流，计算当前轮次
+            // 1. 获取消息，用以分析 question 文本 (如果在第一次运行需要 Embedding 的话)
             val messages = dbGateway.getMessages(sessionId)
             val runMsgIndex = messages.indexOfFirst { it.id == questionRunId }
             if (runMsgIndex == -1) {
                 return OrchestrationResult(emptyList(), emptyList(), tracker.getUsed(), false, false)
             }
 
+            // 2. 确定当前提问所选定的 6 个角色（同一个问题第一次确定后名单即固化，后续绝对不再混入第 7 位角色）
+            val cachedSelectedIds = budgetManager.getSelectedParticipants(questionRunId)
+            val selectedParticipantIds = if (cachedSelectedIds != null) {
+                cachedSelectedIds
+            } else {
+                // 第一次执行，需要在此确定并固化名单
+                val sortedAllIds = if (isSemanticRoutingEnabled) {
+                    // 开启语义路由：对全部激活角色排序，再取相似度最高的前 6 位
+                    val lastUserMsg = messages[runMsgIndex]
+                    try {
+                        val attemptPlan = createAttemptPlan(context, sessionId)
+                        val requiredCount = minOf(activeChars.size, budget.maxCharactersPerQuestion)
+                        val questionVector = answerGateway.getEmbedding(
+                            context = context,
+                            text = lastUserMsg.text,
+                            sessionId = sessionId,
+                            attemptPlan = attemptPlan,
+                            tracker = tracker,
+                            isRequired = false,
+                            reserveForRequired = requiredCount
+                        )
+                        activeChars.map { character ->
+                            val charVector = try {
+                                if (character.skillDescriptionVector.isBlank()) emptyList()
+                                else character.skillDescriptionVector.split(",").map { it.toFloat() }
+                            } catch (e: Exception) {
+                                emptyList()
+                            }
+                            val similarity = if (charVector.isNotEmpty() && questionVector.isNotEmpty()) {
+                                calculateCosineSimilarity(questionVector, charVector)
+                            } else {
+                                0f
+                            }
+                            Pair(character.id, similarity)
+                        }.sortedByDescending { it.second }.map { it.first }
+                    } catch (e: Exception) {
+                        activeChars.map { it.id }
+                    }
+                } else {
+                    activeChars.map { it.id }
+                }
+                val topSix = sortedAllIds.take(budget.maxCharactersPerQuestion)
+                budgetManager.setSelectedParticipants(questionRunId, topSix)
+                topSix
+            }
+
+            // 根据固化的 selectedParticipantIds 顺序还原 Character 对象
+            val selectedChars = selectedParticipantIds.mapNotNull { id -> activeChars.find { it.id == id } }
+
+            // 3. 计算当前轮次
             val messagesSinceRun = messages.subList(runMsgIndex + 1, messages.size)
-            
             val currentRound = if (messagesSinceRun.isEmpty()) {
                 1
             } else {
@@ -171,47 +223,10 @@ class RoundtableOrchestrator(
             val messagesInTargetRound = messagesSinceRun.filter { it.roundIndex == currentRound && !it.isPending }
             val answeredInTargetRound = messagesInTargetRound.map { it.senderId }.toSet()
             
-            // 排除当前轮次已作答角色，得到这轮需要作答的角色列表（多轮圆桌语义恢复：同样的参与者可以在下一轮再次回答）
-            val charactersToAnswer = selectedChars.filter { it.id !in answeredInTargetRound }
+            val sortedChars = selectedChars.filter { it.id !in answeredInTargetRound }
 
-            if (charactersToAnswer.isEmpty()) {
+            if (sortedChars.isEmpty()) {
                 return OrchestrationResult(emptyList(), emptyList(), tracker.getUsed(), false, false)
-            }
-
-            // 3. 排序过滤（仅在已选定的 charactersToAnswer 范围内排序）
-            var sortedChars = charactersToAnswer
-            if (isSemanticRoutingEnabled) {
-                val lastUserMsg = messages[runMsgIndex]
-                try {
-                    // Embedding 调用属于 OPTIONAL。必须为当前轮的所有主回答预留额度
-                    val reserveForRequired = charactersToAnswer.size
-                    val attemptPlan = createAttemptPlan(context, sessionId)
-                    val questionVector = answerGateway.getEmbedding(
-                        context = context,
-                        text = lastUserMsg.text,
-                        sessionId = sessionId,
-                        attemptPlan = attemptPlan,
-                        tracker = tracker,
-                        isRequired = false,
-                        reserveForRequired = reserveForRequired
-                    )
-                    sortedChars = charactersToAnswer.map { character ->
-                        val charVector = try {
-                            if (character.skillDescriptionVector.isBlank()) emptyList()
-                            else character.skillDescriptionVector.split(",").map { it.toFloat() }
-                        } catch (e: Exception) {
-                            emptyList()
-                        }
-                        val similarity = if (charVector.isNotEmpty() && questionVector.isNotEmpty()) {
-                            calculateCosineSimilarity(questionVector, charVector)
-                        } else {
-                            0f
-                        }
-                        Pair(character, similarity)
-                    }.sortedByDescending { it.second }.map { it.first }
-                } catch (e: Exception) {
-                    OrchestratorLogger.e("RoundtableOrchestrator", "获取 Embedding 失败，降级为默认顺序。")
-                }
             }
 
             // 4. 严格串行执行

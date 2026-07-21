@@ -1051,16 +1051,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             val tracker = budgetManager.getTracker(questionRunId)
             val budget = budgetManager.budget
 
-            if (tracker.isExceeded() || tracker.getUsed() >= budget.maxApiCallsPerQuestion) {
-                _roundActionState.value = RoundActionState.BUDGET_EXCEEDED
-                return@launch
-            }
-
-            val answered = budgetManager.getAnsweredCharacters(questionRunId)
-            if (answered.size >= budget.maxCharactersPerQuestion) {
-                _roundActionState.value = RoundActionState.BUDGET_EXCEEDED
-                return@launch
-            }
+            val isBudgetExceeded = tracker.isExceeded() || tracker.getUsed() >= budget.maxApiCallsPerQuestion
 
             val activeChars = charRepo.getActiveCharacters()
             if (activeChars.isEmpty()) {
@@ -1077,28 +1068,11 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             }
             val messagesSinceRun = messages.subList(runMsgIndex + 1, messages.size)
 
-            val currentRound = if (messagesSinceRun.isEmpty()) {
-                1
-            } else {
-                val maxRound = messagesSinceRun.maxOf { it.roundIndex }
-                val currentRoundMessages = messagesSinceRun.filter { it.roundIndex == maxRound }
-                val answeredInCurrentRound = currentRoundMessages.map { it.senderId }.toSet()
-                if (selectedParticipantIds.all { it in answeredInCurrentRound }) {
-                    maxRound + 1
-                } else {
-                    maxRound
-                }
-            }
-
-            val messagesInTargetRound = messagesSinceRun.filter { it.roundIndex == currentRound && !it.isPending }
-            val answeredInTargetRound = messagesInTargetRound.map { it.senderId }.toSet()
-
-            val allAnsweredInCurrentRound = selectedParticipantIds.all { it in answeredInTargetRound }
-            if (allAnsweredInCurrentRound) {
-                _roundActionState.value = RoundActionState.START_NEXT_ROUND
-            } else {
-                _roundActionState.value = RoundActionState.CONTINUE_ROUND
-            }
+            _roundActionState.value = com.example.skillroundtable.roundtable.RoundActionStateResolver.resolve(
+                selectedParticipantIds = selectedParticipantIds,
+                messagesSinceRun = messagesSinceRun,
+                isBudgetExceeded = isBudgetExceeded
+            )
         }
     }
 }

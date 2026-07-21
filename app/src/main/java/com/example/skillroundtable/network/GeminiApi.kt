@@ -305,10 +305,11 @@ object RetrofitClient {
             )
         }
 
+        val reserveForOtherRequired = (reserveForRequired - 1).coerceAtLeast(0)
         for (lease in attemptPlan) {
             // 开始请求前，首先校验并原子消费预算 (REQUIRED 与 OPTIONAL 区别消费，且遵守预留)
             val consumed = if (isRequired) {
-                tracker.tryConsumeRequired(1)
+                tracker.tryConsumeRequired(1, reserveForOtherRequired)
             } else {
                 tracker.tryConsumeOptional(1, reserveForRequired)
             }
@@ -336,7 +337,7 @@ object RetrofitClient {
                         is retrofit2.HttpException -> {
                             val code = e.code()
                             val retryAfterHeader = e.response()?.headers()?.get("Retry-After")
-                            val retryAfterMs = retryAfterHeader?.toLongOrNull()?.times(1000L)
+                            val retryAfterMs = ApiRetryPolicy.parseRetryAfterMs(retryAfterHeader)
                             ApiCallFailure.Http(code, retryAfterMs)
                         }
                         is java.io.IOException -> ApiCallFailure.Network(e)
@@ -371,7 +372,7 @@ object RetrofitClient {
                             delayProvider.delay(backoffMs)
 
                             val retryConsumed = if (isRequired) {
-                                tracker.tryConsumeRequired(1)
+                                tracker.tryConsumeRequired(1, reserveForOtherRequired)
                             } else {
                                 tracker.tryConsumeOptional(1, reserveForRequired)
                             }
