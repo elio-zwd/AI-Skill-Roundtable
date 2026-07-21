@@ -74,7 +74,10 @@
 - 默认强制 `store=false`。
 - 用户显式开启“云端会话链优化”后，调用方明确请求 `store=true` 时才允许持久化 Interaction。
 - `previousInteractionId` 只有在同一请求实际允许 `store=true` 时才会发送。
-- 主回答仍以 `previousInteractionId=null` 开始；不恢复多角色共享 Interaction ID。
+- 主回答按“会话 ID × 角色 ID”维护独立的进程内游标；同一角色的下一轮主回答可复用自己的上一条 Interaction，绝不与其他角色共享。
+- 截断续写使用当前角色刚返回的 Interaction ID；续写成功后将角色游标推进到最新响应。
+- Broker、Embedding、标题生成和联网搜索请求不进入角色 Interaction 链。
+- 本地游标不写入磁盘；关闭云端会话链会清空全部游标，删除本地会话会清理该会话的游标。
 - 关闭云端会话链不会阻止普通 Gemini 请求发送，只是不额外启用持久化 Interaction 链。
 - 服务商侧保留和删除受其政策约束，本应用无法保证远端删除。
 
