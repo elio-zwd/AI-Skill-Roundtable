@@ -26,6 +26,7 @@ object CloudInteractionSettings {
         _enabled.value = applicationContext
             .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getBoolean(KEY_ENABLED, false)
+        if (!_enabled.value) InteractionChainStore.clearAll()
         initialized = true
     }
 
@@ -43,7 +44,9 @@ object CloudInteractionSettings {
             .edit()
             .putBoolean(KEY_ENABLED, enabled)
             .commit()
+
         _enabled.value = if (committed) enabled else false
+        if (!enabled || !committed) InteractionChainStore.clearAll()
         return committed
     }
 }
