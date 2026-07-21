@@ -278,7 +278,7 @@ object RetrofitClient {
     }
 
     /**
-     * 底层通用网络请求执行引擎，实现确定的租约尝试、错误分类与重试策略、预算控制。
+     * 底层通用网络请求执行引擎，实现确定的租约尝试、错误分类与重试策略、预算控制与指数退避。
      */
     suspend fun <T> executeWithBudgetAndRetry(
         context: Context,
@@ -286,19 +286,33 @@ object RetrofitClient {
         attemptPlan: List<ApiKeyLease>,
         tracker: RequestBudgetTracker,
         operationName: String,
+        delayProvider: com.example.skillroundtable.roundtable.DelayProvider = com.example.skillroundtable.roundtable.DefaultDelayProvider,
         block: suspend (ApiKeyLease) -> T
     ): T {
         var lastException: Exception? = null
+        var lastFailure: ApiCallFailure? = null
         val attempts = mutableListOf<String>()
 
         if (attemptPlan.isEmpty()) {
-            throw Exception("操作 [$operationName] 失败：可用的 API 密钥列表为空。")
+            val emptyFailure = ApiCallFailure.Unknown(Exception("No available keys in plan"))
+            throw com.example.skillroundtable.network.retry.ApiExecutionException(
+                failure = emptyFailure,
+                operationName = operationName,
+                keyId = null,
+                cause = Exception("操作 [$operationName] 失败：可用的 API 密钥列表为空。")
+            )
         }
 
         for (lease in attemptPlan) {
-            // 在开始请求前，首先校验预算
+            // 开始请求前，首先校验预算
             if (!tracker.tryConsume(1)) {
-                throw Exception("操作 [$operationName] 超过了本轮请求预算。已使用请求数: ${tracker.getUsed()}")
+                val budgetFailure = ApiCallFailure.Unknown(Exception("本问题 API 请求预算已耗尽。"))
+                throw com.example.skillroundtable.network.retry.ApiExecutionException(
+                    failure = budgetFailure,
+                    operationName = operationName,
+                    keyId = lease.keyId,
+                    cause = Exception("操作 [$operationName] 超过了本轮请求预算。已使用请求数: ${tracker.getUsed()}")
+                )
             }
 
             var sameKeyAttemptCount = 0
@@ -306,9 +320,7 @@ object RetrofitClient {
                 try {
                     Log.d(TAG, "[$operationName] 正在使用 Key ${lease.keyId} 执行请求...")
                     val result = block(lease)
-                    // 成功后，清除该 Key 的冷却计数
                     ApiRetryPolicy.resetRateLimitCount(context, lease.keyId)
-                    // 绑定当前成功的 key
                     ApiKeyPool.bindSessionKey(context, sessionId, lease.keyId)
                     ApiKeyPool.setLastUsedKeyId(context, lease.keyId)
                     return result
@@ -327,19 +339,37 @@ object RetrofitClient {
 
                     attempts.add("${lease.keyId}: ${e.message ?: e.javaClass.simpleName}")
                     lastException = e
+                    lastFailure = failure
 
                     val decision = ApiRetryPolicy.getDecision(failure, sameKeyAttemptCount)
                     ApiRetryPolicy.handleKeyStatusUpdate(context, lease.keyId, failure)
 
                     when (decision) {
                         ApiRetryDecision.STOP_REQUEST -> {
-                            throw Exception("请求被停止 [$operationName]。细节: [$attempts]. 根因: ${e.message}", e)
+                            throw com.example.skillroundtable.network.retry.ApiExecutionException(
+                                failure = failure,
+                                operationName = operationName,
+                                keyId = lease.keyId,
+                                cause = e
+                            )
                         }
                         ApiRetryDecision.RETRY_SAME_KEY -> {
                             sameKeyAttemptCount++
-                            kotlinx.coroutines.delay(1000)
+                            // HTTP 5xx 指数退避：第一次重试退避 1000ms，第二次退避 2000ms；其它网络异常默认 1000ms。
+                            val backoffMs = if (failure is ApiCallFailure.Http && failure.code in 500..599) {
+                                sameKeyAttemptCount * 1000L
+                            } else {
+                                1000L
+                            }
+                            delayProvider.delay(backoffMs)
+
                             if (!tracker.tryConsume(1)) {
-                                throw Exception("操作 [$operationName] 重试时超过了本轮请求预算。")
+                                throw com.example.skillroundtable.network.retry.ApiExecutionException(
+                                    failure = ApiCallFailure.Unknown(Exception("重试时超出预算")),
+                                    operationName = operationName,
+                                    keyId = lease.keyId,
+                                    cause = Exception("操作 [$operationName] 重试时超过了本轮请求预算。")
+                                )
                             }
                             continue
                         }
@@ -353,7 +383,12 @@ object RetrofitClient {
         }
 
         val detail = attempts.joinToString(", ")
-        throw Exception("操作 [$operationName] 失败，已尝试计划内的所有 Key。细节: [$detail]. 根因: ${lastException?.message ?: "未知错误"}", lastException)
+        throw com.example.skillroundtable.network.retry.ApiExecutionException(
+            failure = lastFailure ?: ApiCallFailure.Unknown(Exception("所有 Key 均尝试失败")),
+            operationName = operationName,
+            keyId = null,
+            cause = lastException ?: Exception("操作 [$operationName] 失败，已尝试所有 Key。细节: [$detail]")
+        )
     }
 
     suspend fun createInteraction(
@@ -362,9 +397,10 @@ object RetrofitClient {
         sessionId: Long,
         attemptPlan: List<ApiKeyLease>,
         tracker: RequestBudgetTracker,
-        operationName: String = "CreateInteraction"
+        operationName: String = "CreateInteraction",
+        delayProvider: com.example.skillroundtable.roundtable.DelayProvider = com.example.skillroundtable.roundtable.DefaultDelayProvider
     ): Interaction {
-        return executeWithBudgetAndRetry(context, sessionId, attemptPlan, tracker, operationName) { lease ->
+        return executeWithBudgetAndRetry(context, sessionId, attemptPlan, tracker, operationName, delayProvider) { lease ->
             service.createInteraction(apiKey = lease.secret, request = request)
         }
     }
@@ -376,9 +412,10 @@ object RetrofitClient {
         sessionId: Long,
         attemptPlan: List<ApiKeyLease>,
         tracker: RequestBudgetTracker,
-        operationName: String = "GenerateContent"
+        operationName: String = "GenerateContent",
+        delayProvider: com.example.skillroundtable.roundtable.DelayProvider = com.example.skillroundtable.roundtable.DefaultDelayProvider
     ): GenerateContentResponse {
-        return executeWithBudgetAndRetry(context, sessionId, attemptPlan, tracker, operationName) { lease ->
+        return executeWithBudgetAndRetry(context, sessionId, attemptPlan, tracker, operationName, delayProvider) { lease ->
             service.generateContent(model = model, apiKey = lease.secret, request = request)
         }
     }
@@ -389,64 +426,15 @@ object RetrofitClient {
         sessionId: Long,
         attemptPlan: List<ApiKeyLease>,
         tracker: RequestBudgetTracker,
-        operationName: String = "EmbedContent"
+        operationName: String = "EmbedContent",
+        delayProvider: com.example.skillroundtable.roundtable.DelayProvider = com.example.skillroundtable.roundtable.DefaultDelayProvider
     ): List<Float> {
         val request = EmbedContentRequest(
             content = Content(parts = listOf(Part(text = text)))
         )
-        return executeWithBudgetAndRetry(context, sessionId, attemptPlan, tracker, operationName) { lease ->
+        return executeWithBudgetAndRetry(context, sessionId, attemptPlan, tracker, operationName, delayProvider) { lease ->
             service.embedContent(apiKey = lease.secret, request = request).embedding.values
         }
-    }
-
-    @Deprecated("Use lease-based overload")
-    suspend fun createInteractionWithFallback(
-        context: Context,
-        request: CreateInteractionRequest,
-        sessionId: Long,
-        disableBan: Boolean = false
-    ): Interaction {
-        val plan = ApiKeyScheduler.createAttemptPlan(context, sessionId)
-        val tracker = RequestBudgetTracker(ApiKeyPool.getAttemptCount(context) * 3)
-        return createInteraction(context, request, sessionId, plan, tracker, "CreateInteractionWithFallback")
-    }
-
-    @Deprecated("Use lease-based overload")
-    suspend fun generateContentWithFallback(
-        context: Context,
-        model: String,
-        request: GenerateContentRequest,
-        sessionId: Long,
-        disableBan: Boolean = false
-    ): GenerateContentResponse {
-        val plan = ApiKeyScheduler.createAttemptPlan(context, sessionId)
-        val tracker = RequestBudgetTracker(ApiKeyPool.getAttemptCount(context) * 3)
-        return generateContent(context, model, request, sessionId, plan, tracker, "GenerateContentWithFallback")
-    }
-
-    @Deprecated("Use lease-based overload")
-    suspend fun callBrokerRouterWithFallback(
-        context: Context,
-        model: String,
-        request: GenerateContentRequest,
-        sessionId: Long,
-        disableBan: Boolean = false
-    ): GenerateContentResponse {
-        val plan = ApiKeyScheduler.createAttemptPlan(context, sessionId)
-        val tracker = RequestBudgetTracker(ApiKeyPool.getAttemptCount(context) * 3)
-        return generateContent(context, model, request, sessionId, plan, tracker, "BrokerRouterWithFallback")
-    }
-
-    @Deprecated("Use lease-based overload")
-    suspend fun embedContentWithFallback(
-        context: Context,
-        text: String,
-        sessionId: Long,
-        disableBan: Boolean = false
-    ): List<Float> {
-        val plan = ApiKeyScheduler.createAttemptPlan(context, sessionId)
-        val tracker = RequestBudgetTracker(ApiKeyPool.getAttemptCount(context) * 3)
-        return embedContent(context, text, sessionId, plan, tracker, "EmbedContentWithFallback")
     }
 }
 

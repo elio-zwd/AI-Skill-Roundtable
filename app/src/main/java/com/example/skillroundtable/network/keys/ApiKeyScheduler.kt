@@ -10,7 +10,7 @@ object ApiKeyScheduler {
      * 规则：
      * 1. 过滤禁用、无效和在冷却中的 Key；
      * 2. 首先使用 sessionId 绑定的 Key 或传入的首选 Key（如果它可用）；
-     * 3. 其余可用 Key 按照其 ID（或者列表中的确定性位置）进行排序；
+     * 3. 跨会话轮转：上次成功使用的 lastUsedKeyId 放到计划最末尾；
      * 4. 保证计划中每个 KeyId 最多只出现一次，避免无意义的重复换 Key 尝试。
      */
     fun createAttemptPlan(
@@ -31,17 +31,27 @@ object ApiKeyScheduler {
         val boundKeyId = context.getSharedPreferences("gemini_api_key_prefs", Context.MODE_PRIVATE)
             .getString("session_key_$sessionId", null)
 
-        val primaryKeyId = preferredKeyId ?: boundKeyId
+        val lastUsedKeyId = ApiKeyPool.getLastUsedKeyId(context)
 
-        val primary = available.firstOrNull { it.keyId == primaryKeyId }
-        val rest = available.filter { it.keyId != primaryKeyId }
+        val preferred = available.firstOrNull { it.keyId == preferredKeyId }
+        val bound = available.firstOrNull { it.keyId == boundKeyId && it.keyId != preferredKeyId }
+        
+        val others = available.filter { it.keyId != preferredKeyId && it.keyId != boundKeyId }
+        
+        val lastUsed = others.firstOrNull { it.keyId == lastUsedKeyId }
+        val restOthers = others.filter { it.keyId != lastUsedKeyId }.sortedBy { it.keyId }
 
         val result = mutableListOf<ApiKeyLease>()
-        if (primary != null) {
-            result.add(primary)
+        if (preferred != null) {
+            result.add(preferred)
         }
-        // 将其它可用 key 按 ID 排序以保证确定性的轮转顺序
-        result.addAll(rest.sortedBy { it.keyId })
+        if (bound != null) {
+            result.add(bound)
+        }
+        result.addAll(restOthers)
+        if (lastUsed != null) {
+            result.add(lastUsed)
+        }
 
         return result.distinctBy { it.keyId }
     }

@@ -11,6 +11,16 @@ sealed interface ApiCallFailure {
 }
 
 /**
+ * 结构化 API 执行异常，暴露底层的错误类型、操作名称和所使用的 KeyId。
+ */
+class ApiExecutionException(
+    val failure: ApiCallFailure,
+    val operationName: String,
+    val keyId: String?,
+    cause: Throwable
+) : Exception("API operation $operationName failed using key $keyId: $failure", cause)
+
+/**
  * 重试决策结果。
  */
 enum class ApiRetryDecision {

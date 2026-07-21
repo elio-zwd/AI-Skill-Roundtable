@@ -284,25 +284,6 @@ object ApiKeyPool {
 
     fun getLastUsedKeyId(context: Context): String? = getPrefs(context).getString(KEY_LAST_USED_ID, null)
 
-    @Deprecated("Roundtable sequence uses serial execution. Random group-based parallel execution is removed.", ReplaceWith("none"))
-    fun assignRandomGroups(
-        characters: List<com.example.skillroundtable.data.Character>,
-        availableKeys: List<ApiKeyInfo>
-    ): Map<ApiKeyInfo, List<com.example.skillroundtable.data.Character>> {
-        if (characters.isEmpty() || availableKeys.isEmpty()) return emptyMap()
-        val result = linkedMapOf<ApiKeyInfo, MutableList<com.example.skillroundtable.data.Character>>()
-        var remaining = characters.shuffled()
-        var groupIndex = 0
-        while (remaining.isNotEmpty()) {
-            val takeSize = minOf((1..3).random(), remaining.size)
-            val keyInfo = availableKeys[groupIndex % availableKeys.size]
-            result.getOrPut(keyInfo) { mutableListOf() }.addAll(remaining.take(takeSize))
-            remaining = remaining.drop(takeSize)
-            groupIndex++
-        }
-        return result.mapValues { it.value.toList() }
-    }
-
     fun addLog(log: ApiLog) {
         synchronized(apiLogs) {
             apiLogs.add(0, log)
