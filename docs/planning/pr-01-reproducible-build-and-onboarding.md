@@ -1,18 +1,42 @@
 # PR 01：可复现构建与新贡献者上手
 
-> 状态：Planned  
-> 优先级：P0  
-> 前置依赖：无  
-> 覆盖审查项：F01 构建路径不可移植、F07 README/AGENTS 与实现漂移（安装部分）
+> 优先级：P0
+> 覆盖：构建移植、README 安装流程、开发环境说明
 
-## 1. 背景
+## 目标
+让陌生开发者 clone 后可以完成编译、安装、运行，不依赖作者电脑环境。
 
-当前仓库的 Gradle Wrapper 指向作者电脑上的本地文件：
+## 任务清单
 
-```properties
-distributionUrl=file:///E:/MobileApp/sdk/gradle-8.14-all.zip
-```
+### 1. 修复 Gradle Wrapper
+- 移除 `file:///E:/...` 本地路径。
+- 恢复官方 HTTPS distributionUrl。
+- 验证 `./gradlew assembleDebug`。
 
-`run.ps1` 和部分文档还写死了 `D:\My_Elio\dev-tools\jdk-17.0.19+10`。此外，Android 构建脚本已经取消 `.env -> BuildConfig.GEMINI_API_KEY` 注入，但 README 仍要求复制 `.env` 后编译，导致新用户按照文档操作也无法得到预期结果。
+### 2. 移除个人机器依赖
+- run.ps1 不允许写死 JDK 路径。
+- 支持 JAVA_HOME。
+- 缺失环境时输出安装提示。
 
-本 PR 的目标是让陌
+### 3. 更新配置说明
+- 明确 API Key 当前流程：应用内导入，而非 `.env` 注入。
+- 删除失效的旧教程。
+- 清理 `file:///` 文档链接。
+
+### 4. 补充开发文档
+新增：
+- 开发环境要求
+- Android Studio 配置
+- Debug 构建流程
+- 常见失败排查
+
+## 验收标准
+- 新 Windows 用户无需修改脚本即可编译。
+- README 指令全部可执行。
+- CI 环境可以完成 debug build。
+- 不包含作者本机路径。
+
+## 禁止事项
+- 不恢复硬编码 API Key。
+- 不提交本地 Gradle 缓存。
+- 不增加新的环境耦合。
