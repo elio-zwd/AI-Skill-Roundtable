@@ -83,6 +83,13 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
     private val charRepo = com.elio.skillroundtable.data.CharacterRepository(database.characterDao())
     private val chatRepo = com.elio.skillroundtable.data.ChatRepository(database.chatDao())
     private val groupRepo = com.elio.skillroundtable.data.CharacterGroupRepository(database.characterGroupDao())
+    private val startupPendingCleanupJob: Job = viewModelScope.launch(Dispatchers.IO) {
+        try {
+            chatRepo.removeAllPendingMessages()
+        } catch (error: Exception) {
+            PrivacySafeLogger.e("RoundtableViewModel", "Startup pending-message cleanup failed", error)
+        }
+    }
 
     val allCharacters: StateFlow<List<Character>> = charRepo.allCharacters
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -223,9 +230,6 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
     init {
         val context = getApplication<Application>().applicationContext
         ApiKeyPool.init(context)
-        viewModelScope.launch(Dispatchers.IO) {
-            chatRepo.removeAllPendingMessages()
-        }
 
         _isAutoNextEnabled.value = prefs.getBoolean("is_auto_next_enabled", true)
         _isSemanticRoutingEnabled.value = prefs.getBoolean("is_semantic_routing_enabled", false)
@@ -533,6 +537,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         }
 
         val job = viewModelScope.launch(start = CoroutineStart.LAZY) {
+            startupPendingCleanupJob.join()
             block()
         }
         activeRoundtableJob = job
