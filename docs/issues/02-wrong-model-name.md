@@ -30,4 +30,4 @@
 🚧 待修复
 
 ## 关联代码
-- [GeminiApi.kt](../../app/src/main/java/com/example/skillroundtable/network/GeminiApi.kt#L53)
+- [GeminiApi.kt](../../app/src/main/java/com/elio/skillroundtable/network/GeminiApi.kt#L53)

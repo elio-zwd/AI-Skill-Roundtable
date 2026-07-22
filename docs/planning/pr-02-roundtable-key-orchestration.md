@@ -77,16 +77,16 @@
 1. `AGENTS.md`
 2. `docs/planning/pr-execution-master-plan.md`
 3. 本文件
-4. `app/src/main/java/com/example/skillroundtable/viewmodel/RoundtableViewModel.kt`
-5. `app/src/main/java/com/example/skillroundtable/network/GeminiApi.kt`
-6. `app/src/main/java/com/example/skillroundtable/network/ApiKeyPool.kt`
-7. `app/src/main/java/com/example/skillroundtable/network/ApiKeyModels.kt`
-8. `app/src/main/java/com/example/skillroundtable/network/EncryptedApiKeyStore.kt`
-9. `app/src/main/java/com/example/skillroundtable/data/ChatRepository.kt`
-10. `app/src/main/java/com/example/skillroundtable/data/ChatDao.kt`
-11. `app/src/main/java/com/example/skillroundtable/data/Message.kt`
-12. `app/src/main/java/com/example/skillroundtable/data/Character.kt`
-13. `app/src/test/java/com/example/skillroundtable/network/ApiKeyProviderTest.kt`
+4. `app/src/main/java/com/elio/skillroundtable/viewmodel/RoundtableViewModel.kt`
+5. `app/src/main/java/com/elio/skillroundtable/network/GeminiApi.kt`
+6. `app/src/main/java/com/elio/skillroundtable/network/ApiKeyPool.kt`
+7. `app/src/main/java/com/elio/skillroundtable/network/ApiKeyModels.kt`
+8. `app/src/main/java/com/elio/skillroundtable/network/EncryptedApiKeyStore.kt`
+9. `app/src/main/java/com/elio/skillroundtable/data/ChatRepository.kt`
+10. `app/src/main/java/com/elio/skillroundtable/data/ChatDao.kt`
+11. `app/src/main/java/com/elio/skillroundtable/data/Message.kt`
+12. `app/src/main/java/com/elio/skillroundtable/data/Character.kt`
+13. `app/src/test/java/com/elio/skillroundtable/network/ApiKeyProviderTest.kt`
 14. `docs/architecture/system-architecture.md`
 15. `README.md` 的圆桌调度描述
 
@@ -120,18 +120,18 @@ git grep -n -I 'runRoundtableSequence\|executeCharacterAnswer\|callGeminiApi\|cr
 建议新增：
 
 ```text
-app/src/main/java/com/example/skillroundtable/roundtable/
+app/src/main/java/com/elio/skillroundtable/roundtable/
 ├── RoundtableOrchestrator.kt
 ├── RoundtableBudget.kt
 ├── RoundtableRunResult.kt
 └── TranscriptBuilder.kt
 
-app/src/main/java/com/example/skillroundtable/network/keys/
+app/src/main/java/com/elio/skillroundtable/network/keys/
 ├── ApiKeyLease.kt
 ├── ApiKeyScheduler.kt
 └── ApiKeyAttemptPlan.kt
 
-app/src/main/java/com/example/skillroundtable/network/retry/
+app/src/main/java/com/elio/skillroundtable/network/retry/
 ├── ApiCallFailure.kt
 ├── ApiRetryDecision.kt
 └── ApiRetryPolicy.kt
@@ -544,11 +544,11 @@ git grep -n -I 'assignRandomGroups\|反检测\|防屏蔽\|组间并发\|组内�
 建议新增：
 
 ```text
-app/src/test/java/com/example/skillroundtable/roundtable/TranscriptBuilderTest.kt
-app/src/test/java/com/example/skillroundtable/roundtable/RoundtableBudgetTest.kt
-app/src/test/java/com/example/skillroundtable/network/ApiKeyAttemptPlanTest.kt
-app/src/test/java/com/example/skillroundtable/network/ApiRetryPolicyTest.kt
-app/src/test/java/com/example/skillroundtable/roundtable/RoundtableOrchestratorTest.kt
+app/src/test/java/com/elio/skillroundtable/roundtable/TranscriptBuilderTest.kt
+app/src/test/java/com/elio/skillroundtable/roundtable/RoundtableBudgetTest.kt
+app/src/test/java/com/elio/skillroundtable/network/ApiKeyAttemptPlanTest.kt
+app/src/test/java/com/elio/skillroundtable/network/ApiRetryPolicyTest.kt
+app/src/test/java/com/elio/skillroundtable/roundtable/RoundtableOrchestratorTest.kt
 ```
 
 最低测试场景：
@@ -628,20 +628,20 @@ app/src/test/java/com/example/skillroundtable/roundtable/RoundtableOrchestratorT
 可能新增：
 
 ```text
-app/src/main/java/com/example/skillroundtable/roundtable/*
-app/src/main/java/com/example/skillroundtable/network/keys/*
-app/src/main/java/com/example/skillroundtable/network/retry/*
-app/src/test/java/com/example/skillroundtable/roundtable/*
-app/src/test/java/com/example/skillroundtable/network/*
+app/src/main/java/com/elio/skillroundtable/roundtable/*
+app/src/main/java/com/elio/skillroundtable/network/keys/*
+app/src/main/java/com/elio/skillroundtable/network/retry/*
+app/src/test/java/com/elio/skillroundtable/roundtable/*
+app/src/test/java/com/elio/skillroundtable/network/*
 ```
 
 必然修改：
 
 ```text
-app/src/main/java/com/example/skillroundtable/viewmodel/RoundtableViewModel.kt
-app/src/main/java/com/example/skillroundtable/network/ApiKeyPool.kt
-app/src/main/java/com/example/skillroundtable/network/ApiKeyModels.kt
-app/src/main/java/com/example/skillroundtable/network/GeminiApi.kt
+app/src/main/java/com/elio/skillroundtable/viewmodel/RoundtableViewModel.kt
+app/src/main/java/com/elio/skillroundtable/network/ApiKeyPool.kt
+app/src/main/java/com/elio/skillroundtable/network/ApiKeyModels.kt
+app/src/main/java/com/elio/skillroundtable/network/GeminiApi.kt
 ```
 
 可能修改：

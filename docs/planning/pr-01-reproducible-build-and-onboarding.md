@@ -195,7 +195,7 @@ $ErrorActionPreference = 'Stop'
 短期可以定义一个脚本变量：
 
 ```powershell
-$packageName = 'com.example.skillroundtable'
+$packageName = 'com.elio.skillroundtable'
 ```
 
 但必须在注释中说明 PR 04 改包名时同步更新。更理想的做法是通过 Gradle task 或单独项目配置读取，但不要为了这一点过度重构。

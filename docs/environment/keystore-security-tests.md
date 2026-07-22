@@ -3,7 +3,7 @@
 ## 被测实现
 
 ```text
-app/src/main/java/com/example/skillroundtable/network/EncryptedApiKeyStore.kt
+app/src/main/java/com/elio/skillroundtable/network/EncryptedApiKeyStore.kt
 ```
 
 密钥池使用：
@@ -18,7 +18,7 @@ app/src/main/java/com/example/skillroundtable/network/EncryptedApiKeyStore.kt
 ## Instrumentation 测试
 
 ```text
-app/src/androidTest/java/com/example/skillroundtable/network/EncryptedApiKeyStoreTest.kt
+app/src/androidTest/java/com/elio/skillroundtable/network/EncryptedApiKeyStoreTest.kt
 ```
 
 覆盖：

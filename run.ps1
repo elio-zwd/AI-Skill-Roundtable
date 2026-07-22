@@ -134,8 +134,8 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "`n安装成功！正在拉起手机上的 App..." -ForegroundColor Green
 
-$packageName = 'com.example.skillroundtable'
-$activityName = 'com.example.skillroundtable.MainActivity'
+$packageName = 'com.elio.skillroundtable'
+$activityName = 'com.elio.skillroundtable.MainActivity'
 
 # 启动 Activity 并获取输出及退出码（指定目标设备）
 $amStartOutput = adb -s $targetDeviceId shell am start -n "$packageName/$activityName" 2>&1

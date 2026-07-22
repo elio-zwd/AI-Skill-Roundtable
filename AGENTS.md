@@ -104,7 +104,7 @@ $env:Path = "$env:JAVA_HOME\bin;" + $env:Path
 AI-Skill-Roundtable/
 ├── app/
 │   └── src/main/
-│       ├── java/com/example/skillroundtable/
+│       ├── java/com/elio/skillroundtable/
 │       │   ├── data/          # Room 实体、DAO、数据库、Repository
 │       │   ├── network/       # Gemini API、BYOK Key、遥测、Live WebSocket
 │       │   ├── skill/         # Skill 加载与本地资料读取

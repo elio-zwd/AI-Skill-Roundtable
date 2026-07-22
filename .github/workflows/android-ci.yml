@@ -53,6 +53,43 @@ jobs:
       - name: Assemble debug APK
         run: ./gradlew --no-daemon --stacktrace assembleDebug
 
+      - name: Verify official package and launcher branding
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if grep -RIn \
+            --exclude-dir=build \
+            --include='*.kt' \
+            --include='*.kts' \
+            --include='*.ps1' \
+            --include='AndroidManifest.xml' \
+            'com\.example\.skillroundtable' app/src app/build.gradle.kts run.ps1; then
+            echo "::error::Active source or build configuration still references the example package."
+            exit 1
+          fi
+
+          test -f app/schemas/com.elio.skillroundtable.data.RoundtableDatabase/5.json
+          test ! -e app/schemas/com.example.skillroundtable.data.RoundtableDatabase
+          test -f app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          test -f app/src/main/res/mipmap-anydpi-v33/ic_launcher.xml
+
+          debug_apk="$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit)"
+          if [[ -z "${debug_apk}" ]]; then
+            echo "::error::Debug APK was not generated."
+            exit 1
+          fi
+
+          aapt="$(find "${ANDROID_HOME}/build-tools" -type f -name aapt -print | sort -V | tail -n 1)"
+          if [[ -z "${aapt}" ]]; then
+            echo "::error::Unable to locate aapt in the Android SDK."
+            exit 1
+          fi
+
+          badging="$("${aapt}" dump badging "${debug_apk}")"
+          grep -Fq "package: name='com.elio.skillroundtable'" <<<"${badging}"
+          grep -Fq "launchable-activity: name='com.elio.skillroundtable.MainActivity'" <<<"${badging}"
+
       - name: Generate ephemeral release test keystore
         shell: bash
         run: |
@@ -205,7 +242,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Run Room migration instrumentation tests
+      - name: Run Android instrumentation tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 30

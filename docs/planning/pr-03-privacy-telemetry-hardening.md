@@ -104,11 +104,11 @@ PR 02 应已支持不依赖共享云端链的严格顺序圆桌；本 PR 不得�
 2. `docs/planning/pr-execution-master-plan.md`
 3. 本文件
 4. PR 02 新增的网络调用、Retry、Key Lease 类
-5. `app/src/main/java/com/example/skillroundtable/network/GeminiApi.kt`
-6. `app/src/main/java/com/example/skillroundtable/network/ApiKeyPool.kt`
-7. `app/src/main/java/com/example/skillroundtable/network/ApiKeyModels.kt`
-8. `app/src/main/java/com/example/skillroundtable/ApiTelemetryScreen.kt` 或实际遥测 UI 文件
-9. `app/src/main/java/com/example/skillroundtable/ApiKeyManagerScreen.kt`
+5. `app/src/main/java/com/elio/skillroundtable/network/GeminiApi.kt`
+6. `app/src/main/java/com/elio/skillroundtable/network/ApiKeyPool.kt`
+7. `app/src/main/java/com/elio/skillroundtable/network/ApiKeyModels.kt`
+8. `app/src/main/java/com/elio/skillroundtable/ApiTelemetryScreen.kt` 或实际遥测 UI 文件
+9. `app/src/main/java/com/elio/skillroundtable/ApiKeyManagerScreen.kt`
 10. `app/src/main/res/xml/backup_rules.xml`
 11. `app/src/main/res/xml/data_extraction_rules.xml`
 12. `AndroidManifest.xml`
@@ -144,7 +144,7 @@ git grep -n -I 'HttpLoggingInterceptor\|TelemetryInterceptor\|ApiLog\|apiLogs\|t
 建议新增：
 
 ```text
-app/src/main/java/com/example/skillroundtable/telemetry/
+app/src/main/java/com/elio/skillroundtable/telemetry/
 ├── TelemetryLevel.kt
 ├── TelemetryEvent.kt
 ├── TelemetryRepository.kt
@@ -505,10 +505,10 @@ app/src/main/res/xml/data_extraction_rules.xml
 建议新增：
 
 ```text
-app/src/test/java/com/example/skillroundtable/telemetry/TelemetryRedactorTest.kt
-app/src/test/java/com/example/skillroundtable/telemetry/TelemetryRetentionPolicyTest.kt
-app/src/test/java/com/example/skillroundtable/telemetry/TelemetryEventFactoryTest.kt
-app/src/test/java/com/example/skillroundtable/telemetry/TelemetryMigrationTest.kt
+app/src/test/java/com/elio/skillroundtable/telemetry/TelemetryRedactorTest.kt
+app/src/test/java/com/elio/skillroundtable/telemetry/TelemetryRetentionPolicyTest.kt
+app/src/test/java/com/elio/skillroundtable/telemetry/TelemetryEventFactoryTest.kt
+app/src/test/java/com/elio/skillroundtable/telemetry/TelemetryMigrationTest.kt
 ```
 
 最低覆盖：
@@ -592,18 +592,18 @@ git grep -n -I 'Level.BODY\|telemetry_api_logs_json\|peekBody(1024 \* 512)\|Thou
 新增：
 
 ```text
-app/src/main/java/com/example/skillroundtable/telemetry/*
-app/src/test/java/com/example/skillroundtable/telemetry/*
+app/src/main/java/com/elio/skillroundtable/telemetry/*
+app/src/test/java/com/elio/skillroundtable/telemetry/*
 ```
 
 修改：
 
 ```text
-app/src/main/java/com/example/skillroundtable/network/GeminiApi.kt
-app/src/main/java/com/example/skillroundtable/network/ApiKeyPool.kt
-app/src/main/java/com/example/skillroundtable/network/ApiKeyModels.kt
-app/src/main/java/com/example/skillroundtable/ApiTelemetryScreen.kt
-app/src/main/java/com/example/skillroundtable/ApiKeyManagerScreen.kt
+app/src/main/java/com/elio/skillroundtable/network/GeminiApi.kt
+app/src/main/java/com/elio/skillroundtable/network/ApiKeyPool.kt
+app/src/main/java/com/elio/skillroundtable/network/ApiKeyModels.kt
+app/src/main/java/com/elio/skillroundtable/ApiTelemetryScreen.kt
+app/src/main/java/com/elio/skillroundtable/ApiKeyManagerScreen.kt
 app/src/main/res/xml/backup_rules.xml
 app/src/main/res/xml/data_extraction_rules.xml
 ```
