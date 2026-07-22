@@ -23,6 +23,7 @@ interface RoundtableDatabaseGateway {
     suspend fun getMessages(sessionId: Long): List<Message>
     suspend fun insertMessage(message: Message): Long
     suspend fun deleteMessageById(id: Long)
+    suspend fun updatePendingMessageText(id: Long, text: String) {}
     suspend fun removePendingMessages(sessionId: Long)
     suspend fun getActiveCharacters(): List<Character>
 }
@@ -38,6 +39,33 @@ interface CharacterAnswerGateway {
         isRequired: Boolean = true,
         reserveForRequired: Int = 0
     ): String
+
+    suspend fun callGeminiApiStreaming(
+        character: Character,
+        prompt: String,
+        attemptPlan: List<ApiKeyLease>,
+        tracker: RequestBudgetTracker,
+        budget: RoundtableBudget,
+        sessionId: Long,
+        isRequired: Boolean = true,
+        reserveForRequired: Int = 0,
+        onAttemptStarted: suspend () -> Unit,
+        onTextUpdate: suspend (String) -> Unit
+    ): String {
+        onAttemptStarted()
+        val response = callGeminiApi(
+            character = character,
+            prompt = prompt,
+            attemptPlan = attemptPlan,
+            tracker = tracker,
+            budget = budget,
+            sessionId = sessionId,
+            isRequired = isRequired,
+            reserveForRequired = reserveForRequired
+        )
+        onTextUpdate(response)
+        return response
+    }
 
     suspend fun getEmbedding(
         context: Context,
@@ -249,7 +277,7 @@ class RoundtableOrchestrator(
                     }
 
                     val reply = withTimeoutOrNull(characterTimeoutMs) {
-                        answerGateway.callGeminiApi(
+                        answerGateway.callGeminiApiStreaming(
                             character = character,
                             prompt = transcript,
                             attemptPlan = attemptPlan,
@@ -257,7 +285,16 @@ class RoundtableOrchestrator(
                             budget = budget,
                             sessionId = sessionId,
                             isRequired = true,
-                            reserveForRequired = pendingCharacters.size - index
+                            reserveForRequired = pendingCharacters.size - index,
+                            onAttemptStarted = {
+                                dbGateway.updatePendingMessageText(
+                                    pendingMessageId,
+                                    "正在思考中..."
+                                )
+                            },
+                            onTextUpdate = { partialText ->
+                                dbGateway.updatePendingMessageText(pendingMessageId, partialText)
+                            }
                         )
                     }
 

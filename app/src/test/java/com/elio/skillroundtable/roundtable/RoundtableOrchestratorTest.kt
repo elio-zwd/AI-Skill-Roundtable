@@ -34,6 +34,7 @@ class RoundtableOrchestratorTest {
         val activeCharacters: MutableList<Character> = mutableListOf()
     ) : RoundtableDatabaseGateway {
         val deletedMessageIds = mutableListOf<Long>()
+        val pendingTextUpdates = mutableListOf<String>()
 
         override suspend fun getMessages(sessionId: Long): List<Message> {
             return messages.filter { it.chatId == sessionId }
@@ -49,6 +50,14 @@ class RoundtableOrchestratorTest {
         override suspend fun deleteMessageById(id: Long) {
             messages.removeAll { it.id == id }
             deletedMessageIds.add(id)
+        }
+
+        override suspend fun updatePendingMessageText(id: Long, text: String) {
+            val index = messages.indexOfFirst { it.id == id && it.isPending }
+            if (index >= 0) {
+                messages[index] = messages[index].copy(text = text)
+            }
+            pendingTextUpdates += text
         }
 
         override suspend fun removePendingMessages(sessionId: Long) {
@@ -153,6 +162,88 @@ class RoundtableOrchestratorTest {
 
         assertEquals("两个角色都应该完成", 2, result.completedCharacters.size)
         assertTrue("B发言前应当读取到A的回复", verifiedBReceivedA)
+    }
+
+    @Test
+    fun streamingUpdatesThePendingMessageBeforeFinalCommit() = runBlocking {
+        val context = mock(Context::class.java)
+        val character = Character(
+            id = "char_stream",
+            name = "流式智囊",
+            avatar = "S",
+            tagline = "S",
+            systemPrompt = "SetS",
+            order = 1
+        )
+        val messagesList = mutableListOf(
+            Message(
+                id = 1001L,
+                chatId = 1L,
+                senderId = "user",
+                senderName = "User",
+                avatar = "U",
+                text = "请流式回答"
+            )
+        )
+        val dbGateway = FakeRoundtableDatabaseGateway(
+            messagesList,
+            mutableListOf(character)
+        )
+        val answerGateway = object : CharacterAnswerGateway {
+            override suspend fun callGeminiApi(
+                character: Character,
+                prompt: String,
+                attemptPlan: List<ApiKeyLease>,
+                tracker: RequestBudgetTracker,
+                budget: RoundtableBudget,
+                sessionId: Long,
+                isRequired: Boolean,
+                reserveForRequired: Int
+            ): String = "第一段第二段"
+
+            override suspend fun callGeminiApiStreaming(
+                character: Character,
+                prompt: String,
+                attemptPlan: List<ApiKeyLease>,
+                tracker: RequestBudgetTracker,
+                budget: RoundtableBudget,
+                sessionId: Long,
+                isRequired: Boolean,
+                reserveForRequired: Int,
+                onAttemptStarted: suspend () -> Unit,
+                onTextUpdate: suspend (String) -> Unit
+            ): String {
+                onAttemptStarted()
+                onTextUpdate("第一段")
+                onTextUpdate("第一段第二段")
+                return "第一段第二段"
+            }
+
+            override suspend fun getEmbedding(
+                context: Context,
+                text: String,
+                sessionId: Long,
+                attemptPlan: List<ApiKeyLease>,
+                tracker: RequestBudgetTracker,
+                isRequired: Boolean,
+                reserveForRequired: Int
+            ): List<Float> = emptyList()
+        }
+        val orchestrator = RoundtableOrchestrator(
+            context = context,
+            dbGateway = dbGateway,
+            answerGateway = answerGateway,
+            budgetManager = RoundtableBudgetManager(RoundtableBudget()),
+            delayProvider = ZeroDelayProvider,
+            minIntervalMs = 0L,
+            createAttemptPlan = testAttemptPlan
+        )
+*+        val result = orchestrator.runRoundtableSequence(1L, 1001L, false)
+
+        assertEquals(listOf("正在思考中...", "第一段", "第一段第二段"), dbGateway.pendingTextUpdates)
+        assertEquals(listOf("char_stream"), result.completedCharacters)
+        assertTrue(messagesList.none { it.isPending })
+        assertEquals("第一段第二段", messagesList.last().text)
     }
 
     @Test

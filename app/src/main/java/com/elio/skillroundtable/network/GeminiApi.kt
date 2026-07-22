@@ -114,6 +114,7 @@ data class CreateInteractionRequest(
     @SerialName("system_instruction") val systemInstruction: String? = null,
     val tools: List<Tool>? = null,
     val store: Boolean? = null,
+    val stream: Boolean? = null,
     @SerialName("previous_interaction_id") val previousInteractionId: String? = null,
     @SerialName("generation_config") val generationConfig: InteractionGenerationConfig? = null
 )
@@ -246,7 +247,7 @@ object RetrofitClient {
     private const val MAIN_ANSWER_PREFIX = "MainAnswer-"
     private const val CONTINUE_ANSWER_PREFIX = "ContinueAnswer-"
 
-    private val okHttpClient = OkHttpClient.Builder()
+    internal val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(90, TimeUnit.SECONDS)
         .readTimeout(300, TimeUnit.SECONDS)
         .writeTimeout(90, TimeUnit.SECONDS)
