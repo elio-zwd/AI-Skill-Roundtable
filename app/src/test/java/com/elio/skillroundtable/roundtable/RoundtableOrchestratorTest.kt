@@ -238,7 +238,7 @@ class RoundtableOrchestratorTest {
             minIntervalMs = 0L,
             createAttemptPlan = testAttemptPlan
         )
-*+        val result = orchestrator.runRoundtableSequence(1L, 1001L, false)
+        val result = orchestrator.runRoundtableSequence(1L, 1001L, false)
 
         assertEquals(listOf("正在思考中...", "第一段", "第一段第二段"), dbGateway.pendingTextUpdates)
         assertEquals(listOf("char_stream"), result.completedCharacters)
