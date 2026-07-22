@@ -62,14 +62,44 @@ jobs:
       - name: Verify formatting
         run: git diff --check
 
-      - name: Compile and run unit tests
+      - name: Compile and run unit tests with captured log
+        id: gradle_check
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
           chmod +x gradlew
-          ./gradlew --no-daemon --stacktrace compileDebugKotlin testDebugUnitTest
+          set +e
+          ./gradlew --no-daemon --stacktrace compileDebugKotlin testDebugUnitTest > /tmp/pr05a-gradle.log 2>&1
+          status=$?
+          set -e
+          echo "status=${status}" >> "${GITHUB_OUTPUT}"
+          tail -n 200 /tmp/pr05a-gradle.log
+          exit 0
+
+      - name: Upload PR05-A diagnostic artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr05a-diagnostics-${{ github.run_attempt }}
+          path: |
+            /tmp/pr05a-gradle.log
+            app/src/main/java/com/elio/skillroundtable/data/ChatSession.kt
+            app/src/main/java/com/elio/skillroundtable/network/GeminiApi.kt
+            app/src/main/java/com/elio/skillroundtable/roundtable/RoundtableOrchestrator.kt
+            app/src/main/java/com/elio/skillroundtable/viewmodel/RoundtableViewModel.kt
+            app/src/main/java/com/elio/skillroundtable/MainActivity.kt
+            app/src/test/java/com/elio/skillroundtable/network/retry/ApiRetryPolicyTest.kt
+            app/src/test/java/com/elio/skillroundtable/roundtable/RoundtableOrchestratorTest.kt
+            app/src/test/java/com/elio/skillroundtable/viewmodel/RoundtableRunFeedbackTest.kt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Stop before commit when verification failed
+        if: steps.gradle_check.outputs.status != '0'
+        run: exit 1
 
       - name: Commit reviewed PR05-A changes
+        if: steps.gradle_check.outputs.status == '0'
         shell: bash
         run: |
           set -euo pipefail
