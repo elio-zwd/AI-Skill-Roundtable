@@ -977,4 +977,126 @@ class RoundtableOrchestratorTest {
         assertFalse(dbGateway.messages.any { it.isPending })
     }
 
+    @Test
+    fun retryTargetCharactersOnly_executesSpecifiedFailedCharactersInOrder() = runBlocking {
+        val context = mock(Context::class.java)
+        val charA = Character(id = "char_a", name = "A", avatar = "A", tagline = "", systemPrompt = "", order = 1)
+        val charB = Character(id = "char_b", name = "B", avatar = "B", tagline = "", systemPrompt = "", order = 2)
+        val charC = Character(id = "char_c", name = "C", avatar = "C", tagline = "", systemPrompt = "", order = 3)
+        val charD = Character(id = "char_d", name = "D", avatar = "D", tagline = "", systemPrompt = "", order = 4)
+
+        val messagesList = mutableListOf(
+            Message(id = 1001L, chatId = 1L, senderId = "user", senderName = "User", avatar = "U", text = "你好")
+        )
+        val dbGateway = FakeRoundtableDatabaseGateway(messagesList, mutableListOf(charA, charB, charC, charD))
+
+        val calledCharacters = mutableListOf<String>()
+        val answerGateway = object : CharacterAnswerGateway {
+            override suspend fun callGeminiApi(
+                character: Character,
+                prompt: String,
+                attemptPlan: List<ApiKeyLease>,
+                tracker: RequestBudgetTracker,
+                budget: RoundtableBudget,
+                sessionId: Long,
+                isRequired: Boolean,
+                reserveForRequired: Int
+            ): String {
+                calledCharacters.add(character.id)
+                return "${character.name}的回复"
+            }
+
+            override suspend fun getEmbedding(
+                context: Context,
+                text: String,
+                sessionId: Long,
+                attemptPlan: List<ApiKeyLease>,
+                tracker: RequestBudgetTracker,
+                isRequired: Boolean,
+                reserveForRequired: Int
+            ): List<Float> = emptyList()
+        }
+
+        val orchestrator = RoundtableOrchestrator(
+            context = context,
+            dbGateway = dbGateway,
+            answerGateway = answerGateway,
+            budgetManager = RoundtableBudgetManager(RoundtableBudget()),
+            delayProvider = ZeroDelayProvider,
+            minIntervalMs = 0L,
+            createAttemptPlan = testAttemptPlan
+        )
+
+        val result = orchestrator.runRoundtableSequence(
+            sessionId = 1L,
+            questionRunId = 1001L,
+            isSemanticRoutingEnabled = false,
+            targetCharacterIds = listOf("char_c", "char_a")
+        )
+
+        assertEquals(listOf("char_c", "char_a"), calledCharacters)
+        assertEquals(listOf("char_c", "char_a"), result.completedCharacters)
+        assertEquals(emptyList<String>(), result.failedCharacters)
+        // 验证没有插入新的用户消息
+        assertEquals(1, dbGateway.messages.count { it.senderId == "user" })
+    }
+
+    @Test
+    fun retryTargetCharacters_skipsDisabledOrNonExistentCharacters() = runBlocking {
+        val context = mock(Context::class.java)
+        val charC = Character(id = "char_c", name = "C", avatar = "C", tagline = "", systemPrompt = "", order = 3)
+
+        val messagesList = mutableListOf(
+            Message(id = 1001L, chatId = 1L, senderId = "user", senderName = "User", avatar = "U", text = "你好")
+        )
+        val dbGateway = FakeRoundtableDatabaseGateway(messagesList, mutableListOf(charC))
+
+        val calledCharacters = mutableListOf<String>()
+        val answerGateway = object : CharacterAnswerGateway {
+            override suspend fun callGeminiApi(
+                character: Character,
+                prompt: String,
+                attemptPlan: List<ApiKeyLease>,
+                tracker: RequestBudgetTracker,
+                budget: RoundtableBudget,
+                sessionId: Long,
+                isRequired: Boolean,
+                reserveForRequired: Int
+            ): String {
+                calledCharacters.add(character.id)
+                return "${character.name}的回复"
+            }
+
+            override suspend fun getEmbedding(
+                context: Context,
+                text: String,
+                sessionId: Long,
+                attemptPlan: List<ApiKeyLease>,
+                tracker: RequestBudgetTracker,
+                isRequired: Boolean,
+                reserveForRequired: Int
+            ): List<Float> = emptyList()
+        }
+
+        val orchestrator = RoundtableOrchestrator(
+            context = context,
+            dbGateway = dbGateway,
+            answerGateway = answerGateway,
+            budgetManager = RoundtableBudgetManager(RoundtableBudget()),
+            delayProvider = ZeroDelayProvider,
+            minIntervalMs = 0L,
+            createAttemptPlan = testAttemptPlan
+        )
+
+        val result = orchestrator.runRoundtableSequence(
+            sessionId = 1L,
+            questionRunId = 1001L,
+            isSemanticRoutingEnabled = false,
+            targetCharacterIds = listOf("char_c", "disabled_char")
+        )
+
+        assertEquals(listOf("char_c"), calledCharacters)
+        assertEquals(listOf("char_c"), result.completedCharacters)
+    }
+
 }
