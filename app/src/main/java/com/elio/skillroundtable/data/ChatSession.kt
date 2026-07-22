@@ -63,6 +63,9 @@ interface ChatDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: Message): Long
 
+    @Query("UPDATE messages SET text = :text WHERE id = :id AND isPending = 1")
+    suspend fun updatePendingMessageText(id: Long, text: String)
+
     @Query("DELETE FROM messages WHERE id = :id")
     suspend fun deleteMessageById(id: Long)
 
@@ -120,6 +123,10 @@ class ChatRepository(private val chatDao: ChatDao) {
     }
 
     suspend fun insertMessage(message: Message): Long = chatDao.insertMessage(message)
+
+    suspend fun updatePendingMessageText(id: Long, text: String) {
+        chatDao.updatePendingMessageText(id, text)
+    }
 
     suspend fun deleteMessageById(id: Long) = chatDao.deleteMessageById(id)
 

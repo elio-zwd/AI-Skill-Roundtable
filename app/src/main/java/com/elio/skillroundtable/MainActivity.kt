@@ -698,7 +698,7 @@ fun groupMessages(messages: List<Message>): List<ChatItem> {
             }
             result.add(ChatItem.UserMessage(msg))
         } else {
-            if (!msg.isPending) {
+            if (!msg.isPending || msg.text != "正在思考中...") {
                 currentGroup.add(msg)
             }
         }
@@ -1025,6 +1025,12 @@ fun RoundtableBrainstormScreen(
                 }
             }
         } else {
+            val streamingCharacterIds = remember(currentMessages) {
+                currentMessages.asSequence()
+                    .filter { it.isPending && it.text != "正在思考中..." }
+                    .map { it.senderId }
+                    .toSet()
+            }
             val chatItems = remember(currentMessages) { groupMessages(currentMessages) }
             LazyColumn(
                 state = listState,
@@ -1054,8 +1060,9 @@ fun RoundtableBrainstormScreen(
                     }
                 }
 
-                if (isRoundtableRunning && typingCharacterIds.isNotEmpty()) {
-                    typingCharacterIds.forEach { charId ->
+                val waitingCharacterIds = typingCharacterIds - streamingCharacterIds
+                if (isRoundtableRunning && waitingCharacterIds.isNotEmpty()) {
+                    waitingCharacterIds.forEach { charId ->
                         val typingChar = allCharacters.find { it.id == charId }
                         if (typingChar != null) {
                             item(key = "typing_$charId") {
@@ -1499,7 +1506,7 @@ fun MessageBubble(
                 }
             }
 
-            if (!isUser) {
+            if (!isUser && !message.isPending) {
                 Spacer(Modifier.height(4.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

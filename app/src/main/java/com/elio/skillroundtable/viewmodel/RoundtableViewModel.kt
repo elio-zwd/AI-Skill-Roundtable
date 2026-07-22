@@ -11,6 +11,7 @@ import com.elio.skillroundtable.network.Content
 import com.elio.skillroundtable.network.GenerateContentRequest
 import com.elio.skillroundtable.network.Part
 import com.elio.skillroundtable.network.RetrofitClient
+import com.elio.skillroundtable.network.InteractionStreamingClient
 import com.elio.skillroundtable.network.ApiKeyPool
 import com.elio.skillroundtable.network.Tool
 import com.elio.skillroundtable.network.CreateInteractionRequest
@@ -161,6 +162,9 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         override suspend fun getMessages(sessionId: Long): List<Message> = chatRepo.getMessages(sessionId)
         override suspend fun insertMessage(message: Message): Long = chatRepo.insertMessage(message)
         override suspend fun deleteMessageById(id: Long) = chatRepo.deleteMessageById(id)
+        override suspend fun updatePendingMessageText(id: Long, text: String) {
+            chatRepo.updatePendingMessageText(id, text)
+        }
         override suspend fun removePendingMessages(sessionId: Long) = chatRepo.removePendingMessages(sessionId)
         override suspend fun getActiveCharacters(): List<Character> = charRepo.getActiveCharacters()
     }
@@ -187,6 +191,43 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     sessionId,
                     isRequired,
                     reserveForRequired
+                )
+            } finally {
+                _typingCharacterIds.update { it - character.id }
+            }
+        }
+
+        override suspend fun callGeminiApiStreaming(
+            character: Character,
+            prompt: String,
+            attemptPlan: List<ApiKeyLease>,
+            tracker: RequestBudgetTracker,
+            budget: RoundtableBudget,
+            sessionId: Long,
+            isRequired: Boolean,
+            reserveForRequired: Int,
+            onAttemptStarted: suspend () -> Unit,
+            onTextUpdate: suspend (String) -> Unit
+        ): String {
+            _typingCharacterIds.update { it + character.id }
+            return try {
+                this@RoundtableViewModel.callGeminiApi(
+                    character = character,
+                    prompt = prompt,
+                    attemptPlan = attemptPlan,
+                    tracker = tracker,
+                    budget = budget,
+                    sessionId = sessionId,
+                    isRequired = isRequired,
+                    reserveForRequired = reserveForRequired,
+                    onAttemptStarted = {
+                        _typingCharacterIds.update { it + character.id }
+                        onAttemptStarted()
+                    },
+                    onTextUpdate = { partialText ->
+                        _typingCharacterIds.update { it - character.id }
+                        onTextUpdate(partialText)
+                    }
                 )
             } finally {
                 _typingCharacterIds.update { it - character.id }
@@ -607,7 +648,9 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         budget: RoundtableBudget,
         sessionId: Long,
         isRequired: Boolean = true,
-        reserveForRequired: Int = 0
+        reserveForRequired: Int = 0,
+        onAttemptStarted: suspend () -> Unit = {},
+        onTextUpdate: suspend (String) -> Unit = {}
     ): String = withContext(Dispatchers.IO) {
         val context = getApplication<Application>().applicationContext
         val folderName = character.skillAssetPath
@@ -924,7 +967,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             )
         )
 
-        val currentResponse = RetrofitClient.createInteraction(
+        val currentResponse = InteractionStreamingClient.createInteraction(
             context = context,
             request = request,
             sessionId = sessionId,
@@ -932,7 +975,9 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             tracker = tracker,
             operationName = "MainAnswer-${character.id}",
             isRequired = isRequired,
-            reserveForRequired = reserveForRequired
+            reserveForRequired = reserveForRequired,
+            onAttemptStarted = onAttemptStarted,
+            onTextUpdate = onTextUpdate
         )
 
         var responseText = currentResponse.outputText
@@ -961,7 +1006,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     )
                 )
                 val continueResponse = try {
-                    RetrofitClient.createInteraction(
+                    InteractionStreamingClient.createInteraction(
                         context = context,
                         request = continueRequest,
                         sessionId = sessionId,
@@ -969,8 +1014,14 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                         tracker = tracker,
                         operationName = "ContinueAnswer-${character.id}",
                         isRequired = false,
-                        reserveForRequired = reserveForRequired
+                        reserveForRequired = reserveForRequired,
+                        onAttemptStarted = { onTextUpdate(responseText) },
+                        onTextUpdate = { continuationText ->
+                            onTextUpdate(responseText + continuationText)
+                        }
                     )
+                } catch (error: CancellationException) {
+                    throw error
                 } catch (error: Exception) {
                     PrivacySafeLogger.e("RoundtableViewModel", "Continuation request failed", error)
                     null
