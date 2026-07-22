@@ -49,6 +49,17 @@ jobs:
           Path('/tmp/apply_pr05a.py').write_bytes(gzip.decompress(base64.b64decode(payload)))
           PY
           python /tmp/apply_pr05a.py
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/src/main/java/com/elio/skillroundtable/viewmodel/RoundtableViewModel.kt')
+          text = path.read_text(encoding='utf-8')
+          broken = 'joinToString("' + '\n' + '")'
+          fixed = 'joinToString("\\n")'
+          if text.count(broken) != 1:
+              raise SystemExit(f'Expected exactly one broken joinToString literal, found {text.count(broken)}')
+          path.write_text(text.replace(broken, fixed, 1), encoding='utf-8')
+          PY
           rm -f .github/workflows/pr05a-apply.yml
           rm -f docs/planning/pr05a-trigger.txt
 
