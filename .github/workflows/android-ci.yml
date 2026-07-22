@@ -52,13 +52,19 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          path = Path('app/src/main/java/com/elio/skillroundtable/viewmodel/RoundtableViewModel.kt')
-          text = path.read_text(encoding='utf-8')
+          view_model = Path('app/src/main/java/com/elio/skillroundtable/viewmodel/RoundtableViewModel.kt')
+          text = view_model.read_text(encoding='utf-8')
           broken = 'joinToString("' + '\n' + '")'
           fixed = 'joinToString("\\n")'
           if text.count(broken) != 1:
               raise SystemExit(f'Expected exactly one broken joinToString literal, found {text.count(broken)}')
-          path.write_text(text.replace(broken, fixed, 1), encoding='utf-8')
+          view_model.write_text(text.replace(broken, fixed, 1), encoding='utf-8')
+
+          main_activity = Path('app/src/main/java/com/elio/skillroundtable/MainActivity.kt')
+          ui_text = main_activity.read_text(encoding='utf-8')
+          if ui_text.count('Icons.Default.Stop') != 1:
+              raise SystemExit(f'Expected exactly one unsupported Stop icon, found {ui_text.count("Icons.Default.Stop")}')
+          main_activity.write_text(ui_text.replace('Icons.Default.Stop', 'Icons.Default.Close', 1), encoding='utf-8')
           PY
           rm -f .github/workflows/pr05a-apply.yml
           rm -f docs/planning/pr05a-trigger.txt
