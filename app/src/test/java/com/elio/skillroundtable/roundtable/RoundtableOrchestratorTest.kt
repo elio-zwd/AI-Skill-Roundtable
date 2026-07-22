@@ -5,6 +5,9 @@ import com.elio.skillroundtable.data.Character
 import com.elio.skillroundtable.data.Message
 import com.elio.skillroundtable.network.ApiKeySource
 import com.elio.skillroundtable.network.keys.ApiKeyLease
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -771,4 +774,116 @@ class RoundtableOrchestratorTest {
         assertTrue(result.completedCharacters.contains("char_c"))
         assertFalse(result.completedCharacters.contains("char_b"))
     }
+
+    @Test
+    fun characterTimeoutCleansPendingAndContinues() = runBlocking {
+        val context = mock(Context::class.java)
+        val charA = Character(id = "char_a", name = "A", avatar = "A", tagline = "", systemPrompt = "", order = 1)
+        val charB = Character(id = "char_b", name = "B", avatar = "B", tagline = "", systemPrompt = "", order = 2)
+        val dbGateway = FakeRoundtableDatabaseGateway(
+            messages = mutableListOf(
+                Message(id = 1001L, chatId = 1L, senderId = "user", senderName = "User", avatar = "U", text = "你好")
+            ),
+            activeCharacters = mutableListOf(charA, charB)
+        )
+        val answerGateway = object : CharacterAnswerGateway {
+            override suspend fun callGeminiApi(
+                character: Character,
+                prompt: String,
+                attemptPlan: List<ApiKeyLease>,
+                tracker: RequestBudgetTracker,
+                budget: RoundtableBudget,
+                sessionId: Long,
+                isRequired: Boolean,
+                reserveForRequired: Int
+            ): String {
+                if (character.id == "char_a") delay(100)
+                return "${character.name}回复"
+            }
+
+            override suspend fun getEmbedding(
+                context: Context,
+                text: String,
+                sessionId: Long,
+                attemptPlan: List<ApiKeyLease>,
+                tracker: RequestBudgetTracker,
+                isRequired: Boolean,
+                reserveForRequired: Int
+            ): List<Float> = emptyList()
+        }
+        val orchestrator = RoundtableOrchestrator(
+            context = context,
+            dbGateway = dbGateway,
+            answerGateway = answerGateway,
+            budgetManager = RoundtableBudgetManager(RoundtableBudget()),
+            delayProvider = ZeroDelayProvider,
+            minIntervalMs = 0L,
+            characterTimeoutMs = 20L,
+            createAttemptPlan = testAttemptPlan
+        )
+
+        val result = orchestrator.runRoundtableSequence(1L, 1001L, false)
+
+        assertEquals(listOf("char_a"), result.timedOutCharacters)
+        assertTrue(result.failedCharacters.contains("char_a"))
+        assertTrue(result.completedCharacters.contains("char_b"))
+        assertFalse(dbGateway.messages.any { it.isPending })
+    }
+
+    @Test
+    fun cancellationCleansPendingAndPropagates() = runBlocking {
+        val context = mock(Context::class.java)
+        val character = Character(id = "char_a", name = "A", avatar = "A", tagline = "", systemPrompt = "", order = 1)
+        val dbGateway = FakeRoundtableDatabaseGateway(
+            messages = mutableListOf(
+                Message(id = 1001L, chatId = 1L, senderId = "user", senderName = "User", avatar = "U", text = "你好")
+            ),
+            activeCharacters = mutableListOf(character)
+        )
+        val started = CompletableDeferred<Unit>()
+        val answerGateway = object : CharacterAnswerGateway {
+            override suspend fun callGeminiApi(
+                character: Character,
+                prompt: String,
+                attemptPlan: List<ApiKeyLease>,
+                tracker: RequestBudgetTracker,
+                budget: RoundtableBudget,
+                sessionId: Long,
+                isRequired: Boolean,
+                reserveForRequired: Int
+            ): String {
+                started.complete(Unit)
+                awaitCancellation()
+            }
+
+            override suspend fun getEmbedding(
+                context: Context,
+                text: String,
+                sessionId: Long,
+                attemptPlan: List<ApiKeyLease>,
+                tracker: RequestBudgetTracker,
+                isRequired: Boolean,
+                reserveForRequired: Int
+            ): List<Float> = emptyList()
+        }
+        val orchestrator = RoundtableOrchestrator(
+            context = context,
+            dbGateway = dbGateway,
+            answerGateway = answerGateway,
+            budgetManager = RoundtableBudgetManager(RoundtableBudget()),
+            delayProvider = ZeroDelayProvider,
+            minIntervalMs = 0L,
+            createAttemptPlan = testAttemptPlan
+        )
+
+        val job = launch {
+            orchestrator.runRoundtableSequence(1L, 1001L, false)
+        }
+        started.await()
+        job.cancelAndJoin()
+
+        assertTrue(job.isCancelled)
+        assertFalse(dbGateway.messages.any { it.isPending })
+    }
+
 }
