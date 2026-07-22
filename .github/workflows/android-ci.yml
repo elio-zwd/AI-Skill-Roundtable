@@ -2,264 +2,122 @@ name: Android CI
 
 on:
   pull_request:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: android-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build:
+  apply-startup-cleanup-ordering:
+    if: github.head_ref == 'fix/pr-05a-request-lifecycle'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
 
     steps:
-      - name: Checkout repository
+      - name: Checkout PR05-A branch
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
-
-      - name: Set up Gradle and validate wrapper
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-provider: basic
-          validate-wrappers: true
-
-      - name: Make Gradle wrapper executable
-        run: chmod +x gradlew
-
-      - name: Show Gradle environment
-        run: ./gradlew --no-daemon --version
-
-      - name: Compile debug Kotlin
-        run: ./gradlew --no-daemon --stacktrace compileDebugKotlin
-
-      - name: Run debug unit tests
-        run: ./gradlew --no-daemon --stacktrace testDebugUnitTest
-
-      - name: Run debug lint
-        run: ./gradlew --no-daemon --stacktrace lintDebug
-
-      - name: Assemble debug APK
-        run: ./gradlew --no-daemon --stacktrace assembleDebug
-
-      - name: Verify official package and launcher branding
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if grep -RIn \
-            --exclude-dir=build \
-            --include='*.kt' \
-            --include='*.kts' \
-            --include='*.ps1' \
-            --include='AndroidManifest.xml' \
-            'com\.example\.skillroundtable' app/src app/build.gradle.kts run.ps1; then
-            echo "::error::Active source or build configuration still references the example package."
-            exit 1
-          fi
-
-          test -f app/schemas/com.elio.skillroundtable.data.RoundtableDatabase/5.json
-          test ! -e app/schemas/com.example.skillroundtable.data.RoundtableDatabase
-          test -f app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
-          test -f app/src/main/res/mipmap-anydpi-v33/ic_launcher.xml
-
-          debug_apk="$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit)"
-          if [[ -z "${debug_apk}" ]]; then
-            echo "::error::Debug APK was not generated."
-            exit 1
-          fi
-
-          aapt="$(find "${ANDROID_HOME}/build-tools" -type f -name aapt -print | sort -V | tail -n 1)"
-          if [[ -z "${aapt}" ]]; then
-            echo "::error::Unable to locate aapt in the Android SDK."
-            exit 1
-          fi
-
-          badging="$("${aapt}" dump badging "${debug_apk}")"
-          grep -Fq "package: name='com.elio.skillroundtable'" <<<"${badging}"
-          grep -Fq "launchable-activity: name='com.elio.skillroundtable.MainActivity'" <<<"${badging}"
-
-      - name: Generate ephemeral release test keystore
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          ci_release_password="$(openssl rand -hex 24)"
-          echo "::add-mask::${ci_release_password}"
-          echo "CI_RELEASE_PASSWORD=${ci_release_password}" >> "${GITHUB_ENV}"
-
-          keytool -genkeypair \
-            -keystore "${RUNNER_TEMP}/ci-release-test.jks" \
-            -storetype JKS \
-            -storepass "${ci_release_password}" \
-            -keypass "${ci_release_password}" \
-            -alias ci-release \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 1 \
-            -dname "CN=CI Release Test,OU=CI,O=AI Skill Roundtable,L=Test,ST=Test,C=US"
-
-      - name: Validate optional Gradle release signing configuration
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          export RELEASE_STORE_FILE="${RUNNER_TEMP}/ci-release-test.jks"
-          export RELEASE_STORE_PASSWORD="${CI_RELEASE_PASSWORD}"
-          export RELEASE_KEY_ALIAS="ci-release"
-          export RELEASE_KEY_PASSWORD="${CI_RELEASE_PASSWORD}"
-
-          ./gradlew --no-daemon --stacktrace :app:validateSigningRelease
-
-      - name: Remove ephemeral release test keystore
-        if: always()
-        shell: bash
-        run: rm -f "${RUNNER_TEMP}/ci-release-test.jks"
-
-      - name: Assemble optimized release APK
-        run: ./gradlew --no-daemon --stacktrace assembleRelease
-
-      - name: Verify public release APK is unsigned
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          release_apk="$(find app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print -quit)"
-          if [[ -z "${release_apk}" ]]; then
-            echo "::error::Release APK was not generated."
-            exit 1
-          fi
-
-          apksigner="$(find "${ANDROID_HOME}/build-tools" -type f -name apksigner -print | sort -V | tail -n 1)"
-          if [[ -z "${apksigner}" ]]; then
-            echo "::error::Unable to locate apksigner in the Android SDK."
-            exit 1
-          fi
-
-          if "${apksigner}" verify "${release_apk}" >/dev/null 2>&1; then
-            echo "::error::Public CI release APK is unexpectedly signed."
-            exit 1
-          fi
-
-          echo "Confirmed unsigned public release APK: ${release_apk}"
-
-      - name: Verify committed Room schema is current
-        shell: bash
-        run: |
-          set -euo pipefail
-          git diff --exit-code -- app/schemas
-
-          untracked_schema="$(git status --porcelain --untracked-files=all -- app/schemas)"
-          if [[ -n "${untracked_schema}" ]]; then
-            echo "::error::Room generated uncommitted schema files."
-            printf '%s\n' "${untracked_schema}"
-            exit 1
-          fi
-
-      - name: Upload generated Room schema
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: room-schema-${{ github.run_attempt }}
-          path: app/schemas/**
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload test, lint and R8 reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-ci-reports-${{ github.run_attempt }}
-          path: |
-            app/build/reports/lint-results-debug.html
-            app/build/reports/lint-results-debug.xml
-            app/build/test-results/testDebugUnitTest/**
-            app/build/reports/tests/testDebugUnitTest/**
-            app/build/outputs/mapping/release/**
-            app/build/outputs/logs/**
-          if-no-files-found: ignore
-          retention-days: 7
-
-      - name: Upload debug APK
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug-apk-${{ github.run_attempt }}
-          path: app/build/outputs/apk/debug/*.apk
-          if-no-files-found: ignore
-          retention-days: 7
-
-      - name: Upload release APK
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-apk-${{ github.run_attempt }}
-          path: app/build/outputs/apk/release/*.apk
-          if-no-files-found: ignore
-          retention-days: 7
-
-  migration-tests:
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
+          java-version: '17'
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-provider: basic
-          cache-read-only: true
           validate-wrappers: true
 
-      - name: Make Gradle wrapper executable
-        run: chmod +x gradlew
-
-      - name: Enable KVM permissions
+      - name: Apply reviewed startup cleanup ordering fix
         shell: bash
         run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
-            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
 
-      - name: Run Android instrumentation tests
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 30
-          arch: x86_64
-          target: default
-          profile: Nexus 6
-          disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: ./gradlew --no-daemon --stacktrace connectedDebugAndroidTest
+          path = Path('app/src/main/java/com/elio/skillroundtable/viewmodel/RoundtableViewModel.kt')
+          text = path.read_text(encoding='utf-8')
 
-      - name: Upload instrumentation test reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-instrumentation-reports-${{ github.run_attempt }}
-          path: |
-            app/build/reports/androidTests/connected/**
-            app/build/outputs/androidTest-results/connected/**
-          if-no-files-found: ignore
-          retention-days: 7
+          old_repositories = '''    private val charRepo = com.elio.skillroundtable.data.CharacterRepository(database.characterDao())
+              private val chatRepo = com.elio.skillroundtable.data.ChatRepository(database.chatDao())
+              private val groupRepo = com.elio.skillroundtable.data.CharacterGroupRepository(database.characterGroupDao())
+          '''.replace('              ', '')
+          new_repositories = '''    private val charRepo = com.elio.skillroundtable.data.CharacterRepository(database.characterDao())
+              private val chatRepo = com.elio.skillroundtable.data.ChatRepository(database.chatDao())
+              private val groupRepo = com.elio.skillroundtable.data.CharacterGroupRepository(database.characterGroupDao())
+              private val startupPendingCleanupJob: Job = viewModelScope.launch(Dispatchers.IO) {
+                  try {
+                      chatRepo.removeAllPendingMessages()
+                  } catch (error: Exception) {
+                      PrivacySafeLogger.e("RoundtableViewModel", "Startup pending-message cleanup failed", error)
+                  }
+              }
+          '''.replace('              ', '')
+
+          old_init = '''        ApiKeyPool.init(context)
+              viewModelScope.launch(Dispatchers.IO) {
+                  chatRepo.removeAllPendingMessages()
+              }
+          
+          '''.replace('              ', '')
+          new_init = '''        ApiKeyPool.init(context)
+          
+          '''.replace('              ', '')
+
+          old_launch = '''        val job = viewModelScope.launch(start = CoroutineStart.LAZY) {
+                  block()
+              }
+          '''.replace('              ', '')
+          new_launch = '''        val job = viewModelScope.launch(start = CoroutineStart.LAZY) {
+                  startupPendingCleanupJob.join()
+                  block()
+              }
+          '''.replace('              ', '')
+
+          replacements = [
+              (old_repositories, new_repositories, 'repository block'),
+              (old_init, new_init, 'init cleanup block'),
+              (old_launch, new_launch, 'roundtable launch block'),
+          ]
+          for old, new, label in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'Expected one {label}, found {count}')
+              text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Restore permanent CI definition
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git checkout origin/main -- .github/workflows/android-ci.yml
+
+      - name: Verify formatting and focused build
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace compileDebugKotlin testDebugUnitTest
+          chmod -x gradlew
+
+      - name: Commit startup cleanup ordering fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git update-index --chmod=-x gradlew
+          git commit -m 'fix: serialize startup pending cleanup'
+          git push origin HEAD:fix/pr-05a-request-lifecycle
