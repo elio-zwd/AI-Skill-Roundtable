@@ -59,6 +59,7 @@ private const val ROUNDTABLE_SEQUENCE_TIMEOUT_MS = 8 * 60 * 1000L
 
 data class RetryableRoundtableState(
     val sessionId: Long,
+    val questionRunId: Long,
     val characterIds: List<String>
 )
 
@@ -74,6 +75,13 @@ internal fun buildRetryableCharacterIds(
         if (id !in combined) combined.add(id)
     }
     return combined
+}
+
+internal fun remainingRetryableCharacterIds(
+    initialTargetIds: List<String>,
+    completedIds: Set<String>
+): List<String> {
+    return initialTargetIds.filter { id -> id !in completedIds }
 }
 
 /**
@@ -635,15 +643,22 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         if (state.sessionId != sessionId || state.characterIds.isEmpty()) return
 
         launchRoundtableJob {
-            runRetryRoundtableSequence(sessionId, state.characterIds)
+            runRetryRoundtableSequence(sessionId, state.questionRunId, state.characterIds)
         }
     }
 
-    private suspend fun runRetryRoundtableSequence(sessionId: Long, targetCharacterIds: List<String>) {
+    private suspend fun runRetryRoundtableSequence(sessionId: Long, questionRunId: Long, targetCharacterIds: List<String>) {
         val context = getApplication<Application>().applicationContext
         val availableKeys = ApiKeyPool.getAvailableKeys(context)
         if (availableKeys.isEmpty()) {
             _errorMessage.value = "当前没有可用的 API 密钥，请稍后再试或在“我的配置”中填写密钥。"
+            return
+        }
+
+        val messages = chatRepo.getMessages(sessionId)
+        val questionMsgIndex = messages.indexOfFirst { it.id == questionRunId }
+        if (questionMsgIndex == -1) {
+            _retryableRoundtableState.value = null
             return
         }
 
@@ -655,11 +670,6 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             _errorMessage.value = "失败角色当前不可用，请重新启用后重试。"
             return
         }
-
-        val messages = chatRepo.getMessages(sessionId)
-        val lastUserMsg = messages.lastOrNull { it.senderId == "user" }
-        if (lastUserMsg == null) return
-        val questionRunId = lastUserMsg.id
 
         _isRoundtableRunning.value = true
         _errorMessage.value = null
@@ -675,13 +685,13 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             }
 
             val completedSet = result.completedCharacters.toSet()
-            val remainingIds = targetCharacterIds.filter { it !in completedSet }
+            val remainingIds = remainingRetryableCharacterIds(targetCharacterIds, completedSet)
 
             if (remainingIds.isEmpty()) {
                 _retryableRoundtableState.value = null
                 _errorMessage.value = "失败角色已全部完成回复。"
             } else {
-                _retryableRoundtableState.value = RetryableRoundtableState(sessionId, remainingIds)
+                _retryableRoundtableState.value = RetryableRoundtableState(sessionId, questionRunId, remainingIds)
                 if (result.completedCharacters.isNotEmpty()) {
                     _errorMessage.value = "部分角色已完成，仍有 ${remainingIds.size} 位智囊未完成，可再次重试。"
                 } else {
@@ -700,17 +710,18 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 chatRepo.removePendingMessages(sessionId)
             }
             val latestMsgs = runCatching { chatRepo.getMessages(sessionId) }.getOrDefault(emptyList())
-            val runMessageIndex = latestMsgs.indexOfFirst { it.id == questionRunId }
-            val answeredInRun = if (runMessageIndex != -1) {
-                latestMsgs.subList(runMessageIndex + 1, latestMsgs.size)
+            val qIndex = latestMsgs.indexOfFirst { it.id == questionRunId }
+            val answeredInRun = if (qIndex != -1) {
+                latestMsgs.subList(qIndex + 1, latestMsgs.size)
+                    .takeWhile { it.senderId != "user" }
                     .filterNot { it.isPending }
                     .map { it.senderId }
                     .toSet()
             } else emptySet()
 
-            val remainingIds = targetCharacterIds.filter { it !in answeredInRun }
+            val remainingIds = remainingRetryableCharacterIds(targetCharacterIds, answeredInRun)
             if (remainingIds.isNotEmpty()) {
-                _retryableRoundtableState.value = RetryableRoundtableState(sessionId, remainingIds)
+                _retryableRoundtableState.value = RetryableRoundtableState(sessionId, questionRunId, remainingIds)
             } else {
                 _retryableRoundtableState.value = null
             }
@@ -756,7 +767,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             }
             val retryableIds = buildRetryableCharacterIds(result.failedCharacters, result.timedOutCharacters)
             if (retryableIds.isNotEmpty()) {
-                _retryableRoundtableState.value = RetryableRoundtableState(sessionId, retryableIds)
+                _retryableRoundtableState.value = RetryableRoundtableState(sessionId, questionRunId, retryableIds)
             } else {
                 _retryableRoundtableState.value = null
             }

@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -1097,6 +1098,122 @@ class RoundtableOrchestratorTest {
 
         assertEquals(listOf("char_c"), calledCharacters)
         assertEquals(listOf("char_c"), result.completedCharacters)
+    }
+
+    @Test
+    fun retryTargetCharacters_preservesExistingCompletedMessagesUnchanged() = runBlocking {
+        val context = mock(Context::class.java)
+        val charA = Character(id = "char_a", name = "A", avatar = "A", tagline = "", systemPrompt = "", order = 1)
+        val charB = Character(id = "char_b", name = "B", avatar = "B", tagline = "", systemPrompt = "", order = 2)
+
+        val existingMessageA = Message(id = 2001L, chatId = 1L, senderId = "char_a", senderName = "A", avatar = "A", text = "A原始回复", roundIndex = 1)
+        val userMessage = Message(id = 1001L, chatId = 1L, senderId = "user", senderName = "User", avatar = "U", text = "你好")
+
+        val messagesList = mutableListOf(userMessage, existingMessageA)
+        val dbGateway = FakeRoundtableDatabaseGateway(messagesList, mutableListOf(charA, charB))
+
+        val answerGateway = object : CharacterAnswerGateway {
+            override suspend fun callGeminiApi(
+                character: Character,
+                prompt: String,
+                attemptPlan: List<ApiKeyLease>,
+                tracker: RequestBudgetTracker,
+                budget: RoundtableBudget,
+                sessionId: Long,
+                isRequired: Boolean,
+                reserveForRequired: Int
+            ): String = "${character.name}新回复"
+
+            override suspend fun getEmbedding(
+                context: Context,
+                text: String,
+                sessionId: Long,
+                attemptPlan: List<ApiKeyLease>,
+                tracker: RequestBudgetTracker,
+                isRequired: Boolean,
+                reserveForRequired: Int
+            ): List<Float> = emptyList()
+        }
+
+        val orchestrator = RoundtableOrchestrator(
+            context = context,
+            dbGateway = dbGateway,
+            answerGateway = answerGateway,
+            budgetManager = RoundtableBudgetManager(RoundtableBudget()),
+            delayProvider = ZeroDelayProvider,
+            minIntervalMs = 0L,
+            createAttemptPlan = testAttemptPlan
+        )
+
+        val result = orchestrator.runRoundtableSequence(
+            sessionId = 1L,
+            questionRunId = 1001L,
+            isSemanticRoutingEnabled = false,
+            targetCharacterIds = listOf("char_b")
+        )
+
+        assertEquals(listOf("char_b"), result.completedCharacters)
+
+        // 验证查出来的原有已完成消息完全保持原样，不被删除或改动
+        val msgA = dbGateway.messages.find { it.id == 2001L }
+        assertNotNull(msgA)
+        assertEquals("A原始回复", msgA?.text)
+        assertEquals("char_a", msgA?.senderId)
+    }
+
+    @Test
+    fun retryTargetCharacters_returnsEmptyResultWhenQuestionRunIdNotFound() = runBlocking {
+        val context = mock(Context::class.java)
+        val charA = Character(id = "char_a", name = "A", avatar = "A", tagline = "", systemPrompt = "", order = 1)
+        val dbGateway = FakeRoundtableDatabaseGateway(mutableListOf(), mutableListOf(charA))
+
+        var apiCalled = false
+        val answerGateway = object : CharacterAnswerGateway {
+            override suspend fun callGeminiApi(
+                character: Character,
+                prompt: String,
+                attemptPlan: List<ApiKeyLease>,
+                tracker: RequestBudgetTracker,
+                budget: RoundtableBudget,
+                sessionId: Long,
+                isRequired: Boolean,
+                reserveForRequired: Int
+            ): String {
+                apiCalled = true
+                return "回复"
+            }
+
+            override suspend fun getEmbedding(
+                context: Context,
+                text: String,
+                sessionId: Long,
+                attemptPlan: List<ApiKeyLease>,
+                tracker: RequestBudgetTracker,
+                isRequired: Boolean,
+                reserveForRequired: Int
+            ): List<Float> = emptyList()
+        }
+
+        val orchestrator = RoundtableOrchestrator(
+            context = context,
+            dbGateway = dbGateway,
+            answerGateway = answerGateway,
+            budgetManager = RoundtableBudgetManager(RoundtableBudget()),
+            delayProvider = ZeroDelayProvider,
+            minIntervalMs = 0L,
+            createAttemptPlan = testAttemptPlan
+        )
+
+        val result = orchestrator.runRoundtableSequence(
+            sessionId = 1L,
+            questionRunId = 9999L, // 不存在的问题 ID
+            isSemanticRoutingEnabled = false,
+            targetCharacterIds = listOf("char_a")
+        )
+
+        assertFalse(apiCalled)
+        assertEquals(emptyList<String>(), result.completedCharacters)
+        assertEquals(emptyList<String>(), result.failedCharacters)
     }
 
 }
