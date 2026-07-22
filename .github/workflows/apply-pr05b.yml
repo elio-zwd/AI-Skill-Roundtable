@@ -1,0 +1,47 @@
+name: Apply PR05-B patch
+
+on:
+  push:
+    branches:
+      - feat/pr-05b-streaming-responses
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/pr-05b-streaming-responses
+          fetch-depth: 0
+
+      - name: Reassemble and validate patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat tools/pr05b-patch/part*.b64 | base64 --decode > /tmp/pr05b.patch
+          test "$(wc -c < /tmp/pr05b.patch)" -eq 45557
+          git apply --check --recount /tmp/pr05b.patch
+
+      - name: Apply patch and remove temporary files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --recount --whitespace=fix /tmp/pr05b.patch
+          rm -rf tools/pr05b-patch
+          rm -f .github/workflows/apply-pr05b.yml
+
+      - name: Commit implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: stream roundtable responses incrementally"
+          git push origin HEAD:feat/pr-05b-streaming-responses
