@@ -43,56 +43,45 @@ jobs:
           from pathlib import Path
 
           path = Path('app/src/main/java/com/elio/skillroundtable/viewmodel/RoundtableViewModel.kt')
-          text = path.read_text(encoding='utf-8')
+          lines = path.read_text(encoding='utf-8').splitlines()
 
-          old_repositories = '''    private val charRepo = com.elio.skillroundtable.data.CharacterRepository(database.characterDao())
-              private val chatRepo = com.elio.skillroundtable.data.ChatRepository(database.chatDao())
-              private val groupRepo = com.elio.skillroundtable.data.CharacterGroupRepository(database.characterGroupDao())
-          '''.replace('              ', '')
-          new_repositories = '''    private val charRepo = com.elio.skillroundtable.data.CharacterRepository(database.characterDao())
-              private val chatRepo = com.elio.skillroundtable.data.ChatRepository(database.chatDao())
-              private val groupRepo = com.elio.skillroundtable.data.CharacterGroupRepository(database.characterGroupDao())
-              private val startupPendingCleanupJob: Job = viewModelScope.launch(Dispatchers.IO) {
-                  try {
-                      chatRepo.removeAllPendingMessages()
-                  } catch (error: Exception) {
-                      PrivacySafeLogger.e("RoundtableViewModel", "Startup pending-message cleanup failed", error)
-                  }
-              }
-          '''.replace('              ', '')
-
-          old_init = '''        ApiKeyPool.init(context)
-              viewModelScope.launch(Dispatchers.IO) {
-                  chatRepo.removeAllPendingMessages()
-              }
-          
-          '''.replace('              ', '')
-          new_init = '''        ApiKeyPool.init(context)
-          
-          '''.replace('              ', '')
-
-          old_launch = '''        val job = viewModelScope.launch(start = CoroutineStart.LAZY) {
-                  block()
-              }
-          '''.replace('              ', '')
-          new_launch = '''        val job = viewModelScope.launch(start = CoroutineStart.LAZY) {
-                  startupPendingCleanupJob.join()
-                  block()
-              }
-          '''.replace('              ', '')
-
-          replacements = [
-              (old_repositories, new_repositories, 'repository block'),
-              (old_init, new_init, 'init cleanup block'),
-              (old_launch, new_launch, 'roundtable launch block'),
+          group_line = '    private val groupRepo = com.elio.skillroundtable.data.CharacterGroupRepository(database.characterGroupDao())'
+          if lines.count(group_line) != 1:
+              raise SystemExit(f'Expected one group repository declaration, found {lines.count(group_line)}')
+          group_index = lines.index(group_line)
+          cleanup_block = [
+              '    private val startupPendingCleanupJob: Job = viewModelScope.launch(Dispatchers.IO) {',
+              '        try {',
+              '            chatRepo.removeAllPendingMessages()',
+              '        } catch (error: Exception) {',
+              '            PrivacySafeLogger.e("RoundtableViewModel", "Startup pending-message cleanup failed", error)',
+              '        }',
+              '    }',
           ]
-          for old, new, label in replacements:
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f'Expected one {label}, found {count}')
-              text = text.replace(old, new, 1)
+          if any('startupPendingCleanupJob' in line for line in lines):
+              raise SystemExit('startupPendingCleanupJob already exists')
+          lines[group_index + 1:group_index + 1] = cleanup_block
 
-          path.write_text(text, encoding='utf-8')
+          init_cleanup = [
+              '        viewModelScope.launch(Dispatchers.IO) {',
+              '            chatRepo.removeAllPendingMessages()',
+              '        }',
+          ]
+          matches = [i for i in range(len(lines) - len(init_cleanup) + 1) if lines[i:i + len(init_cleanup)] == init_cleanup]
+          if len(matches) != 1:
+              raise SystemExit(f'Expected one init cleanup block, found {len(matches)}')
+          start = matches[0]
+          del lines[start:start + len(init_cleanup)]
+
+          launch_line = '        val job = viewModelScope.launch(start = CoroutineStart.LAZY) {'
+          if lines.count(launch_line) != 1:
+              raise SystemExit(f'Expected one lazy roundtable launch, found {lines.count(launch_line)}')
+          launch_index = lines.index(launch_line)
+          if lines[launch_index + 1] != '            block()':
+              raise SystemExit(f'Unexpected lazy launch body: {lines[launch_index + 1]!r}')
+          lines.insert(launch_index + 1, '            startupPendingCleanupJob.join()')
+
+          path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
           PY
 
       - name: Restore permanent CI definition
