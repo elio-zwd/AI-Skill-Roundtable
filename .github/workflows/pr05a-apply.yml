@@ -1,0 +1,60 @@
+name: PR05-A Apply Reviewed Lifecycle Changes
+
+on:
+  push:
+    branches:
+      - fix/pr-05a-request-lifecycle
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr05a-apply-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout reviewed branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: fix/pr-05a-request-lifecycle
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Decode and apply reviewed PR05-A changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/pr05a.b64 <<'PAYLOAD'
+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
+PAYLOAD
+          base64 --decode /tmp/pr05a.b64 | gzip --decompress > /tmp/apply_pr05a.py
+          python /tmp/apply_pr05a.py
+          rm .github/workflows/pr05a-apply.yml
+
+      - name: Verify patch formatting
+        run: git diff --check
+
+      - name: Compile and run unit tests
+        run: ./gradlew --no-daemon --stacktrace compileDebugKotlin testDebugUnitTest
+
+      - name: Commit reviewed changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: harden roundtable request lifecycle"
+          git push origin HEAD:fix/pr-05a-request-lifecycle
