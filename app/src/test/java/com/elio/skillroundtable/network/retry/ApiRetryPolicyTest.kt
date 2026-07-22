@@ -9,6 +9,9 @@ import com.elio.skillroundtable.network.ApiKeyValidationState
 import com.elio.skillroundtable.network.EncryptedApiKeyStore
 import com.elio.skillroundtable.network.keys.ApiKeyLease
 import com.elio.skillroundtable.network.RetrofitClient
+import com.elio.skillroundtable.roundtable.RequestBudgetTracker
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.runBlocking
 import okhttp3.MediaType.Companion.toMediaType
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -272,4 +275,27 @@ class ApiRetryPolicyTest {
         val parsedInvalid = ApiRetryPolicy.parseRetryAfterMs("invalid")
         assertEquals("非数字格式应解析为 null", null, parsedInvalid)
     }
+
+    @Test
+    fun cancellationIsNotWrappedByRetryEngine() = runBlocking {
+        val context = mock(Context::class.java)
+        val expected = CancellationException("cancel test")
+        val plan = listOf(ApiKeyLease("key_id", "Test", "secret", ApiKeySource.LOCAL))
+
+        try {
+            RetrofitClient.executeWithBudgetAndRetry(
+                context = context,
+                sessionId = 1L,
+                attemptPlan = plan,
+                tracker = RequestBudgetTracker(5),
+                operationName = "CancellationTest"
+            ) {
+                throw expected
+            }
+            fail("CancellationException must propagate")
+        } catch (actual: CancellationException) {
+            assertTrue(actual === expected)
+        }
+    }
+
 }

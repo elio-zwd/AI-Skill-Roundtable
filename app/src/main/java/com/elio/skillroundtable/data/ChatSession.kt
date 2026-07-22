@@ -69,6 +69,9 @@ interface ChatDao {
     @Query("DELETE FROM messages WHERE chatId = :chatId AND isPending = 1")
     suspend fun removePendingMessages(chatId: Long)
 
+    @Query("DELETE FROM messages WHERE isPending = 1")
+    suspend fun removeAllPendingMessages()
+
     @Query("UPDATE messages SET audioFilePath = :path, audioFormat = :format, audioSizeBytes = :size WHERE id = :id")
     suspend fun updateMessageAudio(id: Long, path: String?, format: String?, size: Long)
 
@@ -121,4 +124,6 @@ class ChatRepository(private val chatDao: ChatDao) {
     suspend fun deleteMessageById(id: Long) = chatDao.deleteMessageById(id)
 
     suspend fun removePendingMessages(chatId: Long) = chatDao.removePendingMessages(chatId)
+
+    suspend fun removeAllPendingMessages() = chatDao.removeAllPendingMessages()
 }

@@ -1223,9 +1223,12 @@ fun RoundtableBrainstormScreen(
                     )
                     Spacer(Modifier.width(4.dp))
                     val isSendEnabled = !isRoundtableRunning && userQuestionText.isNotBlank()
+                    val isActionEnabled = isRoundtableRunning || isSendEnabled
                     IconButton(
                         onClick = {
-                            if (userQuestionText.isNotBlank()) {
+                            if (isRoundtableRunning) {
+                                viewModel.cancelRoundtable()
+                            } else if (userQuestionText.isNotBlank()) {
                                 viewModel.askQuestion(userQuestionText)
                                 userQuestionText = ""
                             }
@@ -1233,17 +1236,21 @@ fun RoundtableBrainstormScreen(
                         modifier = Modifier
                             .size(36.dp)
                             .background(
-                                color = if (isSendEnabled) PrimaryAccent else Color.Transparent,
+                                color = when {
+                                    isRoundtableRunning -> MaterialTheme.colorScheme.error
+                                    isSendEnabled -> PrimaryAccent
+                                    else -> Color.Transparent
+                                },
                                 shape = CircleShape
                             )
                             .bounceClick()
-                            .testTag("send_button"),
-                        enabled = isSendEnabled
+                            .testTag(if (isRoundtableRunning) "stop_button" else "send_button"),
+                        enabled = isActionEnabled
                     ) {
                         Icon(
-                            Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "发送",
-                            tint = if (isSendEnabled) Color.White else TextSecondary.copy(alpha = 0.4f),
+                            imageVector = if (isRoundtableRunning) Icons.Default.Close else Icons.AutoMirrored.Filled.Send,
+                            contentDescription = if (isRoundtableRunning) "停止生成" else "发送",
+                            tint = if (isActionEnabled) Color.White else TextSecondary.copy(alpha = 0.4f),
                             modifier = Modifier.size(16.dp)
                         )
                     }

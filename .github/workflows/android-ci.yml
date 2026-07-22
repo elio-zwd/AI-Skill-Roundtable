@@ -2,126 +2,264 @@ name: Android CI
 
 on:
   pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: android-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  apply-reviewed-pr05a:
-    if: github.head_ref == 'fix/pr-05a-request-lifecycle'
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
-      - name: Checkout PR05-A branch
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.head_ref }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
 
-      - name: Set up Gradle
+      - name: Set up Gradle and validate wrapper
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-provider: basic
           validate-wrappers: true
 
-      - name: Decode and apply reviewed changes
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Show Gradle environment
+        run: ./gradlew --no-daemon --version
+
+      - name: Compile debug Kotlin
+        run: ./gradlew --no-daemon --stacktrace compileDebugKotlin
+
+      - name: Run debug unit tests
+        run: ./gradlew --no-daemon --stacktrace testDebugUnitTest
+
+      - name: Run debug lint
+        run: ./gradlew --no-daemon --stacktrace lintDebug
+
+      - name: Assemble debug APK
+        run: ./gradlew --no-daemon --stacktrace assembleDebug
+
+      - name: Verify official package and launcher branding
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import base64
-          import gzip
-          from pathlib import Path
 
-          workflow = Path('.github/workflows/pr05a-apply.yml').read_text(encoding='utf-8')
-          payload = workflow.split("<<'PAYLOAD'\n", 1)[1].split('\nPAYLOAD', 1)[0]
-          Path('/tmp/apply_pr05a.py').write_bytes(gzip.decompress(base64.b64decode(payload)))
-          PY
-          python /tmp/apply_pr05a.py
-          python - <<'PY'
-          from pathlib import Path
+          if grep -RIn \
+            --exclude-dir=build \
+            --include='*.kt' \
+            --include='*.kts' \
+            --include='*.ps1' \
+            --include='AndroidManifest.xml' \
+            'com\.example\.skillroundtable' app/src app/build.gradle.kts run.ps1; then
+            echo "::error::Active source or build configuration still references the example package."
+            exit 1
+          fi
 
-          view_model = Path('app/src/main/java/com/elio/skillroundtable/viewmodel/RoundtableViewModel.kt')
-          text = view_model.read_text(encoding='utf-8')
-          broken = 'joinToString("' + '\n' + '")'
-          fixed = 'joinToString("\\n")'
-          if text.count(broken) != 1:
-              raise SystemExit(f'Expected exactly one broken joinToString literal, found {text.count(broken)}')
-          view_model.write_text(text.replace(broken, fixed, 1), encoding='utf-8')
+          test -f app/schemas/com.elio.skillroundtable.data.RoundtableDatabase/5.json
+          test ! -e app/schemas/com.example.skillroundtable.data.RoundtableDatabase
+          test -f app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          test -f app/src/main/res/mipmap-anydpi-v33/ic_launcher.xml
 
-          main_activity = Path('app/src/main/java/com/elio/skillroundtable/MainActivity.kt')
-          ui_text = main_activity.read_text(encoding='utf-8')
-          if ui_text.count('Icons.Default.Stop') != 1:
-              raise SystemExit(f'Expected exactly one unsupported Stop icon, found {ui_text.count("Icons.Default.Stop")}')
-          main_activity.write_text(ui_text.replace('Icons.Default.Stop', 'Icons.Default.Close', 1), encoding='utf-8')
-          PY
-          rm -f .github/workflows/pr05a-apply.yml
-          rm -f docs/planning/pr05a-trigger.txt
+          debug_apk="$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit)"
+          if [[ -z "${debug_apk}" ]]; then
+            echo "::error::Debug APK was not generated."
+            exit 1
+          fi
 
-      - name: Restore permanent CI definition
+          aapt="$(find "${ANDROID_HOME}/build-tools" -type f -name aapt -print | sort -V | tail -n 1)"
+          if [[ -z "${aapt}" ]]; then
+            echo "::error::Unable to locate aapt in the Android SDK."
+            exit 1
+          fi
+
+          badging="$("${aapt}" dump badging "${debug_apk}")"
+          grep -Fq "package: name='com.elio.skillroundtable'" <<<"${badging}"
+          grep -Fq "launchable-activity: name='com.elio.skillroundtable.MainActivity'" <<<"${badging}"
+
+      - name: Generate ephemeral release test keystore
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin main
-          git checkout origin/main -- .github/workflows/android-ci.yml
 
-      - name: Verify formatting
-        run: git diff --check
+          ci_release_password="$(openssl rand -hex 24)"
+          echo "::add-mask::${ci_release_password}"
+          echo "CI_RELEASE_PASSWORD=${ci_release_password}" >> "${GITHUB_ENV}"
 
-      - name: Compile and run unit tests with captured log
-        id: gradle_check
+          keytool -genkeypair \
+            -keystore "${RUNNER_TEMP}/ci-release-test.jks" \
+            -storetype JKS \
+            -storepass "${ci_release_password}" \
+            -keypass "${ci_release_password}" \
+            -alias ci-release \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 1 \
+            -dname "CN=CI Release Test,OU=CI,O=AI Skill Roundtable,L=Test,ST=Test,C=US"
+
+      - name: Validate optional Gradle release signing configuration
         shell: bash
         run: |
-          set -uo pipefail
-          chmod +x gradlew
-          set +e
-          ./gradlew --no-daemon --stacktrace compileDebugKotlin testDebugUnitTest > /tmp/pr05a-gradle.log 2>&1
-          status=$?
-          set -e
-          echo "status=${status}" >> "${GITHUB_OUTPUT}"
-          tail -n 200 /tmp/pr05a-gradle.log
-          exit 0
+          set -euo pipefail
 
-      - name: Upload PR05-A diagnostic artifact
+          export RELEASE_STORE_FILE="${RUNNER_TEMP}/ci-release-test.jks"
+          export RELEASE_STORE_PASSWORD="${CI_RELEASE_PASSWORD}"
+          export RELEASE_KEY_ALIAS="ci-release"
+          export RELEASE_KEY_PASSWORD="${CI_RELEASE_PASSWORD}"
+
+          ./gradlew --no-daemon --stacktrace :app:validateSigningRelease
+
+      - name: Remove ephemeral release test keystore
+        if: always()
+        shell: bash
+        run: rm -f "${RUNNER_TEMP}/ci-release-test.jks"
+
+      - name: Assemble optimized release APK
+        run: ./gradlew --no-daemon --stacktrace assembleRelease
+
+      - name: Verify public release APK is unsigned
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_apk="$(find app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print -quit)"
+          if [[ -z "${release_apk}" ]]; then
+            echo "::error::Release APK was not generated."
+            exit 1
+          fi
+
+          apksigner="$(find "${ANDROID_HOME}/build-tools" -type f -name apksigner -print | sort -V | tail -n 1)"
+          if [[ -z "${apksigner}" ]]; then
+            echo "::error::Unable to locate apksigner in the Android SDK."
+            exit 1
+          fi
+
+          if "${apksigner}" verify "${release_apk}" >/dev/null 2>&1; then
+            echo "::error::Public CI release APK is unexpectedly signed."
+            exit 1
+          fi
+
+          echo "Confirmed unsigned public release APK: ${release_apk}"
+
+      - name: Verify committed Room schema is current
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- app/schemas
+
+          untracked_schema="$(git status --porcelain --untracked-files=all -- app/schemas)"
+          if [[ -n "${untracked_schema}" ]]; then
+            echo "::error::Room generated uncommitted schema files."
+            printf '%s\n' "${untracked_schema}"
+            exit 1
+          fi
+
+      - name: Upload generated Room schema
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pr05a-diagnostics-${{ github.run_attempt }}
-          path: |
-            /tmp/pr05a-gradle.log
-            app/src/main/java/com/elio/skillroundtable/data/ChatSession.kt
-            app/src/main/java/com/elio/skillroundtable/network/GeminiApi.kt
-            app/src/main/java/com/elio/skillroundtable/roundtable/RoundtableOrchestrator.kt
-            app/src/main/java/com/elio/skillroundtable/viewmodel/RoundtableViewModel.kt
-            app/src/main/java/com/elio/skillroundtable/MainActivity.kt
-            app/src/test/java/com/elio/skillroundtable/network/retry/ApiRetryPolicyTest.kt
-            app/src/test/java/com/elio/skillroundtable/roundtable/RoundtableOrchestratorTest.kt
-            app/src/test/java/com/elio/skillroundtable/viewmodel/RoundtableRunFeedbackTest.kt
+          name: room-schema-${{ github.run_attempt }}
+          path: app/schemas/**
           if-no-files-found: error
           retention-days: 7
 
-      - name: Stop before commit when verification failed
-        if: steps.gradle_check.outputs.status != '0'
-        run: exit 1
+      - name: Upload test, lint and R8 reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-ci-reports-${{ github.run_attempt }}
+          path: |
+            app/build/reports/lint-results-debug.html
+            app/build/reports/lint-results-debug.xml
+            app/build/test-results/testDebugUnitTest/**
+            app/build/reports/tests/testDebugUnitTest/**
+            app/build/outputs/mapping/release/**
+            app/build/outputs/logs/**
+          if-no-files-found: ignore
+          retention-days: 7
 
-      - name: Commit reviewed PR05-A changes
-        if: steps.gradle_check.outputs.status == '0'
+      - name: Upload debug APK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apk-${{ github.run_attempt }}
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload release APK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk-${{ github.run_attempt }}
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: ignore
+          retention-days: 7
+
+  migration-tests:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+          cache-read-only: true
+          validate-wrappers: true
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Enable KVM permissions
         shell: bash
         run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git commit -m 'fix: harden roundtable request lifecycle'
-          git push origin HEAD:fix/pr-05a-request-lifecycle
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run Android instrumentation tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          target: default
+          profile: Nexus 6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: ./gradlew --no-daemon --stacktrace connectedDebugAndroidTest
+
+      - name: Upload instrumentation test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-instrumentation-reports-${{ github.run_attempt }}
+          path: |
+            app/build/reports/androidTests/connected/**
+            app/build/outputs/androidTest-results/connected/**
+          if-no-files-found: ignore
+          retention-days: 7

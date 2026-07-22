@@ -7,7 +7,11 @@ import com.elio.skillroundtable.network.keys.ApiKeyLease
 import com.elio.skillroundtable.network.keys.ApiKeyScheduler
 import com.elio.skillroundtable.telemetry.PrivacySafeLogger
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 object OrchestratorLogger {
     fun e(tag: String, message: String, error: Throwable? = null) {
@@ -61,7 +65,8 @@ data class OrchestrationResult(
     val failedCharacters: List<String>,
     val apiCallsUsed: Int,
     val isStoppedByBudget: Boolean,
-    val isLimitExceeded: Boolean
+    val isLimitExceeded: Boolean,
+    val timedOutCharacters: List<String> = emptyList()
 )
 
 class RoundtableBudgetManager(val budget: RoundtableBudget = RoundtableBudget()) {
@@ -122,6 +127,7 @@ class RoundtableOrchestrator(
     private val budgetManager: RoundtableBudgetManager,
     private val delayProvider: DelayProvider = DefaultDelayProvider,
     private val minIntervalMs: Long = 1000L,
+    private val characterTimeoutMs: Long = 120_000L,
     private val createAttemptPlan: (Context, Long) -> List<ApiKeyLease> = { ctx, sessionId ->
         ApiKeyScheduler.createAttemptPlan(ctx, sessionId)
     }
@@ -139,6 +145,7 @@ class RoundtableOrchestrator(
 
         val completed = mutableListOf<String>()
         val failed = mutableListOf<String>()
+        val timedOut = mutableListOf<String>()
         var isStoppedByBudget = false
         var isLimitExceeded = false
 
@@ -241,30 +248,46 @@ class RoundtableOrchestrator(
                         throw IllegalStateException("No available API key plan")
                     }
 
-                    val reply = answerGateway.callGeminiApi(
-                        character = character,
-                        prompt = transcript,
-                        attemptPlan = attemptPlan,
-                        tracker = tracker,
-                        budget = budget,
-                        sessionId = sessionId,
-                        isRequired = true,
-                        reserveForRequired = pendingCharacters.size - index
-                    )
+                    val reply = withTimeoutOrNull(characterTimeoutMs) {
+                        answerGateway.callGeminiApi(
+                            character = character,
+                            prompt = transcript,
+                            attemptPlan = attemptPlan,
+                            tracker = tracker,
+                            budget = budget,
+                            sessionId = sessionId,
+                            isRequired = true,
+                            reserveForRequired = pendingCharacters.size - index
+                        )
+                    }
 
                     dbGateway.deleteMessageById(pendingMessageId)
-                    dbGateway.insertMessage(
-                        Message(
-                            chatId = sessionId,
-                            senderId = character.id,
-                            senderName = character.name,
-                            avatar = character.avatar,
-                            text = reply,
-                            roundIndex = currentRound
+                    if (reply == null) {
+                        PrivacySafeLogger.w(
+                            "RoundtableOrchestrator",
+                            "Character answer timed out"
                         )
-                    )
-                    completed.add(character.id)
-                    answered.add(character.id)
+                        failed.add(character.id)
+                        timedOut.add(character.id)
+                    } else {
+                        dbGateway.insertMessage(
+                            Message(
+                                chatId = sessionId,
+                                senderId = character.id,
+                                senderName = character.name,
+                                avatar = character.avatar,
+                                text = reply,
+                                roundIndex = currentRound
+                            )
+                        )
+                        completed.add(character.id)
+                        answered.add(character.id)
+                    }
+                } catch (error: CancellationException) {
+                    withContext(NonCancellable) {
+                        dbGateway.deleteMessageById(pendingMessageId)
+                    }
+                    throw error
                 } catch (error: Exception) {
                     OrchestratorLogger.e(
                         "RoundtableOrchestrator",
@@ -293,7 +316,8 @@ class RoundtableOrchestrator(
             failedCharacters = failed,
             apiCallsUsed = tracker.getUsed(),
             isStoppedByBudget = isStoppedByBudget,
-            isLimitExceeded = isLimitExceeded
+            isLimitExceeded = isLimitExceeded,
+            timedOutCharacters = timedOut
         )
     }
 

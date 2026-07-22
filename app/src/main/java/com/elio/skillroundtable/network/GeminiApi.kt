@@ -14,6 +14,7 @@ import com.elio.skillroundtable.telemetry.InteractionChainStore
 import com.elio.skillroundtable.telemetry.PrivacySafeLogger
 import com.elio.skillroundtable.telemetry.TelemetryInterceptor
 import com.elio.skillroundtable.telemetry.TelemetryRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
@@ -330,6 +331,8 @@ object RetrofitClient {
                     ApiKeyPool.bindSessionKey(context, sessionId, lease.keyId)
                     ApiKeyPool.setLastUsedKeyId(context, lease.keyId)
                     return result
+                } catch (error: CancellationException) {
+                    throw error
                 } catch (error: Exception) {
                     val failure = classifyFailure(error)
                     PrivacySafeLogger.e(

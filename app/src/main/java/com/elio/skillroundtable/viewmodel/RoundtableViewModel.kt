@@ -27,8 +27,14 @@ import com.elio.skillroundtable.roundtable.RoundtableDatabaseGateway
 import com.elio.skillroundtable.roundtable.CharacterAnswerGateway
 import com.elio.skillroundtable.roundtable.RoundtableBudgetManager
 import com.elio.skillroundtable.roundtable.DefaultDelayProvider
+import com.elio.skillroundtable.roundtable.OrchestrationResult
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -40,12 +46,15 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import android.widget.Toast
 import com.elio.skillroundtable.audio.AudioPlaybackManager
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.workDataOf
 import androidx.work.WorkManager
 import java.io.File
+
+private const val ROUNDTABLE_SEQUENCE_TIMEOUT_MS = 8 * 60 * 1000L
 
 /**
  * 圆桌会议 ViewModel，负责管理会话、消息、智囊角色状态以及触发 API 逻辑。
@@ -54,6 +63,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
     private val prefs = application.getSharedPreferences("roundtable_settings", android.content.Context.MODE_PRIVATE)
 
     private var skillsSummaries: org.json.JSONObject? = null
+    private var activeRoundtableJob: Job? = null
 
     private fun loadSkillsSummariesOnce(context: android.content.Context): org.json.JSONObject {
         val current = skillsSummaries
@@ -213,6 +223,9 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
     init {
         val context = getApplication<Application>().applicationContext
         ApiKeyPool.init(context)
+        viewModelScope.launch(Dispatchers.IO) {
+            chatRepo.removeAllPendingMessages()
+        }
 
         _isAutoNextEnabled.value = prefs.getBoolean("is_auto_next_enabled", true)
         _isSemanticRoutingEnabled.value = prefs.getBoolean("is_semantic_routing_enabled", false)
@@ -326,7 +339,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         val sessionId = _currentSessionId.value ?: return
         if (text.isBlank()) return
 
-        viewModelScope.launch {
+        launchRoundtableJob {
             val userMsg = Message(
                 chatId = sessionId,
                 senderId = "user",
@@ -499,12 +512,34 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
     fun triggerNextCharacterManual() {
         val sessionId = _currentSessionId.value ?: return
-        viewModelScope.launch {
+        launchRoundtableJob {
             val messages = chatRepo.getMessages(sessionId)
             val lastUserMsg = messages.lastOrNull { it.senderId == "user" }
             if (lastUserMsg != null) runRoundtableSequence(sessionId, lastUserMsg.id)
             updateRoundActionState(sessionId)
         }
+    }
+
+    fun cancelRoundtable() {
+        val job = activeRoundtableJob?.takeIf { it.isActive } ?: return
+        _errorMessage.value = "正在停止本轮生成…"
+        job.cancel(CancellationException("User requested roundtable cancellation"))
+    }
+
+    private fun launchRoundtableJob(block: suspend () -> Unit) {
+        if (activeRoundtableJob?.isActive == true) {
+            _errorMessage.value = "圆桌脑暴正在执行中，请勿重复触发。"
+            return
+        }
+
+        val job = viewModelScope.launch(start = CoroutineStart.LAZY) {
+            block()
+        }
+        activeRoundtableJob = job
+        job.invokeOnCompletion {
+            if (activeRoundtableJob === job) activeRoundtableJob = null
+        }
+        job.start()
     }
 
     private suspend fun runRoundtableSequence(sessionId: Long, questionRunId: Long) {
@@ -514,28 +549,46 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             _errorMessage.value = "当前没有可用的 API 密钥，请稍后再试或在“我的配置”中填写密钥。"
             return
         }
+        if (charRepo.getActiveCharacters().isEmpty()) {
+            _errorMessage.value = "当前没有启用的智囊角色，请先在“智囊大厅”启用至少一位角色。"
+            return
+        }
 
         _isRoundtableRunning.value = true
         _errorMessage.value = null
         try {
-            val result = orchestrator.runRoundtableSequence(
-                sessionId,
-                questionRunId,
-                _isSemanticRoutingEnabled.value
-            )
-            if (result.isLimitExceeded) {
-                _errorMessage.value = "本问题按安全预算已执行前 ${budgetManager.budget.maxCharactersPerQuestion} 位智囊角色。"
-            } else if (result.isStoppedByBudget) {
-                _errorMessage.value = "已达到总 API 请求预算上限（${budgetManager.budget.maxApiCallsPerQuestion} 次），停止后续智囊发言。"
+            val result = withTimeout(ROUNDTABLE_SEQUENCE_TIMEOUT_MS) {
+                orchestrator.runRoundtableSequence(
+                    sessionId,
+                    questionRunId,
+                    _isSemanticRoutingEnabled.value
+                )
             }
+            _errorMessage.value = buildRoundtableFeedback(result, budgetManager.budget)
+        } catch (error: TimeoutCancellationException) {
+            PrivacySafeLogger.w("RoundtableViewModel", "Roundtable sequence timed out")
+            withContext(NonCancellable) {
+                chatRepo.removePendingMessages(sessionId)
+            }
+            _errorMessage.value = "本轮生成等待时间过长，已自动停止。已完成的回复会继续保留。"
+        } catch (error: CancellationException) {
+            PrivacySafeLogger.d("RoundtableViewModel", "Roundtable sequence cancelled by user")
+            withContext(NonCancellable) {
+                chatRepo.removePendingMessages(sessionId)
+            }
+            _errorMessage.value = "已停止本轮生成，已完成的回复会继续保留。"
+            throw error
         } catch (error: IllegalStateException) {
             PrivacySafeLogger.w("RoundtableViewModel", "Duplicate roundtable execution blocked")
             _errorMessage.value = "圆桌脑暴正在执行中，请勿重复触发（配额限制保护）。"
         } catch (error: Exception) {
             PrivacySafeLogger.e("RoundtableViewModel", "Roundtable generation failed", error)
             _errorMessage.value = "对话生成出错，请稍后重试。"
-            chatRepo.removePendingMessages(sessionId)
+            withContext(NonCancellable) {
+                chatRepo.removePendingMessages(sessionId)
+            }
         } finally {
+            _typingCharacterIds.value = emptySet()
             _isRoundtableRunning.value = false
             updateRoundActionState(sessionId)
         }
@@ -1030,6 +1083,36 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             )
         }
     }
+}
+
+internal fun buildRoundtableFeedback(
+    result: OrchestrationResult,
+    budget: RoundtableBudget
+): String? {
+    val notices = mutableListOf<String>()
+    if (result.isLimitExceeded) {
+        notices += "本问题按安全预算已执行前 ${budget.maxCharactersPerQuestion} 位智囊角色。"
+    }
+    if (result.isStoppedByBudget) {
+        notices += "已达到总 API 请求预算上限（${budget.maxApiCallsPerQuestion} 次），停止后续智囊发言。"
+    }
+
+    val completedCount = result.completedCharacters.size
+    val failedCount = result.failedCharacters.size
+    val timedOutCount = result.timedOutCharacters.size
+    if (failedCount > 0) {
+        notices += when {
+            completedCount == 0 && timedOutCount == failedCount ->
+                "本轮所有智囊均未能在规定时间内完成回答，请稍后重试。"
+            completedCount == 0 ->
+                "本轮所有智囊均未能完成回答，请检查网络或 API Key 后重试。"
+            timedOutCount > 0 ->
+                "已保留 ${completedCount} 位智囊的回复；另有 ${failedCount} 位未完成，其中 ${timedOutCount} 位超时。"
+            else ->
+                "已保留 ${completedCount} 位智囊的回复；另有 ${failedCount} 位未完成。"
+        }
+    }
+    return notices.takeIf { it.isNotEmpty() }?.joinToString("\n")
 }
 
 enum class RoundActionState {
