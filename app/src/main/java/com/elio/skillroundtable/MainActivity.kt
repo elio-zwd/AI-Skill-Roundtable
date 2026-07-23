@@ -1182,6 +1182,89 @@ fun RoundtableBrainstormScreen(
             }
         }
 
+        // Retry Bar for Failed Characters
+        val retryableState by viewModel.retryableRoundtableState.collectAsState()
+        val showRetryBar = currentSession != null &&
+                retryableState != null &&
+                retryableState?.sessionId == currentSession.id &&
+                !retryableState?.characterIds.isNullOrEmpty() &&
+                !isRoundtableRunning
+
+        if (showRetryBar) {
+            val failedCount = retryableState?.characterIds?.size ?: 0
+            Surface(
+                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f),
+                contentColor = TextPrimary,
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = "${failedCount} 位智囊未完成",
+                            fontSize = 13.sp,
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            onClick = { viewModel.retryFailedCharacters() },
+                            color = MaterialTheme.colorScheme.error,
+                            contentColor = Color.White,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier
+                                .bounceClick()
+                                .testTag("retry_failed_characters_button")
+                        ) {
+                            Text(
+                                text = "重试失败角色",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+
+                        Spacer(Modifier.width(8.dp))
+
+                        IconButton(
+                            onClick = { viewModel.dismissRetryableState() },
+                            modifier = Modifier
+                                .size(28.dp)
+                                .testTag("dismiss_failed_characters_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "忽略",
+                                tint = TextSecondary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         // Chat Input Box
         if (currentSession != null) {
             Row(

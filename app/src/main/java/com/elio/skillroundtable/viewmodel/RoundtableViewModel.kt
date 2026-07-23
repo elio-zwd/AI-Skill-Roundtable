@@ -57,6 +57,33 @@ import java.io.File
 
 private const val ROUNDTABLE_SEQUENCE_TIMEOUT_MS = 8 * 60 * 1000L
 
+data class RetryableRoundtableState(
+    val sessionId: Long,
+    val questionRunId: Long,
+    val characterIds: List<String>
+)
+
+internal fun buildRetryableCharacterIds(
+    failedCharacters: List<String>,
+    timedOutCharacters: List<String>
+): List<String> {
+    val combined = ArrayList<String>(failedCharacters.size + timedOutCharacters.size)
+    for (id in failedCharacters) {
+        if (id !in combined) combined.add(id)
+    }
+    for (id in timedOutCharacters) {
+        if (id !in combined) combined.add(id)
+    }
+    return combined
+}
+
+internal fun remainingRetryableCharacterIds(
+    initialTargetIds: List<String>,
+    completedIds: Set<String>
+): List<String> {
+    return initialTargetIds.filter { id -> id !in completedIds }
+}
+
 /**
  * 圆桌会议 ViewModel，负责管理会话、消息、智囊角色状态以及触发 API 逻辑。
  */
@@ -123,6 +150,13 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
     private val _isRoundtableRunning = MutableStateFlow(false)
     val isRoundtableRunning: StateFlow<Boolean> = _isRoundtableRunning.asStateFlow()
+
+    private val _retryableRoundtableState = MutableStateFlow<RetryableRoundtableState?>(null)
+    val retryableRoundtableState: StateFlow<RetryableRoundtableState?> = _retryableRoundtableState.asStateFlow()
+
+    fun dismissRetryableState() {
+        _retryableRoundtableState.value = null
+    }
 
     private val _typingCharacterIds = MutableStateFlow<Set<String>>(emptySet())
     val typingCharacterIds: StateFlow<Set<String>> = _typingCharacterIds.asStateFlow()
@@ -365,6 +399,9 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             userMsgIds.forEach { budgetManager.clearQuestion(it) }
 
             chatRepo.deleteSession(sessionId)
+            if (_retryableRoundtableState.value?.sessionId == sessionId) {
+                _retryableRoundtableState.value = null
+            }
             if (_currentSessionId.value == sessionId) {
                 _currentSessionId.value = null
                 _currentSession.value = null
@@ -385,6 +422,18 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         if (text.isBlank()) return
 
         launchRoundtableJob {
+            val availableKeys = ApiKeyPool.getAvailableKeys(getApplication())
+            if (availableKeys.isEmpty()) {
+                _errorMessage.value = "当前没有可用的 API 密钥，请稍后再试或在“我的配置”中填写密钥。"
+                return@launchRoundtableJob
+            }
+            if (charRepo.getActiveCharacters().isEmpty()) {
+                _errorMessage.value = "当前没有启用的智囊角色，请先在“智囊大厅”启用至少一位角色。"
+                return@launchRoundtableJob
+            }
+
+            _retryableRoundtableState.value = null
+
             val userMsg = Message(
                 chatId = sessionId,
                 senderId = "user",
@@ -588,6 +637,112 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         job.start()
     }
 
+    fun retryFailedCharacters() {
+        val sessionId = _currentSessionId.value ?: return
+        val state = _retryableRoundtableState.value ?: return
+        if (state.sessionId != sessionId || state.characterIds.isEmpty()) return
+
+        launchRoundtableJob {
+            runRetryRoundtableSequence(sessionId, state.questionRunId, state.characterIds)
+        }
+    }
+
+    private suspend fun runRetryRoundtableSequence(sessionId: Long, questionRunId: Long, targetCharacterIds: List<String>) {
+        val context = getApplication<Application>().applicationContext
+        val availableKeys = ApiKeyPool.getAvailableKeys(context)
+        if (availableKeys.isEmpty()) {
+            _errorMessage.value = "当前没有可用的 API 密钥，请稍后再试或在“我的配置”中填写密钥。"
+            return
+        }
+
+        val messages = chatRepo.getMessages(sessionId)
+        val questionMsgIndex = messages.indexOfFirst { it.id == questionRunId }
+        if (questionMsgIndex == -1) {
+            _retryableRoundtableState.value = null
+            return
+        }
+
+        val activeCharacters = charRepo.getActiveCharacters()
+        val activeIds = activeCharacters.map { it.id }.toSet()
+        val executableTargetIds = targetCharacterIds.filter { it in activeIds }
+
+        if (executableTargetIds.isEmpty()) {
+            _errorMessage.value = "失败角色当前不可用，请重新启用后重试。"
+            return
+        }
+
+        _isRoundtableRunning.value = true
+        _errorMessage.value = null
+
+        try {
+            val result = withTimeout(ROUNDTABLE_SEQUENCE_TIMEOUT_MS) {
+                orchestrator.runRoundtableSequence(
+                    sessionId = sessionId,
+                    questionRunId = questionRunId,
+                    isSemanticRoutingEnabled = _isSemanticRoutingEnabled.value,
+                    targetCharacterIds = targetCharacterIds
+                )
+            }
+
+            val completedSet = result.completedCharacters.toSet()
+            val remainingIds = remainingRetryableCharacterIds(targetCharacterIds, completedSet)
+
+            if (remainingIds.isEmpty()) {
+                _retryableRoundtableState.value = null
+                _errorMessage.value = "失败角色已全部完成回复。"
+            } else {
+                _retryableRoundtableState.value = RetryableRoundtableState(sessionId, questionRunId, remainingIds)
+                if (result.completedCharacters.isNotEmpty()) {
+                    _errorMessage.value = "部分角色已完成，仍有 ${remainingIds.size} 位智囊未完成，可再次重试。"
+                } else {
+                    _errorMessage.value = "仍有 ${remainingIds.size} 位智囊未完成，可再次重试。"
+                }
+            }
+        } catch (error: TimeoutCancellationException) {
+            PrivacySafeLogger.w("RoundtableViewModel", "Retry sequence timed out")
+            withContext(NonCancellable) {
+                chatRepo.removePendingMessages(sessionId)
+            }
+            _errorMessage.value = "重试等待时间过长，已自动停止。已完成的回复会继续保留。"
+        } catch (error: CancellationException) {
+            PrivacySafeLogger.d("RoundtableViewModel", "Retry sequence cancelled by user")
+            withContext(NonCancellable) {
+                chatRepo.removePendingMessages(sessionId)
+            }
+            val latestMsgs = runCatching { chatRepo.getMessages(sessionId) }.getOrDefault(emptyList())
+            val qIndex = latestMsgs.indexOfFirst { it.id == questionRunId }
+            val answeredInRun = if (qIndex != -1) {
+                latestMsgs.subList(qIndex + 1, latestMsgs.size)
+                    .takeWhile { it.senderId != "user" }
+                    .filterNot { it.isPending }
+                    .map { it.senderId }
+                    .toSet()
+            } else emptySet()
+
+            val remainingIds = remainingRetryableCharacterIds(targetCharacterIds, answeredInRun)
+            if (remainingIds.isNotEmpty()) {
+                _retryableRoundtableState.value = RetryableRoundtableState(sessionId, questionRunId, remainingIds)
+            } else {
+                _retryableRoundtableState.value = null
+            }
+            _errorMessage.value = "已停止本轮生成，已完成的回复会继续保留。"
+            throw error
+        } catch (error: IllegalStateException) {
+            PrivacySafeLogger.w("RoundtableViewModel", "Duplicate roundtable execution blocked")
+            _errorMessage.value = "圆桌脑暴正在执行中，请勿重复触发（配额限制保护）。"
+        } catch (error: Exception) {
+            PrivacySafeLogger.e("RoundtableViewModel", "Retry generation failed", error)
+            _errorMessage.value = "对话生成出错，请稍后重试。"
+            withContext(NonCancellable) {
+                chatRepo.removePendingMessages(sessionId)
+            }
+        } finally {
+            _typingCharacterIds.value = emptySet()
+            _isRoundtableRunning.value = false
+            updateRoundActionState(sessionId)
+        }
+    }
+
     private suspend fun runRoundtableSequence(sessionId: Long, questionRunId: Long) {
         val context = getApplication<Application>().applicationContext
         val availableKeys = ApiKeyPool.getAvailableKeys(context)
@@ -609,6 +764,12 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     questionRunId,
                     _isSemanticRoutingEnabled.value
                 )
+            }
+            val retryableIds = buildRetryableCharacterIds(result.failedCharacters, result.timedOutCharacters)
+            if (retryableIds.isNotEmpty()) {
+                _retryableRoundtableState.value = RetryableRoundtableState(sessionId, questionRunId, retryableIds)
+            } else {
+                _retryableRoundtableState.value = null
             }
             _errorMessage.value = buildRoundtableFeedback(result, budgetManager.budget)
         } catch (error: TimeoutCancellationException) {

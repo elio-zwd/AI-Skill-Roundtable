@@ -165,7 +165,8 @@ class RoundtableOrchestrator(
     suspend fun runRoundtableSequence(
         sessionId: Long,
         questionRunId: Long,
-        isSemanticRoutingEnabled: Boolean
+        isSemanticRoutingEnabled: Boolean,
+        targetCharacterIds: List<String>? = null
     ): OrchestrationResult {
         if (!roundtableMutex.tryLock()) {
             throw IllegalStateException("Roundtable sequence is already running")
@@ -193,28 +194,33 @@ class RoundtableOrchestrator(
                 return OrchestrationResult(emptyList(), emptyList(), tracker.getUsed(), false, false)
             }
 
-            val cachedSnapshots = budgetManager.getSelectedParticipantSnapshots(questionRunId)
-            val cachedSelectedIds = budgetManager.getSelectedParticipants(questionRunId)
-            val selectedCharacters = when {
-                cachedSnapshots != null -> cachedSnapshots
-                cachedSelectedIds != null -> {
-                    val restored = cachedSelectedIds.mapNotNull { id ->
-                        activeCharacters.firstOrNull { it.id == id }
+            val selectedCharacters = if (targetCharacterIds != null) {
+                val activeMap = activeCharacters.associateBy { it.id }
+                targetCharacterIds.mapNotNull { id -> activeMap[id] }
+            } else {
+                val cachedSnapshots = budgetManager.getSelectedParticipantSnapshots(questionRunId)
+                val cachedSelectedIds = budgetManager.getSelectedParticipants(questionRunId)
+                when {
+                    cachedSnapshots != null -> cachedSnapshots
+                    cachedSelectedIds != null -> {
+                        val restored = cachedSelectedIds.mapNotNull { id ->
+                            activeCharacters.firstOrNull { it.id == id }
+                        }
+                        if (restored.isNotEmpty()) {
+                            budgetManager.setSelectedParticipantSnapshots(questionRunId, restored)
+                        }
+                        restored
                     }
-                    if (restored.isNotEmpty()) {
-                        budgetManager.setSelectedParticipantSnapshots(questionRunId, restored)
-                    }
-                    restored
+                    else -> selectAndFreezeCharacters(
+                        sessionId = sessionId,
+                        questionRunId = questionRunId,
+                        activeCharacters = activeCharacters,
+                        questionMessage = messages[runMessageIndex],
+                        semanticRoutingEnabled = isSemanticRoutingEnabled,
+                        tracker = tracker,
+                        budget = budget
+                    )
                 }
-                else -> selectAndFreezeCharacters(
-                    sessionId = sessionId,
-                    questionRunId = questionRunId,
-                    activeCharacters = activeCharacters,
-                    questionMessage = messages[runMessageIndex],
-                    semanticRoutingEnabled = isSemanticRoutingEnabled,
-                    tracker = tracker,
-                    budget = budget
-                )
             }
 
             val selectedParticipantIds = selectedCharacters.map { it.id }
