@@ -1,6 +1,7 @@
 package com.elio.skillroundtable.viewmodel
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -74,5 +75,49 @@ class RoundtableRetryStateTest {
         val remaining = remainingRetryableCharacterIds(initial, completed)
 
         assertEquals(listOf("disabled_char", "b", "missing_char"), remaining)
+    }
+
+    @Test
+    fun testRetryableRoundtableState_equalityAndSessionBinding() {
+        val state1 = RetryableRoundtableState(sessionId = 1L, questionRunId = 100L, characterIds = listOf("a", "b"))
+        val state2 = RetryableRoundtableState(sessionId = 1L, questionRunId = 100L, characterIds = listOf("a", "b"))
+        val state3 = RetryableRoundtableState(sessionId = 2L, questionRunId = 100L, characterIds = listOf("a", "b"))
+
+        assertEquals(state1, state2)
+        assertNotEquals(state1, state3)
+        assertEquals(1L, state1.sessionId)
+        assertEquals(100L, state1.questionRunId)
+        assertEquals(listOf("a", "b"), state1.characterIds)
+    }
+
+    @Test
+    fun testRemainingRetryableCharacterIds_partialSuccessPreservesOriginalOrder() {
+        val initial = listOf("char_a", "char_b", "char_c")
+        val completed = setOf("char_a")
+
+        val remaining = remainingRetryableCharacterIds(initial, completed)
+
+        assertEquals(listOf("char_b", "char_c"), remaining)
+    }
+
+    @Test
+    fun testRemainingRetryableCharacterIds_timedOutCharactersRemain() {
+        val initial = listOf("char_a", "char_b", "char_c")
+        val completed = setOf("char_a") // b failed, c timed out -> neither in completed
+
+        val remaining = remainingRetryableCharacterIds(initial, completed)
+
+        assertEquals(listOf("char_b", "char_c"), remaining)
+    }
+
+    @Test
+    fun testRemainingRetryableCharacterIds_cancellationPreservesUnfinishedInOrder() {
+        val initial = listOf("a", "b", "c")
+        // a completed before cancellation, b was streaming when cancelled, c not started
+        val answeredBeforeCancel = setOf("a")
+
+        val remaining = remainingRetryableCharacterIds(initial, answeredBeforeCancel)
+
+        assertEquals(listOf("b", "c"), remaining)
     }
 }
