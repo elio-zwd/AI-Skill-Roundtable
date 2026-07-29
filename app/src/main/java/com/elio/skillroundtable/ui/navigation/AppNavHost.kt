@@ -63,6 +63,5 @@ fun NavHostController.navigateToSecondary(destination: AppDestination) {
 }
 
 fun NavHostController.navigateToTelemetryFromRoundtable() {
-    navigateToSecondary(AppDestination.API_KEYS)
-    navigateToSecondary(AppDestination.TELEMETRY)
+    AppDestination.telemetryPathFromRoundtable.forEach(::navigateToSecondary)
 }
