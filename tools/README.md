@@ -18,6 +18,26 @@
 
 ## 🚀 脚本使用指南
 
+### Release APK 构建：`build-release-apk.ps1`
+
+此脚本仅适用于 Windows PowerShell 7，使用本机 `keystore.properties` 或 `RELEASE_*` 环境变量构建并验证**已签名** Release APK；缺少完整签名配置时会在构建前失败，绝不会回退为 Debug 或上传未签名 APK。
+
+```powershell
+pwsh.exe -File .\tools\build-release-apk.ps1 -VersionName 1.1 -VersionCode 2
+```
+
+产物位于 `app\build\outputs\apk\release\`。签名材料必须保留在本机，禁止提交到仓库。
+
+### Debug APK 构建：`build-debug-apk.ps1`
+
+用于生成可安装的 Debug 测试包。脚本将 Gradle worker 限制为 1，不需要 Release keystore；仅适合测试或预发布分发，不可替代正式签名 Release。
+
+```powershell
+pwsh.exe -File .\tools\build-debug-apk.ps1 -VersionName 1.1 -VersionCode 2
+```
+
+产物位于 `app\build\outputs\apk\debug\app-debug.apk`。
+
 所有脚本在有多台设备连接时，均会**自动选择第一台是在线 `device` 状态的设备**进行交互；也支持通过 `-d <deviceId>` 参数强制指定。
 
 ### 1. 极简屏幕截图：`screencap.py`
