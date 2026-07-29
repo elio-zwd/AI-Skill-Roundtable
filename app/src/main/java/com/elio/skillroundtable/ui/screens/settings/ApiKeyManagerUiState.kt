@@ -82,11 +82,12 @@ internal fun batchImportSummary(result: BatchImportResult): String {
 }
 
 internal fun keyStatusPresentation(summary: ApiKeySummary): ApiKeyStatusPresentation {
+    val icon = apiKeyStatusIcon(summary.validationState)
     if (!summary.enabled) {
         return ApiKeyStatusPresentation(
             text = "已禁用",
             tone = SettingsTone.SECONDARY,
-            icon = ApiKeyStatusIcon.INFO,
+            icon = icon,
         )
     }
     if (summary.remainingBanTimeMs > 0L) {
@@ -94,39 +95,51 @@ internal fun keyStatusPresentation(summary: ApiKeySummary): ApiKeyStatusPresenta
         return ApiKeyStatusPresentation(
             text = "熔断中，剩余 ${minutes} 分钟",
             tone = SettingsTone.ERROR,
-            icon = ApiKeyStatusIcon.INFO,
+            icon = icon,
         )
     }
     return when (summary.validationState) {
         ApiKeyValidationState.UNVERIFIED -> ApiKeyStatusPresentation(
             text = "未验证",
             tone = SettingsTone.WARNING,
-            icon = ApiKeyStatusIcon.INFO,
+            icon = icon,
         )
         ApiKeyValidationState.CHECKING -> ApiKeyStatusPresentation(
             text = "验证中",
             tone = SettingsTone.PRIMARY,
-            icon = ApiKeyStatusIcon.PROGRESS,
+            icon = icon,
         )
         ApiKeyValidationState.AVAILABLE -> ApiKeyStatusPresentation(
             text = "可用",
             tone = SettingsTone.SUCCESS,
-            icon = ApiKeyStatusIcon.SUCCESS,
+            icon = icon,
         )
         ApiKeyValidationState.INVALID -> ApiKeyStatusPresentation(
             text = summary.validationMessage ?: "无效",
             tone = SettingsTone.ERROR,
-            icon = ApiKeyStatusIcon.INVALID,
+            icon = icon,
         )
         ApiKeyValidationState.NETWORK_ERROR -> ApiKeyStatusPresentation(
             text = summary.validationMessage ?: "网络异常",
             tone = SettingsTone.WARNING,
-            icon = ApiKeyStatusIcon.INFO,
+            icon = icon,
         )
         ApiKeyValidationState.RATE_LIMITED -> ApiKeyStatusPresentation(
             text = "请求频率受限",
             tone = SettingsTone.ERROR,
-            icon = ApiKeyStatusIcon.INFO,
+            icon = icon,
         )
+    }
+}
+
+private fun apiKeyStatusIcon(validationState: ApiKeyValidationState): ApiKeyStatusIcon {
+    return when (validationState) {
+        ApiKeyValidationState.CHECKING -> ApiKeyStatusIcon.PROGRESS
+        ApiKeyValidationState.AVAILABLE -> ApiKeyStatusIcon.SUCCESS
+        ApiKeyValidationState.INVALID -> ApiKeyStatusIcon.INVALID
+        ApiKeyValidationState.UNVERIFIED,
+        ApiKeyValidationState.NETWORK_ERROR,
+        ApiKeyValidationState.RATE_LIMITED,
+        -> ApiKeyStatusIcon.INFO
     }
 }
