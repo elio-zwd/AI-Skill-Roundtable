@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.ScaffoldDefaults
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -44,6 +43,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -66,7 +66,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.elio.skillroundtable.data.Character
@@ -131,7 +130,9 @@ fun MainAppContent(
             if (showsBottomNavigation) {
                 AppBottomNavigation(
                     currentDestination = currentDestination,
-                    onDestinationSelected = navController::navigateToTopLevel,
+                    onDestinationSelected = { destination ->
+                        navController.navigateToTopLevel(destination)
+                    },
                 )
             }
         },
