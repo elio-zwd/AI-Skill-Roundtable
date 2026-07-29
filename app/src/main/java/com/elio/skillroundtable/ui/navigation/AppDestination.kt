@@ -41,6 +41,11 @@ enum class AppDestination(
             AUDIO_LIBRARY,
         )
 
+        val telemetryPathFromRoundtable: List<AppDestination> = listOf(
+            API_KEYS,
+            TELEMETRY,
+        )
+
         fun fromRoute(route: String?): AppDestination? =
             entries.firstOrNull { destination -> destination.route == route }
     }
