@@ -188,6 +188,45 @@ AI-Skill-Roundtable/
 
 禁止使用“100% 完成”“Zero Risk”“圆满完成”等没有证据支持的绝对结论。
 
+### GitHub Actions 查询与重跑纪律
+
+GitHub Actions 查询必须以“最少请求获得足够证据”为原则，禁止把 Run、Job、Step、日志和 Artifact 当作固定全量读取流程。
+
+默认检查顺序：
+
+1. 读取 PR 元数据，锁定真实 Base、Head SHA 和当前状态。
+2. 比较 Base 与 Head，确认修改范围和 ahead / behind。
+3. 每个新的 Head SHA 最多主动查询一次关联 Workflow Run。
+4. 若全部 Workflow 已完成且成功，立即停止查询；不得继续读取 Job、Step、完整日志、Artifact 或重复状态接口。
+5. 只有 Workflow 失败或取消时，才读取该 Run 的 Job 列表。
+6. 只读取失败 Job 的步骤摘要。
+7. 只有步骤摘要不足以定位第一条根因错误时，才读取该失败 Job 的完整日志。
+8. Artifact 仅在本地验收明确需要 APK、测试报告或 Schema 时读取或下载。
+
+禁止：
+
+- 对同一 Head SHA 反复调用 Workflow Run 查询。
+- 同时或连续调用多个内容重叠的 Actions 状态接口。
+- 在 Workflow 仍运行时高频轮询。
+- 成功后继续下载日志或 Artifact 作为“保险检查”。
+- 遇到 `403`、`429`、abuse detection 或 secondary rate limit 后立即重试。
+- 未理解失败根因前盲目重跑完整 Workflow。
+- 为了触发 CI 而创建空提交、临时 Workflow 或无业务意义的文件修改。
+
+重跑规则：
+
+- 只有明确属于 Runner、网络或服务端瞬时故障时，才允许直接重跑。
+- 存在代码、测试、配置或签名错误时，必须先修复根因并产生新的 Head SHA。
+- 优先只重跑失败 Job；不得默认重跑全部已成功 Job。
+- 收到限流响应时停止 GitHub 工具调用，在交付报告记录状态；不得连续试探请求。
+
+减少 CI 触发：
+
+- 一个 PR 应按测试、实现、文档等清晰意图组织少量原子 Commit，避免“一文件一 Commit”。
+- PR 创建后应先完成一组相关修改再推送，避免每个微小修正都触发完整 CI。
+- 同一对话内必须复用已经读取的 Head SHA、Run ID、Job ID 和验证结果；Head 未变化时不得重复查询。
+- Actions 已成功且 Head 未变化时，后续对话应直接引用 PR 描述中的 Run ID 和结论，不再重新读取。
+
 ---
 
 ## 9. 当前已知重点问题
