@@ -139,7 +139,6 @@ private fun apiKeyStatusIcon(validationState: ApiKeyValidationState): ApiKeyStat
         ApiKeyValidationState.INVALID -> ApiKeyStatusIcon.INVALID
         ApiKeyValidationState.UNVERIFIED,
         ApiKeyValidationState.NETWORK_ERROR,
-        ApiKeyValidationState.RATE_LIMITED,
-        -> ApiKeyStatusIcon.INFO
+        ApiKeyValidationState.RATE_LIMITED -> ApiKeyStatusIcon.INFO
     }
 }
