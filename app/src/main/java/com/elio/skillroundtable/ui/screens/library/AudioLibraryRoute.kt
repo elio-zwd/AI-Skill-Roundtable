@@ -38,7 +38,9 @@ fun AudioLibraryRoute(
             synthesisTasks = buildVisibleSynthesisTasks(synthesisStates),
             allCharacters = allCharacters,
         ),
-        onDismissSynthesisFailure = AudioSynthesisStatusStore::clear,
+        onDismissSynthesisFailure = { messageId ->
+            AudioSynthesisStatusStore.clear(messageId)
+        },
         onPlay = { message -> playAudioMessage(viewModel, allCharacters, message) },
         onDelete = viewModel::deleteAudio,
         onTranscode = { message ->
