@@ -1,4 +1,4 @@
-package com.elio.skillroundtable
+package com.elio.skillroundtable.ui.screens.settings
 
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
@@ -33,7 +33,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -59,6 +58,7 @@ import com.elio.skillroundtable.network.ApiKeyPool
 import com.elio.skillroundtable.network.ApiKeySource
 import com.elio.skillroundtable.network.ApiKeySummary
 import com.elio.skillroundtable.network.ApiKeyValidationState
+import com.elio.skillroundtable.ui.components.bounceClick
 import kotlinx.coroutines.launch
 
 private val SlateBg = Color(0xFF121824)
