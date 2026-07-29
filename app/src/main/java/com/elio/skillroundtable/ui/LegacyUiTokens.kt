@@ -1,12 +1,18 @@
 package com.elio.skillroundtable.ui
 
-import androidx.compose.ui.graphics.Color
+import com.elio.skillroundtable.ui.theme.AppTextPrimary
+import com.elio.skillroundtable.ui.theme.AppTextSecondary
+import com.elio.skillroundtable.ui.theme.BrandGold
+import com.elio.skillroundtable.ui.theme.BrandPrimary
+import com.elio.skillroundtable.ui.theme.BrandSecondary
+import com.elio.skillroundtable.ui.theme.CardBackground
+import com.elio.skillroundtable.ui.theme.SlateBackground
 
-// PR07-A 仅机械迁移现有 Slate 深色视觉值；PR07-B 再统一到正式主题。
-val SlateBg = Color(0xFF121824)
-val CardBg = Color(0xFF1E2638)
-val PrimaryAccent = Color(0xFF6366F1)
-val SecondaryAccent = Color(0xFF10B981)
-val GoldAccent = Color(0xFFF59E0B)
-val TextPrimary = Color(0xFFF3F4F6)
-val TextSecondary = Color(0xFF9CA3AF)
+// 页面域在 PR07-C/D/E 拆分期间继续使用这些兼容名称；真实颜色值只在 ui/theme/ 中维护。
+val SlateBg = SlateBackground
+val CardBg = CardBackground
+val PrimaryAccent = BrandPrimary
+val SecondaryAccent = BrandSecondary
+val GoldAccent = BrandGold
+val TextPrimary = AppTextPrimary
+val TextSecondary = AppTextSecondary
