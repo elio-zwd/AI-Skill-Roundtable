@@ -30,8 +30,26 @@ class ApiKeyManagerUiStateTest {
             keyStatusPresentation(summary(enabled = false)),
         )
         assertEquals(
+            ApiKeyStatusIcon.SUCCESS,
+            keyStatusPresentation(
+                summary(
+                    enabled = false,
+                    validationState = ApiKeyValidationState.AVAILABLE,
+                ),
+            ).icon,
+        )
+        assertEquals(
             "熔断中，剩余 2 分钟",
             keyStatusPresentation(summary(remainingBanTimeMs = 120_000L)).text,
+        )
+        assertEquals(
+            ApiKeyStatusIcon.PROGRESS,
+            keyStatusPresentation(
+                summary(
+                    validationState = ApiKeyValidationState.CHECKING,
+                    remainingBanTimeMs = 120_000L,
+                ),
+            ).icon,
         )
         assertEquals(
             ApiKeyStatusIcon.PROGRESS,
@@ -75,7 +93,7 @@ class ApiKeyManagerUiStateTest {
             batchImportSummary(BatchImportResult(2, 1, 3, 4)),
         )
         val target = summary(id = "delete-me")
-        assertEquals(target, (ApiKeyConfirmation.Delete(target) as ApiKeyConfirmation.Delete).summary)
+        assertEquals(target, ApiKeyConfirmation.Delete(target).summary)
         assertEquals(ApiKeyConfirmation.ClearAll, ApiKeyConfirmation.ClearAll)
     }
 
