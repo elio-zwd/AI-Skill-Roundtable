@@ -11,21 +11,27 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.elio.skillroundtable.audio.AudioSynthesisState
+import com.elio.skillroundtable.audio.AudioSynthesisStatusStore
+import com.elio.skillroundtable.audio.isInProgress
 import com.elio.skillroundtable.data.Character
 import com.elio.skillroundtable.data.Message
 import com.elio.skillroundtable.viewmodel.RoundtableViewModel
@@ -33,9 +39,9 @@ import com.elio.skillroundtable.viewmodel.RoundtableViewModel
 // Consistent High-End Slate Palette
 private val SlateBg = Color(0xFF121824)
 private val CardBg = Color(0xFF1E2638)
-private val PrimaryAccent = Color(0xFF6366F1) // Consistent Indigo
-private val SecondaryAccent = Color(0xFF10B981) // Consistent Emerald
-private val GoldAccent = Color(0xFFF59E0B) // Consistent Amber
+private val PrimaryAccent = Color(0xFF6366F1)
+private val SecondaryAccent = Color(0xFF10B981)
+private val GoldAccent = Color(0xFFF59E0B)
 private val TextPrimary = Color(0xFFF3F4F6)
 private val TextSecondary = Color(0xFF9CA3AF)
 
@@ -49,15 +55,15 @@ fun MinimalistAudioEmptyIndicator(modifier: Modifier = Modifier) {
         val barWidth = 4.dp.toPx()
         val startX = (width - (barCount * barWidth + (barCount - 1) * spacing)) / 2
         val heights = floatArrayOf(0.3f, 0.6f, 0.8f, 0.5f, 0.2f)
-        
-        for (i in 0 until barCount) {
-            val x = startX + i * (barWidth + spacing)
-            val h = height * heights[i]
-            val y = (height - h) / 2
+
+        for (index in 0 until barCount) {
+            val x = startX + index * (barWidth + spacing)
+            val barHeight = height * heights[index]
+            val y = (height - barHeight) / 2
             drawRoundRect(
                 color = PrimaryAccent.copy(alpha = 0.4f),
                 topLeft = Offset(x, y),
-                size = Size(barWidth, h),
+                size = Size(barWidth, barHeight),
                 cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
             )
         }
@@ -72,6 +78,13 @@ fun AudioLibraryScreen(
 ) {
     val audioMessages by viewModel.allAudioMessages.collectAsState()
     val currentPlayingId by viewModel.currentPlayingMessageId.collectAsState()
+    val synthesisStates by AudioSynthesisStatusStore.states.collectAsState()
+
+    val visibleSynthesisTasks = synthesisStates.entries
+        .filter { (_, state) ->
+            state.isInProgress() || state is AudioSynthesisState.Failed
+        }
+        .sortedBy { (messageId, _) -> messageId }
 
     Column(
         modifier = Modifier
@@ -86,13 +99,13 @@ fun AudioLibraryScreen(
             color = TextPrimary
         )
         Text(
-            text = "查阅、管理和离线播放所有已生成的智囊团音频，转为高压缩比的 AAC 后可大幅度瘦身。",
+            text = "生成时显示真实的已接收音频时长；完成后可离线播放并转为 AAC 节省空间。",
             fontSize = 12.sp,
             color = TextSecondary,
             modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
         )
 
-        if (audioMessages.isEmpty()) {
+        if (audioMessages.isEmpty() && visibleSynthesisTasks.isEmpty()) {
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -106,9 +119,24 @@ fun AudioLibraryScreen(
             }
         } else {
             LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                items(
+                    items = visibleSynthesisTasks,
+                    key = { (messageId, _) -> "synthesis_$messageId" }
+                ) { (messageId, state) ->
+                    AudioSynthesisTaskCard(
+                        messageId = messageId,
+                        state = state,
+                        onDismissFailure = {
+                            AudioSynthesisStatusStore.clear(messageId)
+                        }
+                    )
+                }
+
                 items(
                     items = audioMessages,
                     key = { it.id }
@@ -118,14 +146,19 @@ fun AudioLibraryScreen(
                         currentPlayingId = currentPlayingId,
                         allCharacters = allCharacters,
                         onPlay = {
-                            val voice = allCharacters.find { it.id == message.senderId }?.voiceConfig ?: "Aoede"
+                            val voice = allCharacters
+                                .find { it.id == message.senderId }
+                                ?.voiceConfig
+                                ?: "Aoede"
                             viewModel.playOrSynthesizeTts(message, voice)
                         },
                         onDelete = {
                             viewModel.deleteAudio(message)
                         },
                         onTranscode = {
-                            if (message.audioFormat == "wav" && !message.audioFilePath.isNullOrBlank()) {
+                            if (message.audioFormat == "wav" &&
+                                !message.audioFilePath.isNullOrBlank()
+                            ) {
                                 viewModel.triggerTranscode(message.id, message.audioFilePath)
                             }
                         }
@@ -133,6 +166,145 @@ fun AudioLibraryScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AudioSynthesisTaskCard(
+    messageId: Long,
+    state: AudioSynthesisState,
+    onDismissFailure: () -> Unit
+) {
+    val isFailure = state is AudioSynthesisState.Failed
+    val borderColor = if (isFailure) {
+        MaterialTheme.colorScheme.error.copy(alpha = 0.45f)
+    } else {
+        PrimaryAccent.copy(alpha = 0.35f)
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(
+                if (isFailure) {
+                    "audio_synthesis_error_$messageId"
+                } else {
+                    "audio_synthesis_progress_$messageId"
+                }
+            ),
+        colors = CardDefaults.cardColors(containerColor = CardBg),
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, borderColor)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (isFailure) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                    )
+                } else {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = PrimaryAccent,
+                        strokeWidth = 2.dp
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = synthesisTitle(state),
+                        color = TextPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = synthesisDescription(state),
+                        color = if (isFailure) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            TextSecondary
+                        },
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
+
+                if (isFailure) {
+                    IconButton(
+                        onClick = onDismissFailure,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "关闭合成错误",
+                            tint = TextSecondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+
+            if (state.isInProgress()) {
+                Spacer(Modifier.height(10.dp))
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(2.dp)),
+                    color = PrimaryAccent,
+                    trackColor = PrimaryAccent.copy(alpha = 0.15f)
+                )
+            }
+
+            if (state is AudioSynthesisState.Failed && state.retryable) {
+                Text(
+                    text = "返回原对话后再次点击“合成语音”即可重试。",
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+        }
+    }
+}
+
+private fun synthesisTitle(state: AudioSynthesisState): String {
+    return when (state) {
+        AudioSynthesisState.Idle -> "等待生成语音"
+        AudioSynthesisState.Connecting -> "正在连接语音服务"
+        AudioSynthesisState.Configuring -> "正在初始化语音模型"
+        is AudioSynthesisState.Generating -> "正在生成语音"
+        AudioSynthesisState.Finalizing -> "正在保存音频"
+        is AudioSynthesisState.Ready -> "语音已生成"
+        is AudioSynthesisState.Failed -> "语音合成失败"
+    }
+}
+
+private fun synthesisDescription(state: AudioSynthesisState): String {
+    return when (state) {
+        AudioSynthesisState.Idle -> "尚未开始"
+        AudioSynthesisState.Connecting -> "正在建立安全连接…"
+        AudioSynthesisState.Configuring -> "已连接，等待服务端确认配置…"
+        is AudioSynthesisState.Generating -> {
+            if (state.generatedDurationMs <= 0L) {
+                "已开始生成，等待首段音频…"
+            } else {
+                val seconds = state.generatedDurationMs / 1_000.0
+                "已生成 ${String.format("%.1f", seconds)} 秒音频"
+            }
+        }
+        AudioSynthesisState.Finalizing -> "正在校验并写入 WAV 文件…"
+        is AudioSynthesisState.Ready -> {
+            val seconds = state.generatedDurationMs / 1_000.0
+            "已生成 ${String.format("%.1f", seconds)} 秒音频"
+        }
+        is AudioSynthesisState.Failed -> state.displayMessage
     }
 }
 
@@ -149,8 +321,15 @@ fun AudioItemCard(
     var expanded by remember { mutableStateOf(false) }
 
     val sizeText = when {
-        message.audioSizeBytes >= 1024 * 1024 -> String.format("%.2f MB", message.audioSizeBytes.toDouble() / (1024 * 1024))
-        message.audioSizeBytes >= 1024 -> String.format("%.1f KB", message.audioSizeBytes.toDouble() / 1024)
+        message.audioSizeBytes >= 1024 * 1024 -> {
+            String.format(
+                "%.2f MB",
+                message.audioSizeBytes.toDouble() / (1024 * 1024)
+            )
+        }
+        message.audioSizeBytes >= 1024 -> {
+            String.format("%.1f KB", message.audioSizeBytes.toDouble() / 1024)
+        }
         else -> "${message.audioSizeBytes} B"
     }
 
@@ -161,7 +340,14 @@ fun AudioItemCard(
             .clickable { expanded = !expanded },
         colors = CardDefaults.cardColors(containerColor = CardBg),
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, if (isPlaying) GoldAccent.copy(alpha = 0.4f) else PrimaryAccent.copy(alpha = 0.1f))
+        border = BorderStroke(
+            1.dp,
+            if (isPlaying) {
+                GoldAccent.copy(alpha = 0.4f)
+            } else {
+                PrimaryAccent.copy(alpha = 0.1f)
+            }
+        )
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(
@@ -189,7 +375,13 @@ fun AudioItemCard(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(4.dp))
-                                    .background(if (isAac) Color.Green.copy(alpha = 0.15f) else Color.Yellow.copy(alpha = 0.15f))
+                                    .background(
+                                        if (isAac) {
+                                            Color.Green.copy(alpha = 0.15f)
+                                        } else {
+                                            Color.Yellow.copy(alpha = 0.15f)
+                                        }
+                                    )
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
                                 Text(
@@ -208,12 +400,15 @@ fun AudioItemCard(
                         }
                     }
                 }
-                
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (message.audioFormat == "wav") {
                         Button(
                             onClick = onTranscode,
-                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryAccent.copy(alpha = 0.1f), contentColor = PrimaryAccent),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = PrimaryAccent.copy(alpha = 0.1f),
+                                contentColor = PrimaryAccent
+                            ),
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                             modifier = Modifier
                                 .height(28.dp)
@@ -229,11 +424,18 @@ fun AudioItemCard(
                         modifier = Modifier
                             .size(32.dp)
                             .bounceClick()
-                            .background(if (isPlaying) GoldAccent.copy(alpha = 0.2f) else PrimaryAccent.copy(alpha = 0.1f), CircleShape)
+                            .background(
+                                if (isPlaying) {
+                                    GoldAccent.copy(alpha = 0.2f)
+                                } else {
+                                    PrimaryAccent.copy(alpha = 0.1f)
+                                },
+                                CircleShape
+                            )
                     ) {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "播音",
+                            contentDescription = if (isPlaying) "暂停音频" else "播放音频",
                             tint = if (isPlaying) GoldAccent else TextPrimary,
                             modifier = Modifier.size(16.dp)
                         )
@@ -273,7 +475,7 @@ fun AudioItemCard(
                     maxLines = if (expanded) Int.MAX_VALUE else 3,
                     overflow = TextOverflow.Ellipsis
                 )
-                
+
                 if (message.text.length > 70) {
                     Text(
                         text = if (expanded) "收起全文" else "展开全文",
