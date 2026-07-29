@@ -31,6 +31,17 @@ class AppDestinationTest {
     }
 
     @Test
+    fun telemetryFromRoundtable_returnsThroughApiKeys() {
+        assertEquals(
+            listOf(
+                AppDestination.API_KEYS,
+                AppDestination.TELEMETRY,
+            ),
+            AppDestination.telemetryPathFromRoundtable,
+        )
+    }
+
+    @Test
     fun fromRoute_mapsEveryKnownDestination() {
         AppDestination.entries.forEach { destination ->
             assertEquals(destination, AppDestination.fromRoute(destination.route))
