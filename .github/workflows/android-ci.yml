@@ -234,9 +234,6 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
-      - name: Start adb server
-        run: adb start-server
-
       - name: Enable KVM permissions
         shell: bash
         run: |
