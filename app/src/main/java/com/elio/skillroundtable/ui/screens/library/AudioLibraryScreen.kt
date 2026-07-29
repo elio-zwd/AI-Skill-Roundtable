@@ -59,16 +59,15 @@ import com.elio.skillroundtable.audio.AudioSynthesisStatusStore
 import com.elio.skillroundtable.audio.isInProgress
 import com.elio.skillroundtable.data.Character
 import com.elio.skillroundtable.data.Message
+import com.elio.skillroundtable.ui.CardBg
+import com.elio.skillroundtable.ui.GoldAccent
+import com.elio.skillroundtable.ui.PrimaryAccent
+import com.elio.skillroundtable.ui.SlateBg
+import com.elio.skillroundtable.ui.TextPrimary
+import com.elio.skillroundtable.ui.TextSecondary
 import com.elio.skillroundtable.ui.components.CharacterAvatar
 import com.elio.skillroundtable.ui.components.bounceClick
 import com.elio.skillroundtable.viewmodel.RoundtableViewModel
-
-private val SlateBg = Color(0xFF121824)
-private val CardBg = Color(0xFF1E2638)
-private val PrimaryAccent = Color(0xFF6366F1)
-private val GoldAccent = Color(0xFFF59E0B)
-private val TextPrimary = Color(0xFFF3F4F6)
-private val TextSecondary = Color(0xFF9CA3AF)
 
 @Composable
 fun MinimalistAudioEmptyIndicator(modifier: Modifier = Modifier) {
