@@ -359,7 +359,9 @@ internal fun RoundtableEmptyState(
             Button(
                 onClick = onCreateSession,
                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryAccent),
-                modifier = Modifier.bounceClick(),
+                modifier = Modifier
+                    .bounceClick()
+                    .testTag(RoundtableTestTags.NEW_SESSION_BUTTON),
             ) {
                 Text("开启首个圆桌会议")
             }
