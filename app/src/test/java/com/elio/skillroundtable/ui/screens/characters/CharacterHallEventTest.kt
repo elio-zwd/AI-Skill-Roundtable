@@ -8,7 +8,7 @@ import org.junit.Test
 
 class CharacterHallEventTest {
     @Test
-    fun addCharacter_emitsTopLevelCallbackEffect() {
+    fun addCharacter_emitsEditorEffect() {
         val transition = reduceCharacterHallEvent(
             CharacterHallOverlayState(),
             CharacterHallEvent.AddCharacter,
