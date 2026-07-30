@@ -1,24 +1,23 @@
 # AGENTS.md — AI 智囊圆桌（AI-Skill-Roundtable）
 
-> AI 代理工作规范。进入本仓库后，必须先阅读本文件，再阅读 `docs/planning/pr-execution-master-plan.md` 和当前任务对应的 PR 施工单。
+> AI 代理工作规范。进入仓库后先阅读本文件，再阅读距离目标文件最近的 `AGENTS.md`、总控计划和当前任务施工单。更具体目录中的规则优先。
 
 ---
 
-## 1. 项目概况
+## 1. 项目与当前阶段
 
-**AI 智囊圆桌**是一款原生 Android 多角色聊天应用。项目包含 20 个 Skill 角色、Room 本地会话、Gemini REST / Interactions / Live WebSocket 调用、联网搜索、Markdown 展示与音频管理。
+**AI 智囊圆桌**是一款原生 Android 多角色聊天应用，包含 Room 本地会话、Gemini REST / Interactions / Live WebSocket、联网搜索、Markdown、BYOK Key 池、遥测与音频管理。
 
-当前仓库正在按以下顺序进行五阶段重构：
+当前可信开发阶段：
 
 ```text
-PR 01 可复现构建与上手
-→ PR 02 圆桌与 Key 编排
-→ PR 03 隐私与遥测
-→ PR 04 Release、CI 与数据迁移
-→ PR 05 开源治理与文档统一
+PR01～PR05：业务正确性、隐私、发布与治理基础
+→ PR06：音频相关独立工作
+→ PR07：Compose UI 基础架构重构
+→ PR08：UI/UX 视觉重设计（后续阶段）
 ```
 
-禁止并行执行 PR 02、PR 03、PR 04。它们会同时影响网络层、调度层、测试或 Gradle 配置。
+PR07 只建立结构、主题、导航、Route / Screen / Component / UiState 边界和回归门禁，**没有重新设计视觉**。PR08 才允许逐屏进行视觉改版。
 
 ---
 
@@ -28,33 +27,31 @@ PR 01 可复现构建与上手
 |---|---|
 | 语言 | Kotlin 2.0.21 |
 | UI | Jetpack Compose + Material 3 |
-| 数据库 | Room，当前版本 v5 |
+| 导航 | Navigation Compose 2.8.4 |
+| 数据库 | Room v5 |
 | JDK | JDK 17 |
 | Gradle | Wrapper 8.14 `-bin` |
 | Compile / Target SDK | 35 |
 | Min SDK | 26 |
 | 网络 | Retrofit、OkHttp、WebSocket |
-| API Key 模式 | 用户自行导入的 BYOK Key 池 |
+| API Key | 用户自行导入的 BYOK Key 池，最多 50 个 |
 | Key 存储 | Android Keystore + AES-GCM，密文位于 `noBackupFilesDir` |
-| Key 数量上限 | 最多 50 个用户自有 Key |
 
-### API Key 重要说明
+### API Key 不可变事实
 
-- 仓库**不包含任何内置、备用或只读硬编码 API Key**。
-- `ApiKeyPool` 管理的是用户在 App 中自行导入的 BYOK Key。
-- 用户可以逐个启用、禁用、验证或删除 Key。
-- Android App 在编译和运行时都不读取根目录 `.env`。
-- `.env` 只供开发者手动运行本地 Python / PowerShell 辅助脚本时使用。
-
-任何文档再次出现“内置 10 个 Key”“w1-w10 内置密钥”“Key 写在 `ApiKeyPool.kt`”等描述，都应视为旧架构残留并修正。
+- 仓库不包含内置、备用或只读硬编码生产 Key。
+- `ApiKeyPool` 只管理用户在 App 内自行导入的 Key。
+- Android App 编译和运行时都不读取根目录 `.env`。
+- `.env` 仅供开发者手动运行本地辅助脚本。
+- 文档中出现“内置 10 个 Key”“w1-w10 内置密钥”等描述时，应视为旧架构残留。
 
 ---
 
 ## 3. 开始任务前必须执行
 
-1. 阅读本文件。
-2. 阅读 `docs/planning/pr-execution-master-plan.md`。
-3. 阅读当前 PR 的详细施工单。
+1. 阅读根目录 `AGENTS.md`。
+2. 阅读目标目录下最近的 `AGENTS.md`。
+3. 阅读 `docs/planning/pr-execution-master-plan.md` 和当前任务施工单。
 4. 执行：
 
 ```powershell
@@ -63,105 +60,128 @@ git branch --show-current
 git log -5 --oneline
 ```
 
-5. 读取任务文档列出的“必须先读文件”。
-6. 在修改前列出计划修改文件、预期行为和验证命令。
+5. 检查开放 PR、目标 Base SHA、相关 CI 与评论。
+6. 读取调用链、关联测试、配置和文档，不得只读取单个目标文件。
+7. 修改前列出预计文件、行为冻结点、验证命令和主要风险。
+8. 从最新目标基线创建独立分支，不直接修改 `main`。
 
 ---
 
-## 4. 构建与运行
-
-### Windows 构建
-
-```powershell
-$env:JAVA_HOME = "C:\path\to\jdk-17"
-$env:Path = "$env:JAVA_HOME\bin;" + $env:Path
-
-.\gradlew.bat --version
-.\gradlew.bat compileDebugKotlin
-.\gradlew.bat testDebugUnitTest
-.\gradlew.bat assembleDebug
-```
-
-### 仅构建，不要求 adb 或设备
-
-```powershell
-.\run.ps1 -SkipInstall -NoLogcat
-```
-
-### 安装、启动与日志
-
-```powershell
-.\run.ps1
-```
-
-`run.ps1` 是便利脚本，不是唯一构建入口。公共构建流程必须能够直接使用仓库自带 Gradle Wrapper。
-
----
-
-## 5. 目录结构
+## 4. 目录结构与职责
 
 ```text
-AI-Skill-Roundtable/
-├── app/
-│   └── src/main/
-│       ├── java/com/elio/skillroundtable/
-│       │   ├── data/          # Room 实体、DAO、数据库、Repository
-│       │   ├── network/       # Gemini API、BYOK Key、遥测、Live WebSocket
-│       │   ├── skill/         # Skill 加载与本地资料读取
-│       │   └── viewmodel/     # 当前圆桌业务编排
-│       ├── assets/skills/     # 20 个角色的 Skill 资产
-│       └── assets/skills_config.json
-├── docs/
-│   ├── architecture/
-│   ├── bugs/
-│   ├── decisions/
-│   ├── environment/
-│   ├── planning/
-│   ├── protocols/
-│   └── skills/
-├── tools/                     # ADB、截图和运行期调试工具
-├── test/                      # 交互与工具链测试
-├── workspace/
-│   ├── tools/                 # 元数据、Embedding、头像等本地辅助脚本
-│   └── tests/
-├── .env.example               # 本地辅助脚本模板，不供 App 使用
-├── AGENTS.md
-└── README.md
+app/src/main/java/com/elio/skillroundtable/
+├── MainActivity.kt                 # Android Activity 入口，只挂载主题与 MainAppContent
+├── data/                           # Room 实体、DAO、数据库、Repository
+├── network/                        # Gemini、BYOK Key、Live WebSocket
+├── telemetry/                      # 遥测、脱敏、云端 Interaction 设置
+├── skill/                          # Skill 资产读取
+├── viewmodel/                      # UI 与业务编排桥接
+└── ui/
+    ├── AGENTS.md                   # UI 目录更具体规则
+    ├── App.kt                      # 顶层 Scaffold、NavHost 组装、底部导航
+    ├── LegacyUiTokens.kt           # 仅兼容别名；真实颜色值只在 theme 中维护
+    ├── navigation/                 # AppDestination、NavHost、顶层/二级导航契约
+    ├── theme/                      # 唯一全局颜色、主题、形状、间距定义
+    ├── components/                 # 跨页面通用展示组件
+    └── screens/
+        ├── roundtable/             # 圆桌 Route / Screen / Components / UiState
+        ├── characters/             # 智囊 Route / Screen / Components / UiState
+        ├── library/                # 音频库 Route / Screen / Components / UiState
+        └── settings/               # API Key、遥测 Route / Screen / Components / UiState
+```
+
+文档目录：
+
+```text
+docs/
+├── architecture/                  # 当前架构与稳定接口
+├── planning/                      # PR 计划、任务和交接
+├── testing/                       # 回归清单与验收说明
+├── environment/                   # 构建环境
+├── protocols/                     # API/协议
+└── skills/                        # 角色扩展说明
 ```
 
 ---
 
-## 6. 敏感信息处理规则
+## 5. UI 架构规则
 
-| 信息类型 | 正确位置 | 是否提交 Git |
-|---|---|---|
-| Android App BYOK Key | App 内导入；Keystore 加密后存入 `noBackupFilesDir` | ❌ |
-| 本地辅助脚本 Key | 根目录 `.env` | ❌ |
-| 模板占位符 | `.env.example` | ✅ |
-| 签名文件 / 私钥 / 证书 | 开发者本机或安全 CI Secret | ❌ |
+目标文件位于 `ui/` 时，还必须遵守 `app/src/main/java/com/elio/skillroundtable/ui/AGENTS.md`。
 
-禁止：
+核心规则：
 
-- 将真实 Key 写入源码、Markdown、提交信息、日志样例或测试夹具。
-- 将 Key 放入 `BuildConfig`、资源文件或 APK assets。
-- 以“脱敏”“只读代码”“私人仓库”为理由提交真实密钥。
-- 在交付报告中回显完整 Key。
+- `MainActivity.kt` 只保留 Activity 入口，建议不超过约 80 行。
+- `ui/App.kt` 只负责顶层导航和页面 Route 组装，不保存页面专属 Dialog、Drawer、Toast 或业务状态。
+- `Route` 收集 Flow、调用 ViewModel/Repository/单例服务、处理页面副作用。
+- `Screen` 只接收不可变 `UiState` 与事件回调，不查找全局 ViewModel。
+- `Components` 只负责展示和局部交互，不访问其他页面内部实现。
+- 页面域不得跨包引用其他页面域的内部组件。
+- `navigation/` 与 `theme/` 不得包含页面专属逻辑。
+- 全局主题颜色只在 `ui/theme/` 定义；`LegacyUiTokens.kt` 只能做别名，禁止新增颜色值。
+- 不保留同一页面的新旧两套入口、导航或重复 Composable。
+- 新抽象必须有真实调用方和测试，不创建空壳接口。
+- 已存在的 `testTag` 属于稳定测试契约；修改前必须同步测试并说明兼容影响。
+
+---
+
+## 6. PR08 视觉改版边界
+
+PR08 可以修改：
+
+- 纯 `Screen` 和 `Components` 的布局、排版、层级、视觉组件和动画；
+- `ui/theme/` 中的颜色、Typography、Shapes、Spacing；
+- 页面内可访问性、响应式布局和视觉状态表达；
+- 必要的新视觉组件及其 Compose UI Test。
+
+PR08 不得随意修改：
+
+- `AppDestination.route`、顶层/二级目的地分类和返回路径；
+- Route 与 ViewModel 的业务调用语义；
+- `UiState` / Event 对现有业务状态的含义；
+- SSE、停止、继续、失败重试、TTS、Key、遥测、音频和 Room 行为；
+- Room Schema、网络协议、API Key 安全存储；
+- 稳定 `testTag`。
+
+详细边界见 `docs/architecture/pr-08-ui-design-stable-interfaces.md`。
 
 ---
 
 ## 7. 修改范围纪律
 
-- 不修改当前 PR 范围外的业务、UI 或依赖。
-- 不顺手升级 Kotlin、AGP、Compose、Room、Retrofit。
-- 不通过吞异常、删除测试或降低断言让验证通过。
+- 只修改完成当前需求所必需的文件。
+- 不顺手升级 Kotlin、AGP、Compose、Navigation、Room、Retrofit。
+- 不以删除功能代替修复，不吞异常，不降低断言。
 - 不保留两套互相冲突的新旧实现。
-- 修改数据库实体时必须同步版本、Migration、Schema 和测试。
-- 修改包名、Activity 或 applicationId 时，必须同步脚本和文档。
-- 历史 ADR 可以保留历史背景，但必须明确状态，不能把旧实现写成当前事实。
+- 修改数据库实体时同步版本、Migration、Schema 和测试。
+- 修改包名、Activity 或 `applicationId` 时同步脚本、Manifest、CI 和文档。
+- 历史 ADR 可保留背景，但必须明确历史状态，不能写成当前事实。
+- 发现无关业务 Bug 时记录并另开 PR，不在结构或视觉 PR 中顺带修复。
 
 ---
 
-## 8. 测试与验收
+## 8. 敏感信息处理
+
+| 信息类型 | 正确位置 | 是否提交 Git |
+|---|---|---|
+| Android App BYOK Key | App 内导入；Keystore 加密后存入 `noBackupFilesDir` | 否 |
+| 本地辅助脚本 Key | 根目录 `.env` | 否 |
+| 模板占位符 | `.env.example` | 是 |
+| 签名文件、私钥、证书 | 本机或安全 CI Secret | 否 |
+
+禁止将真实 Key 写入源码、Markdown、提交信息、日志样例、测试夹具、`BuildConfig`、资源或 assets。交付报告不得回显完整 Key。
+
+---
+
+## 9. 构建、测试与验证
+
+Windows 基础环境：
+
+```powershell
+$env:JAVA_HOME = "C:\path\to\jdk-17"
+$env:Path = "$env:JAVA_HOME\bin;" + $env:Path
+.\gradlew.bat --version
+```
 
 基础修改至少执行：
 
@@ -170,88 +190,72 @@ AI-Skill-Roundtable/
 .\gradlew.bat testDebugUnitTest
 ```
 
-涉及资源、Manifest、Gradle 或完整集成时再执行：
+UI、资源、Manifest、Gradle 或完整集成修改执行：
 
 ```powershell
+.\gradlew.bat clean
+.\gradlew.bat compileDebugKotlin
+.\gradlew.bat testDebugUnitTest
 .\gradlew.bat lintDebug
 .\gradlew.bat assembleDebug
+.\gradlew.bat assembleRelease
+.\gradlew.bat connectedDebugAndroidTest
+pwsh.exe -File .\tools\check-secrets.ps1 -IncludeHistory
+git diff --check
+git status --short
 ```
 
-涉及数据库时必须执行 Migration Test；涉及 UI、设备、TTS 或运行期行为时，应使用真机或模拟器验收，并记录未覆盖场景。
+涉及 Room 时必须核对 Schema 与 Migration Test；涉及 UI、设备、TTS、系统返回或 Activity 重建时必须使用真机或模拟器，并记录设备、Android 版本和未覆盖场景。
 
-所有交付报告必须区分：
+交付报告必须区分：
 
-- 已通过自动验证
-- 已通过人工验证
-- 未验证
-- 因环境阻塞无法验证
+- 已实际执行并通过；
+- GitHub CI 已通过；
+- 仅静态检查；
+- 因环境阻塞未执行；
+- 等待真机验收。
 
 禁止使用“100% 完成”“Zero Risk”“圆满完成”等没有证据支持的绝对结论。
 
-### GitHub Actions 查询与重跑纪律
+---
 
-GitHub Actions 查询必须以“最少请求获得足够证据”为原则，禁止把 Run、Job、Step、日志和 Artifact 当作固定全量读取流程。
+## 10. GitHub Actions 查询与重跑纪律
 
-默认检查顺序：
-
-1. 读取 PR 元数据，锁定真实 Base、Head SHA 和当前状态。
-2. 比较 Base 与 Head，确认修改范围和 ahead / behind。
-3. 每个新的 Head SHA 最多主动查询一次关联 Workflow Run。
-4. 若全部 Workflow 已完成且成功，立即停止查询；不得继续读取 Job、Step、完整日志、Artifact 或重复状态接口。
-5. 只有 Workflow 失败或取消时，才读取该 Run 的 Job 列表。
-6. 只读取失败 Job 的步骤摘要。
-7. 只有步骤摘要不足以定位第一条根因错误时，才读取该失败 Job 的完整日志。
-8. Artifact 仅在本地验收明确需要 APK、测试报告或 Schema 时读取或下载。
-
-禁止：
-
-- 对同一 Head SHA 反复调用 Workflow Run 查询。
-- 同时或连续调用多个内容重叠的 Actions 状态接口。
-- 在 Workflow 仍运行时高频轮询。
-- 成功后继续下载日志或 Artifact 作为“保险检查”。
-- 遇到 `403`、`429`、abuse detection 或 secondary rate limit 后立即重试。
-- 未理解失败根因前盲目重跑完整 Workflow。
-- 为了触发 CI 而创建空提交、临时 Workflow 或无业务意义的文件修改。
-
-重跑规则：
-
-- 只有明确属于 Runner、网络或服务端瞬时故障时，才允许直接重跑。
-- 存在代码、测试、配置或签名错误时，必须先修复根因并产生新的 Head SHA。
-- 优先只重跑失败 Job；不得默认重跑全部已成功 Job。
-- 收到限流响应时停止 GitHub 工具调用，在交付报告记录状态；不得连续试探请求。
-
-减少 CI 触发：
-
-- 一个 PR 应按测试、实现、文档等清晰意图组织少量原子 Commit，避免“一文件一 Commit”。
-- PR 创建后应先完成一组相关修改再推送，避免每个微小修正都触发完整 CI。
-- 同一对话内必须复用已经读取的 Head SHA、Run ID、Job ID 和验证结果；Head 未变化时不得重复查询。
-- Actions 已成功且 Head 未变化时，后续对话应直接引用 PR 描述中的 Run ID 和结论，不再重新读取。
+1. 先读取 PR 元数据，锁定 Base、Head 和状态。
+2. 每个新 Head SHA 最多主动查询一次关联 Workflow Run。
+3. 全部 Workflow 成功后立即停止，不继续下载日志或 Artifact。
+4. 只有失败或取消时才读取 Job；只读取失败 Job 的步骤摘要。
+5. 步骤摘要不足时才读取该失败 Job 完整日志。
+6. Artifact 仅在本地验收明确需要 APK、测试报告或 Schema 时读取。
+7. 遇到 `403`、`429`、abuse detection 或 secondary rate limit 后停止调用并记录，不连续试探。
+8. 只有 Runner、网络或服务端瞬时故障才允许直接重跑；代码问题必须先修复并产生新 Head。
+9. 不为触发 CI 创建空提交或无业务意义文件。
 
 ---
 
-## 9. 当前已知重点问题
+## 11. Commit、PR 与交接
 
-1. **PR 02**：严格顺序圆桌、上下文一致性、Key Lease、错误分类与请求预算。
-2. **PR 03**：默认正文遥测、敏感内容持久化、日志保留期限与云端 `store` 策略。
-3. **PR 04**：Release 签名、正式包名、R8、CI、Secret Scan、Room Migration。
-4. **PR 05**：README / AGENTS 最终统一、TTS 描述、第三方 Skill / 头像来源与 AI 模拟声明。
-
-不要把这些问题描述成已经完成。
+- Commit 标题使用“英文类型: 中文描述”。
+- Commit 保持原子性，不自动添加 `Co-Authored-By`。
+- PR 描述至少包含背景、实现、修改文件、验证、风险、本地验收和回滚建议。
+- 未经用户明确授权不得合并、删除他人分支或强制更新分支。
+- 一个对话只负责一个任务、一个分支和一个 PR。
+- 多对话通过 Issue、Commit、PR 描述和评论交接，不依赖口头记忆。
+- 完成后提供本地 AI 只读验收 Prompt，要求不修改、不提交、不推送、不合并。
 
 ---
 
-## 10. 核心文档
+## 12. 核心文档
 
 | 文档 | 路径 |
 |---|---|
-| 五阶段总控计划 | `docs/planning/pr-execution-master-plan.md` |
-| PR 01 施工单 | `docs/planning/pr-01-reproducible-build-and-onboarding.md` |
-| PR 02 施工单 | `docs/planning/pr-02-roundtable-key-orchestration.md` |
-| PR 03 施工单 | `docs/planning/pr-03-privacy-telemetry-hardening.md` |
-| PR 04 施工单 | `docs/planning/pr-04-release-ci-quality.md` |
-| PR 05 施工单 | `docs/planning/pr-05-open-source-governance.md` |
-| Android 编译指南 | `docs/environment/android-compilation-guide.md` |
+| 总控计划 | `docs/planning/pr-execution-master-plan.md` |
+| PR07 总计划 | `docs/planning/pr-07-ui-foundation-refactor-plan.md` |
+| PR07 任务清单 | `docs/planning/pr-07-ui-foundation-refactor-tasks.md` |
+| PR07 多对话交接 | `docs/planning/pr-07-ui-foundation-parallel-handoff.md` |
 | 系统架构 | `docs/architecture/system-architecture.md` |
+| PR08 稳定接口 | `docs/architecture/pr-08-ui-design-stable-interfaces.md` |
+| UI 最终回归清单 | `docs/testing/pr-07-ui-regression-checklist.md` |
+| Android 编译指南 | `docs/environment/android-compilation-guide.md` |
 | Gemini API 协议 | `docs/protocols/gemini-api.md` |
 | 新增角色指南 | `docs/skills/how-to-add-new-character.md` |
-| 工具说明 | [tools/README.md](tools/README.md) |

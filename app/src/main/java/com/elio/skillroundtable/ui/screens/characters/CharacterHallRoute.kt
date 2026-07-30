@@ -11,41 +11,17 @@ import androidx.compose.ui.platform.LocalContext
 import com.elio.skillroundtable.data.Character
 import com.elio.skillroundtable.viewmodel.RoundtableViewModel
 
-/**
- * 保留 PR07-B 冻结的调用签名，将旧入口转发到新的 Route 边界。
- */
 @Composable
-fun CharacterHallScreen(
+fun CharacterHallRoute(
     viewModel: RoundtableViewModel,
     characters: List<Character>,
-    onToggleActive: (Character) -> Unit,
-    onEditCharacter: (Character) -> Unit,
-    onAddCharacter: () -> Unit,
-    onDeleteCharacter: (String) -> Unit,
-) {
-    CharacterHallRoute(
-        viewModel = viewModel,
-        characters = characters,
-        onToggleActive = onToggleActive,
-        onEditCharacter = onEditCharacter,
-        onAddCharacter = onAddCharacter,
-        onDeleteCharacter = onDeleteCharacter,
-    )
-}
-
-@Composable
-internal fun CharacterHallRoute(
-    viewModel: RoundtableViewModel,
-    characters: List<Character>,
-    onToggleActive: (Character) -> Unit,
-    onEditCharacter: (Character) -> Unit,
-    onAddCharacter: () -> Unit,
-    onDeleteCharacter: (String) -> Unit,
 ) {
     val context = LocalContext.current
     val groups by viewModel.allGroups.collectAsState()
     val detailContent by viewModel.currentDetailSkillContent.collectAsState()
     var overlayState by remember { mutableStateOf(CharacterHallOverlayState()) }
+    var isAddingCharacter by remember { mutableStateOf(false) }
+    var editingCharacter by remember { mutableStateOf<Character?>(null) }
 
     val uiState = mapCharacterHallUiState(
         characters = characters,
@@ -62,7 +38,7 @@ internal fun CharacterHallRoute(
 
             when (val effect = transition.effect) {
                 null -> Unit
-                CharacterHallEffect.AddCharacter -> onAddCharacter()
+                CharacterHallEffect.AddCharacter -> isAddingCharacter = true
                 is CharacterHallEffect.ApplyGroup -> {
                     viewModel.applyCharacterGroup(effect.group)
                     Toast.makeText(
@@ -94,10 +70,47 @@ internal fun CharacterHallRoute(
                     viewModel.loadDetailSkill(effect.character, context)
                 }
                 CharacterHallEffect.ClearDetail -> viewModel.clearDetailSkill()
-                is CharacterHallEffect.ToggleActive -> onToggleActive(effect.character)
-                is CharacterHallEffect.EditCharacter -> onEditCharacter(effect.character)
-                is CharacterHallEffect.DeleteCharacter -> onDeleteCharacter(effect.characterId)
+                is CharacterHallEffect.ToggleActive -> {
+                    viewModel.addOrUpdateCharacter(
+                        effect.character.copy(isActive = !effect.character.isActive),
+                    )
+                }
+                is CharacterHallEffect.EditCharacter -> {
+                    editingCharacter = effect.character
+                }
+                is CharacterHallEffect.DeleteCharacter -> {
+                    viewModel.deleteCharacter(effect.characterId)
+                    Toast.makeText(
+                        context,
+                        "智囊已被移出会议",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
             }
         },
     )
+
+    if (isAddingCharacter) {
+        AddEditCharacterDialog(
+            character = null,
+            onDismiss = { isAddingCharacter = false },
+            onConfirm = { newCharacter ->
+                viewModel.addOrUpdateCharacter(newCharacter)
+                isAddingCharacter = false
+                Toast.makeText(context, "新智囊已入席", Toast.LENGTH_SHORT).show()
+            },
+        )
+    }
+
+    editingCharacter?.let { character ->
+        AddEditCharacterDialog(
+            character = character,
+            onDismiss = { editingCharacter = null },
+            onConfirm = { updatedCharacter ->
+                viewModel.addOrUpdateCharacter(updatedCharacter)
+                editingCharacter = null
+                Toast.makeText(context, "智囊设定已修改", Toast.LENGTH_SHORT).show()
+            },
+        )
+    }
 }

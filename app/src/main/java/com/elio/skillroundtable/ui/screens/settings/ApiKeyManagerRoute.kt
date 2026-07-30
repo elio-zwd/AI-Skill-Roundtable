@@ -13,22 +13,6 @@ import androidx.compose.ui.platform.LocalContext
 import com.elio.skillroundtable.network.ApiKeyPool
 import kotlinx.coroutines.launch
 
-/**
- * 保留 PR07-B 冻结的页面入口签名，由 Route 负责状态采集和业务事件连接。
- */
-@Composable
-fun ApiKeyManagerScreen(
-    currentSessionId: Long?,
-    onBack: () -> Unit,
-    onOpenTelemetry: () -> Unit,
-) {
-    ApiKeyManagerRoute(
-        currentSessionId = currentSessionId,
-        onBack = onBack,
-        onOpenTelemetry = onOpenTelemetry,
-    )
-}
-
 @Composable
 fun ApiKeyManagerRoute(
     currentSessionId: Long?,
