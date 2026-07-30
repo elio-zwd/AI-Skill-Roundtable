@@ -65,6 +65,7 @@ data class RenameSessionUiState(
 
 data class RoundtableUiState(
     val sessions: List<ChatSession> = emptyList(),
+    val currentSessionId: Long? = null,
     val currentSession: ChatSession? = null,
     val messages: List<Message> = emptyList(),
     val characters: List<Character> = emptyList(),
