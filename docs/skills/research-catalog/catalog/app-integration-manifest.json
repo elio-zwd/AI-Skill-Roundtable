@@ -1,0 +1,346 @@
+[
+  {
+    "id": "civil-service-coach",
+    "name": "考公备考教练",
+    "tags": [
+      "exam_learning",
+      "career_workplace",
+      "writing_research"
+    ],
+    "skillAssetPath": "skills/civil-service-coach/SKILL.md",
+    "draftPath": "app-ready-skills/civil-service-coach/SKILL.md",
+    "sourceRepos": [
+      "https://github.com/24kchengYe/human-skill-tree",
+      "https://github.com/bytesagain/ai-skills",
+      "https://github.com/jnMetaCode/agency-agents-zh"
+    ],
+    "risk": "考试内容必须标注版本与来源，不承诺预测命题"
+  },
+  {
+    "id": "public-document-coach",
+    "name": "公文与材料教练",
+    "tags": [
+      "exam_learning",
+      "office_operations",
+      "writing_research"
+    ],
+    "skillAssetPath": "skills/public-document-coach/SKILL.md",
+    "draftPath": "app-ready-skills/public-document-coach/SKILL.md",
+    "sourceRepos": [
+      "https://github.com/24kchengYe/human-skill-tree",
+      "https://github.com/claude-office-skills/skills"
+    ],
+    "risk": "仅作草稿；按本单位制度和发文规范复核"
+  },
+  {
+    "id": "study-planner",
+    "name": "学习规划师",
+    "tags": [
+      "exam_learning",
+      "health_wellbeing"
+    ],
+    "skillAssetPath": "skills/study-planner/SKILL.md",
+    "draftPath": "app-ready-skills/study-planner/SKILL.md",
+    "sourceRepos": [
+      "https://github.com/24kchengYe/human-skill-tree",
+      "https://github.com/jnMetaCode/agency-agents-zh"
+    ],
+    "risk": "避免虚构学习效果或替代专业教育指导"
+  },
+  {
+    "id": "career-navigator",
+    "name": "职业发展顾问",
+    "tags": [
+      "career_workplace",
+      "exam_learning",
+      "personal_finance"
+    ],
+    "skillAssetPath": "skills/career-navigator/SKILL.md",
+    "draftPath": "app-ready-skills/career-navigator/SKILL.md",
+    "sourceRepos": [
+      "https://github.com/24kchengYe/human-skill-tree",
+      "https://github.com/alchaincyf/zhangxuefeng-skill"
+    ],
+    "risk": "不作确定性薪资或录用承诺"
+  },
+  {
+    "id": "resume-interview-coach",
+    "name": "简历与面试教练",
+    "tags": [
+      "career_workplace",
+      "writing_research"
+    ],
+    "skillAssetPath": "skills/resume-interview-coach/SKILL.md",
+    "draftPath": "app-ready-skills/resume-interview-coach/SKILL.md",
+    "sourceRepos": [
+      "https://github.com/claude-office-skills/skills",
+      "https://github.com/proficientlyjobs/proficiently-claude-skills"
+    ],
+    "risk": "不得编造履历、证书、业绩或推荐人"
+  },
+  {
+    "id": "workplace-communication",
+    "name": "职场沟通陪练",
+    "tags": [
+      "career_workplace",
+      "life_relationships"
+    ],
+    "skillAssetPath": "skills/workplace-communication/SKILL.md",
+    "draftPath": "app-ready-skills/workplace-communication/SKILL.md",
+    "sourceRepos": [
+      "https://github.com/24kchengYe/human-skill-tree",
+      "https://github.com/tmstack/awesome-persona-skills"
+    ],
+    "risk": "避免操控、威胁、歧视与职场报复建议"
+  },
+  {
+    "id": "manager-expectation-review",
+    "name": "领导预期复盘助手",
+    "tags": [
+      "career_workplace",
+      "office_operations",
+      "life_relationships"
+    ],
+    "skillAssetPath": "skills/manager-expectation-review/SKILL.md",
+    "draftPath": "app-ready-skills/manager-expectation-review/SKILL.md",
+    "sourceRepos": [
+      "https://github.com/vogtsw/boss-skills",
+      "https://github.com/tmstack/awesome-persona-skills"
+    ],
+    "risk": "仅处理用户有权使用的材料；不冒充真实领导或推断其私密动机"
+  },
+  {
+    "id": "team-handover",
+    "name": "团队交接与协作助手",
+    "tags": [
+      "career_workplace",
+      "office_operations",
+      "writing_research"
+    ],
+    "skillAssetPath": "skills/team-handover/SKILL.md",
+    "draftPath": "app-ready-skills/team-handover/SKILL.md",
+    "sourceRepos": [
+      "https://github.com/titanwings/colleague-skill",
+      "https://github.com/tmstack/awesome-persona-skills"
+    ],
+    "risk": "不得上传或复述无授权的同事私密信息"
+  },
+  {
+    "id": "meeting-to-action",
+    "name": "会议纪要与行动项助手",
+    "tags": [
+      "office_operations",
+      "writing_research",
+      "career_workplace"
+    ],
+    "skillAssetPath": "skills/meeting-to-action/SKILL.md",
+    "draftPath": "app-ready-skills/meeting-to-action/SKILL.md",
+    "sourceRepos": [
+      "https://github.com/claude-office-skills/skills",
+      "https://github.com/bytesagain/ai-skills"
+    ],
+    "risk": "敏感会议内容须由用户确认后保存或转发"
+  },
+  {
+    "id": "report-proposal-writer",
+    "name": "汇报与方案写作助手",
+    "tags": [
+      "office_operations",
+      "writing_research",
+      "creator_business"
+    ],
+    "skillAssetPath": "skills/report-proposal-writer/SKILL.md",
+    "draftPath": "app-ready-skills/report-proposal-writer/SKILL.md",
+    "sourceRepos": [
+      "https://github.com/claude-office-skills/skills",
+      "https://github.com/KKKKhazix/khazix-skills"
+    ],
+    "risk": "事实、数据和引用必须可追溯"
+  },
+  {
+    "id": "contract-checklist",
+    "name": "合同要点检查助手",
+    "tags": [
+      "office_operations",
+      "industry_professional",
+      "writing_research"
+    ],
+    "skillAssetPath": "skills/contract-checklist/SKILL.md",
+    "draftPath": "app-ready-skills/contract-checklist/SKILL.md",
+    "sourceRepos": [
+      "https://github.com/claude-office-skills/skills",
+      "https://github.com/tinh2/skills-hub-registry"
+    ],
+    "risk": "不是法律意见；重大合同必须由有资质专业人士审核"
+  },
+  {
+    "id": "hr-document-assistant",
+    "name": "人事文档助手",
+    "tags": [
+      "office_operations",
+      "career_workplace",
+      "writing_research"
+    ],
+    "skillAssetPath": "skills/hr-document-assistant/SKILL.md",
+    "draftPath": "app-ready-skills/hr-document-assistant/SKILL.md",
+    "sourceRepos": [
+      "https://github.com/claude-office-skills/skills"
+    ],
+    "risk": "不做自动筛人、歧视性判断或替代 HR 审批"
+  },
+  {
+    "id": "research-fact-checker",
+    "name": "调研与事实核查助手",
+    "tags": [
+      "writing_research",
+      "office_operations",
+      "creator_business"
+    ],
+    "skillAssetPath": "skills/research-fact-checker/SKILL.md",
+    "draftPath": "app-ready-skills/research-fact-checker/SKILL.md",
+    "sourceRepos": [
+      "https://github.com/KKKKhazix/khazix-skills",
+      "https://github.com/claude-office-skills/skills"
+    ],
+    "risk": "区分事实、推断和观点；联网信息标注时间"
+  },
+  {
+    "id": "budget-consumption-coach",
+    "name": "预算与消费决策助手",
+    "tags": [
+      "personal_finance",
+      "life_relationships",
+      "career_workplace"
+    ],
+    "skillAssetPath": "skills/budget-consumption-coach/SKILL.md",
+    "draftPath": "app-ready-skills/budget-consumption-coach/SKILL.md",
+    "sourceRepos": [
+      "https://github.com/24kchengYe/human-skill-tree",
+      "https://github.com/bytesagain/ai-skills"
+    ],
+    "risk": "不提供具体证券买卖建议、收益保证或规避监管建议"
+  },
+  {
+    "id": "habit-wellbeing-coach",
+    "name": "习惯与身心管理教练",
+    "tags": [
+      "health_wellbeing",
+      "exam_learning",
+      "life_relationships"
+    ],
+    "skillAssetPath": "skills/habit-wellbeing-coach/SKILL.md",
+    "draftPath": "app-ready-skills/habit-wellbeing-coach/SKILL.md",
+    "sourceRepos": [
+      "https://github.com/24kchengYe/human-skill-tree",
+      "https://github.com/bytesagain/ai-skills"
+    ],
+    "risk": "不诊断疾病；出现危机或自伤风险时建议联系专业支持/紧急服务"
+  },
+  {
+    "id": "relationship-dialogue-practice",
+    "name": "关系沟通练习伙伴",
+    "tags": [
+      "life_relationships",
+      "career_workplace",
+      "health_wellbeing"
+    ],
+    "skillAssetPath": "skills/relationship-dialogue-practice/SKILL.md",
+    "draftPath": "app-ready-skills/relationship-dialogue-practice/SKILL.md",
+    "sourceRepos": [
+      "https://github.com/24kchengYe/human-skill-tree",
+      "https://github.com/xixu-me/awesome-persona-distill-skills"
+    ],
+    "risk": "不冒充真实关系对象；不鼓励跟踪、操控或突破同意边界"
+  },
+  {
+    "id": "chinese-social-etiquette",
+    "name": "人情世故与礼仪助手",
+    "tags": [
+      "life_relationships",
+      "career_workplace",
+      "culture_entertainment"
+    ],
+    "skillAssetPath": "skills/chinese-social-etiquette/SKILL.md",
+    "draftPath": "app-ready-skills/chinese-social-etiquette/SKILL.md",
+    "sourceRepos": [
+      "https://github.com/24kchengYe/human-skill-tree"
+    ],
+    "risk": "尊重地区差异；不协助商业贿赂或违规送礼"
+  },
+  {
+    "id": "culture-fortune-entertainment",
+    "name": "传统命理文化陪伴",
+    "tags": [
+      "culture_entertainment",
+      "life_relationships"
+    ],
+    "skillAssetPath": "skills/culture-fortune-entertainment/SKILL.md",
+    "draftPath": "app-ready-skills/culture-fortune-entertainment/SKILL.md",
+    "sourceRepos": [
+      "https://github.com/tmstack/awesome-persona-skills"
+    ],
+    "risk": "仅供娱乐，不对健康、财富、婚姻或重大决定作预测与指令"
+  },
+  {
+    "id": "content-creator",
+    "name": "内容策划与文案助手",
+    "tags": [
+      "creator_business",
+      "writing_research",
+      "technology_productivity"
+    ],
+    "skillAssetPath": "skills/content-creator/SKILL.md",
+    "draftPath": "app-ready-skills/content-creator/SKILL.md",
+    "sourceRepos": [
+      "https://github.com/KKKKhazix/khazix-skills",
+      "https://github.com/bytesagain/ai-skills"
+    ],
+    "risk": "不模仿在世创作者的独特风格，不制造虚假信息"
+  },
+  {
+    "id": "product-competition-analyst",
+    "name": "产品与竞品分析助手",
+    "tags": [
+      "creator_business",
+      "writing_research",
+      "career_workplace"
+    ],
+    "skillAssetPath": "skills/product-competition-analyst/SKILL.md",
+    "draftPath": "app-ready-skills/product-competition-analyst/SKILL.md",
+    "sourceRepos": [
+      "https://github.com/Fokkyp/claude-skills",
+      "https://github.com/jnMetaCode/agency-agents-zh"
+    ],
+    "risk": "竞争信息应来自公开或授权材料"
+  },
+  {
+    "id": "software-copyright-organizer",
+    "name": "软件著作权材料整理助手",
+    "tags": [
+      "industry_professional",
+      "office_operations",
+      "writing_research"
+    ],
+    "skillAssetPath": "skills/software-copyright-organizer/SKILL.md",
+    "draftPath": "app-ready-skills/software-copyright-organizer/SKILL.md",
+    "sourceRepos": [
+      "https://github.com/Fokkyp/SoftwareCopyright-Skill"
+    ],
+    "risk": "不冒充登记代理；申请内容和权属由申请人负责"
+  },
+  {
+    "id": "patent-disclosure-organizer",
+    "name": "专利交底材料整理助手",
+    "tags": [
+      "industry_professional",
+      "writing_research",
+      "office_operations"
+    ],
+    "skillAssetPath": "skills/patent-disclosure-organizer/SKILL.md",
+    "draftPath": "app-ready-skills/patent-disclosure-organizer/SKILL.md",
+    "sourceRepos": [
+      "https://github.com/handsomestWei/patent-disclosure-skill"
+    ],
+    "risk": "不替代专利代理/法律意见；涉密技术不得上传"
+  }
+]

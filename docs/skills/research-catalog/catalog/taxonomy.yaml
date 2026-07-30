@@ -1,0 +1,41 @@
+version: 1
+description: 面向 AI 智囊圆桌的多标签分类；每个 Skill 至少一个主分类，可附加任意交叉标签。
+categories:
+  - id: exam_learning
+    name: 学习与考试
+    includes: [考公, 行测, 申论, 面试, 公文写作, 学习规划, 语言考试]
+  - id: career_workplace
+    name: 职业与职场
+    includes: [职业规划, 求职, 简历, 汇报, 向上沟通, 项目协作, 交接]
+  - id: office_operations
+    name: 单位办公与运营
+    includes: [会议纪要, 邮件, 制度材料, 合同审阅, 费用, 项目管理]
+  - id: writing_research
+    name: 写作与研究
+    includes: [调研, 事实核查, 报告, 演讲, 方案, 资料整理]
+  - id: life_relationships
+    name: 生活与关系
+    includes: [家庭沟通, 恋爱沟通, 情绪支持, 冲突对话, 人情世故]
+  - id: personal_finance
+    name: 财商与消费
+    includes: [预算, 消费决策, 基础理财教育, 风险提示]
+  - id: health_wellbeing
+    name: 健康与自我管理
+    includes: [习惯, 睡眠, 运动, 压力管理]
+  - id: culture_entertainment
+    name: 传统文化与娱乐
+    includes: [命理文化, 节日, 成语, 兴趣陪伴]
+  - id: creator_business
+    name: 内容创作与商业
+    includes: [选题, 文案, 竞品, 产品, 传播]
+  - id: technology_productivity
+    name: 数字生产力
+    includes: [表格, 数据, 文档, 演示, 自动化]
+  - id: industry_professional
+    name: 行业专业支持
+    includes: [软著, 专利, 合规, 采购, 制造, 供应链]
+safety_rules:
+  - 不接入要求执行外部脚本、读取敏感目录、上传私密材料或绕过安全控制的第三方 Skill。
+  - 人格蒸馏仅限用户拥有合法授权的材料；不得模拟真实人物并宣称其真实意见。
+  - 法律、医疗、金融与命理场景必须加入边界提示和人工复核步骤。
+  - 不制作规避学术诚信、AIGC 检测或招聘筛选系统的 Skill。
