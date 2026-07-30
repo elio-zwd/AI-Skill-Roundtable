@@ -34,6 +34,7 @@ fun RoundtableRoute(
 ) {
     val sessions by viewModel.allSessions.collectAsState()
     val characters by viewModel.allCharacters.collectAsState()
+    val currentSessionId by viewModel.currentSessionId.collectAsState()
     val currentSession by viewModel.currentSession.collectAsState()
     val messages by viewModel.currentMessages.collectAsState()
     val isRoundtableRunning by viewModel.isRoundtableRunning.collectAsState()
@@ -57,6 +58,7 @@ fun RoundtableRoute(
 
     val uiState = RoundtableUiState(
         sessions = sessions,
+        currentSessionId = currentSessionId,
         currentSession = currentSession,
         messages = messages,
         characters = characters,
@@ -184,7 +186,7 @@ fun RoundtableRoute(
         SessionDrawer(
             visible = uiState.isDrawerVisible,
             sessions = uiState.sessions,
-            currentSessionId = uiState.currentSession?.id,
+            currentSessionId = uiState.currentSessionId,
             isAutoNextEnabled = uiState.isAutoNextEnabled,
             isSemanticRoutingEnabled = uiState.isSemanticRoutingEnabled,
             onEvent = onEvent,
