@@ -8,20 +8,6 @@ import com.elio.skillroundtable.data.Character
 import com.elio.skillroundtable.data.Message
 import com.elio.skillroundtable.viewmodel.RoundtableViewModel
 
-/**
- * 保留 PR07-B 冻结的页面入口签名，由 Route 负责收集状态和连接业务事件。
- */
-@Composable
-fun AudioLibraryScreen(
-    viewModel: RoundtableViewModel,
-    allCharacters: List<Character>,
-) {
-    AudioLibraryRoute(
-        viewModel = viewModel,
-        allCharacters = allCharacters,
-    )
-}
-
 @Composable
 fun AudioLibraryRoute(
     viewModel: RoundtableViewModel,

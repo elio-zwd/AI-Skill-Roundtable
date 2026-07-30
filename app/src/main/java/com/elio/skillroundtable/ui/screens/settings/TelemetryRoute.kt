@@ -14,20 +14,6 @@ import com.elio.skillroundtable.telemetry.CloudInteractionSettings
 import com.elio.skillroundtable.telemetry.TelemetryLevel
 import com.elio.skillroundtable.telemetry.TelemetryRepository
 
-/**
- * 保留 PR07-B 冻结的页面入口签名，由 Route 负责状态采集和业务事件连接。
- */
-@Composable
-fun ApiTelemetryScreen(
-    currentSessionId: Long?,
-    onBack: () -> Unit,
-) {
-    TelemetryRoute(
-        currentSessionId = currentSessionId,
-        onBack = onBack,
-    )
-}
-
 @Composable
 fun TelemetryRoute(
     currentSessionId: Long?,

@@ -1,6 +1,5 @@
 package com.elio.skillroundtable.ui
 
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -29,34 +28,37 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.elio.skillroundtable.data.Character
 import com.elio.skillroundtable.ui.components.bounceClick
 import com.elio.skillroundtable.ui.navigation.AppDestination
 import com.elio.skillroundtable.ui.navigation.AppNavHost
 import com.elio.skillroundtable.ui.navigation.navigateToSecondary
 import com.elio.skillroundtable.ui.navigation.navigateToTelemetryFromRoundtable
 import com.elio.skillroundtable.ui.navigation.navigateToTopLevel
-import com.elio.skillroundtable.ui.screens.characters.AddEditCharacterDialog
-import com.elio.skillroundtable.ui.screens.characters.CharacterHallScreen
-import com.elio.skillroundtable.ui.screens.library.AudioLibraryScreen
+import com.elio.skillroundtable.ui.screens.characters.CharacterHallRoute
+import com.elio.skillroundtable.ui.screens.library.AudioLibraryRoute
 import com.elio.skillroundtable.ui.screens.roundtable.RoundtableRoute
-import com.elio.skillroundtable.ui.screens.settings.ApiKeyManagerScreen
-import com.elio.skillroundtable.ui.screens.settings.ApiTelemetryScreen
+import com.elio.skillroundtable.ui.screens.settings.ApiKeyManagerRoute
+import com.elio.skillroundtable.ui.screens.settings.TelemetryRoute
 import com.elio.skillroundtable.ui.theme.skillRoundtableColors
 import com.elio.skillroundtable.ui.theme.skillRoundtableSpacing
 import com.elio.skillroundtable.viewmodel.RoundtableViewModel
+
+object AppTestTags {
+    const val BOTTOM_NAVIGATION = "app_bottom_navigation"
+
+    fun destination(destination: AppDestination): String =
+        "app_destination_${destination.route.replace('/', '_')}"
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,10 +68,6 @@ fun MainAppContent(
     val allCharacters by viewModel.allCharacters.collectAsState()
     val currentSessionId by viewModel.currentSessionId.collectAsState()
 
-    var showAddCharacterDialog by remember { mutableStateOf(false) }
-    var editingCharacter by remember { mutableStateOf<Character?>(null) }
-
-    val context = LocalContext.current
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = AppDestination.fromRoute(backStackEntry?.destination?.route)
@@ -87,9 +85,7 @@ fun MainAppContent(
             if (showsBottomNavigation) {
                 AppBottomNavigation(
                     currentDestination = currentDestination,
-                    onDestinationSelected = { destination ->
-                        navController.navigateToTopLevel(destination)
-                    },
+                    onDestinationSelected = navController::navigateToTopLevel,
                 )
             }
         },
@@ -114,34 +110,19 @@ fun MainAppContent(
                     )
                 },
                 charactersContent = {
-                    CharacterHallScreen(
+                    CharacterHallRoute(
                         viewModel = viewModel,
                         characters = allCharacters,
-                        onToggleActive = { character ->
-                            viewModel.addOrUpdateCharacter(
-                                character.copy(isActive = !character.isActive),
-                            )
-                        },
-                        onEditCharacter = { character -> editingCharacter = character },
-                        onAddCharacter = { showAddCharacterDialog = true },
-                        onDeleteCharacter = { characterId ->
-                            viewModel.deleteCharacter(characterId)
-                            Toast.makeText(
-                                context,
-                                "智囊已被移出会议",
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                        },
                     )
                 },
                 audioLibraryContent = {
-                    AudioLibraryScreen(
+                    AudioLibraryRoute(
                         viewModel = viewModel,
                         allCharacters = allCharacters,
                     )
                 },
                 apiKeysContent = {
-                    ApiKeyManagerScreen(
+                    ApiKeyManagerRoute(
                         currentSessionId = currentSessionId,
                         onBack = { navController.popBackStack() },
                         onOpenTelemetry = {
@@ -150,42 +131,18 @@ fun MainAppContent(
                     )
                 },
                 telemetryContent = {
-                    ApiTelemetryScreen(
+                    TelemetryRoute(
                         currentSessionId = currentSessionId,
                         onBack = { navController.popBackStack() },
                     )
                 },
             )
-
-            if (showsBottomNavigation && showAddCharacterDialog) {
-                AddEditCharacterDialog(
-                    character = null,
-                    onDismiss = { showAddCharacterDialog = false },
-                    onConfirm = { newCharacter ->
-                        viewModel.addOrUpdateCharacter(newCharacter)
-                        showAddCharacterDialog = false
-                        Toast.makeText(context, "新智囊已入席", Toast.LENGTH_SHORT).show()
-                    },
-                )
-            }
-
-            if (showsBottomNavigation && editingCharacter != null) {
-                AddEditCharacterDialog(
-                    character = editingCharacter,
-                    onDismiss = { editingCharacter = null },
-                    onConfirm = { updatedCharacter ->
-                        viewModel.addOrUpdateCharacter(updatedCharacter)
-                        editingCharacter = null
-                        Toast.makeText(context, "智囊设定已修改", Toast.LENGTH_SHORT).show()
-                    },
-                )
-            }
         }
     }
 }
 
 @Composable
-private fun AppBottomNavigation(
+internal fun AppBottomNavigation(
     currentDestination: AppDestination,
     onDestinationSelected: (AppDestination) -> Unit,
 ) {
@@ -195,7 +152,8 @@ private fun AppBottomNavigation(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background),
+            .background(MaterialTheme.colorScheme.background)
+            .testTag(AppTestTags.BOTTOM_NAVIGATION),
     ) {
         Spacer(
             modifier = Modifier
@@ -237,7 +195,8 @@ private fun AppBottomNavigation(
                             indication = null,
                         ) {
                             onDestinationSelected(destination)
-                        },
+                        }
+                        .testTag(AppTestTags.destination(destination)),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
