@@ -1,4 +1,4 @@
-# AGENTS.md — AI 智囊圆桌（AI-Skill-Roundtable）
+# AGENTS.md — 见域（AI-Skill-Roundtable）
 
 > AI 代理工作规范。进入仓库后先阅读本文件，再阅读距离目标文件最近的 `AGENTS.md`、总控计划和当前任务施工单。更具体目录中的规则优先。
 
@@ -6,18 +6,26 @@
 
 ## 1. 项目与当前阶段
 
-**AI 智囊圆桌**是一款原生 Android 多角色聊天应用，包含 Room 本地会话、Gemini REST / Interactions / Live WebSocket、联网搜索、Markdown、BYOK Key 池、遥测与音频管理。
+**见域**是一款面向个人的多智能体思考与行动工作台。用户围绕持续议题，调用人物视角、专业顾问、任务助手和工作流能力，通过自由追问与分阶段推进，沉淀判断、行动方案和知识成果。
+
+当前仓库中的 Android 生产代码仍建立在原“AI 智囊圆桌”多角色应用基线上，包含 Room 本地会话、Gemini REST / Interactions / Live WebSocket、联网搜索、Markdown、BYOK Key 池、遥测与音频管理。旧名称用于描述当前实现和历史，不再作为目标产品的最高层定义。
 
 当前可信开发阶段：
 
 ```text
-PR01～PR05：业务正确性、隐私、发布与治理基础
-→ PR06：音频相关独立工作
-→ PR07：Compose UI 基础架构重构
-→ PR08：UI/UX 视觉重设计（后续阶段）
+PR01～PR07：现有 Android 工程、业务与 UI 基线
+→ PR08：见域产品定义、信息架构、交互、Skill、品牌视觉与技术迁移规格
+→ PR08-F：整合并冻结最终规格
+→ PR09：依据冻结规格实施生产代码迁移
 ```
 
-PR07 只建立结构、主题、导航、Route / Screen / Component / UiState 边界和回归门禁，**没有重新设计视觉**。PR08 才允许逐屏进行视觉改版。
+阶段边界：
+
+- **PR08 只做研究、规格、设计与迁移评估，不修改 Android 生产代码。**
+- PR08 可以读取现有代码、测试、资源和数据模型作为设计依据，但写入范围限于任务明确授权的文档或设计资产路径。
+- **PR09 才允许修改生产代码、Room、导航、资源、配置和测试。**
+- PR08-F 完成且用户确认规格前，不得启动 PR09。
+- 任何历史文档中“PR08 直接逐屏改版”“PR08 可以修改 Compose 页面或主题”的表述均已失效，应以本文件和 PR08 最新规划文档为准。
 
 ---
 
@@ -64,6 +72,7 @@ git log -5 --oneline
 6. 读取调用链、关联测试、配置和文档，不得只读取单个目标文件。
 7. 修改前列出预计文件、行为冻结点、验证命令和主要风险。
 8. 从最新目标基线创建独立分支，不直接修改 `main`。
+9. 若任务属于 PR08，先确认写入路径只包含文档或设计资产，不得写入生产源码。
 
 ---
 
@@ -95,12 +104,14 @@ app/src/main/java/com/elio/skillroundtable/
 
 ```text
 docs/
-├── architecture/                  # 当前架构与稳定接口
-├── planning/                      # PR 计划、任务和交接
+├── product/                       # 见域产品模型、术语与正式 PRD
+├── design/                        # UX、品牌、视觉与页面规格
+├── architecture/                  # 当前架构、稳定接口与迁移评估
+├── planning/                      # PR 计划、任务、规格审阅和交接
 ├── testing/                       # 回归清单与验收说明
 ├── environment/                   # 构建环境
 ├── protocols/                     # API/协议
-└── skills/                        # 角色扩展说明
+└── skills/                        # Skill 分类、目录与扩展说明
 ```
 
 ---
@@ -123,27 +134,44 @@ docs/
 - 新抽象必须有真实调用方和测试，不创建空壳接口。
 - 已存在的 `testTag` 属于稳定测试契约；修改前必须同步测试并说明兼容影响。
 
+这些规则描述当前工程基线。PR08 可以评估其迁移影响，但不得直接修改；PR09 实施时继续受这些规则约束，除非冻结规格和迁移计划明确更新。
+
 ---
 
-## 6. PR08 视觉改版边界
+## 6. PR08 规格与设计边界
 
-PR08 可以修改：
+### PR08 可以修改
 
-- 纯 `Screen` 和 `Components` 的布局、排版、层级、视觉组件和动画；
-- `ui/theme/` 中的颜色、Typography、Shapes、Spacing；
-- 页面内可访问性、响应式布局和视觉状态表达；
-- 必要的新视觉组件及其 Compose UI Test。
+仅限当前任务明确授权的文档或设计资产，例如：
 
-PR08 不得随意修改：
+- `docs/product/` 下的产品模型、术语与边界；
+- `docs/design/ux/` 下的信息架构、核心流程与状态矩阵；
+- `docs/skills/jianyu-*` 相关 Skill 分类、发现与推荐文档；
+- `docs/design/brand/` 下的品牌、视觉系统、页面规格与预览资产；
+- `docs/architecture/` 下的见域技术影响与迁移评估；
+- `docs/planning/` 下的 PR08／PR09 计划、任务、交接和规格审阅文档。
 
-- `AppDestination.route`、顶层/二级目的地分类和返回路径；
-- Route 与 ViewModel 的业务调用语义；
-- `UiState` / Event 对现有业务状态的含义；
-- SSE、停止、继续、失败重试、TTS、Key、遥测、音频和 Room 行为；
-- Room Schema、网络协议、API Key 安全存储；
-- 稳定 `testTag`。
+### PR08 不得修改
 
-详细边界见 `docs/architecture/pr-08-ui-design-stable-interfaces.md`。
+- `app/src/` 下的 Kotlin、Compose、资源、Manifest 或 assets；
+- `AppDestination`、导航和返回路径；
+- Route、ViewModel、Repository 或调度语义；
+- `UiState`、Event、SSE、停止、继续、失败重试、TTS、Key、遥测和音频行为；
+- Room Entity、DAO、Schema、Migration 和用户数据；
+- 网络协议、API Key 安全存储和生产配置；
+- 现有测试、`testTag`、Gradle 或 CI；
+- applicationId、包名、仓库名和正式商店名称。
+
+### PR09 进入条件
+
+只有同时满足以下条件，才允许开始生产实现：
+
+1. PR08-A～E 已完成并经过用户审阅；
+2. PR08-F 已整合产品、UX、Skill、品牌和技术评估；
+3. 最终 PRD、体验规格、迁移计划和验收标准已由用户确认；
+4. PR09 任务已按风险拆分，并定义数据兼容、回滚和测试门禁。
+
+当前工程稳定接口可参考 `docs/architecture/pr-08-ui-design-stable-interfaces.md`，但其中历史阶段命名若与本文件冲突，以本文件为准。
 
 ---
 
@@ -156,7 +184,7 @@ PR08 不得随意修改：
 - 修改数据库实体时同步版本、Migration、Schema 和测试。
 - 修改包名、Activity 或 `applicationId` 时同步脚本、Manifest、CI 和文档。
 - 历史 ADR 可保留背景，但必须明确历史状态，不能写成当前事实。
-- 发现无关业务 Bug 时记录并另开 PR，不在结构或视觉 PR 中顺带修复。
+- 发现无关业务 Bug 时记录并另开 PR，不在规格、设计或迁移评估 PR 中顺带修复。
 
 ---
 
@@ -183,7 +211,7 @@ $env:Path = "$env:JAVA_HOME\bin;" + $env:Path
 .\gradlew.bat --version
 ```
 
-基础修改至少执行：
+生产代码基础修改至少执行：
 
 ```powershell
 .\gradlew.bat compileDebugKotlin
@@ -204,6 +232,15 @@ pwsh.exe -File .\tools\check-secrets.ps1 -IncludeHistory
 git diff --check
 git status --short
 ```
+
+纯文档 PR 至少检查：
+
+- 文件回读与链接；
+- 术语和阶段边界一致性；
+- `git diff --check`；
+- 净差异是否只包含授权路径。
+
+纯文档 PR 不需要为了形式声称 Android 构建通过；未执行必须明确标注。
 
 涉及 Room 时必须核对 Schema 与 Migration Test；涉及 UI、设备、TTS、系统返回或 Activity 重建时必须使用真机或模拟器，并记录设备、Android 版本和未覆盖场景。
 
@@ -254,7 +291,13 @@ git status --short
 | PR07 任务清单 | `docs/planning/pr-07-ui-foundation-refactor-tasks.md` |
 | PR07 多对话交接 | `docs/planning/pr-07-ui-foundation-parallel-handoff.md` |
 | 系统架构 | `docs/architecture/system-architecture.md` |
-| PR08 稳定接口 | `docs/architecture/pr-08-ui-design-stable-interfaces.md` |
+| 当前工程稳定接口 | `docs/architecture/pr-08-ui-design-stable-interfaces.md` |
+| PR08 产品定义工作笔记 | `docs/planning/pr-08-product-definition-working-notes.md` |
+| PR08 总计划 | `docs/planning/pr-08-jianyu-product-redesign-plan.md` |
+| PR08 任务清单 | `docs/planning/pr-08-jianyu-product-redesign-tasks.md` |
+| PR08 多对话交接 | `docs/planning/pr-08-jianyu-parallel-handoff.md` |
+| 议题推进结构 | `docs/planning/pr-08-jianyu-issue-advancement-planning.md` |
+| 产品规格收敛审阅稿 | `docs/planning/pr-08-jianyu-product-spec-review-draft.md` |
 | UI 最终回归清单 | `docs/testing/pr-07-ui-regression-checklist.md` |
 | Android 编译指南 | `docs/environment/android-compilation-guide.md` |
 | Gemini API 协议 | `docs/protocols/gemini-api.md` |
