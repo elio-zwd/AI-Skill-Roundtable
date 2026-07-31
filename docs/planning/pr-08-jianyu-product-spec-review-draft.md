@@ -1,11 +1,11 @@
 # PR08：见域产品规格收敛审阅稿
 
-> 状态：**待用户审核，尚未冻结**  
-> 文档类型：产品规格收敛与后续规划  
-> 仓库：`https://github.com/elio-zwd/AI-Skill-Roundtable`  
-> 分支：`docs/pr-08-product-spec-convergence`  
-> 依赖链：PR #20 → PR #21 → 本文档  
-> 基线：`docs/pr-08-issue-advancement-planning@b6ce4ec12546fa9cd7ca72f4f624be32c8fd3fe3`  
+> 状态：**待用户审核，尚未冻结**
+> 文档类型：产品规格收敛与后续规划
+> 仓库：`https://github.com/elio-zwd/AI-Skill-Roundtable`
+> 分支：`docs/pr-08-product-spec-convergence`
+> 依赖链：PR #20 → PR #21 → 本文档
+> 基线：`docs/pr-08-issue-advancement-planning@b6ce4ec12546fa9cd7ca72f4f624be32c8fd3fe3`
 > 本文只整理产品规格，不修改 Android 生产代码、Room、网络、配置、测试或资源。
 
 ---
