@@ -1,162 +1,222 @@
-# AI 智囊圆桌 (AI-Skill-Roundtable)
+# 见域（AI-Skill-Roundtable）
 
-> 多角色轮询式 AI 聊天 Android 应用 — 用 20 位思想巨匠的视角，对你的问题展开一场真实的脑暴圆桌。
+> 看见更多观点，打开认知边界。
 
----
-
-## 项目简介
-
-**AI 智囊圆桌**是一款原生 Android 聊天 App。用户提交一个问题，20 个 AI 技能角色（Skills）就像圆桌上的与会者一样参与讨论。当前版本已经具备多角色回答、上下文拼装、联网搜索与语音输出能力；严格顺序圆桌、上下文一致性与 Key 编排将在 PR 02 中进一步收口。
-
-### 🎨 全员统一莫兰迪 AI 肖像 (v2.1)
-项目已剔除 Emoji 头像，全员 20 位智囊已全部升级为统一美学的 **“低饱和度莫兰迪极简插画风” AI 高画质肖像**，具备 Editorial 杂志级的高级感。
-
-### 📋 20 位智囊清单
-
-| 角色 | 核心标签 / 决策 DNA | 分配音色 (音色特点) | 技能 (Skill) 物理源文件 |
-|------|--------------------|-------------------|-----------------------|
-| 埃隆·马斯克 | 第一性原理 · 五步工作法 · 白痴指数 | **Fenrir** (Excitable 亢奋极客) | `elon-musk-skill-main/SKILL.md` |
-| 理查德·费曼 | 反术语 · 货物崇拜 · 六年级测试 | **Sadaltager** (Knowledgeable 博学大师) | `feynman-skill-main/SKILL.md` |
-| 查理·芒格 | 多元思维模型 · 逆向思考 · 太难筐 | **Gacrux** (Mature 沉稳长者) | `munger-skill-main/SKILL.md` |
-| 纳瓦尔 | 特定知识 · 无需许可的杠杆 · 无限游戏 | **Charon** (Informative 冷静思考者) | `naval-skill-main/SKILL.md` |
-| 史蒂夫·乔布斯 | 极简 · 端到端控制 · 死亡过滤器 | **Kore** (Firm 坚定而极具煽动性) | `steve-jobs-skill-main/SKILL.md` |
-| 纳西姆·塔勒布 | 反脆弱 · 切肤之痛 · 杠铃策略 | **Algenib** (Gravelly 粗粝反叛) | `taleb-skill-main/SKILL.md` |
-| 张雪峰 | 就业倒推 · 家庭背景分流 · 社会筛子论 | **Orus** (Firm 洪亮坚定且极接地气) | `zhangxuefeng-skill-main/SKILL.md` |
-| 安德烈·卡帕斯 | 深度学习 · 代码即算法 · 神经网络本质 | **Achird** (Friendly 亲切而有条理) | `karpathy-skill/SKILL.md` |
-| 张一鸣 | 延迟满足感 · 空间复杂度与认知 · 务实 | **Schedar** (Even 极度克制与平静) | `zhang-yiming-skill/SKILL.md` |
-| 保罗·格雷厄姆 | 创投教父 · 做出人们需要的东西 · 独立思考 | **Rasalgethi** (Informative 逻辑启发式) | `paul-graham-skill/SKILL.md` |
-| 伊利亚·苏茨克维尔 | 技术先知 · 人工智能安全 · 无限逼近真理 | **Achernar** (Soft 深邃而谦逊温和) | `ilya-sutskever-skill/SKILL.md` |
-| 唐纳德·特朗普 | 交易的艺术 · 强对抗节奏 · 赢家通吃 | **Pulcherrima** (Forward 直白且极富攻击性) | `trump-skill/SKILL.md` |
-| 吉米·唐纳森 (MrBeast) | 注意力引擎 · 极限测试 · 极致流量曝光 | **Sadachbia** (Lively 活泼充满戏剧张力) | `mrbeast-skill/SKILL.md` |
-| 孙宇晨 | Web3 杠杆 · 顶级营销术 · 认知套利 | **Laomedeia** (Upbeat 亢奋高昂的营销风) | `sun-yuchen-perspective/SKILL.md` |
-| 西格蒙德·弗洛伊德 | 精神分析学 · 冰山模型 · 潜意识映射 | **Vindemiatrix** (Gentle 温和细致的心理流) | `freud-skill/SKILL.md` |
-| X 增长导师 | 海外流量选题 · 社交媒体算法 · 快速增长密钥 | **Zubenelgenubi** (Casual 随性自如的播主风) | `x-mentor-skill/SKILL.md` |
-| 峰哥亡命天涯 | 纪实旅行自媒体 · 平民视角 · 黑色幽默冷眼旁白 | **Umbriel** (Easy-going 慵懒随性的冷幽默) | `fengge-skill/SKILL.md` |
-| 赵长鹏 (CZ) | 去中心化精神 · 极高系统效率 · 实用加密精神 | **Algieba** (Smooth 自信圆融的极客腔) | `cz-skill/SKILL.md` |
-| 段永平 | 平常心投资法 · 本分价值观 · 避开不对的事 | **Sulafat** (Warm 温暖朴实的本分大叔) | `duan-yongping-skill/SKILL.md` |
-| 蒂姆·库克 | 极致供应链管理 · 平稳过渡艺术 · 商业操盘手 | **Despina** (Smooth 温润平稳的中庸管理腔) | `tim-cook-skill/SKILL.md` |
+见域是一款面向个人的多智能体思考与行动工作台。用户围绕持续议题，调用不同专业视角与工作流能力，通过自由追问和分阶段推进，沉淀判断、行动方案与知识成果。
 
 ---
 
-## 当前状态
+## 产品定位
 
-| 功能模块 | 交付状态 | 核心实现细节 |
-|------|------|-------------|
-| **多智囊脑暴调度** | 🚧 重构中 | 当前版本可运行；严格顺序圆桌、上下文一致性与 Key Lease 将在 PR 02 中收口 |
-| **用户 BYOK Key 池与熔断保护** | ✅ 完成 | 支持在客户端批量导入最多 50 个用户自有 Key，可逐个启用或禁用；受限 Key 会被临时熔断，密钥由 Android Keystore 加密存储 |
-| **流式 PCM 音频与 TTS 极速秒播** | ✅ 完成 | Live WebSocket 直接下发 PCM 帧追加 44 字节 WAV 头秒播，后台 ADTS MediaCodec 转码 AAC 压缩 |
-| **音频大厅与库管理面板** | ✅ 完成 | 离线音频批量查看、在线播控、一键全量清理与体积压缩监测 |
-| **智囊大厅预置/自定义分组** | ✅ 完成 | Room v4 注入四大官方预设组，右上角星标一键将激活角色另存为自定义分组 |
-| **画册风 ModalBottomSheet 画像详情** | ✅ 完成 | 点击大厅卡片拉出抽屉，流式读取 SKILL.md 大纲并基于 MarkdownRender 极简渲染其决策 DNA |
-| **莫兰迪极简 AI 高画质肖像** | ✅ 完成 | 全员 20 人头像全 JPG 化物理入库，Assets 本地零依赖安全流式加载，支持 Monogram 汉字降级 |
+见域提供两类可以在同一议题中自然切换的价值：
+
+- **现实支持**：处理生活、学习和工作中的具体事情，例如任务拆解、规划、沟通、研究、写作、决策和成果交付；
+- **思维拓展**：引入不同人物、领域、立场、反方意见和思维模型，帮助用户重新理解问题、发现盲区并拓展认知边界。
+
+产品支持两种并列使用模式：
+
+- **单 Skill**：用于明确问题、垂直任务或持续咨询；
+- **多 Skill**：用于复杂议题、重大决策、长期成长和跨领域协作。
+
+“圆桌”是多 Skill 的主要协作形式，但不等于整个产品。人物视角只是 Skill 的一种类型；专业顾问、任务助手和工作流能力与其并列。
+
+### 核心产品关系
+
+```text
+问题是入口
+→ Skill 是能力载体
+→ 单 Skill / 多 Skill 是使用模式
+→ 议题持续承载背景与上下文
+→ 自由追问 / 阶段推进 / 专业工作流
+→ 判断 / 行动方案 / 知识成果
+```
+
+---
+
+## 当前实现与目标产品的关系
+
+当前 Android 生产代码仍建立在原“AI 智囊圆桌”多角色应用基线上，已经具备多角色回答、Room 本地会话、Gemini 接入、联网搜索、Markdown、BYOK Key 池、遥测和音频管理等能力。
+
+仓库正在进行“见域”产品迁移前的规格收敛：
+
+```text
+PR01～PR07：现有 Android 工程、业务与 UI 基线
+→ PR08：产品定义、信息架构、交互、Skill、品牌视觉与技术迁移规格
+→ PR08-F：整合并冻结最终规格
+→ PR09：依据冻结规格修改生产代码
+```
+
+重要边界：
+
+- **PR08 只做文档、研究、设计和迁移评估，不修改 Android 生产代码。**
+- **PR09 才实施导航、页面、Room、资源、配置和兼容迁移。**
+- 当前 README 使用“见域”描述目标产品；旧代码、包名和部分界面仍可能保留“AI 智囊圆桌”名称，这是待 PR09 处理的兼容基线，不代表产品定位仍以 20 位名人为中心。
+
+---
+
+## 当前 Android 基线能力
+
+| 能力 | 当前说明 |
+|---|---|
+| 多角色回答与圆桌协作 | 当前代码支持多个内置 Skill 参与回答，后续将按见域规格扩展为单／多 Skill 与持续议题模型 |
+| 用户 BYOK Key 池 | 支持在客户端导入和管理用户自己的 Gemini API Key，密钥使用 Android Keystore 保护 |
+| 联网搜索与 Markdown | 支持联网信息获取与 Markdown 内容展示 |
+| 本地会话 | 使用 Room 保存当前会话、消息和相关状态 |
+| 音频与 TTS | 保留现有音频生成、播放和管理能力，未来在信息架构中的位置待 PR08 规格确认 |
+| Skill 资产 | 当前包含 20 个以人物视角为主的内置 Skill；第一版见域仍只提供官方内置 Skill，但不再把人物型 Skill 作为唯一中心 |
+| Compose UI 基线 | PR07 已建立 Route / Screen / Component / UiState 等结构和回归门禁，目标视觉与产品交互将在 PR08 设计、PR09 实现 |
+
+---
+
+## 当前内置人物型 Skills
+
+以下目录描述的是**当前 Android 基线中已有的 20 个内置人物型 Skill**，不是见域未来全部 Skill 类型，也不代表相关真实人物本人参与、认可或提供意见。
+
+| 角色 | 核心标签 / 决策 DNA | 分配音色 | Skill 源文件 |
+|---|---|---|---|
+| 埃隆·马斯克 | 第一性原理 · 五步工作法 · 白痴指数 | **Fenrir** | `elon-musk-skill-main/SKILL.md` |
+| 理查德·费曼 | 反术语 · 货物崇拜 · 六年级测试 | **Sadaltager** | `feynman-skill-main/SKILL.md` |
+| 查理·芒格 | 多元思维模型 · 逆向思考 · 太难筐 | **Gacrux** | `munger-skill-main/SKILL.md` |
+| 纳瓦尔 | 特定知识 · 无需许可的杠杆 · 无限游戏 | **Charon** | `naval-skill-main/SKILL.md` |
+| 史蒂夫·乔布斯 | 极简 · 端到端控制 · 死亡过滤器 | **Kore** | `steve-jobs-skill-main/SKILL.md` |
+| 纳西姆·塔勒布 | 反脆弱 · 切肤之痛 · 杠铃策略 | **Algenib** | `taleb-skill-main/SKILL.md` |
+| 张雪峰 | 就业倒推 · 家庭背景分流 · 社会筛子论 | **Orus** | `zhangxuefeng-skill-main/SKILL.md` |
+| 安德烈·卡帕斯 | 深度学习 · 代码即算法 · 神经网络本质 | **Achird** | `karpathy-skill/SKILL.md` |
+| 张一鸣 | 延迟满足感 · 空间复杂度与认知 · 务实 | **Schedar** | `zhang-yiming-skill/SKILL.md` |
+| 保罗·格雷厄姆 | 创投 · 做出人们需要的东西 · 独立思考 | **Rasalgethi** | `paul-graham-skill/SKILL.md` |
+| 伊利亚·苏茨克维尔 | 人工智能安全 · 技术趋势 · 探索真理 | **Achernar** | `ilya-sutskever-skill/SKILL.md` |
+| 唐纳德·特朗普 | 交易 · 对抗节奏 · 赢家思维 | **Pulcherrima** | `trump-skill/SKILL.md` |
+| 吉米·唐纳森（MrBeast） | 注意力 · 极限测试 · 内容增长 | **Sadachbia** | `mrbeast-skill/SKILL.md` |
+| 孙宇晨 | Web3 · 营销 · 认知套利 | **Laomedeia** | `sun-yuchen-perspective/SKILL.md` |
+| 西格蒙德·弗洛伊德 | 精神分析 · 冰山模型 · 潜意识 | **Vindemiatrix** | `freud-skill/SKILL.md` |
+| X 增长导师 | 海外内容 · 社交平台 · 增长 | **Zubenelgenubi** | `x-mentor-skill/SKILL.md` |
+| 峰哥亡命天涯 | 纪实旅行 · 平民视角 · 黑色幽默 | **Umbriel** | `fengge-skill/SKILL.md` |
+| 赵长鹏（CZ） | 去中心化 · 系统效率 · 加密行业 | **Algieba** | `cz-skill/SKILL.md` |
+| 段永平 | 平常心 · 本分 · 价值判断 | **Sulafat** | `duan-yongping-skill/SKILL.md` |
+| 蒂姆·库克 | 供应链 · 平稳管理 · 商业运营 | **Despina** | `tim-cook-skill/SKILL.md` |
+
+> 人物型 Skill 是 AI 根据公开材料构建的模拟视角，不代表真实人物本人观点。医疗、法律、金融等高风险事项不得仅依赖人物模拟或 AI 建议作出决定。
+
+---
+
+## PR08 当前文档入口
+
+PR08 处于“规格冻结前”的产品收敛阶段，相关 Draft PR 采用堆叠方式维护：
+
+- PR #20：见域产品定义与体验设计总规划；
+- PR #21：议题阶段推进结构；
+- PR #22：产品规格收敛审阅稿。
+
+关键文档：
+
+- [PR08 产品定义工作笔记](docs/planning/pr-08-product-definition-working-notes.md)
+- [PR08 总计划](docs/planning/pr-08-jianyu-product-redesign-plan.md)
+- [PR08 任务清单](docs/planning/pr-08-jianyu-product-redesign-tasks.md)
+- [PR08 多对话交接](docs/planning/pr-08-jianyu-parallel-handoff.md)
+- [议题推进结构](docs/planning/pr-08-jianyu-issue-advancement-planning.md)
+- [产品规格收敛审阅稿](docs/planning/pr-08-jianyu-product-spec-review-draft.md)
+
+在这些文档完成审核和规格冻结前，不启动 PR09 生产实现。
 
 ---
 
 ## 环境要求
 
 | 工具 | 要求 |
-|------|------|
-| OS | Windows 10 x64（或支持 Android 构建的系统） |
+|---|---|
+| OS | Windows 10 x64，或其他支持 Android 构建的系统 |
 | Shell | PowerShell 7（`pwsh.exe`） |
-| JDK | JDK 17（配置为 `JAVA_HOME` 环境变量） |
-| Android SDK | Android SDK Platform 35 及 Build Tools |
-| Gradle | 8.14（默认使用自带 Gradle Wrapper 自动在线下载） |
-| API Key | Google Gemini API Key（在 Android 客户端运行时手动导入，`.env` 仅供本地辅助脚本使用） |
+| JDK | JDK 17 |
+| Android SDK | Android SDK Platform 35 及对应 Build Tools |
+| Gradle | 仓库自带 Wrapper 8.14 `-bin` |
+| API Key | 用户在 Android 客户端运行时手动导入的 Google Gemini API Key |
 
 ---
 
 ## 安装与启动
 
-### 1. 编译并部署 App
+### 一键部署与日志追踪
 
-确保您的测试设备（真机或模拟器）已通过 USB 连接并开启了 USB 调试。
+项目内置 `run.ps1`，用于检测 JDK 和 adb 环境、构建、安装并启动应用：
 
-**便捷方式（一键部署与日志追踪）：**
-项目内置了一键运行脚本 `run.ps1`，它会自动检测您的 JDK 17 和 adb 环境，编译并启动 App。在根目录下执行：
 ```powershell
 .\run.ps1
 ```
-*提示：该脚本启动后会流式输出 App 日志，终端中按 `Ctrl + C` 可随时安全退出。*
 
-**手动方式：**
-1. 配置 JDK 17 环境（替换为您实际的 JDK 17 路径）：
-   ```powershell
-   $env:JAVA_HOME = "C:\path\to\jdk-17"
-   $env:Path = "$env:JAVA_HOME\bin;" + $env:Path
-   ```
-2. 编译 Debug APK：
-   ```powershell
-   .\gradlew.bat assembleDebug
-   ```
-   生成的 APK 路径：`app\build\outputs\apk\debug\app-debug.apk`
-3. 安装到设备：
-   ```powershell
-   .\gradlew.bat installDebug
-   ```
+终端中按 `Ctrl + C` 可退出日志追踪。
 
-### 2. 运行时导入 Gemini API 密钥 (BYOK)
+### 手动构建与安装
 
-应用采用安全的客户端密钥管理中心：
-1. 启动应用后，点击首页顶部的“密钥设置”（齿轮图标）进入 **API Key 管理中心**。
-2. 输入您的 Google Gemini API Key（支持单个或批量以逗号、换行分隔导入）。
-3. 密钥将由 Android Keystore（AES-256-GCM）安全地加密保存在本地（排除在系统备份之外），界面仅回显掩码。
-4. 验证成功后，即可开始圆桌提问。
+```powershell
+$env:JAVA_HOME = "C:\path\to\jdk-17"
+$env:Path = "$env:JAVA_HOME\bin;" + $env:Path
 
-*注意：`.env` 文件仅供手动运行的本地 Python/PowerShell 辅助脚本使用，Android App 在编译和运行时都不会读取 `.env`。*
+.\gradlew.bat assembleDebug
+.\gradlew.bat installDebug
+```
+
+Debug APK 默认生成于：
+
+```text
+app\build\outputs\apk\debug\app-debug.apk
+```
+
+### 运行时导入 Gemini API Key
+
+1. 启动应用并进入 API Key 管理入口；
+2. 输入一个或多个用户自有 Gemini API Key；
+3. Key 由 Android Keystore 加密后保存在应用私有目录；
+4. 界面只显示掩码，不应在日志、源码或文档中回显完整 Key。
+
+`.env` 只供开发者手动运行本地辅助脚本，Android App 编译和运行时均不读取根目录 `.env`。
 
 ---
 
 ## 构建、测试与调试
 
 ```powershell
-# 清理旧产物
+# 清理
 .\gradlew.bat clean
 
-# 仅检查编译是否通过（不生成 APK）
+# 编译
 .\gradlew.bat compileDebugKotlin
 
-# 运行单元测试
-.\gradlew.bat test
+# 单元测试
+.\gradlew.bat testDebugUnitTest
 
-# 查看 Gradle 任务列表
+# Lint
+.\gradlew.bat lintDebug
+
+# 构建 Debug APK
+.\gradlew.bat assembleDebug
+
+# 查看任务
 .\gradlew.bat tasks
 ```
 
----
-
-## 📂 同名目录（Tools / Test）职能区分说明
-
-为了保持项目工程目录的整洁，本应用在“根目录”与 `workspace/` 子目录下分别放置了同名但**职能完全独立**的工具和测试文件夹：
-
-| 维度 | 根目录 `/tools/` 与 `/test/` | 工程子目录 `/workspace/tools/` 与 `/workspace/tests/` |
-| :--- | :--- | :--- |
-| **核心关注** | **运行时交互与自动化 (Runtime E2E)** | **构建期预编译与资产抽取 (Build-phase Compile)** |
-| **主要职责** | 控制在线设备或模拟器执行截图调试、模拟触控、XML 树语义匹配、OpenCV 图像匹配定位等。 | 抽取名人 SKILL.md 思维模型、提取向量写入 Seeding 预设 JSON、生成莫兰迪插画 JPG 头像资产等。 |
-| **主要消费方** | 本地调试运行的 AI 代理（如 Antigravity）与运行期集成校验。 | Gradle 构建自动化脚本与打包静态 assets 资源。 |
-| **参考文档** | [tools/README.md](tools/README.md) \| [test/README.md](test/README.md) | [workspace/tools/README.md](workspace/tools/README.md) |
+具体执行范围以 [AGENTS.md](AGENTS.md) 和当前任务文档为准。纯文档 PR 不需要为了形式运行 Android 构建，但必须如实记录未执行项。
 
 ---
 
 ## 目录说明
 
-```
+```text
 AI-Skill-Roundtable/
 ├── app/                     # Android 应用模块
 │   └── src/main/
 │       ├── java/            # Kotlin 源代码
-│       └── assets/skills/   # 20 个参会角色的原始 SKILL.md（Seeding 数据源）
-├── docs/                    # 项目设计与架构文档
-│   ├── skills/              # GitHub 原始 Skills 数据参考
-│   ├── architecture/        # 系统架构、数据流与 UI 空间感定位指南
+│       └── assets/skills/   # 当前内置 Skill 资产
+├── docs/
+│   ├── product/             # 见域产品模型、术语与正式 PRD
+│   ├── design/              # UX、品牌、视觉与页面规格
+│   ├── skills/              # Skill 分类、研究与扩展说明
+│   ├── architecture/        # 系统架构、稳定接口和迁移评估
 │   ├── decisions/           # ADR 技术决策记录
-│   ├── protocols/           # Gemini API（含 WS Live、音频转码、熔断遥测）协议规范
-│   └── planning/            # 任务执行计划与交付报告
-├── tools/                   # 运行时 ADB 控制与 OpenCV 图像匹配工具
-├── test/                    # 自动化交互工具链连通性测试
-├── workspace/               # 工程预编译辅助区
-│   ├── tools/               # 元数据 Embedding 抽取、头像生成等本地辅助工具
-│   └── tests/               # 数据库 Migration 等特定算法测试
-├── .env                     # 本地辅助脚本密钥（不提交）
+│   ├── protocols/           # Gemini 等协议说明
+│   └── planning/            # 计划、任务、交接与交付报告
+├── tools/                   # 运行时 ADB 和辅助工具
+├── test/                    # 自动化交互工具链测试
+├── workspace/               # 构建期辅助区
 ├── .env.example             # 本地辅助脚本密钥模板
 ├── AGENTS.md                # AI 代理工作规范
 └── README.md                # 本文件
@@ -167,19 +227,18 @@ AI-Skill-Roundtable/
 ## 常用命令速查
 
 ```powershell
-# 一键编译安装、拉起应用并实时输出日志
+# 一键编译安装、启动并输出日志
 .\run.ps1
 
-# 仅构建，不检测 adb 或设备
+# 仅构建，不安装或跟踪日志
 .\run.ps1 -SkipInstall -NoLogcat
 
 # 环境初始化
-$env:JAVA_HOME = "C:\path\to\jdk-17"; $env:Path = "$env:JAVA_HOME\bin;" + $env:Path
+$env:JAVA_HOME = "C:\path\to\jdk-17"
+$env:Path = "$env:JAVA_HOME\bin;" + $env:Path
 
-# 编译
+# 编译与安装
 .\gradlew.bat assembleDebug
-
-# 安装
 .\gradlew.bat installDebug
 
 # 清理
@@ -188,20 +247,23 @@ $env:JAVA_HOME = "C:\path\to\jdk-17"; $env:Path = "$env:JAVA_HOME\bin;" + $env:P
 
 ---
 
-## 文档入口
+## 其他文档入口
 
-- [AI 代理规范](AGENTS.md) — AI 工作规范、命名规约、技术决策
-- [安卓编译指南](docs/environment/android-compilation-guide.md) — JDK 17 编译与可选离线方案
-- [API 协议说明](docs/protocols/gemini-api.md) — Gemini REST API 使用说明
-- [架构文档](docs/architecture/) — 模块边界与数据流说明
-- [历史 Bug 记录](docs/bugs/) — 已知问题与解决方案
-- [五阶段重构总控计划](docs/planning/pr-execution-master-plan.md) — PR 01～PR 05 的执行顺序与验收要求
+- [AI 代理规范](AGENTS.md)
+- [Android 编译指南](docs/environment/android-compilation-guide.md)
+- [Gemini API 协议](docs/protocols/gemini-api.md)
+- [系统架构](docs/architecture/system-architecture.md)
+- [PR07 UI 回归清单](docs/testing/pr-07-ui-regression-checklist.md)
+- [历史 Bug 记录](docs/bugs/)
+- [早期重构总控计划](docs/planning/pr-execution-master-plan.md)
 
 ---
 
-## 已知限制与待解决问题
+## 当前限制与待完成事项
 
-1. **圆桌调度与 Key 编排**：当前实现仍存在并发上下文和实际 Key 使用一致性问题，计划在 PR 02 中重构。
-2. **隐私与遥测**：默认正文日志、持久化范围和云端会话存储策略将在 PR 03 中收口。
-3. **Release 与 CI**：正式签名、包名、R8、Room Migration 与完整 CI 门禁将在 PR 04 中完成。
-4. **开源治理**：README、AGENTS、第三方 Skill/头像来源及免责声明将在 PR 05 中完成最终统一。
+1. 当前生产 UI 和数据模型仍是旧版多角色应用结构，尚未完成见域迁移；
+2. 议题、阶段推进、成果、个人背景、本地加密备份和恢复快照仍处于规格阶段；
+3. 第一版见域只计划提供官方内置 Skill，不包含用户自定义、导入或公开市场；
+4. “见域”的商标、应用商店名称、域名和重名情况尚未完成正式核验；
+5. PR08-A～E、PR08-F 和 PR09 均须按最新规划、用户授权和真实 GitHub 状态推进；
+6. 未经用户明确授权，不合并相关 Draft PR，也不提前修改生产代码。
