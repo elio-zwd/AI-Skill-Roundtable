@@ -1,8 +1,8 @@
 # PR08：见域产品规格题号索引与验收范围说明
 
-> 状态：**PR #22 伴随审阅文档，待用户审核**  
-> 对应规格：`docs/planning/pr-08-jianyu-product-spec-review-draft.md`  
-> 分支：`docs/pr-08-product-spec-convergence`  
+> 状态：**PR #22 伴随审阅文档，待用户审核**
+> 对应规格：`docs/planning/pr-08-jianyu-product-spec-review-draft.md`
+> 分支：`docs/pr-08-product-spec-convergence`
 > 本文用于解决题号追踪和验收阶段歧义，不替代规格正文，也不代表生产功能已经实现。
 
 ---
