@@ -92,7 +92,7 @@ PR01～PR07：现有 Android 工程、业务与 UI 基线
 | X 增长导师 | 海外内容 · 社交平台 · 增长 | **Zubenelgenubi** | `x-mentor-skill/SKILL.md` |
 | 峰哥亡命天涯 | 纪实旅行 · 平民视角 · 黑色幽默 | **Umbriel** | `fengge-skill/SKILL.md` |
 | 赵长鹏（CZ） | 去中心化 · 系统效率 · 加密行业 | **Algieba** | `cz-skill/SKILL.md` |
-| 段永平 | 平常心 · 本分 · 价值判断 | **Sulafat** | `duan-yiming-skill/SKILL.md` |
+| 段永平 | 平常心 · 本分 · 价值判断 | **Sulafat** | `duan-yongping-skill/SKILL.md` |
 | 蒂姆·库克 | 供应链 · 平稳管理 · 商业运营 | **Despina** | `tim-cook-skill/SKILL.md` |
 
 > 人物型 Skill 是 AI 根据公开材料构建的模拟视角，不代表真实人物本人观点。医疗、法律、金融等高风险事项不得仅依赖人物模拟或 AI 建议作出决定。
