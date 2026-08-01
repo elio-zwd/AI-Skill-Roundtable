@@ -1,0 +1,104 @@
+    /* Variant A */
+    .variant-a {
+      --variant-primary: #244e68;
+      --variant-bg: #f4f7f8;
+      --variant-card: #ffffff;
+      --variant-soft: #e8eff3;
+      --variant-ink: #17242d;
+      --variant-muted: #64727c;
+      --variant-border: #cfd8dd;
+      --variant-radius: 12px;
+      --variant-shadow: none;
+    }
+    body[data-mode="dark"] .variant-a {
+      --variant-bg: #11191f;
+      --variant-card: #18232b;
+      --variant-soft: #203541;
+      --variant-ink: #f1f5f7;
+      --variant-muted: #aebbc4;
+      --variant-border: #384954;
+    }
+    .variant-a .topic-card { border-left: 4px solid var(--variant-primary); }
+    .variant-a .hero-input { border-radius: 14px; }
+    .variant-a .route-strip, .variant-a .topic-card, .variant-a .message-card { box-shadow: none; }
+
+    /* Variant B */
+    .variant-b {
+      --variant-primary: #24577a;
+      --variant-bg: #f5f7f8;
+      --variant-card: #ffffff;
+      --variant-soft: #e7f0f5;
+      --variant-ink: #17212b;
+      --variant-muted: #586a77;
+      --variant-border: #c8d3da;
+      --variant-radius: 17px;
+      --variant-shadow: 0 9px 25px rgba(29,67,88,.08);
+    }
+    body[data-mode="dark"] .variant-b {
+      --variant-bg: #10171d;
+      --variant-card: #172129;
+      --variant-soft: #173746;
+      --variant-ink: #f2f6f8;
+      --variant-muted: #b6c1ca;
+      --variant-border: #354652;
+    }
+    .variant-b .topic-card { position: relative; overflow: hidden; }
+    .variant-b .topic-card::after { content:""; position:absolute; width:90px; height:90px; right:-45px; top:-45px; border:1px solid color-mix(in srgb, var(--variant-primary) 30%, transparent); border-radius:50%; }
+
+    /* Variant C */
+    .variant-c {
+      --variant-primary: #4255a8;
+      --variant-bg: #eef0f8;
+      --variant-card: rgba(255,255,255,.86);
+      --variant-soft: #e2e5f6;
+      --variant-ink: #191d36;
+      --variant-muted: #626883;
+      --variant-border: #c3c9e1;
+      --variant-radius: 22px;
+      --variant-shadow: 0 14px 32px rgba(49,61,121,.11);
+    }
+    body[data-mode="dark"] .variant-c {
+      --variant-bg: #101326;
+      --variant-card: rgba(26,31,57,.92);
+      --variant-soft: #252c58;
+      --variant-ink: #f5f6ff;
+      --variant-muted: #b9bed7;
+      --variant-border: #40486e;
+    }
+    .variant-c .phone {
+      background:
+        radial-gradient(circle at 110% 10%, color-mix(in srgb, #7352a2 18%, transparent), transparent 32%),
+        radial-gradient(circle at -10% 36%, color-mix(in srgb, #167565 12%, transparent), transparent 33%),
+        var(--variant-bg);
+    }
+    .variant-c .route-strip { position: relative; overflow: hidden; }
+    .variant-c .route-strip::after { content:""; position:absolute; inset: 0; background: linear-gradient(125deg, transparent 42%, color-mix(in srgb, var(--variant-primary) 8%, transparent), transparent 64%); pointer-events:none; }
+    .variant-c .route-compact .r-line.current { background: linear-gradient(90deg, var(--variant-primary), var(--expand)); height: 3px; }
+    .variant-c .r-node.current { box-shadow: inset 0 0 0 6px var(--variant-primary), 0 0 0 6px color-mix(in srgb, var(--variant-primary) 12%, transparent); }
+    .variant-c .topic-card { backdrop-filter: blur(12px); }
+
+    .footer { border-top: 1px solid var(--border); padding: 30px 0 54px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+
+    @media (max-width: 1050px) {
+      .prototype-shell { grid-template-columns: 1fr; }
+      .brief-panel { position: static; }
+      .trait-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+    @media (max-width: 820px) {
+      .comparison { grid-template-columns: 1fr; }
+      .topbar-inner { align-items: flex-start; padding: 12px 0; }
+      .toolbar { max-width: 60%; }
+      .stage { padding: 14px; border-radius: 22px; }
+      .trait-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 520px) {
+      .wrap { width: min(100% - 18px, 1500px); }
+      .brand-sub { display: none; }
+      .toolbar { max-width: none; gap: 6px; }
+      .chip-button { font-size: 12px; padding: 8px 10px; }
+      .hero { padding-top: 34px; }
+      .stage { border-left: 0; border-right: 0; margin-left: -9px; margin-right: -9px; }
+      .phone { width: 100%; border-width: 6px; border-radius: 30px; min-height: 730px; }
+      .screen-tabs { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
+      .screen-tab { white-space: nowrap; }
+    }
