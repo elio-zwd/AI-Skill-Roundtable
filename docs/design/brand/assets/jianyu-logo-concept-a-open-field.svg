@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title desc">
+  <title id="title">见域候选 A 开域窗标志</title>
+  <desc id="desc">三组开放边界围合出中央视域的原创几何候选。</desc>
+  <path d="M14 42V24c0-5.523 4.477-10 10-10h18" fill="none" stroke="#4F46E5" stroke-width="10" stroke-linecap="round"/>
+  <path d="M54 14h18c5.523 0 10 4.477 10 10v18" fill="none" stroke="#0F766E" stroke-width="10" stroke-linecap="round"/>
+  <path d="M82 54v18c0 5.523-4.477 10-10 10H54" fill="none" stroke="#6D28D9" stroke-width="10" stroke-linecap="round"/>
+  <path d="M42 82H24c-5.523 0-10-4.477-10-10V54" fill="none" stroke="#4F46E5" stroke-width="10" stroke-linecap="round" opacity="0.72"/>
+  <rect x="37" y="37" width="22" height="22" rx="7" fill="#4F46E5" opacity="0.10"/>
+</svg>

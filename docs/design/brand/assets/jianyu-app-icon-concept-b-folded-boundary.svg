@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" role="img" aria-labelledby="title desc">
+  <title id="title">见域候选 B 域界折页 App Icon</title>
+  <desc id="desc">深色圆角背景上的双色折页与开放中心。</desc>
+  <rect width="108" height="108" rx="26" fill="#111827"/>
+  <path d="M22 30c0-4.418 3.582-8 8-8h24v64H30c-4.418 0-8-3.582-8-8V30Z" fill="#6366F1"/>
+  <path d="M54 22h24c4.418 0 8 3.582 8 8v48c0 4.418-3.582 8-8 8H54V22Z" fill="#14B8A6"/>
+  <path d="M54 22 42 36v50h12V22Z" fill="#C7D2FE" opacity="0.72"/>
+  <path d="M54 22 66 36v50H54V22Z" fill="#99F6E4" opacity="0.58"/>
+  <path d="M54 40 46 48v18l8 6 8-6V48l-8-8Z" fill="#FFFFFF"/>
+</svg>
