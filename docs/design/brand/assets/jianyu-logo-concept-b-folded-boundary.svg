@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title desc">
+  <title id="title">见域候选 B 域界折页标志</title>
+  <desc id="desc">两组折页平面形成开放边界的原创几何候选。</desc>
+  <path d="M14 22c0-4.418 3.582-8 8-8h26v62H22c-4.418 0-8-3.582-8-8V22Z" fill="#4F46E5"/>
+  <path d="M48 14h26c4.418 0 8 3.582 8 8v46c0 4.418-3.582 8-8 8H48V14Z" fill="#0F766E" opacity="0.92"/>
+  <path d="M48 14 34 30v46h14V14Z" fill="#C7D2FE" opacity="0.72"/>
+  <path d="M48 14 62 30v46H48V14Z" fill="#A7F3D0" opacity="0.55"/>
+  <path d="M48 31 40 40v20l8 7 8-7V40l-8-9Z" fill="#FFFFFF"/>
+</svg>
