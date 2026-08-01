@@ -1,151 +1,270 @@
-# 见域（AI-Skill-Roundtable）
+# 见域（目标产品）｜AI-Skill-Roundtable（当前工程）
 
 > 看见更多观点，打开认知边界。
 
-见域是一款面向个人的多智能体思考与行动工作台。用户围绕持续议题，调用不同专业视角与工作流能力，通过自由追问和分阶段推进，沉淀判断、行动方案与知识成果。
+本仓库当前包含一套可运行的 Android 多角色聊天应用基线；目标产品“见域”的产品模型、体验和迁移规格正在 PR08 阶段收敛。两者必须明确区分。
 
 ---
 
-## 产品定位
+## 1. 当前可运行 Android 基线
 
-见域提供两类可以在同一议题中自然切换的价值：
+当前工程仍使用以下技术标识：
 
-- **现实支持**：处理生活、学习和工作中的具体事情，例如任务拆解、规划、沟通、研究、写作、决策和成果交付；
-- **思维拓展**：引入不同人物、领域、立场、反方意见和思维模型，帮助用户重新理解问题、发现盲区并拓展认知边界。
+```text
+仓库：elio-zwd/AI-Skill-Roundtable
+App 名称：AI 智囊圆桌
+namespace / applicationId：com.elio.skillroundtable
+默认版本名：0.1.0
+```
 
-产品支持两种并列使用模式：
+当前已经实现的主要能力包括：
 
-- **单 Skill**：用于明确问题、垂直任务或持续咨询；
-- **多 Skill**：用于复杂议题、重大决策、长期成长和跨领域协作。
+- 原生 Android、Kotlin、Jetpack Compose 和 Material 3；
+- Room 本地会话和消息数据；
+- 多人物型 Skill 的问答与圆桌协作基线；
+- Gemini REST、Interactions 和 Live WebSocket；
+- 联网搜索、Markdown 渲染、停止、继续和失败重试；
+- 用户自行导入的 BYOK Key 池，最多 50 个；
+- Android Keystore + AES-GCM 的 Key 本地保护；
+- 流式音频、TTS 与本地音频管理；
+- 遥测设置和当前 Compose Route / Screen / UiState 架构。
 
-“圆桌”是多 Skill 的主要协作形式，但不等于整个产品。人物视角只是 Skill 的一种类型；专业顾问、任务助手和工作流能力与其并列。
+当前 Android App **尚未实现**见域目标中的持续议题、阶段时间线、资料与成果双层管理、正式“推进议题”流程、新品牌资源或新包名迁移。
 
-### 核心产品关系
+### 当前工程版本
+
+| 项目 | 当前值 |
+|---|---|
+| Kotlin | 2.0.21 |
+| UI | Jetpack Compose + Material 3 |
+| Navigation Compose | 2.8.4 |
+| Room | v5 |
+| JDK | 17 |
+| Gradle Wrapper | 8.14 |
+| Compile / Target SDK | 35 |
+| Min SDK | 26 |
+| applicationId | `com.elio.skillroundtable` |
+
+---
+
+## 2. 目标产品：见域
+
+> 见域是一款面向个人的多智能体思考与行动工作台。用户围绕持续议题，调用人物视角、专业顾问、任务助手和工作流能力，通过自由追问与分阶段推进，沉淀判断、行动方案和知识成果。
+
+目标技术标识：
+
+```text
+目标仓库名：jianyu-workbench
+目标官网：jianyu.my-elio.online
+目标 applicationId：com.elio.jianyu
+```
+
+以上标识尚未迁移，不能视为当前工程状态。
+
+### 2.1 核心产品关系
 
 ```text
 问题是入口
 → Skill 是能力载体
 → 单 Skill / 多 Skill 是使用模式
-→ 议题持续承载背景与上下文
-→ 自由追问 / 阶段推进 / 专业工作流
+→ 议题持续承载背景、资料、过程与成果
+→ 自由追问 / 推进议题 / 专业工作流
 → 判断 / 行动方案 / 知识成果
 ```
 
+### 2.2 两类核心价值
+
+正式名称为：
+
+- **现实支持**：处理生活、学习和工作中的具体事情，形成计划、沟通、研究、决策或可交付成果；
+- **思维拓展**：引入不同人物、领域、立场、反方意见和思维模型，发现盲区并拓展认知边界。
+
+两类价值：
+
+- 可以跳过；
+- 可以单独选择或组合；
+- 可以在同一议题中反复切换；
+- 不是永久标签；
+- 不自动把同一议题拆成两条主线。
+
+“生活与工作”“思维与视角”“现实行动”不是正式分类名称。
+
+### 2.3 单 Skill 与多 Skill
+
+- 单 Skill 与多 Skill 并列；
+- 单 Skill 可邀请其他 Skill，升级为多 Skill；
+- 多 Skill 中点名某个 Skill 只产生临时定向回答；
+- 临时定向回答不自动退出多 Skill；
+- Skill 增删不删除历史回答和成果；
+- 系统可以推荐 Skill，但必须由用户确认。
+
+V1 只提供官方内置 Skill，不支持用户创建、导入第三方 Skill 或公开市场。原有人物型 Skill 保留，并纳入研究目录全部 25 个条目；去重后官方候选约 44 个，最终清单由 PR08-C 核验来源、许可、安全和移动端可行性。
+
+### 2.4 议题、阶段与自由追问
+
+- **议题**是持续容器；
+- **阶段**是同一议题中的明确推进节点；
+- **自由追问**继续当前阶段；
+- 一个议题保持单一主线；
+- 新阶段不会覆盖旧阶段；
+- 需要独立主线时由用户显式创建或关联新议题。
+
+### 2.5 推进议题
+
+正式入口名称为 **推进议题**。
+
+- 入口始终可用；
+- 阶段成熟时可以增强提示；
+- 不强迫用户先完成当前阶段；
+- 不等于让全部 Skill 重复回答；
+- “下一轮”只作为历史术语。
+
+三步确认：
+
+1. 选择推进方向；
+2. 选择具体措施或自定义目标；
+3. 确认下一阶段摘要。
+
+只有最终确认后才创建新阶段。
+
+**思维拓展**措施：
+
+- 引入反方意见；
+- 查找遗漏视角；
+- 检查关键假设；
+- 比较不同立场；
+- 深入某个问题；
+- 自定义目标。
+
+**现实支持**措施：
+
+- 明确下一步；
+- 形成执行计划；
+- 分析执行阻碍；
+- 生成成果交付；
+- 设置检查节点；
+- 自定义目标。
+
+新阶段默认继承议题背景、已确认资料、已保存成果、当前 Skill 阵容、判断、分歧和行动项；用户可以调整目标、Skill、资料和输出形式。
+
+### 2.6 资料、成果与圆桌结果
+
+资料与成果采用：
+
+- 议题内管理；
+- 全局资料库和成果库汇总；
+- 保留来源、所属议题和阶段关系；
+- 音频作为成果的一种输出形式。
+
+圆桌不投票裁决真理。结果应包含：
+
+- 共识；
+- 分歧；
+- 适用条件；
+- 明确建议；
+- 下一步。
+
+系统可以提供推荐与理由，用户保留最终决定权。
+
 ---
 
-## 当前实现与目标产品的关系
+## 3. 本地数据与安全目标
 
-当前 Android 生产代码仍建立在原“AI 智囊圆桌”多角色应用基线上，已经具备多角色回答、Room 本地会话、Gemini 接入、联网搜索、Markdown、BYOK Key 池、遥测和音频管理等能力。
+见域 V1 的目标行为：
 
-仓库正在进行“见域”产品迁移前的规格收敛：
+- 本地保存，不做账号和自动云同步；
+- 支持手动加密导入导出；
+- 本地库由设备安全密钥保护；
+- 应用锁可选，支持生物识别或应用 PIN；
+- 非空数据库导入先预览差异；
+- 相同数据自动去重，冲突数据由用户选择；
+- 替换当前库前创建并验证恢复快照；
+- 导入先隔离校验，正式写入采用原子操作；
+- 失败不得修改当前库，并展示失败阶段和可读错误；
+- 快照加密、创建后验证、恢复前再次验证；
+- 快照保留到用户主动删除；
+- 容量不足只提醒，不自动清理；
+- 回退前创建“回退前快照”；
+- 支持手动快照和备注；
+- 加密导出默认不包含设备绑定恢复快照。
+
+这些是**目标产品行为和数据安全目标**，尚未在当前 Android App 中实现；具体 Room Schema、算法、文件格式、容量阈值和事务实现由 PR08-E 评估、PR08-F 冻结、PR09 实施。
+
+当前 App 尚未正式发布，因此不迁移旧包 `com.elio.skillroundtable` 的 Room、Keystore、偏好设置、私有文件或本地会话。
+
+---
+
+## 4. PR08 / PR09 顺序
 
 ```text
-PR01～PR07：现有 Android 工程、业务与 UI 基线
-→ PR08：产品定义、信息架构、交互、Skill、品牌视觉与技术迁移规格
-→ PR08-F：整合并冻结最终规格
-→ PR09：依据冻结规格修改生产代码
+PR #20：已合并
+→ PR #21：已合并
+→ PR #22：规格收敛与验收边界
+→ PR08-A～E 从统一最新 main 并行启动
+→ PR08-F 串行整合
+→ 用户明确批准
+→ PR09 实施生产代码
 ```
 
-重要边界：
-
-- **PR08 只做文档、研究、设计和迁移评估，不修改 Android 生产代码。**
-- **PR09 才实施导航、页面、Room、资源、配置和兼容迁移。**
-- 当前 README 使用“见域”描述目标产品；旧代码、包名和部分界面仍可能保留“AI 智囊圆桌”名称，这是待 PR09 处理的兼容基线，不代表产品定位仍以 20 位名人为中心。
+PR08 只做研究、规格、设计和迁移评估，不修改 Android 生产代码。PR08-A～E 必须等待 PR #20、#21、#22 全部合并；PR09 必须等待 PR08-F 获得用户明确批准。
 
 ---
 
-## 当前 Android 基线能力
+## 5. 当前内置人物型 Skill
 
-| 能力 | 当前说明 |
+当前 Android 基线包含约 20 个人物型 Skill：
+
+| 人物 | 资产目录 |
 |---|---|
-| 多角色回答与圆桌协作 | 当前代码支持多个内置 Skill 参与回答，后续将按见域规格扩展为单／多 Skill 与持续议题模型 |
-| 用户 BYOK Key 池 | 支持在客户端导入和管理用户自己的 Gemini API Key，密钥使用 Android Keystore 保护 |
-| 联网搜索与 Markdown | 支持联网信息获取与 Markdown 内容展示 |
-| 本地会话 | 使用 Room 保存当前会话、消息和相关状态 |
-| 音频与 TTS | 保留现有音频生成、播放和管理能力，未来在信息架构中的位置待 PR08 规格确认 |
-| Skill 资产 | 当前包含 20 个以人物视角为主的内置 Skill；第一版见域仍只提供官方内置 Skill，但不再把人物型 Skill 作为唯一中心 |
-| Compose UI 基线 | PR07 已建立 Route / Screen / Component / UiState 等结构和回归门禁，目标视觉与产品交互将在 PR08 设计、PR09 实现 |
+| 埃隆·马斯克 | `elon-musk-skill-main/` |
+| 理查德·费曼 | `feynman-skill-main/` |
+| 查理·芒格 | `munger-skill-main/` |
+| 纳瓦尔 | `naval-skill-main/` |
+| 史蒂夫·乔布斯 | `steve-jobs-skill-main/` |
+| 纳西姆·塔勒布 | `taleb-skill-main/` |
+| 张雪峰 | `zhangxuefeng-skill-main/` |
+| 安德烈·卡帕斯 | `karpathy-skill/` |
+| 张一鸣 | `zhang-yiming-skill/` |
+| 保罗·格雷厄姆 | `paul-graham-skill/` |
+| 伊利亚·苏茨克维尔 | `ilya-sutskever-skill/` |
+| 唐纳德·特朗普 | `trump-skill/` |
+| 吉米·唐纳森（MrBeast） | `mrbeast-skill/` |
+| 孙宇晨 | `sun-yuchen-perspective/` |
+| 西格蒙德·弗洛伊德 | `freud-skill/` |
+| X 增长导师 | `x-mentor-skill/` |
+| 峰哥亡命天涯 | `fengge-skill/` |
+| 赵长鹏（CZ） | `cz-skill/` |
+| 段永平 | `duan-yongping-skill/` |
+| 蒂姆·库克 | `tim-cook-skill/` |
+
+人物模拟应清楚说明其为 AI 生成视角，不代表本人；来源、时效和适用边界由后续 Skill 规格进一步收敛。
 
 ---
 
-## 当前内置人物型 Skills
-
-以下目录描述的是**当前 Android 基线中已有的 20 个内置人物型 Skill**，不是见域未来全部 Skill 类型，也不代表相关真实人物本人参与、认可或提供意见。
-
-| 角色 | 核心标签 / 决策 DNA | 分配音色 | Skill 源文件 |
-|---|---|---|---|
-| 埃隆·马斯克 | 第一性原理 · 五步工作法 · 白痴指数 | **Fenrir** | `elon-musk-skill-main/SKILL.md` |
-| 理查德·费曼 | 反术语 · 货物崇拜 · 六年级测试 | **Sadaltager** | `feynman-skill-main/SKILL.md` |
-| 查理·芒格 | 多元思维模型 · 逆向思考 · 太难筐 | **Gacrux** | `munger-skill-main/SKILL.md` |
-| 纳瓦尔 | 特定知识 · 无需许可的杠杆 · 无限游戏 | **Charon** | `naval-skill-main/SKILL.md` |
-| 史蒂夫·乔布斯 | 极简 · 端到端控制 · 死亡过滤器 | **Kore** | `steve-jobs-skill-main/SKILL.md` |
-| 纳西姆·塔勒布 | 反脆弱 · 切肤之痛 · 杠铃策略 | **Algenib** | `taleb-skill-main/SKILL.md` |
-| 张雪峰 | 就业倒推 · 家庭背景分流 · 社会筛子论 | **Orus** | `zhangxuefeng-skill-main/SKILL.md` |
-| 安德烈·卡帕斯 | 深度学习 · 代码即算法 · 神经网络本质 | **Achird** | `karpathy-skill/SKILL.md` |
-| 张一鸣 | 延迟满足感 · 空间复杂度与认知 · 务实 | **Schedar** | `zhang-yiming-skill/SKILL.md` |
-| 保罗·格雷厄姆 | 创投 · 做出人们需要的东西 · 独立思考 | **Rasalgethi** | `paul-graham-skill/SKILL.md` |
-| 伊利亚·苏茨克维尔 | 人工智能安全 · 技术趋势 · 探索真理 | **Achernar** | `ilya-sutskever-skill/SKILL.md` |
-| 唐纳德·特朗普 | 交易 · 对抗节奏 · 赢家思维 | **Pulcherrima** | `trump-skill/SKILL.md` |
-| 吉米·唐纳森（MrBeast） | 注意力 · 极限测试 · 内容增长 | **Sadachbia** | `mrbeast-skill/SKILL.md` |
-| 孙宇晨 | Web3 · 营销 · 认知套利 | **Laomedeia** | `sun-yuchen-perspective/SKILL.md` |
-| 西格蒙德·弗洛伊德 | 精神分析 · 冰山模型 · 潜意识 | **Vindemiatrix** | `freud-skill/SKILL.md` |
-| X 增长导师 | 海外内容 · 社交平台 · 增长 | **Zubenelgenubi** | `x-mentor-skill/SKILL.md` |
-| 峰哥亡命天涯 | 纪实旅行 · 平民视角 · 黑色幽默 | **Umbriel** | `fengge-skill/SKILL.md` |
-| 赵长鹏（CZ） | 去中心化 · 系统效率 · 加密行业 | **Algieba** | `cz-skill/SKILL.md` |
-| 段永平 | 平常心 · 本分 · 价值判断 | **Sulafat** | `duan-yongping-skill/SKILL.md` |
-| 蒂姆·库克 | 供应链 · 平稳管理 · 商业运营 | **Despina** | `tim-cook-skill/SKILL.md` |
-
-> 人物型 Skill 是 AI 根据公开材料构建的模拟视角，不代表真实人物本人观点。医疗、法律、金融等高风险事项不得仅依赖人物模拟或 AI 建议作出决定。
-
----
-
-## PR08 当前文档入口
-
-PR08 处于“规格冻结前”的产品收敛阶段，相关 Draft PR 采用堆叠方式维护：
-
-- PR #20：见域产品定义与体验设计总规划；
-- PR #21：议题阶段推进结构；
-- PR #22：产品规格收敛审阅稿。
-
-关键文档：
-
-- [PR08 产品定义工作笔记](docs/planning/pr-08-product-definition-working-notes.md)
-- [PR08 总计划](docs/planning/pr-08-jianyu-product-redesign-plan.md)
-- [PR08 任务清单](docs/planning/pr-08-jianyu-product-redesign-tasks.md)
-- [PR08 多对话交接](docs/planning/pr-08-jianyu-parallel-handoff.md)
-- [议题推进结构](docs/planning/pr-08-jianyu-issue-advancement-planning.md)
-- [产品规格收敛审阅稿](docs/planning/pr-08-jianyu-product-spec-review-draft.md)
-
-在这些文档完成审核和规格冻结前，不启动 PR09 生产实现。
-
----
-
-## 环境要求
+## 6. 环境要求
 
 | 工具 | 要求 |
 |---|---|
-| OS | Windows 10 x64，或其他支持 Android 构建的系统 |
-| Shell | PowerShell 7（`pwsh.exe`） |
+| OS | Windows 10 x64 或其他支持 Android 构建的系统 |
+| Shell | PowerShell 7（推荐） |
 | JDK | JDK 17 |
-| Android SDK | Android SDK Platform 35 及对应 Build Tools |
-| Gradle | 仓库自带 Wrapper 8.14 `-bin` |
-| API Key | 用户在 Android 客户端运行时手动导入的 Google Gemini API Key |
+| Android SDK | Platform 35 与对应 Build Tools |
+| Gradle | 使用仓库 Gradle Wrapper 8.14 |
+| API Key | 用户在 Android 客户端运行时导入 Gemini API Key |
 
 ---
 
-## 安装与启动
+## 7. 安装与启动
 
-### 一键部署与日志追踪
-
-项目内置 `run.ps1`，用于检测 JDK 和 adb 环境、构建、安装并启动应用：
+### 一键运行
 
 ```powershell
 .\run.ps1
 ```
 
-终端中按 `Ctrl + C` 可退出日志追踪。
+脚本会检查 JDK 和 adb 环境，编译、安装并启动 App，同时输出日志。
 
-### 手动构建与安装
+### 手动构建
 
 ```powershell
 $env:JAVA_HOME = "C:\path\to\jdk-17"
@@ -155,115 +274,93 @@ $env:Path = "$env:JAVA_HOME\bin;" + $env:Path
 .\gradlew.bat installDebug
 ```
 
-Debug APK 默认生成于：
+Debug APK：
 
 ```text
 app\build\outputs\apk\debug\app-debug.apk
 ```
 
-### 运行时导入 Gemini API Key
+### 导入 Gemini API Key
 
-1. 启动应用并进入 API Key 管理入口；
-2. 输入一个或多个用户自有 Gemini API Key；
-3. Key 由 Android Keystore 加密后保存在应用私有目录；
-4. 界面只显示掩码，不应在日志、源码或文档中回显完整 Key。
+1. 启动 App；
+2. 打开 API Key 管理入口；
+3. 输入单个或批量 Key；
+4. Key 由 Android Keystore + AES-GCM 保护并保存到 `noBackupFilesDir`；
+5. 界面只显示掩码。
 
-`.env` 只供开发者手动运行本地辅助脚本，Android App 编译和运行时均不读取根目录 `.env`。
+Android App 编译和运行时不读取根目录 `.env`。`.env` 仅供开发者手动运行本地辅助脚本。
 
 ---
 
-## 构建、测试与调试
+## 8. 构建与测试
 
 ```powershell
-# 清理
 .\gradlew.bat clean
-
-# 编译
 .\gradlew.bat compileDebugKotlin
-
-# 单元测试
 .\gradlew.bat testDebugUnitTest
-
-# Lint
 .\gradlew.bat lintDebug
-
-# 构建 Debug APK
 .\gradlew.bat assembleDebug
-
-# 查看任务
-.\gradlew.bat tasks
 ```
 
-具体执行范围以 [AGENTS.md](AGENTS.md) 和当前任务文档为准。纯文档 PR 不需要为了形式运行 Android 构建，但必须如实记录未执行项。
+涉及 UI、设备、音频、系统返回或 Activity 重建时，还应运行相应 Instrumentation Test 或真机回归，并记录设备和 Android 版本。
 
 ---
 
-## 目录说明
+## 9. 安全说明
+
+- 仓库不包含内置生产 Key；
+- 不要提交 `.env`、Keystore、签名密码、证书或真实用户数据；
+- Android App 只管理用户自行导入的 BYOK Key；
+- Release 签名通过本地 `keystore.properties` 或完整的 `RELEASE_*` 环境变量配置；
+- 文档中的目标安全行为不代表当前实现已经通过完整安全审计；
+- 不使用“绝对安全”“零风险”或“永不丢失”等未经验证的承诺。
+
+---
+
+## 10. 目录说明
 
 ```text
 AI-Skill-Roundtable/
-├── app/                     # Android 应用模块
-│   └── src/main/
-│       ├── java/            # Kotlin 源代码
-│       └── assets/skills/   # 当前内置 Skill 资产
+├── app/                  # 当前 Android 应用
 ├── docs/
-│   ├── product/             # 见域产品模型、术语与正式 PRD
-│   ├── design/              # UX、品牌、视觉与页面规格
-│   ├── skills/              # Skill 分类、研究与扩展说明
-│   ├── architecture/        # 系统架构、稳定接口和迁移评估
-│   ├── decisions/           # ADR 技术决策记录
-│   ├── protocols/           # Gemini 等协议说明
-│   └── planning/            # 计划、任务、交接与交付报告
-├── tools/                   # 运行时 ADB 和辅助工具
-├── test/                    # 自动化交互工具链测试
-├── workspace/               # 构建期辅助区
-├── .env.example             # 本地辅助脚本密钥模板
-├── AGENTS.md                # AI 代理工作规范
-└── README.md                # 本文件
+│   ├── architecture/     # 当前架构与迁移评估
+│   ├── planning/         # PR 计划、规格、任务和交接
+│   ├── testing/          # 回归清单与验收说明
+│   ├── environment/      # 构建环境
+│   ├── protocols/        # API 与协议
+│   └── skills/           # Skill 资料与研究目录
+├── tools/                # 运行时辅助工具
+├── test/                 # 自动化交互工具链测试
+└── workspace/            # 构建期资产处理辅助区
 ```
 
----
-
-## 常用命令速查
-
-```powershell
-# 一键编译安装、启动并输出日志
-.\run.ps1
-
-# 仅构建，不安装或跟踪日志
-.\run.ps1 -SkipInstall -NoLogcat
-
-# 环境初始化
-$env:JAVA_HOME = "C:\path\to\jdk-17"
-$env:Path = "$env:JAVA_HOME\bin;" + $env:Path
-
-# 编译与安装
-.\gradlew.bat assembleDebug
-.\gradlew.bat installDebug
-
-# 清理
-.\gradlew.bat clean
-```
+PR08 计划中的新文档目录由对应 PR 创建；当前 README 不把未创建路径描述为现有工程事实。
 
 ---
 
-## 其他文档入口
+## 11. 规划文档
 
-- [AI 代理规范](AGENTS.md)
-- [Android 编译指南](docs/environment/android-compilation-guide.md)
-- [Gemini API 协议](docs/protocols/gemini-api.md)
-- [系统架构](docs/architecture/system-architecture.md)
-- [PR07 UI 回归清单](docs/testing/pr-07-ui-regression-checklist.md)
-- [历史 Bug 记录](docs/bugs/)
-- [早期重构总控计划](docs/planning/pr-execution-master-plan.md)
+- [产品定义工作笔记](docs/planning/pr-08-product-definition-working-notes.md)
+- [见域产品定义与体验设计总计划](docs/planning/pr-08-jianyu-product-redesign-plan.md)
+- [见域产品定义与体验设计任务清单](docs/planning/pr-08-jianyu-product-redesign-tasks.md)
+- [见域产品定义与体验设计多对话交接](docs/planning/pr-08-jianyu-parallel-handoff.md)
+- [推进议题契约](docs/planning/pr-08-jianyu-issue-advancement-planning.md)
+- [产品规格审阅稿](docs/planning/pr-08-jianyu-product-spec-review-draft.md)
+- [第 1～62 题决策索引](docs/planning/pr-08-jianyu-product-spec-decision-index.md)
+- [第 56～61 题补充决定](docs/planning/pr-08-jianyu-product-spec-supplement-56-61.md)
+- [第 62 题补充决定](docs/planning/pr-08-jianyu-product-spec-supplement-62.md)
 
 ---
 
-## 当前限制与待完成事项
+## 12. 当前状态说明
 
-1. 当前生产 UI 和数据模型仍是旧版多角色应用结构，尚未完成见域迁移；
-2. 议题、阶段推进、成果、个人背景、本地加密备份和恢复快照仍处于规格阶段；
-3. 第一版见域只计划提供官方内置 Skill，不包含用户自定义、导入或公开市场；
-4. “见域”的商标、应用商店名称、域名和重名情况尚未完成正式核验；
-5. PR08-A～E、PR08-F 和 PR09 均须按最新规划、用户授权和真实 GitHub 状态推进；
-6. 未经用户明确授权，不合并相关 Draft PR，也不提前修改生产代码。
+本仓库仍处于规格和设计迁移阶段。以下事项尚未实施：
+
+- App 用户可见名称迁移为“见域”；
+- repository、namespace、applicationId 和 Kotlin 包路径迁移；
+- 议题、阶段、推进议题、资料库和成果库；
+- 约 44 个官方候选 Skill 的正式接入；
+- 新品牌、Logo、页面视觉和官网；
+- 新数据模型、导入导出与恢复快照实现。
+
+这些内容由 PR08-A～F 完成规格后，再由用户批准 PR09 实施。
