@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" role="img" aria-labelledby="title desc">
+  <title id="title">见域候选 A 开域窗 App Icon</title>
+  <desc id="desc">靛蓝圆角方形背景上的开放视域图形。</desc>
+  <rect width="108" height="108" rx="26" fill="#4F46E5"/>
+  <path d="M24 49V34c0-5.523 4.477-10 10-10h15" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round"/>
+  <path d="M59 24h15c5.523 0 10 4.477 10 10v15" fill="none" stroke="#A7F3D0" stroke-width="9" stroke-linecap="round"/>
+  <path d="M84 59v15c0 5.523-4.477 10-10 10H59" fill="none" stroke="#DDD6FE" stroke-width="9" stroke-linecap="round"/>
+  <path d="M49 84H34c-5.523 0-10-4.477-10-10V59" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" opacity="0.78"/>
+  <rect x="42" y="42" width="24" height="24" rx="8" fill="#FFFFFF" opacity="0.13"/>
+</svg>
