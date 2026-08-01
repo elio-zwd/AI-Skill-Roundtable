@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="light dark" name="color-scheme"/>
+<title>见域 · 议题航线 · 航点平衡版</title>
+<link href="base.css" rel="stylesheet"/>
+<link href="components.css" rel="stylesheet"/>
+<link href="variants.css" rel="stylesheet"/>
+</head>
+<body data-mode="light">
+<header class="topbar">
+<div class="wrap topbar-inner">
+<div class="brand-lockup">
+<div aria-hidden="true" class="brand-mark">
+<svg fill="none" height="25" viewbox="0 0 32 32" width="25">
+<path d="M5 11V5h7M20 5h7v7M27 20v7h-7M12 27H5v-7" stroke="#24577A" stroke-linecap="round" stroke-width="2.4"></path>
+<path d="M9 21c5-7 8-9 14-10" stroke="#7352A2" stroke-linecap="round" stroke-width="2.4"></path>
+<circle cx="17" cy="15" fill="#167565" r="3"></circle>
+</svg>
+</div>
+<div>
+<div class="brand-title">见域 · 议题航线</div>
+<div class="brand-sub">HTML 视觉探索 · 三套内部版本</div>
+</div>
+</div>
+<div aria-label="原型选项" class="toolbar" role="group"><a class="chip-button" href="index.html">总览</a><a class="chip-button" href="variant-a.html">A 静轨</a><a aria-current="page" class="chip-button" href="variant-b.html">B 航点</a><a class="chip-button" href="variant-c.html">C 展域</a><button aria-label="切换明暗主题" class="chip-button" id="modeToggle">暗色</button></div>
+</div>
+</header>
+<main>
+<section class="prototype variant-b active" id="variant-b">
+<div class="wrap prototype-shell">
+<aside class="brief-panel">
+<div class="brief-kicker">VERSION B · RECOMMENDED</div>
+<h2>航点平衡版</h2>
+<p>让开放节点、路径和挂接关系成为品牌记忆点，但仍以问题和内容为主。</p>
+<div class="palette"><span class="swatch" style="background:#24577a"></span><span class="swatch" style="background:#e7f0f5"></span><span class="swatch" style="background:#167565"></span><span class="swatch" style="background:#7352a2"></span></div>
+<div class="trait-grid">
+<div class="trait"><b>品牌强度</b><span>中高</span></div><div class="trait"><b>航线占比</b><span>中</span></div><div class="trait"><b>信息密度</b><span>中</span></div><div class="trait"><b>落地难度</b><span>中</span></div>
+</div>
+<ul class="brief-list"><li>开放环表示当前阶段</li><li>资料、分歧和成果轻量挂接</li><li>卡片柔和但不气泡化</li><li>风险：节点数量需要严格控制</li></ul>
+</aside>
+<div class="stage">
+<div class="stage-head"><div><div class="stage-title">航点平衡版 · 页面预览</div><div class="stage-meta">推荐作为下一轮出图基线</div></div></div>
+<div class="screen-tabs" data-variant="b"><button class="screen-tab active" data-screen="b-home">首页</button><button class="screen-tab" data-screen="b-work">工作区</button><button class="screen-tab" data-screen="b-advance">推进议题</button><button class="screen-tab" data-screen="b-timeline">时间线</button><button class="screen-tab" data-screen="b-assets">资料与成果</button></div>
+<div class="phone-wrap"><div class="phone">
+<div class="statusbar"><span>9:41</span><span>● ● 87%</span></div>
+<div class="appbar"><div><div class="app-title">见域</div><div class="sub">看见更多观点，打开认知边界</div></div><button class="icon-btn">⌕</button></div>
+<div class="screen active" id="b-home">
+<div class="hero-input"><label>问题是议题的起点</label><div class="question">我应该怎样把现有项目经历，变成能被机器人公司认可的证据？</div><div class="input-actions"><div class="micro-chips"><span class="micro-chip support">现实支持</span><span class="micro-chip expand">思维拓展</span><span class="micro-chip">跳过选择</span></div><button class="send">→</button></div></div>
+<div class="section-heading"><h3>正在推进</h3><a href="#">议题列表</a></div>
+<div class="topic-card"><div class="topic-head"><div><div class="topic-title">嵌入式转岗路线与准备节奏</div><div class="topic-meta">当前：判断窗口与能力差距</div></div><span class="pill">阶段 2</span></div><div class="route-compact"><span class="r-node"></span><span class="r-line current"></span><span class="r-node current"></span><span class="r-line"></span><span class="r-node open"></span></div><div class="micro-chips"><span class="micro-chip">资料 × 6</span><span class="micro-chip">分歧 1</span><span class="micro-chip">成果 2</span></div><div class="next-row"><div>待处理<b>决定是否从 11 月开始试投</b></div><button class="primary">继续议题</button></div></div>
+<div class="section-heading"><h3>可继续的航点</h3><a href="#">查看全部</a></div>
+<div class="content-card" style="padding:14px"><div style="display:flex;gap:11px;align-items:flex-start"><div class="asset-icon">?</div><div><b style="font-size:13px">需要补充一份岗位样本</b><div class="asset-meta">当前阶段 · 资料缺口</div><p style="margin:7px 0 0;color:var(--variant-muted);font-size:11px;line-height:1.55">系统不会自动推进，补充资料后仍由你决定是否建立新阶段。</p></div></div></div>
+</div>
+<div class="screen" id="b-work">
+<div class="route-strip"><div class="caption"><span>定义方向</span><span>当前：能力差距</span><span>开放</span></div><div class="route-compact"><span class="r-node"></span><span class="r-line current"></span><span class="r-node current"></span><span class="r-line"></span><span class="r-node open"></span></div></div>
+<div class="stage-summary"><div class="label">当前阶段 · 现实支持 + 思维拓展</div><h3>判断转岗窗口与能力差距</h3><p>当前焦点：哪些能力必须在试投前形成可验证证据？</p></div>
+<div class="skill-row"><div class="skill-avatar">嵌</div><div class="skill-avatar">招</div><div class="skill-avatar">反</div><div class="skill-avatar">研</div></div>
+<div class="message"><div class="avatar">招</div><div class="message-card"><span class="who">招聘要求分析</span><span class="role">任务助手</span><p>建议先把岗位要求拆成“必须有、可培养、加分项”，再把 EK 项目的每个证据映射进去。</p><div class="evidence">资料挂接：岗位样本 12 条 · 最近核验今天</div></div></div>
+<div class="message"><div class="avatar">嵌</div><div class="message-card"><span class="who">嵌入式职业顾问</span><span class="role">专业顾问</span><p>真正需要补的是独立调试链路：如何发现异常、验证寄存器或波形、修复并回归。</p></div></div>
+<div class="difference"><b>保留分歧 · 是否立即试投</b><p>一方建议用试投收集市场反馈；另一方建议先完成一个 FreeRTOS + CAN 作品。查看双方前提 ›</p></div>
+<div class="composer"><button class="icon-btn">＋</button><div class="field">追问、点名 Skill 或添加资料…</div><button class="send">→</button></div>
+</div>
+<div class="screen" id="b-advance">
+<div class="stepper" data-stepper="b"><button class="step-tab active" data-step="b-s1">1 方向</button><button class="step-tab" data-step="b-s2">2 措施</button><button class="step-tab" data-step="b-s3">3 确认</button></div>
+<div class="step-panel active" id="b-s1"><div class="route-strip"><div class="caption"><span>当前阶段</span><span>待确认方向</span></div><div class="route-compact"><span class="r-node current"></span><span class="r-line"></span><span class="r-node open"></span><span class="r-line" style="opacity:0"></span><span></span></div></div><div class="stage-summary"><div class="label">推进议题 · 第一步</div><h3>下一阶段更需要什么？</h3><p>选择方向不会立即创建阶段。</p></div><div class="advance-card selected"><div class="row"><span class="choice"></span><div><h4>现实支持</h4><p>把现有判断转为具体行动、交付或检查节点。</p></div></div></div><div class="advance-card"><div class="row"><span class="choice"></span><div><h4>思维拓展</h4><p>继续寻找反方意见、遗漏视角和关键假设。</p></div></div></div><div class="button-row"><button class="secondary">取消</button><button class="primary">下一步</button></div></div>
+<div class="step-panel" id="b-s2"><div class="stage-summary"><div class="label">第二步</div><h3>选择措施或自定义目标</h3><p>推荐只说明理由，不显示评分。</p></div><div class="advance-card selected"><div class="row"><span class="choice"></span><div><h4>形成执行计划</h4><p>推荐理由：当前已有能力差距和目标窗口，可进入行动编排。</p><div class="micro-chips" style="margin-top:8px"><span class="micro-chip">输出：12 周计划</span><span class="micro-chip">依赖：岗位样本</span></div></div></div></div><div class="advance-card"><div class="row"><span class="choice"></span><div><h4>分析执行阻碍</h4><p>识别时间、学习路径、项目证据和岗位机会风险。</p></div></div></div><div class="button-row"><button class="secondary">上一步</button><button class="primary">下一步</button></div></div>
+<div class="step-panel" id="b-s3"><div class="route-strip"><div class="caption"><span>阶段 2</span><span>确认后创建阶段 3</span></div><div class="route-compact"><span class="r-node"></span><span class="r-line current"></span><span class="r-node current"></span><span class="r-line"></span><span class="r-node open"></span></div></div><div class="summary-grid"><div class="summary-item"><b>下一阶段目标</b><span>形成 12 周转岗执行计划</span></div><div class="summary-item"><b>重点资料</b><span>岗位样本、EK 项目技术资产</span></div><div class="summary-item"><b>计划输出</b><span>行动计划、检查节点、简历证据清单</span></div><div class="summary-item"><b>保留分歧</b><span>试投启动时间仍需在阶段中验证</span></div></div><div class="button-row"><button class="secondary">上一步</button><button class="primary">创建下一阶段</button></div></div>
+</div>
+<div class="screen" id="b-timeline">
+<div class="stage-summary"><div class="label">完整时间线</div><h3>主线只记录已确认阶段</h3><p>资料、分歧和成果作为关键标记挂接，不形成复杂树。</p></div>
+<div class="timeline"><div class="timeline-item"><div class="timeline-card"><span class="time">阶段 1 · 7 月 20 日</span><h4>定义转岗目标</h4><p>确定机器人控制器、执行器和固件岗位为第一梯队。</p><div class="marker-row"><span class="marker">判断</span><span class="marker">成果</span></div></div></div><div class="timeline-item current"><div class="timeline-card"><span class="time">阶段 2 · 当前</span><h4>判断窗口与能力差距</h4><p>对照市场要求，梳理必须补齐的基础和工程证据。</p><div class="marker-row"><span class="marker">资料 × 6</span><span class="marker">分歧 1</span><span class="marker">行动 2</span></div></div></div><div class="open-end"><span class="open-dot"></span><span>等待你确认下一阶段</span></div></div>
+</div>
+<div class="screen" id="b-assets">
+<div class="asset-switch"><button class="active">资料</button><button>成果</button></div>
+<div class="stage-summary"><div class="label">当前阶段重点</div><h3>资料不是文件夹，而是议题依据</h3><p>每项资料显示来源、引用阶段、时效和解析状态。</p></div>
+<div class="asset-card"><div class="asset-head"><div style="display:flex;gap:10px"><div class="asset-icon">职</div><div><div class="asset-title">机器人固件岗位样本</div><div class="asset-meta">网页 · 当前阶段引用 4 次</div></div></div><span class="pill">已核验</span></div><p>关联判断：FreeRTOS、CAN、调试工具是高频要求。</p></div>
+<div class="asset-card"><div class="asset-head"><div style="display:flex;gap:10px"><div class="asset-icon">项</div><div><div class="asset-title">EK 项目技术资产</div><div class="asset-meta">个人资料 · 议题内确认</div></div></div><span class="pill">重点</span></div><p>关联阶段：能力差距；关联观点：端到端联调可迁移。</p></div>
+<div class="asset-card"><div class="asset-head"><div style="display:flex;gap:10px"><div class="asset-icon">果</div><div><div class="asset-title">能力差距与补齐顺序</div><div class="asset-meta">已确认成果 · 版本 2</div></div></div><span class="pill">成果</span></div><p>成果形成后仍保留开放端，可继续进入执行阶段。</p></div>
+</div>
+<nav class="bottom-nav"><div class="nav-item active"><span class="nav-dot"></span><span>首页</span></div><div class="nav-item"><span class="nav-dot"></span><span>议题</span></div><div class="nav-item"><span class="nav-dot"></span><span>Skill</span></div><div class="nav-item"><span class="nav-dot"></span><span>资料成果</span></div></nav>
+</div></div>
+</div>
+</div>
+</section>
+</main>
+<footer class="footer"><div class="wrap"><strong>见域 PR08-D 议题航线视觉原型。</strong> 本页面不调用外部字体、图片或脚本；所有图形均由 HTML、CSS 和内联 SVG 构成。建议重点比较：首页第一焦点、工作区航线占比、时间线信息量、卡片气质、暗色模式和长期使用舒适度。</div></footer>
+<script src="app.js"></script>
+</body>
+</html>
