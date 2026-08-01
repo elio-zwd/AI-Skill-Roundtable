@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="light dark" name="color-scheme"/>
+<title>见域 · 议题航线视觉原型总览</title>
+<link href="base.css" rel="stylesheet"/>
+<link href="components.css" rel="stylesheet"/>
+<link href="variants.css" rel="stylesheet"/>
+</head>
+<body data-mode="light">
+<header class="topbar">
+<div class="wrap topbar-inner">
+<div class="brand-lockup">
+<div aria-hidden="true" class="brand-mark">
+<svg fill="none" height="25" viewbox="0 0 32 32" width="25">
+<path d="M5 11V5h7M20 5h7v7M27 20v7h-7M12 27H5v-7" stroke="#24577A" stroke-linecap="round" stroke-width="2.4"></path>
+<path d="M9 21c5-7 8-9 14-10" stroke="#7352A2" stroke-linecap="round" stroke-width="2.4"></path>
+<circle cx="17" cy="15" fill="#167565" r="3"></circle>
+</svg>
+</div>
+<div>
+<div class="brand-title">见域 · 议题航线</div>
+<div class="brand-sub">HTML 视觉探索 · 三套内部版本</div>
+</div>
+</div>
+<div aria-label="原型选项" class="toolbar" role="group"><a aria-current="page" class="chip-button" href="index.html">总览</a><a class="chip-button" href="variant-a.html">A 静轨</a><a class="chip-button" href="variant-b.html">B 航点</a><a class="chip-button" href="variant-c.html">C 展域</a><button aria-label="切换明暗主题" class="chip-button" id="modeToggle">暗色</button></div>
+</div>
+</header>
+<main>
+<section class="wrap hero" id="overview">
+<div class="eyebrow">PR08-D visual exploration</div>
+<h1>把“议题航线”<br/>从文案变成页面。</h1>
+<p class="hero-copy">三个方案共享同一产品契约，但在品牌强度、信息密度、航线占比和空间感上形成明显差异。点击任一方案，可查看首页、多 Skill 工作区、推进议题三步、阶段时间线、资料与成果五组具体页面。</p>
+<div class="notice">
+<span aria-hidden="true">⚠</span>
+<div><strong>只用于外观比较。</strong> 这里的控件、示例内容和状态不代表 Android 功能已经实现，也不锁定最终 Logo、文案、Token 或交互行为。</div>
+</div>
+</section>
+<section class="wrap comparison" id="comparison">
+<a class="comparison-card" href="variant-a.html" style="--route:#244e68">
+<div class="mini-route"><span class="node"></span><span class="line"></span><span class="node current"></span><span class="line"></span><span class="node"></span></div>
+<div class="eyebrow">A · 生产力优先</div>
+<h2>静轨工具版</h2>
+<p>航线只承担位置提示，布局克制、信息密度稳定，最像成熟高频工具。</p>
+<div class="rating"><span>舒适度最高</span><span>Android 最易落地</span><span>品牌较克制</span></div>
+</a>
+<a class="comparison-card" href="variant-b.html" style="--route:#24577a">
+<div class="mini-route"><span class="node"></span><span class="line"></span><span class="node current"></span><span class="line"></span><span class="node"></span></div>
+<div class="eyebrow">B · 推荐深化</div>
+<h2>航点平衡版</h2>
+<p>用开放节点、资料挂接和成果落点建立辨识度，同时保持手机小屏清晰。</p>
+<div class="rating"><span>品牌与工具平衡</span><span>议题推进感强</span><span>实现难度中等</span></div>
+</a>
+<a class="comparison-card" href="variant-c.html" style="--route:#5963b9">
+<div class="mini-route space"><span class="node"></span><span class="line"></span><span class="node current"></span><span class="line"></span><span class="node"></span></div>
+<div class="eyebrow">C · 空间感优先</div>
+<h2>展域空间版</h2>
+<p>关系和轨迹更有存在感，适合平板、桌面与官网，但需避免流程图化。</p>
+<div class="rating"><span>辨识度最高</span><span>多端扩展强</span><span>小屏风险最高</span></div>
+</a>
+</section>
+</main>
+<footer class="footer"><div class="wrap"><strong>见域 PR08-D 议题航线视觉原型。</strong> 本页面不调用外部字体、图片或脚本；所有图形均由 HTML、CSS 和内联 SVG 构成。建议重点比较：首页第一焦点、工作区航线占比、时间线信息量、卡片气质、暗色模式和长期使用舒适度。</div></footer>
+<script src="app.js"></script>
+</body>
+</html>
