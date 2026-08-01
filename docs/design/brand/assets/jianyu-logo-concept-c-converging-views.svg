@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title desc">
+  <title id="title">见域候选 C 多视线汇聚标志</title>
+  <desc id="desc">三条不同方向的视线接近开放中心的原创几何候选。</desc>
+  <path d="M12 26c18-12 34-12 48 0" fill="none" stroke="#4F46E5" stroke-width="9" stroke-linecap="round"/>
+  <path d="M84 30C72 18 60 16 48 26" fill="none" stroke="#0F766E" stroke-width="9" stroke-linecap="round"/>
+  <path d="M20 72c18 10 38 10 56-2" fill="none" stroke="#6D28D9" stroke-width="9" stroke-linecap="round"/>
+  <path d="M36 38 48 31l12 7v20L48 65l-12-7V38Z" fill="#FFFFFF" stroke="#4F46E5" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M42 43h12v10H42z" fill="#4F46E5" opacity="0.14"/>
+</svg>
