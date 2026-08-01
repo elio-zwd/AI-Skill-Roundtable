@@ -19,15 +19,15 @@
 = 官方候选 44
 ```
 
-用户已确认：
+用户最终确认：
 
-- 44 项全部属于 V1 最终交付目标，可以分批开发和验收；
-- 现有 20 项全部可搜索、浏览并有资格参与自动推荐；
-- 第三方来源采用“按正式实现来源逐项治理”；
+- 44 项全部属于 V1 阶段目标，允许按 V1.0、V1.1 等批次开发和验收，不要求 V1.0 首次发布时全部同时可用；
+- 现有 20 项全部可搜索、浏览，并在所有场景中正常参与自动推荐；人物争议或风险标签不得作为降低排名的依据；
+- 第三方内容在许可证明确、适用且符合产品边界时优先复用，并履行署名、Notice 和修改说明；来源不明、无许可证或无法拆分时独立原创；
 - `office-document-productivity` 保留 ID，正式中文定位为“办公文档助手”；
-- `original-expression-naturalizer` 保留 ID，本 PR 不擅自改名，其职责是形成可直接发送、提交或使用的现实沟通文案。
+- `original-expression-naturalizer` 保留 ID，本 PR 不锁定用户侧中文名称，其职责是形成可直接发送、提交或使用的现实沟通文案。
 
-“V1 目标”“当前资产”“自动推荐资格”和“已可发布”是四个不同状态。未通过来源、许可、原创性、安全、质量和能力门禁的候选不得伪装成已完成。
+“V1 阶段目标”“当前资产”“自动推荐资格”和“已可发布”是四个不同状态。未通过来源、许可、原创性、安全、质量和能力门禁的候选不得伪装成已完成。
 
 ## 2. 来源治理规则
 
@@ -36,11 +36,17 @@
 | 字段 | 定义 | 治理结论 |
 |---|---|---|
 | 需求研究来源 | 用来发现用户需求、能力方向或常见工作流的第三方项目 | 不自动构成正式实现依赖；无许可证不等于能力方向必须删除 |
-| 正式实现来源 | 实际进入见域提示词、工作流、示例、代码、脚本、模板或素材的具体来源 | 必须逐项固定完整 40 位 Commit、目标文件、许可证、Notice 与修改说明 |
-| 是否使用第三方具体表达 | 是否采用第三方正文、特殊结构、独特流程或示例 | 未授权或无许可证时必须删除并独立原创 |
+| 正式实现来源 | 实际进入见域提示词、工作流、示例、代码、脚本、模板或素材的具体来源 | 许可证明确、适用且符合产品边界时优先复用，并固定完整 40 位 Commit、目标文件、许可证、Notice 与修改说明 |
+| 是否使用第三方具体表达 | 是否采用第三方正文、特殊结构、独特流程或示例 | 来源不明、无许可证、授权范围不清或无法与无授权部分拆分时，必须删除并独立原创 |
 | 是否使用第三方代码或脚本 | 是否采用脚本、自动化、模板代码或依赖 | 必须单独核验许可证、供应链、平台能力与安全 |
 | 原创性状态 | 是否完成与全部相关上游的逐项比较 | 未完成时只能写“原创性待核验” |
-| 正式实现适用许可证 | 最终实际采用内容所受的许可证 | 不能由研究来源的许可证自动推导 |
+| 正式实现适用许可证 | 最终实际采用内容所受的许可证 | 不能由需求研究来源的许可证自动推导 |
+
+默认实施规则：
+
+1. 正式实现实际采用的第三方内容具有明确 MIT、Apache-2.0、CC0 等许可，且授权范围、商业使用、修改与分发条件适用于见域时，优先复用并履行相应义务。
+2. 来源不明、无许可证、许可证不适用、授权范围无法确认，或者具体表达与无授权部分无法拆分时，改为见域独立原创。
+3. 第三方项目只作为需求研究来源时，不自动成为实现依赖，也不自动给见域草案赋予同一许可证。
 
 研究目录 Commit `bd493672a35c77ff5c19fa3a3e2bb489bf60eb1b` 声明草案借鉴能力方向和工作流、不复制第三方正文或脚本。但当前尚未完成与全部上游内容的逐项相似性核验，因此不能写成“已经确认完全原创”。
 
@@ -63,6 +69,7 @@
 - 许可证允许，不代表人物、金融、法律、医疗、心理、隐私、商标、肖像或人格权风险已经解决。
 - 产品风险高，不等于许可证不允许。
 - 根目录许可证不自动覆盖书籍摘录、图片、二维码、音频、外部文章、视频文字稿、子模块或搬运内容。
+- 风险标签用于推荐理由、信息披露、输出边界、时效核验和专业转介，不得作为降低人物 Skill 排名的依据。
 - 发布状态采用：`阻断重构 > 原创性或许可待核验 > 补 Notice 与声明 > 可发布`。
 
 ## 3. 研究目录 25 项完整对账
@@ -115,13 +122,13 @@
 | 12 | `donald_trump` | 唐纳德·特朗普 | 人物视角 | 同上 | 同上 | 同上；政治敏感、高时效 |
 | 13 | `mr_beast` | 吉米·唐纳森（MrBeast） | 人物视角 | 同上 | 同上 | 同上；高时效 |
 | 14 | `justin_sun` | 孙宇晨 | 人物视角 | 同上 | 上游许可证尚未核验，不作许可结论 | 金融风险、加密合规、来源待核验 |
-| 15 | `sigmund_freud` | 西格蒙德·弗洛伊德 | 人物视角 | 同上 | 独立上游候选见第 5 节 | 心理健康边界与推荐降权 |
+| 15 | `sigmund_freud` | 西格蒙德·弗洛伊德 | 人物视角 | 同上 | 独立上游候选见第 5 节 | 心理健康边界与专业转介 |
 | 16 | `x_mentor` | X 增长导师 | 专业顾问 | 现有历史阵容资产；V1 保留；可搜索、浏览和自动推荐 | 独立上游候选见第 5 节 | 非本人/非官方声明、高时效、来源与资产治理 |
 | 17 | `feng_ge` | 峰哥亡命天涯 | 人物视角 | 现有资产；V1 保留；可搜索、浏览和自动推荐 | 独立上游候选见第 5 节 | 高时效、来源与资产治理 |
 | 18 | `changpeng_zhao` | 赵长鹏（CZ） | 人物视角 | 同上 | 上游许可证尚未核验，不作许可结论 | 金融风险、加密合规、来源待核验 |
 | 19 | `duan_yongping` | 段永平 | 人物视角 | 同上 | 独立上游候选见第 5 节 | 金融风险、来源与资产治理 |
 | 20 | `tim_cook` | 蒂姆·库克 | 人物视角 | 同上 | 独立上游候选见第 5 节 | 高时效、音频/语音资产治理 |
-| 21 | `civil-service-coach` | 考公备考教练 | 专业顾问 | 研究草案；V1 纳入；正式实现待完成 | 见域独立原创实现待形成；原创性待核验 | 考试版本、来源与作弊边界 |
+| 21 | `civil-service-coach` | 考公备考教练 | 专业顾问 | 研究草案；V1 纳入；正式实现待完成 | 正式实现方案待形成；许可明确且适用的内容优先复用，来源不明或无法拆分部分独立原创；原创性待核验 | 考试版本、来源与作弊边界 |
 | 22 | `public-document-coach` | 公文与材料教练 | 任务助手 | 同上 | 同上 | 单位规范与审批 |
 | 23 | `study-planner` | 学习规划师 | 任务助手 | 同上 | 同上 | 效果承诺与个人差异 |
 | 24 | `career-navigator` | 职业发展顾问 | 专业顾问 | 同上 | 同上 | 就业与薪资时效 |
@@ -144,9 +151,9 @@
 | 41 | `software-copyright-organizer` | 软件著作权材料整理助手 | 工作流能力 | 同上 | 同上 | 权属、法律边界与材料真实性 |
 | 42 | `patent-disclosure-organizer` | 专利交底材料整理助手 | 工作流能力 | 同上 | 同上 | 涉密、权属与法律边界 |
 | 43 | `office-document-productivity` | 办公文档助手 | 工作流能力 | 能力方向纳入 V1；能力重构中；当前不可发布 | 见域 Android 能力独立设计；第三方仅为研究来源；必须独立原创 | 完成 Android 能力、来源、隐私与质量验收 |
-| 44 | `original-expression-naturalizer` | 现实沟通文案能力（中文名待 PR08-F 统一） | 任务助手 | 能力方向纳入 V1；阻断重构；当前不可发布 | 见域从零原创设计；不得复制检测对抗提示词 | 完成现实沟通文案、诚信、原创性与质量验收 |
+| 44 | `original-expression-naturalizer` | 现实沟通文案能力（用户侧中文名待 PR08-F 统一） | 任务助手 | 能力方向纳入 V1；阻断重构；当前不可发布 | 见域从零原创设计；不得复制检测对抗提示词 | 完成现实沟通文案、诚信、原创性与质量验收 |
 
-第 01～20 项的风险标签只改变排序、理由和提示，不得全局隐藏。第 43、44 项不得写成“补 Notice 即可上线”。
+第 01～20 项在所有场景中正常参与自动推荐。风险标签不得改变其正常排序或推荐资格，只用于理由、披露、输出边界、时效核验和专业转介。第 43、44 项不得写成“补 Notice 即可上线”。
 
 ## 5. 当前 20 项直接上游证据
 
@@ -158,26 +165,26 @@
 
 | # | Skill ID | 当前本仓库路径 | 直接上游仓库 | 研究时核验 Commit | LICENSE 路径 / Blob SHA | 附带资产 | 来源核验状态 / 治理标签 |
 |:---:|---|---|---|---|---|---|---|
-| 01 | `zhang_xuefeng` | `app/src/main/assets/skills/zhangxuefeng-skill-main/SKILL.md` | `alchaincyf/zhangxuefeng-skill`；目标 `SKILL.md` | `a9a71563a39f1ba8e5421d1b9b44e318c691f37b` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 图片已确认（README 指向 `assets/hero.gif`）；其余待逐目录核验 | 上游与许可证文件已核验；本仓库一致性、素材和人格权待核验；[非本人声明][高时效][推荐降权][生产资产清理] |
-| 02 | `elon_musk` | `app/src/main/assets/skills/elon-musk-skill-main/SKILL.md` | `alchaincyf/elon-musk-skill`；目标 `SKILL.md` | `5a7d8cf0f23ca6071d18ed8c5c80e8996459a443` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 尚未逐目录核验 | 同上；[非本人声明][高时效][推荐降权][生产资产清理] |
+| 01 | `zhang_xuefeng` | `app/src/main/assets/skills/zhangxuefeng-skill-main/SKILL.md` | `alchaincyf/zhangxuefeng-skill`；目标 `SKILL.md` | `a9a71563a39f1ba8e5421d1b9b44e318c691f37b` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 图片已确认（README 指向 `assets/hero.gif`）；其余待逐目录核验 | 上游与许可证文件已核验；本仓库一致性、素材和人格权待核验；[非本人声明][高时效][生产资产清理] |
+| 02 | `elon_musk` | `app/src/main/assets/skills/elon-musk-skill-main/SKILL.md` | `alchaincyf/elon-musk-skill`；目标 `SKILL.md` | `5a7d8cf0f23ca6071d18ed8c5c80e8996459a443` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 尚未逐目录核验 | 同上；[非本人声明][高时效][生产资产清理] |
 | 03 | `richard_feynman` | `app/src/main/assets/skills/feynman-skill-main/SKILL.md` | `alchaincyf/feynman-skill`；目标 `SKILL.md` | `5ae5c5079909ef8654cc9815fe58fb3b89bfcb4c` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 尚未逐目录核验 | 同上；[非本人声明][生产资产清理] |
-| 04 | `charlie_munger` | `app/src/main/assets/skills/munger-skill-main/SKILL.md` | `alchaincyf/munger-skill`；目标 `SKILL.md` | `2d5d7a388a0c4c7865accda39f1f2e741c886d9d` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 尚未逐目录核验 | 同上；[非本人声明][金融风险][推荐降权][生产资产清理] |
-| 05 | `naval_ravikant` | `app/src/main/assets/skills/naval-skill-main/SKILL.md` | `alchaincyf/naval-skill`；目标 `SKILL.md` | `259e452ef6f6c2bfdbe30368f7c85bc683fe1949` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 尚未逐目录核验 | 同上；[非本人声明][金融风险][推荐降权][生产资产清理] |
+| 04 | `charlie_munger` | `app/src/main/assets/skills/munger-skill-main/SKILL.md` | `alchaincyf/munger-skill`；目标 `SKILL.md` | `2d5d7a388a0c4c7865accda39f1f2e741c886d9d` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 尚未逐目录核验 | 同上；[非本人声明][金融风险][生产资产清理] |
+| 05 | `naval_ravikant` | `app/src/main/assets/skills/naval-skill-main/SKILL.md` | `alchaincyf/naval-skill`；目标 `SKILL.md` | `259e452ef6f6c2bfdbe30368f7c85bc683fe1949` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 尚未逐目录核验 | 同上；[非本人声明][金融风险][生产资产清理] |
 | 06 | `steve_jobs` | `app/src/main/assets/skills/steve-jobs-skill-main/SKILL.md` | `alchaincyf/steve-jobs-skill`；目标 `SKILL.md` | `cd724b0e2e2d9e83a436063b5b915294b5925d28` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 尚未逐目录核验 | 同上；[非本人声明][生产资产清理] |
-| 07 | `nassim_taleb` | `app/src/main/assets/skills/taleb-skill-main/SKILL.md` | `alchaincyf/taleb-skill`；目标 `SKILL.md` | `48303e725d24a8865731baa4869caa4d49014704` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 尚未逐目录核验 | 同上；[非本人声明][金融风险][推荐降权][生产资产清理] |
-| 08 | `andrej_karpathy` | `app/src/main/assets/skills/karpathy-skill/SKILL.md` | `alchaincyf/karpathy-skill`；目标 `SKILL.md` | `fb9ec5b891616b36743f4560e77e57860768aceb` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 尚未逐目录核验 | 同上；[非本人声明][高时效][推荐降权][生产资产清理] |
+| 07 | `nassim_taleb` | `app/src/main/assets/skills/taleb-skill-main/SKILL.md` | `alchaincyf/taleb-skill`；目标 `SKILL.md` | `48303e725d24a8865731baa4869caa4d49014704` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 尚未逐目录核验 | 同上；[非本人声明][金融风险][生产资产清理] |
+| 08 | `andrej_karpathy` | `app/src/main/assets/skills/karpathy-skill/SKILL.md` | `alchaincyf/karpathy-skill`；目标 `SKILL.md` | `fb9ec5b891616b36743f4560e77e57860768aceb` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 尚未逐目录核验 | 同上；[非本人声明][高时效][生产资产清理] |
 | 09 | `zhang_yiming` | `app/src/main/assets/skills/zhang-yiming-skill/SKILL.md` | `alchaincyf/zhang-yiming-skill`；目标 `SKILL.md` | `6708af58665dfb60154592d04dc203e0b74045a2` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 尚未逐目录核验 | 同上；[非本人声明][高时效][生产资产清理] |
 | 10 | `paul_graham` | `app/src/main/assets/skills/paul-graham-skill/SKILL.md` | `alchaincyf/paul-graham-skill`；目标 `SKILL.md` | `8de3d2bf4e0c301ea3caf015b189307f8d8d8dc0` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 尚未逐目录核验 | 同上；[非本人声明][生产资产清理] |
-| 11 | `ilya_sutskever` | `app/src/main/assets/skills/ilya-sutskever-skill/SKILL.md` | `alchaincyf/ilya-sutskever-skill`；目标 `SKILL.md` | `056284b63c2d4648c3c1fa15162011d08f85a717` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 尚未逐目录核验 | 同上；[非本人声明][高时效][推荐降权][生产资产清理] |
-| 12 | `donald_trump` | `app/src/main/assets/skills/trump-skill/SKILL.md` | `alchaincyf/trump-skill`；目标 `SKILL.md` | `4bdb94895a01a84b9f55d90ae5889747c0736757` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 尚未逐目录核验 | 同上；[非本人声明][高时效][政治敏感][推荐降权][生产资产清理] |
-| 13 | `mr_beast` | `app/src/main/assets/skills/mrbeast-skill/SKILL.md` | `alchaincyf/mrbeast-skill`；目标 `SKILL.md` | `504c360a0b35c6f8a4e635f8857480e1655ab070` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 尚未逐目录核验 | 同上；[非本人声明][高时效][推荐降权][生产资产清理] |
-| 14 | `justin_sun` | `app/src/main/assets/skills/sun-yuchen-perspective/SKILL.md` | `alchaincyf/sun-yuchen-perspective`；目标 `SKILL.md` | `330e8eda1555707bcc0b37dfebf03f3c0dae7aa0` | 根目录 `LICENSE` 未取得 | 尚未逐目录核验 | 尚未核验，不作许可结论；[非本人声明][高时效][金融风险][加密合规][推荐降权][来源待核验][生产资产清理] |
-| 15 | `sigmund_freud` | `app/src/main/assets/skills/freud-skill/SKILL.md` | `alchaincyf/freud-skill`；目标 `SKILL.md` | `f277002784c4dbd54300b301c11e5f1d8e6110aa` | `LICENSE` / `60797866e4ebc7b608a87e590eba4f3a817511a3` | 尚未逐目录核验 | 上游与许可证文件已核验；本仓库一致性和素材待核验；[非本人声明][心理健康][推荐降权][生产资产清理] |
-| 16 | `x_mentor` | `app/src/main/assets/skills/x-mentor-skill/SKILL.md` | `alchaincyf/x-mentor-skill`；目标 `SKILL.md` | `6e618864d3a56b2bb57351d94135381674355507` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 尚未逐目录核验 | 同上；[非本人声明][高时效][推荐降权][生产资产清理] |
-| 17 | `feng_ge` | `app/src/main/assets/skills/fengge-skill/SKILL.md` | `Walshyu/fengge-skill`；目标 `SKILL.md` | `e5a65288d97dff323c32c01ae1f21bdb1ab1995b` | `LICENSE` / `e4a5b379535353699bbd3aa11c58cd57f178cecc` | 尚未逐目录核验 | 上游与许可证文件已核验；方法论提及 Nuwa 不改变直接上游；[非本人声明][高时效][推荐降权][生产资产清理] |
-| 18 | `changpeng_zhao` | `app/src/main/assets/skills/cz-skill/SKILL.md` | `0xquqi/cz-skill`；目标 `SKILL.md` | `1c60c0dce3ed77b487484cb699df9478d658fce9` | 根目录 `LICENSE` 未取得 | `research/` 索引已确认；其余待核验 | 尚未核验，不作许可结论；[非本人声明][高时效][金融风险][加密合规][推荐降权][来源待核验][生产资产清理] |
-| 19 | `duan_yongping` | `app/src/main/assets/skills/duan-yongping-skill/SKILL.md` | `zwbao/duan-yongping-skill`；目标 `SKILL.md` | `611d91825f387de13208a8ad3bfd6c28ea961564` | `LICENSE` / `6d9c82e52d9fcbc3e6817379bb8c5b299db98d18` | 尚未逐目录核验 | 上游与许可证文件已核验；本仓库一致性和素材待核验；[非本人声明][金融风险][推荐降权][生产资产清理] |
-| 20 | `tim_cook` | `app/src/main/assets/skills/tim-cook-skill/SKILL.md` | `heywanrong/tim-cook-skill`；目标 `SKILL.md` | `27ec6d319bcf139ecc0dca513401c4f107126df6` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 音频/语音工作流已由上游说明确认；其余待核验 | 上游与许可证文件已核验；音频及素材另审；[非本人声明][高时效][推荐降权][生产资产清理] |
+| 11 | `ilya_sutskever` | `app/src/main/assets/skills/ilya-sutskever-skill/SKILL.md` | `alchaincyf/ilya-sutskever-skill`；目标 `SKILL.md` | `056284b63c2d4648c3c1fa15162011d08f85a717` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 尚未逐目录核验 | 同上；[非本人声明][高时效][生产资产清理] |
+| 12 | `donald_trump` | `app/src/main/assets/skills/trump-skill/SKILL.md` | `alchaincyf/trump-skill`；目标 `SKILL.md` | `4bdb94895a01a84b9f55d90ae5889747c0736757` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 尚未逐目录核验 | 同上；[非本人声明][高时效][政治敏感][生产资产清理] |
+| 13 | `mr_beast` | `app/src/main/assets/skills/mrbeast-skill/SKILL.md` | `alchaincyf/mrbeast-skill`；目标 `SKILL.md` | `504c360a0b35c6f8a4e635f8857480e1655ab070` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 尚未逐目录核验 | 同上；[非本人声明][高时效][生产资产清理] |
+| 14 | `justin_sun` | `app/src/main/assets/skills/sun-yuchen-perspective/SKILL.md` | `alchaincyf/sun-yuchen-perspective`；目标 `SKILL.md` | `330e8eda1555707bcc0b37dfebf03f3c0dae7aa0` | 根目录 `LICENSE` 未取得 | 尚未逐目录核验 | 尚未核验，不作许可结论；[非本人声明][高时效][金融风险][加密合规][来源待核验][生产资产清理] |
+| 15 | `sigmund_freud` | `app/src/main/assets/skills/freud-skill/SKILL.md` | `alchaincyf/freud-skill`；目标 `SKILL.md` | `f277002784c4dbd54300b301c11e5f1d8e6110aa` | `LICENSE` / `60797866e4ebc7b608a87e590eba4f3a817511a3` | 尚未逐目录核验 | 上游与许可证文件已核验；本仓库一致性和素材待核验；[非本人声明][心理健康][生产资产清理] |
+| 16 | `x_mentor` | `app/src/main/assets/skills/x-mentor-skill/SKILL.md` | `alchaincyf/x-mentor-skill`；目标 `SKILL.md` | `6e618864d3a56b2bb57351d94135381674355507` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 尚未逐目录核验 | 同上；[非本人声明][高时效][生产资产清理] |
+| 17 | `feng_ge` | `app/src/main/assets/skills/fengge-skill/SKILL.md` | `Walshyu/fengge-skill`；目标 `SKILL.md` | `e5a65288d97dff323c32c01ae1f21bdb1ab1995b` | `LICENSE` / `e4a5b379535353699bbd3aa11c58cd57f178cecc` | 尚未逐目录核验 | 上游与许可证文件已核验；方法论提及 Nuwa 不改变直接上游；[非本人声明][高时效][生产资产清理] |
+| 18 | `changpeng_zhao` | `app/src/main/assets/skills/cz-skill/SKILL.md` | `0xquqi/cz-skill`；目标 `SKILL.md` | `1c60c0dce3ed77b487484cb699df9478d658fce9` | 根目录 `LICENSE` 未取得 | `research/` 索引已确认；其余待核验 | 尚未核验，不作许可结论；[非本人声明][高时效][金融风险][加密合规][来源待核验][生产资产清理] |
+| 19 | `duan_yongping` | `app/src/main/assets/skills/duan-yongping-skill/SKILL.md` | `zwbao/duan-yongping-skill`；目标 `SKILL.md` | `611d91825f387de13208a8ad3bfd6c28ea961564` | `LICENSE` / `6d9c82e52d9fcbc3e6817379bb8c5b299db98d18` | 尚未逐目录核验 | 上游与许可证文件已核验；本仓库一致性和素材待核验；[非本人声明][金融风险][生产资产清理] |
+| 20 | `tim_cook` | `app/src/main/assets/skills/tim-cook-skill/SKILL.md` | `heywanrong/tim-cook-skill`；目标 `SKILL.md` | `27ec6d319bcf139ecc0dca513401c4f107126df6` | `LICENSE` / `b95c3fcf6bcd81713196a8523188be50fa712edf` | 音频/语音工作流已由上游说明确认；其余待核验 | 上游与许可证文件已核验；音频及素材另审；[非本人声明][高时效][生产资产清理] |
 
 补充结论：
 
@@ -192,7 +199,7 @@
 
 | # | Skill ID | 需求研究来源 | 正式实现来源 | 第三方具体表达 / 代码脚本 | 原创性与许可状态 |
 |:---:|---|---|---|---|---|
-| 21 | `civil-service-coach` | `24kchengYe/human-skill-tree`；`bytesagain/ai-skills`；`jnMetaCode/agency-agents-zh` | 见域独立原创实现待形成 | 规格阶段未采用 | 原创性待核验；研究来源不构成实现依赖 |
+| 21 | `civil-service-coach` | `24kchengYe/human-skill-tree`；`bytesagain/ai-skills`；`jnMetaCode/agency-agents-zh` | 正式实现方案待形成；按“许可明确优先复用、来源不明独立原创”执行 | 规格阶段未采用 | 原创性待核验；研究来源不构成实现依赖 |
 | 22 | `public-document-coach` | `24kchengYe/human-skill-tree`；`claude-office-skills/skills` | 同上 | 同上 | 同上 |
 | 23 | `study-planner` | `24kchengYe/human-skill-tree`；`jnMetaCode/agency-agents-zh` | 同上 | 同上 | 同上 |
 | 24 | `career-navigator` | `24kchengYe/human-skill-tree`；`alchaincyf/zhangxuefeng-skill` | 同上 | 同上 | 同上 |
@@ -219,7 +226,7 @@
 
 第 21～42 项统一适用声明：
 
-> 研究草案声明为原创改写，但尚未完成与全部上游内容的逐项相似性核验。
+> 研究草案声明为原创改写，但尚未完成与全部上游内容的逐项相似性核验。正式实现按“许可明确优先复用、来源不明独立原创”逐项确定。
 
 ### 6.1 `anthropics/skills` 定向核验
 
@@ -275,7 +282,7 @@ anthropics/skills@b29e7cf65e5cb78a5ac33d582270551bc74a14eb
 
 ### 7.2 `original-expression-naturalizer`
 
-保留现有 Skill ID，中文名称由 PR08-F 最终统一。
+保留现有 Skill ID，用户侧中文名称暂不确定，由 PR08-F 最终统一。
 
 职责：
 
@@ -298,10 +305,10 @@ anthropics/skills@b29e7cf65e5cb78a5ac33d582270551bc74a14eb
 
 ### 8.1 人物与历史阵容资产
 
-- 第 01～20 项全部可搜索、浏览和参与自动推荐。
+- 第 01～20 项全部可搜索、浏览，并在所有场景中正常参与自动推荐。
 - 全部显示 `[非本人声明]`。
-- 高时效、金融、加密、政治或心理场景可以叠加风险标签和推荐降权。
-- 降权只改变排序、理由和提示，不得全局隐藏或改成只能手动邀请。
+- 高时效、金融、加密、政治或心理场景可以叠加风险标签，并强化来源、时效、免责声明、输出边界和专业转介。
+- 风险标签不得作为降低排名、全局隐藏或改成只能手动邀请的依据。
 - 人物知名度、财富、职位和粉丝量不得作为专业可靠性依据。
 
 ### 8.2 普通顾问、助手和工作流
@@ -316,15 +323,16 @@ anthropics/skills@b29e7cf65e5cb78a5ac33d582270551bc74a14eb
 
 1. 候选仍在 44 项 V1 清单内，Skill ID 唯一。
 2. 需求研究来源与正式实现来源分别记录。
-3. 正式采用的第三方内容固定完整 40 位 Commit、目标文件和许可证。
-4. 许可证、Notice、修改说明和附带素材权利已核验。
-5. 原创实现完成必要的逐项相似性核验。
-6. 人物和历史阵容资产具有非本人声明、时效和风险规则。
-7. Android 能力真实可行，不依赖未声明的桌面执行。
-8. 隐私、敏感材料、联网和专业转介边界明确。
-9. 自动推荐理由和降权规则可解释，不全局隐藏人物。
-10. 自动化测试、静态检查和本地验收方案已建立。
-11. 由 PR08-F 冻结最终规格，并在用户批准后由 PR09 独立实施。
+3. 许可明确且适用的正式实现来源优先复用；来源不明、无许可证或无法拆分时独立原创。
+4. 正式采用的第三方内容固定完整 40 位 Commit、目标文件和许可证。
+5. 许可证、Notice、修改说明和附带素材权利已核验。
+6. 原创实现完成必要的逐项相似性核验。
+7. 人物和历史阵容资产具有非本人声明、时效和风险规则。
+8. Android 能力真实可行，不依赖未声明的桌面执行。
+9. 隐私、敏感材料、联网和专业转介边界明确。
+10. 自动推荐理由和风险治理规则可解释；不得因人物争议或风险标签降低排名、全局隐藏或限制为手动邀请。
+11. 自动化测试、静态检查和本地验收方案已建立。
+12. 由 PR08-F 冻结最终规格，并在用户批准后由 PR09 独立实施。
 
 ## 10. 本任务未做
 
@@ -340,12 +348,15 @@ anthropics/skills@b29e7cf65e5cb78a5ac33d582270551bc74a14eb
 ## 11. 验收条件
 
 - 官方候选保持 44 项，编号 01～44 连续，Skill ID 唯一。
+- 44 项属于 V1 阶段目标，允许按 V1.0、V1.1 等批次达到发布条件。
 - 研究目录 25 项全部有去向，张雪峰只出现一个官方候选。
 - 现有 20 项直接上游不再统一写成 `nuwa-skill`。
 - 外部精确证据全部使用完整 40 位 Commit。
 - `anthropics/skills` 被正确记录为存在，并区分示例目录与文档目录许可证。
 - 第 21～44 项明确区分需求研究来源和正式实现来源。
+- 正式实现遵循“许可明确优先复用，来源不明、无许可证或无法拆分时独立原创”。
 - 未完成比对的草案只标记“原创性待核验”。
-- 全部 20 项具有非本人声明和自动推荐资格。
+- 全部 20 项具有非本人声明，并在所有场景中正常参与自动推荐；风险标签不得降低其排名。
 - 办公文档助手和现实沟通文案能力的状态不与“可发布”重叠。
+- `original-expression-naturalizer` 的用户侧中文名称留待 PR08-F 统一。
 - 发布优先级保持“阻断重构 > 原创性或许可待核验 > 补 Notice 与声明 > 可发布”。
