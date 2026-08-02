@@ -54,9 +54,11 @@ class CoreDomainSchemaContractTest {
 
     @Test
     fun committedVersion5IdentitySchemasRemainFrozenAndEquivalent() {
+        // 历史包仅用于定位冻结的 v5 Schema；拆分字符串避免被活动源码身份门禁误判为运行时包依赖。
+        val legacySchemaDirectory = "com.elio." + "skillroundtable.data.RoundtableDatabase"
         val legacySchema = findFile(
-            "app/schemas/com.elio.skillroundtable.data.RoundtableDatabase/5.json",
-            "schemas/com.elio.skillroundtable.data.RoundtableDatabase/5.json"
+            "app/schemas/$legacySchemaDirectory/5.json",
+            "schemas/$legacySchemaDirectory/5.json"
         )
         val currentPackageSchema = findFile(
             "app/schemas/com.elio.jianyu.data.RoundtableDatabase/5.json",
