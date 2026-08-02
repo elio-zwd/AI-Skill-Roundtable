@@ -14,6 +14,21 @@
 8. 处理审查意见：使用 `receiving-code-review`，逐条核对上下文、复现问题并验证修复，不盲目照改。
 9. 准备 PR 和收尾：使用 `finishing-a-development-branch`；本项目通常推送独立分支并创建 Draft/普通 PR，未经用户授权不得合并。
 
+## 上游指令覆盖
+
+当上游 Skill 的通用流程与本项目的协作边界冲突时，执行以下替代行为：
+
+| 上游 Skill 指令 | 本项目替代行为 |
+|---|---|
+| 使用 `using-git-worktrees` | 使用当前独立分支和工作区；无明确授权不创建 Worktree。 |
+| 使用 `subagent-driven-development` | 使用 `executing-plans` 串行执行，不模拟其他独立对话。 |
+| 分派 reviewer subagent | 使用 GitHub PR 独立只读审查或用户另行启动的审查对话。 |
+| 启动 Visual Companion | 能力不存在时跳过，不视为流程失败。 |
+| 使用 Forge CLI 创建 PR | CLI 不可用时使用 GitHub 插件或 GitHub PR 创建页。 |
+| 自动选择合并、清理分支 | 必须等待用户明确授权。 |
+
+被本仓库排除的 Skill，即使在上游原始正文中被标为 REQUIRED，也不得在本项目中自动调用；统一执行本节定义的替代流程。
+
 ## 本项目适配规则
 
 - GitHub 插件不等于本地终端。插件可查询或创建远端对象，不代表本机已有完整 CLI、测试环境或可写工作区。
