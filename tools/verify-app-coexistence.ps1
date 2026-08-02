@@ -197,20 +197,29 @@ Invoke-Adb -Adb $adb -Target $targetDevice -Arguments @('shell', 'am', 'start', 
 Write-Host '[PASS] 新旧 Launcher 均可启动' -ForegroundColor Green
 
 if ($CreatePrivateFileSentinel) {
-    $createCommand = "run-as $LegacyPackage sh -c 'printf pr0901-legacy-sentinel > files/$SentinelName'"
-    Invoke-Adb -Adb $adb -Target $targetDevice -Arguments @('shell', $createCommand) -Description '创建旧包私有文件哨兵' | Out-Null
+    Invoke-Adb -Adb $adb -Target $targetDevice -Arguments @(
+        'shell', 'run-as', $LegacyPackage, 'sh', '-c',
+        "printf pr0901-legacy-sentinel > files/$SentinelName"
+    ) -Description '创建旧包私有文件哨兵' | Out-Null
 
-    $verifyLegacy = "run-as $LegacyPackage sh -c 'test -f files/$SentinelName'"
-    Invoke-Adb -Adb $adb -Target $targetDevice -Arguments @('shell', $verifyLegacy) -Description '确认旧包哨兵存在' | Out-Null
+    Invoke-Adb -Adb $adb -Target $targetDevice -Arguments @(
+        'shell', 'run-as', $LegacyPackage, 'sh', '-c',
+        "test -f files/$SentinelName"
+    ) -Description '确认旧包哨兵存在' | Out-Null
 
-    $verifyCurrent = "run-as $CurrentPackage sh -c 'test ! -e files/$SentinelName'"
-    Invoke-Adb -Adb $adb -Target $targetDevice -Arguments @('shell', $verifyCurrent) -Description '确认见域看不到旧包哨兵' | Out-Null
+    Invoke-Adb -Adb $adb -Target $targetDevice -Arguments @(
+        'shell', 'run-as', $CurrentPackage, 'sh', '-c',
+        "test ! -e files/$SentinelName"
+    ) -Description '确认见域看不到旧包哨兵' | Out-Null
+
     Write-Host '[PASS] run-as 私有文件哨兵证明跨 UID 不可见' -ForegroundColor Green
 }
 
 if ($CleanupPrivateFileSentinel) {
-    $cleanupCommand = "run-as $LegacyPackage sh -c 'rm -f files/$SentinelName'"
-    Invoke-Adb -Adb $adb -Target $targetDevice -Arguments @('shell', $cleanupCommand) -Description '清理旧包私有文件哨兵' | Out-Null
+    Invoke-Adb -Adb $adb -Target $targetDevice -Arguments @(
+        'shell', 'run-as', $LegacyPackage, 'sh', '-c',
+        "rm -f files/$SentinelName"
+    ) -Description '清理旧包私有文件哨兵' | Out-Null
     Write-Host '[PASS] 已清理本脚本创建的旧包私有文件哨兵' -ForegroundColor Green
 }
 
