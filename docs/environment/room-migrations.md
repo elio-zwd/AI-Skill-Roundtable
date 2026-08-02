@@ -24,23 +24,34 @@ app/schemas/com.elio.skillroundtable.data.RoundtableDatabase/5.json
 app/schemas/com.elio.jianyu.data.RoundtableDatabase/5.json
 ```
 
-该路径对应当前 `com.elio.jianyu.data.RoundtableDatabase`。Task 4 将通过 Room/KSP 真实生成并提交该文件；Task 3 不创建、不手工编写也不提交新 Schema。PR09-01 最终应同时保留旧历史 Schema 与新当前 Schema。
+该路径对应当前 `com.elio.jianyu.data.RoundtableDatabase`。文件来自精确 Task 2 Head `e2fb93b6473580f5f52628ad0508887e0e015550` 的 GitHub Android CI #144 Room/KSP 生成 Artifact，不是人工编造的 JSON。PR09-01 同时保留旧历史 Schema 与新当前 Schema。
 
 ## 换行符与一致性验证
 
-Task 2 编译期间已经临时生成新 FQCN `5.json`，并得到以下事实：
+CI Artifact 中 Room/KSP 输出了旧、新两个 FQCN 的 `5.json`，二者均为 LF，原始 SHA-256 均为：
 
 ```text
-旧 5.json：CRLF
-KSP 新生成 5.json：LF
+1537e500199e09fb4b7591f9ce5e3861c585b7325e9ede6a3e0d7403da39d695
 ```
 
-两份文件的 253 行 JSON 数据语义一致，但原始 SHA-256 因换行符不同而不同。因此：
+Windows 工作区可能按照 Git 配置把已跟踪的旧文件检出为 CRLF，而 KSP 新生成文件为 LF。在该情形下，工作区原始 SHA-256 会不同，但规范化换行后的内容仍应完全一致。因此验证规则为：
 
-- 不得声称新旧文件字节哈希一致；
-- 不得为了制造相同哈希而修改旧历史 Schema；
-- Task 4 必须使用可复现方式验证 JSON 语义、`formatVersion`、数据库 `version`、`identityHash`、Entity、字段、索引和 setup queries 一致；
-- Task 4 必须记录原始文件哈希、规范化文本或结构化比较结果及换行符差异。
+- 旧 FQCN Schema 相对固定 Base Commit 不得修改；
+- 两份文件必须均可解析为 JSON；
+- 规范化 CRLF / LF 后文本必须完全一致；
+- 结构化 JSON 必须完全一致；
+- `formatVersion`、数据库 `version`、`identityHash`、Entity、字段、索引、外键和 setup queries 必须一致；
+- 不得为了制造某个工作区原始哈希而修改旧历史 Schema。
+
+当前两份 Schema 的固定语义值包括：
+
+```text
+formatVersion：1
+database version：5
+identityHash：63f0fb76786f10fbeee22a6655997b5d
+```
+
+`tools/check-app-identity.ps1` 和 GitHub Android CI 同时执行旧 Schema 冻结检查、JSON 解析、换行规范化比较和结构化比较。构建完成后还必须确认 `app/schemas` 没有未提交差异或新文件。
 
 禁止手工编造或修改 Room Schema JSON。实体或数据库版本发生变化后，应通过 Gradle/KSP 重新生成 Schema，并将真实差异与迁移实现一同提交。
 
@@ -146,7 +157,7 @@ app/src/androidTest/java/com/elio/jianyu/data/RoundtableDatabaseMigrationTest.kt
 .\gradlew.bat connectedDebugAndroidTest
 ```
 
-GitHub Actions 使用 API 30 x86_64 Emulator 执行相同的 Instrumentation Test。
+GitHub Actions 使用 API 30 x86_64 Emulator 执行相同的 Instrumentation Test。身份隔离测试会先在全新安装上独立运行，随后清理临时见域安装并排除身份类运行剩余完整套件，避免测试顺序污染空沙箱断言。
 
 ## Schema 变更流程
 
