@@ -8,7 +8,7 @@ import org.junit.Test
 class UiArchitectureGuardrailTest {
     private val sourceRoot: File by lazy(::findMainSourceRoot)
     private val packageRoot: File
-        get() = sourceRoot.resolve("com/elio/skillroundtable")
+        get() = sourceRoot.resolve("com/elio/jianyu")
     private val uiRoot: File
         get() = packageRoot.resolve("ui")
 
@@ -135,12 +135,12 @@ class UiArchitectureGuardrailTest {
         var current: File? = File(System.getProperty("user.dir")).absoluteFile
         while (current != null) {
             val moduleSource = current.resolve("src/main/java")
-            if (moduleSource.resolve("com/elio/skillroundtable/MainActivity.kt").isFile) {
+            if (moduleSource.resolve("com/elio/jianyu/MainActivity.kt").isFile) {
                 return moduleSource
             }
 
             val repositorySource = current.resolve("app/src/main/java")
-            if (repositorySource.resolve("com/elio/skillroundtable/MainActivity.kt").isFile) {
+            if (repositorySource.resolve("com/elio/jianyu/MainActivity.kt").isFile) {
                 return repositorySource
             }
             current = current.parentFile
