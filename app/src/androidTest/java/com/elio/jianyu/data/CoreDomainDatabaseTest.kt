@@ -62,6 +62,38 @@ class CoreDomainDatabaseTest {
     }
 
     @Test
+    fun orphanExecutionRunIsRejected() = runBlocking {
+        coreDomainDao.insertIssue(issue())
+
+        assertConstraint {
+            coreDomainDao.insertExecutionRun(run(stageId = "missing-stage"))
+        }
+    }
+
+    @Test
+    fun executionRunCannotPairStageWithAnotherIssue() = runBlocking {
+        coreDomainDao.insertIssue(issue())
+        coreDomainDao.insertIssue(issue(id = "issue-2"))
+        coreDomainDao.insertStage(
+            stage(
+                id = "stage-2",
+                issueId = "issue-2",
+                sequenceIndex = 0
+            )
+        )
+
+        assertConstraint {
+            coreDomainDao.insertExecutionRun(
+                run(
+                    issueId = ISSUE_ID,
+                    stageId = "stage-2",
+                    idempotencyKey = "mismatched-stage"
+                )
+            )
+        }
+    }
+
+    @Test
     fun duplicateRunIdempotencyKeyIsRejected() = runBlocking {
         insertIssueAndStage()
         coreDomainDao.insertExecutionRun(run(id = "run-1"))
@@ -69,6 +101,35 @@ class CoreDomainDatabaseTest {
         assertConstraint {
             coreDomainDao.insertExecutionRun(run(id = "run-2"))
         }
+    }
+
+    @Test
+    fun orphanParticipantSnapshotIsRejected() = runBlocking {
+        assertConstraint {
+            coreDomainDao.insertParticipantSnapshots(
+                listOf(participantSnapshot(runId = "missing-run"))
+            )
+        }
+    }
+
+    @Test
+    fun participantSnapshotOrderIsStable() = runBlocking {
+        insertIssueStageAndRun()
+        coreDomainDao.insertParticipantSnapshots(
+            listOf(
+                participantSnapshot(id = "snapshot-2", sourceId = "character-2", position = 2),
+                participantSnapshot(id = "snapshot-0", sourceId = "character-0", position = 0),
+                participantSnapshot(id = "snapshot-1", sourceId = "character-1", position = 1)
+            )
+        )
+
+        val stored = coreDomainDao.getParticipantSnapshots(RUN_ID)
+
+        assertEquals(listOf(0, 1, 2), stored.map { it.position })
+        assertEquals(
+            listOf("snapshot-0", "snapshot-1", "snapshot-2"),
+            stored.map { it.id }
+        )
     }
 
     @Test
@@ -114,8 +175,12 @@ class CoreDomainDatabaseTest {
     fun runAndParticipantsCreationRollsBackWhenSnapshotInsertFails() = runBlocking {
         insertIssueAndStage()
         val candidateRun = run()
-        val first = participantSnapshot(id = "snapshot-1", position = 0)
-        val duplicatePosition = participantSnapshot(id = "snapshot-2", position = 0)
+        val first = participantSnapshot(id = "snapshot-1", sourceId = "character-1", position = 0)
+        val duplicatePosition = participantSnapshot(
+            id = "snapshot-2",
+            sourceId = "character-2",
+            position = 0
+        )
 
         assertConstraint {
             coreDomainDao.createRunWithParticipants(
@@ -252,13 +317,16 @@ class CoreDomainDatabaseTest {
 
     private fun run(
         id: String = RUN_ID,
+        issueId: String = ISSUE_ID,
+        stageId: String = STAGE_ID,
+        idempotencyKey: String = IDEMPOTENCY_KEY,
         status: ExecutionRunStatus = ExecutionRunStatus.NOT_STARTED
     ) = ExecutionRunEntity(
         id = id,
-        issueId = ISSUE_ID,
-        stageId = STAGE_ID,
+        issueId = issueId,
+        stageId = stageId,
         triggerMessageId = null,
-        idempotencyKey = IDEMPOTENCY_KEY,
+        idempotencyKey = idempotencyKey,
         status = status,
         retryOfRunId = null,
         createdAt = 120L,
@@ -272,12 +340,14 @@ class CoreDomainDatabaseTest {
 
     private fun participantSnapshot(
         id: String = SNAPSHOT_ID,
+        runId: String = RUN_ID,
+        sourceId: String = "character-1",
         position: Int = 0
     ) = ExecutionParticipantSnapshotEntity(
         id = id,
-        runId = RUN_ID,
+        runId = runId,
         sourceType = "character",
-        sourceId = "character-1",
+        sourceId = sourceId,
         displayName = "历史名称",
         avatar = "H",
         skillAssetPath = "skills/history/SKILL.md",
