@@ -39,7 +39,7 @@ if ($buildGradle -match 'applicationId\s*=\s*"com\.elio\.jianyu"') {
     Report-IdentityFailure "Gradle ApplicationId" "app/build.gradle.kts 中 applicationId 未修改为 com.elio.jianyu"
 }
 
-# 2. 检查主源码与单测源码根目录
+# 2. 检查主源码、单元测试与 AndroidTest 的新旧包目录
 if (Test-Path "app/src/main/java/com/elio/jianyu") {
     Report-IdentitySuccess "Main Source Dir" "新主源码目录 app/src/main/java/com/elio/jianyu 已存在"
 } else {
@@ -52,10 +52,28 @@ if (Test-Path "app/src/main/java/com/elio/skillroundtable") {
     Report-IdentitySuccess "Legacy Main Source Dir" "旧主源码目录已完全清除"
 }
 
+if (Test-Path "app/src/test/java/com/elio/jianyu") {
+    Report-IdentitySuccess "Unit Test Dir" "新单测目录 app/src/test/java/com/elio/jianyu 已存在"
+} else {
+    Report-IdentityFailure "Unit Test Dir" "新单测目录 app/src/test/java/com/elio/jianyu 缺失"
+}
+
 if (Test-Path "app/src/test/java/com/elio/skillroundtable") {
     Report-IdentityFailure "Legacy Unit Test Dir" "旧单测目录 app/src/test/java/com/elio/skillroundtable 仍残留"
 } else {
     Report-IdentitySuccess "Legacy Unit Test Dir" "旧单测目录已完全清除"
+}
+
+if (Test-Path "app/src/androidTest/java/com/elio/jianyu") {
+    Report-IdentitySuccess "Android Test Dir" "新 AndroidTest 目录 app/src/androidTest/java/com/elio/jianyu 已存在"
+} else {
+    Report-IdentityFailure "Android Test Dir" "新 AndroidTest 目录 app/src/androidTest/java/com/elio/jianyu 缺失"
+}
+
+if (Test-Path "app/src/androidTest/java/com/elio/skillroundtable") {
+    Report-IdentityFailure "Legacy Android Test Dir" "旧 AndroidTest 目录 app/src/androidTest/java/com/elio/skillroundtable 仍残留"
+} else {
+    Report-IdentitySuccess "Legacy Android Test Dir" "旧 AndroidTest 目录已完全清除"
 }
 
 # 3. 检查 Room 新 Schema 输出
