@@ -8,18 +8,18 @@
 
 ### 1.1 当前可运行 Android 基线
 
-当前仓库和 Android 生产代码仍使用旧技术标识：
+当前仓库和 Android 生产代码已经使用见域应用身份：
 
 ```text
 仓库：elio-zwd/AI-Skill-Roundtable
-App 用户可见名称：AI 智囊圆桌
-namespace / applicationId：com.elio.skillroundtable
-Kotlin 包路径：app/src/main/java/com/elio/skillroundtable/
+App 用户可见名称：见域
+namespace / applicationId：com.elio.jianyu
+Kotlin 包路径：app/src/main/java/com/elio/jianyu/
 ```
 
 当前应用是一套可运行的原生 Android 多角色聊天基线，包含 Room 本地会话、Gemini REST / Interactions / Live WebSocket、联网搜索、Markdown、用户自带 Key 池、遥测和音频管理。
 
-以上是**当前实现事实**，不代表目标产品已经完成品牌、产品模型、数据模型或包路径迁移。
+以上是**当前实现事实**。应用名称和技术身份已经迁移，但持续议题、阶段、资料成果、完整品牌视觉和后续数据模型仍由 PR09 后续任务实施。
 
 ### 1.2 目标产品
 
@@ -31,27 +31,35 @@ Kotlin 包路径：app/src/main/java/com/elio/skillroundtable/
 
 > 见域是一款面向个人的多智能体思考与行动工作台。用户围绕持续议题，调用人物视角、专业顾问、任务助手和工作流能力，通过自由追问与分阶段推进，沉淀判断、行动方案和知识成果。
 
-目标技术标识：
+当前已完成的技术标识：
+
+```text
+App 名称：见域
+applicationId / namespace：com.elio.jianyu
+```
+
+仍属于未来目标：
 
 ```text
 目标仓库名：jianyu-workbench
 目标官网：jianyu.my-elio.online
-目标 applicationId：com.elio.jianyu
 ```
 
-这些仍是**待实施目标**。PR08 只冻结规格和迁移评估，不得把目标状态描述为当前已经完成。
+不得把仓库名、官网、完整产品模型或完整品牌视觉描述为已经完成。
 
 ### 1.3 旧 App 数据边界
 
-当前 App 尚未正式发布，已冻结以下迁移边界：
+当前 App 尚未正式发布，应用身份已从 `com.elio.skillroundtable` 迁移到 `com.elio.jianyu`，并冻结以下边界：
 
 - 不保留旧 App 作为独立产品；
 - 不迁移旧包 `com.elio.skillroundtable` 的 Room 数据；
 - 不迁移旧 Keystore、偏好设置、私有文件或本地会话；
-- 后续按全新应用身份迁移到 `com.elio.jianyu`；
-- PR08 只记录规格和影响，PR09 才实施技术迁移。
+- 新包使用独立 Android UID 和私有沙箱；
+- 用户需要在新包中重新配置 API Key；
+- 不设计跨包数据桥接；
+- 不自动卸载或清空旧包。
 
-不得擅自设计跨包数据桥接，也不得在文档中暗示旧数据会自动迁移。
+不得在代码或文档中暗示旧数据会自动迁移。
 
 ---
 
@@ -62,23 +70,20 @@ Kotlin 包路径：app/src/main/java/com/elio/skillroundtable/
 ```text
 PR #20：已合并，冻结产品定义、品牌、PR08 总计划与协作规则
 → PR #21：已合并，冻结“推进议题”与阶段推进契约
-→ PR #22：收敛第 1～62 题、更新 AGENTS.md 与 README.md
-→ PR08-A～E：必须从包含前三个 PR 的同一最新 main 并行启动
-→ PR08-F：串行整合、消除冲突并冻结最终规格
-→ 用户明确批准
-→ PR09：实施生产代码、数据模型、品牌和技术标识迁移
+→ PR #22：已合并，收敛第 1～62 题并更新仓库规则
+→ PR08-A～E：已完成
+→ PR08-F：已完成并获得用户批准
+→ PR09：正在按独立任务实施生产代码、数据模型、品牌和技术标识迁移
 ```
 
-强制门禁：
+当前门禁：
 
-- PR08-A～E 必须等待 PR #20、#21、#22 全部合并；
-- PR08-A～E 必须从同一最新 `main` SHA 创建独立分支；
-- PR08-F 不得与 A～E 并行；
-- PR09 只有在 PR08-F 完成并获得用户明确批准后才能启动；
 - PR08 不修改 Android 生产代码、测试、Room、资源、Manifest、Gradle、CI 或仓库设置；
-- 当前文档中的目标行为不得写成已经实现。
+- PR09 每个任务使用独立分支、Commit 和 Draft PR 阶段；
+- 当前文档中的目标行为只有在对应代码、测试和验收完成后才能写成已实现；
+- 未经用户明确授权不得标记 Ready、合并、关闭 PR 或删除分支。
 
-任何历史文档中“PR08 直接逐屏修改 Compose”“PR #20 合并后即可启动 A～E”或“PR08-F 前即可开始 PR09”的表述均已失效。
+任何历史文档中“PR08 直接逐屏修改 Compose”“PR08-F 前即可开始 PR09”或“`com.elio.jianyu` 尚未迁移”的表述均已失效。
 
 ---
 
@@ -206,6 +211,8 @@ Skill 是能力载体
 
 | 项目 | 当前值 |
 |---|---|
+| 应用名称 | 见域 |
+| applicationId / namespace | `com.elio.jianyu` |
 | 语言 | Kotlin 2.0.21 |
 | UI | Jetpack Compose + Material 3 |
 | 导航 | Navigation Compose 2.8.4 |
@@ -257,12 +264,14 @@ git log -5 --oneline
 当前 Android 代码目录：
 
 ```text
-app/src/main/java/com/elio/skillroundtable/
+app/src/main/java/com/elio/jianyu/
 ├── MainActivity.kt
+├── audio/
 ├── data/
 ├── network/
-├── telemetry/
+├── roundtable/
 ├── skill/
+├── telemetry/
 ├── viewmodel/
 └── ui/
     ├── AGENTS.md
@@ -272,6 +281,13 @@ app/src/main/java/com/elio/skillroundtable/
     ├── theme/
     ├── components/
     └── screens/
+```
+
+当前测试目录：
+
+```text
+app/src/test/java/com/elio/jianyu/
+app/src/androidTest/java/com/elio/jianyu/
 ```
 
 当前文档目录：
@@ -286,13 +302,13 @@ docs/
 └── skills/
 ```
 
-PR08 计划中的 `docs/product/`、`docs/design/ux/`、`docs/design/brand/` 等路径由对应任务创建；在实际创建前不得把它们描述为当前已经存在的目录。
+未来规划中的新目录只有在实际创建后，才可描述为当前工程事实。
 
 ---
 
 ## 7. UI 架构规则
 
-目标文件位于 `ui/` 时，还必须遵守 `app/src/main/java/com/elio/skillroundtable/ui/AGENTS.md`。
+目标文件位于 `ui/` 时，还必须遵守 `app/src/main/java/com/elio/jianyu/ui/AGENTS.md`。
 
 - `MainActivity.kt` 只保留 Activity 入口；
 - `ui/App.kt` 只负责顶层导航和页面 Route 组装；
@@ -307,7 +323,7 @@ PR08 计划中的 `docs/product/`、`docs/design/ux/`、`docs/design/brand/` 等
 - 新抽象必须有真实调用方和测试；
 - 已存在的 `testTag` 属于稳定测试契约。
 
-这些规则描述当前工程基线。PR08 只能评估影响，PR09 实施时仍须遵守，除非最终迁移规格明确更新。
+这些规则描述当前工程基线。PR09 实施时必须继续遵守，除非最终迁移规格明确更新。
 
 ---
 
@@ -435,6 +451,7 @@ git status --short
 | 第 1～62 题决策索引 | `docs/planning/pr-08-jianyu-product-spec-decision-index.md` |
 | 第 56～61 题补充 | `docs/planning/pr-08-jianyu-product-spec-supplement-56-61.md` |
 | 第 62 题补充 | `docs/planning/pr-08-jianyu-product-spec-supplement-62.md` |
+| PR09-01 应用身份迁移计划 | `docs/planning/pr-09-01-jianyu-app-identity-plan.md` |
 | 系统架构 | `docs/architecture/system-architecture.md` |
 | 当前 UI 稳定接口 | `docs/architecture/pr-08-ui-design-stable-interfaces.md` |
 | UI 回归清单 | `docs/testing/pr-07-ui-regression-checklist.md` |

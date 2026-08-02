@@ -6,13 +6,54 @@
 RoundtableDatabase version = 5
 ```
 
-当前 Schema 由 Room/KSP 自动生成并提交到：
+本次应用身份迁移只改变 Kotlin FQCN、`namespace` 和 `applicationId`，不改变 Room Entity、DAO、Database 结构、数据库名、Migration 或数据库版本。
+
+## Schema 路径边界
+
+### 历史旧包 Schema
 
 ```text
 app/schemas/com.elio.skillroundtable.data.RoundtableDatabase/5.json
 ```
 
-禁止手工编造或修改 Schema JSON。实体或数据库版本发生变化后，应通过 Gradle 编译重新生成 Schema，并将真实差异与迁移实现一同提交。
+该文件是旧 FQCN 的历史基线，必须保留且不得修改。它用于证明包名迁移前后的 Room 结构语义没有变化，不代表当前应用仍使用旧包名。
+
+### 当前新包 Schema
+
+```text
+app/schemas/com.elio.jianyu.data.RoundtableDatabase/5.json
+```
+
+该路径对应当前 `com.elio.jianyu.data.RoundtableDatabase`。文件来自精确 Task 2 Head `e2fb93b6473580f5f52628ad0508887e0e015550` 的 GitHub Android CI #144 Room/KSP 生成 Artifact，不是人工编造的 JSON。PR09-01 同时保留旧历史 Schema 与新当前 Schema。
+
+## 换行符与一致性验证
+
+CI Artifact 中 Room/KSP 输出了旧、新两个 FQCN 的 `5.json`，二者均为 LF，原始 SHA-256 均为：
+
+```text
+1537e500199e09fb4b7591f9ce5e3861c585b7325e9ede6a3e0d7403da39d695
+```
+
+Windows 工作区可能按照 Git 配置把已跟踪的旧文件检出为 CRLF，而 KSP 新生成文件为 LF。在该情形下，工作区原始 SHA-256 会不同，但规范化换行后的内容仍应完全一致。因此验证规则为：
+
+- 旧 FQCN Schema 相对固定 Base Commit 不得修改；
+- 两份文件必须均可解析为 JSON；
+- 规范化 CRLF / LF 后文本必须完全一致；
+- 结构化 JSON 必须完全一致；
+- `formatVersion`、数据库 `version`、`identityHash`、Entity、字段、索引、外键和 setup queries 必须一致；
+- 不得为了制造某个工作区原始哈希而修改旧历史 Schema。
+
+当前两份 Schema 的固定语义值包括：
+
+```text
+formatVersion：1
+database version：5
+identityHash：63f0fb76786f10fbeee22a6655997b5d
+```
+
+`tools/check-app-identity.ps1` 和 GitHub Android CI 同时执行旧 Schema 冻结检查、JSON 解析、换行规范化比较和结构化比较。构建完成后还必须确认 `app/schemas` 没有未提交差异或新文件。
+
+禁止手工编造或修改 Room Schema JSON。实体或数据库版本发生变化后，应通过 Gradle/KSP 重新生成 Schema，并将真实差异与迁移实现一同提交。
 
 ## 历史 Schema 来源
 
@@ -82,7 +123,7 @@ voiceConfig TEXT NOT NULL DEFAULT 'Aoede'
 
 ## 数据安全策略
 
-应用不再使用 `fallbackToDestructiveMigration()`。缺失迁移路径或 Schema 不匹配时，Room 会明确失败，而不是静默删除聊天记录。
+应用不使用 `fallbackToDestructiveMigration()`。缺失迁移路径或 Schema 不匹配时，Room 会明确失败，而不是静默删除聊天记录。
 
 迁移测试必须验证：
 
@@ -98,7 +139,7 @@ voiceConfig TEXT NOT NULL DEFAULT 'Aoede'
 Instrumentation 测试文件：
 
 ```text
-app/src/androidTest/java/com/elio/skillroundtable/data/RoundtableDatabaseMigrationTest.kt
+app/src/androidTest/java/com/elio/jianyu/data/RoundtableDatabaseMigrationTest.kt
 ```
 
 覆盖：
@@ -116,7 +157,7 @@ app/src/androidTest/java/com/elio/skillroundtable/data/RoundtableDatabaseMigrati
 .\gradlew.bat connectedDebugAndroidTest
 ```
 
-GitHub Actions 使用 API 30 x86_64 Emulator 执行相同的 Instrumentation Test。
+GitHub Actions 使用 API 30 x86_64 Emulator 执行相同的 Instrumentation Test。身份隔离测试会先在全新安装上独立运行，随后清理临时见域安装并排除身份类运行剩余完整套件，避免测试顺序污染空沙箱断言。
 
 ## Schema 变更流程
 
