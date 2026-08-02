@@ -208,6 +208,8 @@ PR #20：已合并
 
 PR08 只做研究、规格、设计和迁移评估，不修改 Android 生产代码。PR08-A～E 必须等待 PR #20、#21、#22 全部合并；PR09 必须等待 PR08-F 获得用户明确批准。
 
+项目开发工作流适配说明：[`tools/ai/superpowers/README.md`](tools/ai/superpowers/README.md)。该目录仅供开发时参考，不是 Android 构建或运行时依赖。
+
 ---
 
 ## 5. 当前内置人物型 Skill
