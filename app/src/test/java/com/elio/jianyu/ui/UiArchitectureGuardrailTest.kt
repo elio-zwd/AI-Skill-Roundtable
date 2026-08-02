@@ -79,7 +79,7 @@ class UiArchitectureGuardrailTest {
     fun pageDomains_doNotImportOtherPageInternals() {
         val domains = setOf("roundtable", "characters", "library", "settings")
         val importPattern = Regex(
-            "import com\\.elio\\.skillroundtable\\.ui\\.screens\\.([a-z]+)\\.",
+            "import com\\.elio\\.jianyu\\.ui\\.screens\\.([a-z]+)\\.",
         )
         val violations = mutableListOf<String>()
 
