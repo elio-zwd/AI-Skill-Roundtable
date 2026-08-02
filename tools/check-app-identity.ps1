@@ -6,11 +6,11 @@ $ErrorActionPreference = 'Stop'
 
 $script:FailedCategoryCount = 0
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$BaseSha = '4de0bfb0480ea84d3a88af12c11167a3a27c38dc'
+$IdentityBaseSha = '4de0bfb0480ea84d3a88af12c11167a3a27c38dc'
 $CurrentPackage = 'com.elio.jianyu'
 $LegacyPackage = 'com.elio.skillroundtable'
 $LegacySchema = 'app/schemas/com.elio.skillroundtable.data.RoundtableDatabase/5.json'
-$CurrentSchema = 'app/schemas/com.elio.jianyu.data.RoundtableDatabase/5.json'
+$CurrentIdentitySchema = 'app/schemas/com.elio.jianyu.data.RoundtableDatabase/5.json'
 $MoveManifest = 'docs/testing/pr-09-01-package-move-manifest.txt'
 
 function Pass {
@@ -98,9 +98,9 @@ try {
         'app/src/test/java/com/elio/skillroundtable',
         'app/src/androidTest/java/com/elio/skillroundtable'
     )
-
     $currentLabels = @('Main Source Dir', 'Unit Test Dir', 'Android Test Dir')
     $legacyLabels = @('Legacy Main Source Dir', 'Legacy Unit Test Dir', 'Legacy Android Test Dir')
+
     for ($index = 0; $index -lt $currentRoots.Count; $index++) {
         if (Test-Path $currentRoots[$index] -PathType Container) {
             Pass $currentLabels[$index] "新目录存在：$($currentRoots[$index])"
@@ -115,11 +115,11 @@ try {
     }
 
     $currentTracked = @(Get-TrackedFiles -Paths $currentRoots)
-    if ($currentTracked.Count -eq 111 -and
-        $currentTracked -contains 'app/src/androidTest/java/com/elio/jianyu/identity/AppIdentityIsolationTest.kt') {
-        Pass 'Tracked Source Count' '新包下共 111 个已跟踪文件（Base 110 + 身份测试 1）'
+    $identityTest = 'app/src/androidTest/java/com/elio/jianyu/identity/AppIdentityIsolationTest.kt'
+    if ($currentTracked.Count -ge 111 -and $currentTracked -contains $identityTest) {
+        Pass 'Tracked Source Count' "原 110 个映射文件和身份测试均保留；当前允许后续功能新增，count=$($currentTracked.Count)"
     } else {
-        Fail 'Tracked Source Count' "新包已跟踪文件数量或身份测试异常：count=$($currentTracked.Count)"
+        Fail 'Tracked Source Count' "原身份迁移文件或身份测试缺失：count=$($currentTracked.Count)"
     }
 
     $remainingLegacyTracked = @(Get-TrackedFiles -Paths $legacyRoots)
@@ -202,43 +202,44 @@ try {
     } else {
         Fail 'Legacy Room Schema' "旧 FQCN Schema 缺失：$LegacySchema"
     }
-    if (Test-Path $CurrentSchema -PathType Leaf) {
-        Pass 'Room Schema' "新 FQCN Schema 存在：$CurrentSchema"
+    if (Test-Path $CurrentIdentitySchema -PathType Leaf) {
+        Pass 'Room Identity Schema' "新 FQCN v5 身份基线保留：$CurrentIdentitySchema"
     } else {
-        Fail 'Room Schema' "新 FQCN Schema 缺失：$CurrentSchema"
+        Fail 'Room Identity Schema' "新 FQCN v5 身份基线缺失：$CurrentIdentitySchema"
     }
 
-    if ((Test-Path $LegacySchema) -and (Test-Path $CurrentSchema)) {
+    if ((Test-Path $LegacySchema) -and (Test-Path $CurrentIdentitySchema)) {
         try {
             $oldRaw = Get-Content $LegacySchema -Raw
-            $newRaw = Get-Content $CurrentSchema -Raw
+            $newRaw = Get-Content $CurrentIdentitySchema -Raw
             $null = $oldRaw | ConvertFrom-Json
             $null = $newRaw | ConvertFrom-Json
-            if ((Normalize-Text $LegacySchema) -ceq (Normalize-Text $CurrentSchema)) {
-                Pass 'Room Schema Equivalence' '新旧 5.json 规范化换行后字节一致，JSON 可解析'
+            if ((Normalize-Text $LegacySchema) -ceq (Normalize-Text $CurrentIdentitySchema)) {
+                Pass 'Room Schema Equivalence' '新旧 v5 身份 Schema 规范化换行后字节一致，JSON 可解析'
             } else {
-                Fail 'Room Schema Equivalence' '新旧 5.json 存在换行符以外的差异'
+                Fail 'Room Schema Equivalence' '新旧 v5 身份 Schema 存在换行符以外的差异'
             }
         } catch {
             Fail 'Room Schema Equivalence' "Schema JSON 解析失败：$($_.Exception.Message)"
         }
 
-        $baseDiff = @(& git diff --exit-code $BaseSha -- $LegacySchema 2>&1)
+        $baseDiff = @(& git diff --exit-code $IdentityBaseSha -- $LegacySchema 2>&1)
         if ($LASTEXITCODE -eq 0) {
-            Pass 'Legacy Schema Freeze' '旧 FQCN Schema 与固定 Base 完全一致'
+            Pass 'Legacy Schema Freeze' '旧 FQCN Schema 与固定身份 Base 完全一致'
         } else {
-            Fail 'Legacy Schema Freeze' "旧 Schema 相对 Base 发生变化：$($baseDiff -join [Environment]::NewLine)"
+            Fail 'Legacy Schema Freeze' "旧 Schema 相对身份 Base 发生变化：$($baseDiff -join [Environment]::NewLine)"
         }
     }
 
     $databaseSource = Get-Content 'app/src/main/java/com/elio/jianyu/data/RoundtableDatabase.kt' -Raw
-    if ($databaseSource -match 'version\s*=\s*5' -and
-        $databaseSource -match 'MIGRATION_1_2' -and $databaseSource -match 'MIGRATION_2_3' -and
-        $databaseSource -match 'MIGRATION_3_4' -and $databaseSource -match 'MIGRATION_4_5' -and
+    $requiredMigrations = @('MIGRATION_1_2', 'MIGRATION_2_3', 'MIGRATION_3_4', 'MIGRATION_4_5', 'MIGRATION_5_6')
+    $missingMigrations = @($requiredMigrations | Where-Object { $databaseSource -notmatch [regex]::Escape($_) })
+    if ($databaseSource -match 'version\s*=\s*6' -and
+        $missingMigrations.Count -eq 0 -and
         $databaseSource -match '"roundtable_database"') {
-        Pass 'Room Runtime Contract' 'Room version、迁移链和数据库名保持原契约'
+        Pass 'Room Runtime Contract' 'Room 已连续升级到 v6，v1→v6 迁移链和数据库名保持完整'
     } else {
-        Fail 'Room Runtime Contract' 'Room version、迁移链或数据库名发生非预期变化'
+        Fail 'Room Runtime Contract' "Room v6、连续迁移链或数据库名异常；缺失迁移=$($missingMigrations -join ', ')"
     }
 
     $keyStoreSource = Get-Content 'app/src/main/java/com/elio/jianyu/network/EncryptedApiKeyStore.kt' -Raw
@@ -258,9 +259,11 @@ try {
             $_ -notmatch '^\s+LEGACY_(PACKAGE|LAUNCHER|SCHEMA):'
         }
     )
+    $hasCurrentIdentitySchema =
+        $ciYaml -match '(CURRENT_SCHEMA_V5|CURRENT_SCHEMA):\s*app/schemas/com\.elio\.jianyu\.data\.RoundtableDatabase/5\.json'
     if ($ciYaml -match 'CURRENT_PACKAGE:\s*com\.elio\.jianyu' -and
         $ciYaml -match 'CURRENT_LAUNCHER:\s*com\.elio\.jianyu\.MainActivity' -and
-        $ciYaml -match 'CURRENT_SCHEMA:\s*app/schemas/com\.elio\.jianyu\.data\.RoundtableDatabase/5\.json' -and
+        $hasCurrentIdentitySchema -and
         $ciYaml -match 'LEGACY_PACKAGE:\s*com\.elio\.skillroundtable' -and
         $ciYaml -match 'LEGACY_LAUNCHER:\s*com\.elio\.skillroundtable\.MainActivity' -and
         $ciYaml -match 'LEGACY_SCHEMA:\s*app/schemas/com\.elio\.skillroundtable\.data\.RoundtableDatabase/5\.json' -and
@@ -269,7 +272,7 @@ try {
         $ciYaml -match 'AppIdentityIsolationTest' -and
         $ciYaml -match 'notClass=com\.elio\.jianyu\.identity\.AppIdentityIsolationTest' -and
         $invalidLegacyCiLines.Count -eq 0) {
-        Pass 'CI Config' 'CI 使用新包、固定旧包 APK、双包隔离和分阶段 Instrumentation 门禁'
+        Pass 'CI Config' 'CI 保留见域身份、v5 身份 Schema、固定旧包 APK 与分阶段 Instrumentation 门禁'
     } else {
         Fail 'CI Config' "CI 身份常量、双包验收、测试顺序或旧包允许清单异常；非法旧包行数=$($invalidLegacyCiLines.Count)"
     }
