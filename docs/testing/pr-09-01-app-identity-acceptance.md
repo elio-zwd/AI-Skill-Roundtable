@@ -47,7 +47,30 @@ AI 智囊圆桌 / com.elio.skillroundtable
 
 禁止使用真实生产 Key、用户真实会话或不可恢复的数据执行验收。
 
-## 3. 仓库只读门禁
+## 3. 执行责任与自动化边界
+
+PR 自动 GitHub CI 负责：
+
+- 应用身份静态门禁；
+- Kotlin 编译和单元测试；
+- Lint；
+- Debug / Release APK；
+- applicationId、Launcher 和 merged manifest；
+- Release R8 与未签名产物；
+- Room Schema 冻结、语义等价和生成一致性；
+- Secret scan。
+
+本地只读验收 AI 负责：
+
+- 新旧 APK 双包安装；
+- UID、dataDir 和私有文件哨兵隔离；
+- 全新见域安装上的 `AppIdentityIsolationTest`；
+- 排除身份类后的剩余 Instrumentation 套件；
+- 旧包测试会话、测试 Key 与新包空状态的人工 UI 验收。
+
+GitHub 工作流仍保留 `workflow_dispatch` 手动兜底，可在确有需要时运行旧包 APK 与 Emulator 验收；它不再随普通 PR push 自动执行，也不作为本地验收的替代品。
+
+## 4. 仓库只读门禁
 
 开始前记录：
 
@@ -68,7 +91,7 @@ pwsh.exe -NoProfile -File .\tools\check-app-identity.ps1
 - 标记 PR Ready 或合并 PR；
 - 静默卸载 App、清除 App 数据或删除用户 Key。
 
-## 4. 自动双包身份检查
+## 5. 自动双包身份检查
 
 执行：
 
@@ -100,7 +123,7 @@ pwsh.exe -NoProfile -File .\tools\verify-app-coexistence.ps1 `
   -CleanupPrivateFileSentinel
 ```
 
-## 5. 全新见域身份测试
+## 6. 全新见域身份测试
 
 身份测试必须独立运行在全新见域安装上，不能依赖完整 Instrumentation 套件的类执行顺序。
 
@@ -134,7 +157,7 @@ legacyNamedKeystoreAlias_isNotVisibleInFreshJianyuSandbox
 
 如果见域包此前已经运行、写入 Key 或创建会话，该测试前置条件不成立。只能在专用测试设备明确记录后清理见域测试包，不能让脚本静默清理。
 
-## 6. 完整 Instrumentation 套件
+## 7. 完整 Instrumentation 套件
 
 身份测试通过后，再次清理见域测试安装，并排除身份类运行剩余套件：
 
@@ -148,13 +171,18 @@ adb uninstall com.elio.jianyu
 
 这样可以避免其他 UI 或数据库测试先创建状态，污染“全新安装”断言。
 
-GitHub Actions 使用相同顺序：
+本地验收必须按以下顺序执行：
 
-1. 全新安装单独运行 `AppIdentityIsolationTest`；
-2. 再次清理临时见域安装；
-3. 排除身份类运行其余 Instrumentation 测试。
+1. 双包并存和 UID / dataDir / 私有文件哨兵隔离；
+2. 清理专用测试设备上的见域测试安装；
+3. 全新安装单独运行 `AppIdentityIsolationTest`；
+4. 再次清理临时见域安装；
+5. 排除身份类运行其余 Instrumentation 测试；
+6. 最后执行人工 UI 数据与 Key 隔离验收。
 
-## 7. 旧包业务数据保留与新包空状态
+普通 PR CI 不自动运行以上模拟器步骤；只有手动触发工作流时才运行 GitHub Emulator 兜底任务。
+
+## 8. 旧包业务数据保留与新包空状态
 
 以下步骤需要人工操作，因为不能通过仓库脚本伪造用户 API Key 或直接修改生产数据库：
 
@@ -166,7 +194,7 @@ GitHub Actions 使用相同顺序：
 6. 确认见域会话列表为空；
 7. 确认见域 API Key 列表为空，并要求用户重新配置 Key；
 8. 再次打开旧包，确认测试会话和测试 Key 仍存在；
-9. 验收结束后，仅在旧包 UI 中删除专用测试 Key和测试会话。
+9. 验收结束后，仅在旧包 UI 中删除专用测试 Key 和测试会话。
 
 通过条件：
 
@@ -174,7 +202,7 @@ GitHub Actions 使用相同顺序：
 - 旧包数据没有被安装新包覆盖或删除；
 - 没有跨包导入、复制或共享 Keystore Key。
 
-## 8. UID、目录与 Keystore 证据
+## 9. UID、目录与 Keystore 证据
 
 记录：
 
@@ -196,7 +224,7 @@ adb shell dumpsys package com.elio.jianyu | Select-String 'userId=|dataDir='
 
 保持相同 alias 是为了验证 Android UID 隔离，不得通过改 alias、算法或文件格式规避测试。
 
-## 9. Room Schema 验收
+## 10. Room Schema 验收
 
 必须同时存在：
 
@@ -224,7 +252,7 @@ git diff --exit-code -- app/schemas
 
 Windows 工作区可能把旧 Git Blob 检出为 CRLF，而 KSP 生成 LF，因此不能只用原始工作区 SHA-256 判断语义差异。
 
-## 10. APK 与 merged manifest 验收
+## 11. APK 与 merged manifest 验收
 
 执行：
 
@@ -257,21 +285,21 @@ Get-ChildItem app\build\intermediates\merged_manifests -Recurse -Filter AndroidM
 
 任何 Activity、Provider authority 或初始化器中的旧活动包名都阻塞通过。
 
-## 11. 最终报告
+## 12. 最终报告
 
 报告必须区分：
 
 - 本地实际执行并通过；
 - GitHub CI 实际通过；
 - 自动双包脚本通过；
-- 人工 UI 数据/Key 隔离通过；
+- 人工 UI 数据 / Key 隔离通过；
 - 因设备或权限未执行的项目。
 
 至少记录：
 
 1. 操作系统、Shell、Git、JDK、Gradle、Android SDK 和设备版本；
 2. 精确 Head、Base、分支和 PR 状态；
-3. 构建、单测、Lint、Debug/Release APK；
+3. 构建、单测、Lint、Debug / Release APK；
 4. 独立身份测试和剩余 Instrumentation 套件；
 5. APK 包名、Launcher、merged manifest 和 R8；
 6. 新旧 Schema 比较结果；
@@ -279,5 +307,7 @@ Get-ChildItem app\build\intermediates\merged_manifests -Recurse -Filter AndroidM
 8. 旧会话、旧 Key、新包空状态和旧包数据保留；
 9. Secret scan、`git diff --check` 和最终干净工作区；
 10. 尚未验证事项与复现步骤。
+
+验收结论只能基于真实执行证据。GitHub 自动 CI 跳过的模拟器作业不得写成通过；本地未执行的人工 UI 项目也不得由静态检查替代。
 
 未经用户明确授权，验收完成后仍不得标记 Ready、合并 PR 或删除分支。
