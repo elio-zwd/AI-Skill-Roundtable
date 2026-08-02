@@ -1,19 +1,20 @@
-# 见域（目标产品）｜AI-Skill-Roundtable（当前工程）
+# 见域｜AI-Skill-Roundtable（当前仓库）
 
 > 看见更多观点，打开认知边界。
 
-本仓库当前包含一套可运行的 Android 多角色聊天应用基线；目标产品“见域”的产品模型、体验和迁移规格正在 PR08 阶段收敛。两者必须明确区分。
+本仓库包含一套可运行的 Android 多角色聊天应用基线。Android App 的用户可见名称、`namespace`、`applicationId` 和 Kotlin 包路径已经迁移为“见域 / `com.elio.jianyu`”；持续议题、阶段、资料成果和完整见域体验仍在 PR09 后续阶段实施。仓库名目前仍为 `AI-Skill-Roundtable`。
 
 ---
 
 ## 1. 当前可运行 Android 基线
 
-当前工程仍使用以下技术标识：
+当前工程使用以下技术标识：
 
 ```text
 仓库：elio-zwd/AI-Skill-Roundtable
-App 名称：AI 智囊圆桌
-namespace / applicationId：com.elio.skillroundtable
+App 名称：见域
+namespace / applicationId：com.elio.jianyu
+Kotlin 包路径：app/src/main/java/com/elio/jianyu/
 默认版本名：0.1.0
 ```
 
@@ -29,7 +30,7 @@ namespace / applicationId：com.elio.skillroundtable
 - 流式音频、TTS 与本地音频管理；
 - 遥测设置和当前 Compose Route / Screen / UiState 架构。
 
-当前 Android App **尚未实现**见域目标中的持续议题、阶段时间线、资料与成果双层管理、正式“推进议题”流程、新品牌资源或新包名迁移。
+当前 Android App **尚未实现**见域目标中的持续议题、阶段时间线、资料与成果双层管理、正式“推进议题”流程、最终品牌视觉和新数据模型。
 
 ### 当前工程版本
 
@@ -43,7 +44,7 @@ namespace / applicationId：com.elio.skillroundtable
 | Gradle Wrapper | 8.14 |
 | Compile / Target SDK | 35 |
 | Min SDK | 26 |
-| applicationId | `com.elio.skillroundtable` |
+| applicationId | `com.elio.jianyu` |
 
 ---
 
@@ -51,15 +52,21 @@ namespace / applicationId：com.elio.skillroundtable
 
 > 见域是一款面向个人的多智能体思考与行动工作台。用户围绕持续议题，调用人物视角、专业顾问、任务助手和工作流能力，通过自由追问与分阶段推进，沉淀判断、行动方案和知识成果。
 
-目标技术标识：
+当前已完成的技术身份：
+
+```text
+App 名称：见域
+applicationId / namespace：com.elio.jianyu
+```
+
+仍属于未来目标：
 
 ```text
 目标仓库名：jianyu-workbench
 目标官网：jianyu.my-elio.online
-目标 applicationId：com.elio.jianyu
 ```
 
-以上标识尚未迁移，不能视为当前工程状态。
+仓库名和官网尚未迁移，不能视为当前工程状态。
 
 ### 2.1 核心产品关系
 
@@ -190,7 +197,7 @@ V1 只提供官方内置 Skill，不支持用户创建、导入第三方 Skill �
 
 这些是**目标产品行为和数据安全目标**，尚未在当前 Android App 中实现；具体 Room Schema、算法、文件格式、容量阈值和事务实现由 PR08-E 评估、PR08-F 冻结、PR09 实施。
 
-当前 App 尚未正式发布，因此不迁移旧包 `com.elio.skillroundtable` 的 Room、Keystore、偏好设置、私有文件或本地会话。
+当前 App 尚未正式发布。新包 `com.elio.jianyu` 使用独立 Android UID 和私有沙箱，不读取旧包 `com.elio.skillroundtable` 的 Room、Keystore、偏好设置、私有文件或本地会话；用户需要在新包中重新配置 API Key。项目不提供跨包数据桥接。
 
 ---
 
@@ -199,14 +206,13 @@ V1 只提供官方内置 Skill，不支持用户创建、导入第三方 Skill �
 ```text
 PR #20：已合并
 → PR #21：已合并
-→ PR #22：规格收敛与验收边界
-→ PR08-A～E 从统一最新 main 并行启动
-→ PR08-F 串行整合
-→ 用户明确批准
-→ PR09 实施生产代码
+→ PR #22：已合并
+→ PR08-A～E：已完成
+→ PR08-F：已完成并获得用户批准
+→ PR09：正在分阶段实施生产代码、数据模型、品牌和技术标识迁移
 ```
 
-PR08 只做研究、规格、设计和迁移评估，不修改 Android 生产代码。PR08-A～E 必须等待 PR #20、#21、#22 全部合并；PR09 必须等待 PR08-F 获得用户明确批准。
+PR08 只做研究、规格、设计和迁移评估，不修改 Android 生产代码。PR09 按独立任务和 Draft PR 分阶段实施，并在完成前执行构建、测试、CI 和只读验收。
 
 项目开发工作流适配说明：[`tools/ai/superpowers/README.md`](tools/ai/superpowers/README.md)。该目录仅供开发时参考，不是 Android 构建或运行时依赖。
 
@@ -264,7 +270,7 @@ PR08 只做研究、规格、设计和迁移评估，不修改 Android 生产代
 .\run.ps1
 ```
 
-脚本会检查 JDK 和 adb 环境，编译、安装并启动 App，同时输出日志。
+脚本会检查 JDK 和 adb 环境，编译、安装并启动 `com.elio.jianyu/.MainActivity`，同时输出日志。
 
 ### 手动构建
 
@@ -336,7 +342,7 @@ AI-Skill-Roundtable/
 └── workspace/            # 构建期资产处理辅助区
 ```
 
-PR08 计划中的新文档目录由对应 PR 创建；当前 README 不把未创建路径描述为现有工程事实。
+PR09 后续计划中的新代码和文档目录只有在对应任务实际创建后，才可描述为当前工程事实。
 
 ---
 
@@ -351,18 +357,23 @@ PR08 计划中的新文档目录由对应 PR 创建；当前 README 不把未创
 - [第 1～62 题决策索引](docs/planning/pr-08-jianyu-product-spec-decision-index.md)
 - [第 56～61 题补充决定](docs/planning/pr-08-jianyu-product-spec-supplement-56-61.md)
 - [第 62 题补充决定](docs/planning/pr-08-jianyu-product-spec-supplement-62.md)
+- [PR09-01 应用身份迁移计划](docs/planning/pr-09-01-jianyu-app-identity-plan.md)
 
 ---
 
 ## 12. 当前状态说明
 
-本仓库仍处于规格和设计迁移阶段。以下事项尚未实施：
+已经完成：
 
 - App 用户可见名称迁移为“见域”；
-- repository、namespace、applicationId 和 Kotlin 包路径迁移；
+- `namespace`、`applicationId` 和 Kotlin 包路径迁移为 `com.elio.jianyu`；
+- 新旧应用身份隔离测试和静态门禁。
+
+仍待后续 PR09 任务实施：
+
+- 新 FQCN Room Schema 正式生成、CI 和构建门禁同步；
 - 议题、阶段、推进议题、资料库和成果库；
 - 约 44 个官方候选 Skill 的正式接入；
-- 新品牌、Logo、页面视觉和官网；
-- 新数据模型、导入导出与恢复快照实现。
-
-这些内容由 PR08-A～F 完成规格后，再由用户批准 PR09 实施。
+- 最终品牌 Logo、页面视觉和官网；
+- 新数据模型、导入导出与恢复快照实现；
+- 仓库名迁移为 `jianyu-workbench`。
