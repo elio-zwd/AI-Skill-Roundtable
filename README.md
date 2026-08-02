@@ -308,9 +308,19 @@ Android App 编译和运行时不读取根目录 `.env`。`.env` 仅供开发者
 .\gradlew.bat testDebugUnitTest
 .\gradlew.bat lintDebug
 .\gradlew.bat assembleDebug
+pwsh.exe -NoProfile -File .\tools\check-app-identity.ps1
 ```
 
-涉及 UI、设备、音频、系统返回或 Activity 重建时，还应运行相应 Instrumentation Test 或真机回归，并记录设备和 Android 版本。
+GitHub Android CI 还会：
+
+- 构建并验证 Debug / Release APK；
+- 校验 merged manifest、R8 输出和未签名 Release 产物；
+- 冻结旧 Room Schema 并验证新旧 Schema 语义一致；
+- 从固定 Base 构建旧包 APK，与当前见域 APK 在同一 Emulator 上双包安装；
+- 验证新旧包 UID、私有目录、Launcher 和旧包私有文件隔离；
+- 在全新见域安装上单独运行身份测试，再运行剩余 Instrumentation 套件。
+
+最终设备验收说明见 [`docs/testing/pr-09-01-app-identity-acceptance.md`](docs/testing/pr-09-01-app-identity-acceptance.md)。
 
 ---
 
@@ -346,7 +356,7 @@ PR09 后续计划中的新代码和文档目录只有在对应任务实际创建
 
 ---
 
-## 11. 规划文档
+## 11. 规划与验收文档
 
 - [产品定义工作笔记](docs/planning/pr-08-product-definition-working-notes.md)
 - [见域产品定义与体验设计总计划](docs/planning/pr-08-jianyu-product-redesign-plan.md)
@@ -358,20 +368,33 @@ PR09 后续计划中的新代码和文档目录只有在对应任务实际创建
 - [第 56～61 题补充决定](docs/planning/pr-08-jianyu-product-spec-supplement-56-61.md)
 - [第 62 题补充决定](docs/planning/pr-08-jianyu-product-spec-supplement-62.md)
 - [PR09-01 应用身份迁移计划](docs/planning/pr-09-01-jianyu-app-identity-plan.md)
+- [PR09-01 应用身份与双包隔离验收](docs/testing/pr-09-01-app-identity-acceptance.md)
 
 ---
 
 ## 12. 当前状态说明
 
-已经完成：
+PR09-01 已完成远端实现：
 
 - App 用户可见名称迁移为“见域”；
 - `namespace`、`applicationId` 和 Kotlin 包路径迁移为 `com.elio.jianyu`；
-- 新旧应用身份隔离测试和静态门禁。
+- Main 71、Unit Test 31、Base AndroidTest 8 共 110 个历史文件一一迁移，并迁移 Task 1 新增身份测试；
+- 旧包目录和活动 Kotlin 源码中的普通、转义及路径形式旧包引用清理；
+- 新旧应用身份、Launcher、空沙箱和 KeyStore alias 隔离测试；
+- 新 FQCN Room v5 Schema 真实生成并提交，旧历史 Schema 冻结保留；
+- 静态身份门禁、Debug/Release APK、merged manifest、R8、Schema 和 Emulator CI；
+- 固定旧包 APK 与见域 APK 的双包安装、不同 UID、不同私有目录和文件哨兵隔离验证；
+- 本地运行脚本和当前身份文档同步。
 
-仍待后续 PR09 任务实施：
+PR09-01 在合并前仍需要：
 
-- 新 FQCN Room Schema 正式生成、CI 和构建门禁同步；
+- 最新精确 Head 的 GitHub CI 全部完成并通过；
+- 本地 AI 按终极只读验收说明复验；
+- 使用专用测试数据人工确认旧包会话与测试 Key 保留、见域首次启动为空；
+- 用户明确批准标记 Ready 和合并。
+
+后续其他 PR09 任务包括：
+
 - 议题、阶段、推进议题、资料库和成果库；
 - 约 44 个官方候选 Skill 的正式接入；
 - 最终品牌 Logo、页面视觉和官网；
