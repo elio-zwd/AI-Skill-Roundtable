@@ -6,13 +6,43 @@
 RoundtableDatabase version = 5
 ```
 
-当前 Schema 由 Room/KSP 自动生成并提交到：
+本次应用身份迁移只改变 Kotlin FQCN、`namespace` 和 `applicationId`，不改变 Room Entity、DAO、Database 结构、数据库名、Migration 或数据库版本。
+
+## Schema 路径边界
+
+### 历史旧包 Schema
 
 ```text
 app/schemas/com.elio.skillroundtable.data.RoundtableDatabase/5.json
 ```
 
-禁止手工编造或修改 Schema JSON。实体或数据库版本发生变化后，应通过 Gradle 编译重新生成 Schema，并将真实差异与迁移实现一同提交。
+该文件是旧 FQCN 的历史基线，必须保留且不得修改。它用于证明包名迁移前后的 Room 结构语义没有变化，不代表当前应用仍使用旧包名。
+
+### 当前新包 Schema
+
+```text
+app/schemas/com.elio.jianyu.data.RoundtableDatabase/5.json
+```
+
+该路径对应当前 `com.elio.jianyu.data.RoundtableDatabase`。Task 4 将通过 Room/KSP 真实生成并提交该文件；Task 3 不创建、不手工编写也不提交新 Schema。PR09-01 最终应同时保留旧历史 Schema 与新当前 Schema。
+
+## 换行符与一致性验证
+
+Task 2 编译期间已经临时生成新 FQCN `5.json`，并得到以下事实：
+
+```text
+旧 5.json：CRLF
+KSP 新生成 5.json：LF
+```
+
+两份文件的 253 行 JSON 数据语义一致，但原始 SHA-256 因换行符不同而不同。因此：
+
+- 不得声称新旧文件字节哈希一致；
+- 不得为了制造相同哈希而修改旧历史 Schema；
+- Task 4 必须使用可复现方式验证 JSON 语义、`formatVersion`、数据库 `version`、`identityHash`、Entity、字段、索引和 setup queries 一致；
+- Task 4 必须记录原始文件哈希、规范化文本或结构化比较结果及换行符差异。
+
+禁止手工编造或修改 Room Schema JSON。实体或数据库版本发生变化后，应通过 Gradle/KSP 重新生成 Schema，并将真实差异与迁移实现一同提交。
 
 ## 历史 Schema 来源
 
@@ -82,7 +112,7 @@ voiceConfig TEXT NOT NULL DEFAULT 'Aoede'
 
 ## 数据安全策略
 
-应用不再使用 `fallbackToDestructiveMigration()`。缺失迁移路径或 Schema 不匹配时，Room 会明确失败，而不是静默删除聊天记录。
+应用不使用 `fallbackToDestructiveMigration()`。缺失迁移路径或 Schema 不匹配时，Room 会明确失败，而不是静默删除聊天记录。
 
 迁移测试必须验证：
 
@@ -98,7 +128,7 @@ voiceConfig TEXT NOT NULL DEFAULT 'Aoede'
 Instrumentation 测试文件：
 
 ```text
-app/src/androidTest/java/com/elio/skillroundtable/data/RoundtableDatabaseMigrationTest.kt
+app/src/androidTest/java/com/elio/jianyu/data/RoundtableDatabaseMigrationTest.kt
 ```
 
 覆盖：
