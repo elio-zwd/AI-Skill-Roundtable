@@ -30,7 +30,7 @@ function Get-TrackedFiles {
     if ($LASTEXITCODE -ne 0) {
         throw "git ls-files 执行失败：$($output -join [Environment]::NewLine)"
     }
-    return ,@($output | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $output | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
 }
 
 function Normalize-Text {
