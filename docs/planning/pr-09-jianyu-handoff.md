@@ -10,6 +10,8 @@
 
 PR09 将涉及应用身份、Room、导航、调度、资料成果、安全导入导出和品牌视觉。为避免多个 AI 对话互相覆盖，每个对话只负责一个任务、一个分支和一个 PR，并通过 GitHub PR、Commit 和评论交接。
 
+PR09-01～18 是能力域编号，不等于实际执行顺序。02、10、13、14 已拆成 A / B 子阶段；执行顺序以总路线图和本文串行主链为准。
+
 ## 2. 不可违反的共同规则
 
 1. 开始前读取根目录与目标目录适用的 `AGENTS.md`；
@@ -25,6 +27,8 @@ PR09 将涉及应用身份、Room、导航、调度、资料成果、安全导�
 11. 不删除测试、降低断言、吞掉异常或绕过安全控制；
 12. 未实际执行的测试必须标记为未验证；
 13. 未经用户授权不标记 Ready、不合并、不改仓库设置、DNS 或服务器。
+14. 另一个 AI 必须先对 PR08-F 修正 Head 完成严格只读复核，随后由用户批准并合并 PR08-F，才可启动 PR09；
+15. 用户已授权 PR09-01～15 不等待最终视觉，但 PR09-16 与 17 必须等待视觉门禁。
 
 ## 3. Superpowers 与 GitHub 工作流
 
@@ -41,7 +45,9 @@ PR09 将涉及应用身份、Room、导航、调度、资料成果、安全导�
 - 代码审查：`Superpowers:requesting-code-review`；
 - 收尾：`Superpowers:finishing-a-development-branch`。
 
-技能不可用时必须明确说明，并采用等价人工流程；不得假装已经使用。
+技能不可用时必须明确说明，并采用仓库规则允许的流程；不得假装已经使用。若任务 Prompt 明确禁止替代流程，则按该 Prompt 立即停止。
+
+`writing-plans` 产出的路线图不能直接作为施工单。每个对话必须先在自己的分支形成精确到文件、接口、失败测试、命令、原子提交和回滚的执行计划，并通过只读复核后再写生产代码。
 
 ## 4. 基线传递格式
 
@@ -68,15 +74,26 @@ PR09 将涉及应用身份、Room、导航、调度、资料成果、安全导�
 
 ```text
 PR09-01 应用身份
-→ PR09-02 领域 Schema
+→ PR09-02A 核心领域 Schema
+→ PR09-02B 资源与生命周期 Schema
 → PR09-03 Repository / 恢复
-→ PR09-04 导航壳
+→ PR09-04 导航壳 与 PR09-05 Skill 目录（仅此处允许有限并行）
 → PR09-07 执行运行
+→ PR09-09 资料与个人背景
+→ PR09-10A 草稿与成果
+→ PR09-10B 音频资产
+→ PR09-06 首页与推荐
+→ PR09-08 点名与交叉讨论
 → PR09-11 推进议题
-→ PR09-13 加密导出与快照
-→ PR09-14 隔离导入与原子替换
+→ PR09-12 归档与回收站
+→ PR09-13A 备份安全设计
+→ PR09-13B 加密导出与快照
+→ PR09-14A 隔离导入与差异预览
+→ PR09-14B 原子替换与回退
+→ PR09-15 隐私与风险终审
+→ PR09-16 品牌视觉实现（等待最终视觉）
 → PR09-17 端到端回归
-→ PR09-18 发布管理员阶段
+→ PR09-18 发布管理员阶段（单独授权）
 ```
 
 不得让多个对话同时修改：
@@ -90,12 +107,7 @@ PR09-01 应用身份
 
 ## 6. 有限并行条件
 
-只有接口和所有权已经冻结，以下任务才可有限并行：
-
-- Skill 目录与推荐元数据；
-- 资料与个人背景；
-- 成果和音频；
-- 独立视觉组件。
+只有 03 已合并、接口和所有权已经冻结时，04 导航壳与 05 Skill 目录才可有限并行。其他任务默认串行；如果需要修改共享导航、Database、Repository、执行状态机或应用根文件，04 与 05 也必须改回串行。
 
 并行前必须记录：
 
@@ -137,7 +149,8 @@ PR09-01 应用身份
 - 普通删除进入无自动过期回收站；
 - 归档可恢复继续；
 - 个人背景按议题显式带入；
-- V1 可保存官方 Skill 组合，不开放自定义 Skill。
+- V1 可保存官方 Skill 组合，不开放自定义 Skill；
+- 官方 Skill 组合可保存成员、顺序和可选默认职责；默认职责不得改写官方 Skill 正文、系统边界或安全规则。
 
 ### 特殊 Skill
 
@@ -159,7 +172,8 @@ namespace：优先同步为 com.elio.jianyu
 
 ```text
 refactor/pr-09-01-jianyu-app-identity
-feat/pr-09-02-jianyu-domain-schema
+feat/pr-09-02a-core-domain-schema
+feat/pr-09-02b-resource-lifecycle-schema
 feat/pr-09-03-jianyu-repository-recovery
 feat/pr-09-04-jianyu-navigation-shell
 feat/pr-09-05-official-skill-catalog
@@ -167,11 +181,14 @@ feat/pr-09-06-home-recommendation
 feat/pr-09-07-execution-run
 feat/pr-09-08-directed-cross-discussion
 feat/pr-09-09-material-context-source
-feat/pr-09-10-draft-result-audio
+feat/pr-09-10a-draft-result
+feat/pr-09-10b-audio-assets
 feat/pr-09-11-advance-issue
 feat/pr-09-12-archive-trash
-feat/pr-09-13-encrypted-export-snapshot
-feat/pr-09-14-isolated-import
+security/pr-09-13a-backup-design
+feat/pr-09-13b-encrypted-export-snapshot
+feat/pr-09-14a-isolated-import-preview
+feat/pr-09-14b-atomic-import-replacement
 fix/pr-09-15-privacy-risk-closure
 design/pr-09-16-jianyu-ui-system
 test/pr-09-17-jianyu-e2e-release-gates
@@ -267,10 +284,11 @@ Base SHA：<开始前从 GitHub 重新核对>
 3. 检查开放 PR 和同域文件冲突；
 4. 读取当前调用链、测试和 CI；
 5. 将需求拆成可验证完成条件；
-6. 先设计失败场景和测试；
-7. 只修改当前任务必要文件；
-8. 完成后创建 Draft PR，不合并；
-9. 输出完整交付报告和本地只读验收 Prompt。
+6. 先建立精确到文件、接口、失败测试、命令、提交边界和回滚的执行计划，并完成只读计划复核；
+7. 先设计失败场景和测试；
+8. 只修改当前任务必要文件；
+9. 完成后创建 Draft PR，不合并；
+10. 输出完整交付报告和本地只读验收 Prompt。
 
 任务目标：
 <从 pr-09-jianyu-implementation-tasks.md 复制对应任务>
@@ -299,4 +317,4 @@ PR09-16 启动前必须取得用户明确视觉选择。
 最终主视觉：未冻结
 ```
 
-其他 PR09 基础工程如果不写入正式品牌资产，可以先规划，但仍需用户在 PR08-F 完成后明确批准进入 PR09。
+用户已授权：另一个 AI 对 PR08-F 修正 Head 完成只读复核、用户批准且 PR08-F 合并后，PR09-01～15 可以在最终视觉未确认时实施，但不得写入正式品牌资产。PR09-17 必须等待 PR09-16 完成。

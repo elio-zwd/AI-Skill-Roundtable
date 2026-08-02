@@ -234,7 +234,7 @@
 特殊 Skill：
 
 - `office-document-productivity` 的正式中文定位为“办公文档助手”，不得暗示控制 Windows Office、宏、桌面文件系统或复杂格式保真；
-- `original-expression-naturalizer` 的用户侧中文名称尚未冻结，本文只使用内部 ID 或“现实沟通文案任务助手”；
+- `original-expression-naturalizer` 的用户侧中文名称为“去AI化助手”；目录、详情、推荐确认、首次调用确认和成果导出说明必须就近显示“让真实内容更像你本人表达，不用于规避检测或伪造事实”；
 - 表达类 Skill 不使用“不可检测”等语言，也不负责统一圆桌观点或掩盖分歧。
 
 ## 13. 素材、许可与权利
@@ -271,19 +271,17 @@ App：AI 智囊圆桌
 applicationId：com.elio.skillroundtable
 ```
 
-PR08-D 不修改 Android 字符串、Manifest、图标、启动资源、Compose、applicationId、namespace、包路径、仓库名、官网或 DNS。后续由 PR08-F 冻结，再由 PR09 实施。
+PR08-D 不修改 Android 字符串、Manifest、图标、启动资源、Compose、applicationId、namespace、包路径、仓库名、官网或 DNS。PR08-F 已冻结产品与迁移边界；最终视觉仍等待用户比较确认，生产实现全部留给获批后的 PR09。
 
-## 16. PR08-F 协调项
+## 16. PR08-F 协调结果与后续门禁
 
-1. 用户最终选择 A、B、C 或继续探索；
-2. 是否单独设计中文字标及字体授权；
-3. 官网与 App 的品牌组合；
-4. `original-expression-naturalizer` 用户侧中文名称；
-5. 资料与成果最终导航形式；
-6. 人物 Skill 的封面体系；
-7. 商标和应用商店检索后的候选调整；
-8. 品牌色与 Android 动态颜色的关系；
-9. Logo 动效是否进入 V1。
+1. 最终视觉仍在候选 0 / A / B / C 和允许的混合方案之间比较，候选 A 未获预先批准；
+2. 中文字标、字体授权、官网与 App 组合、人物 Skill 封面体系随最终视觉在 PR09-16 细化；
+3. `original-expression-naturalizer` 用户侧中文名称已冻结为“去AI化助手”，且必须与诚信边界同时出现；
+4. 资料与成果已冻结为一个一级入口和两个页内 Tab；
+5. 商标、应用商店重名、字体和图形相似度仍是发布前外部核验门禁；
+6. Android 动态颜色、Logo 动效等属于 PR09-16 的可访问性、性能和品牌一致性工程选择，不要求用户在实现前单独决定；
+7. 最终视觉用户确认前，不提交正式 Logo、App Icon 或完整品牌资源。
 
 ## 17. 验收清单
 
