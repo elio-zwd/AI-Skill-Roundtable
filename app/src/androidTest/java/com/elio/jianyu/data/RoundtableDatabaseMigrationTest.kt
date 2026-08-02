@@ -38,7 +38,7 @@ class RoundtableDatabaseMigrationTest {
     }
 
     @Test
-    fun migration1To5_matchesCurrentSchemaAndPreservesData() {
+    fun migration1To6_matchesCurrentSchemaAndPreservesData() {
         val migrated = migrateLegacyDatabase(
             version = 1,
             createSchema = ::createVersion1Schema
@@ -54,7 +54,7 @@ class RoundtableDatabaseMigrationTest {
     }
 
     @Test
-    fun migration2To5_matchesCurrentSchemaAndPreservesData() {
+    fun migration2To6_matchesCurrentSchemaAndPreservesData() {
         val migrated = migrateLegacyDatabase(
             version = 2,
             createSchema = ::createVersion2Schema
@@ -70,7 +70,7 @@ class RoundtableDatabaseMigrationTest {
     }
 
     @Test
-    fun migration3To5_matchesCurrentSchemaAndPreservesData() {
+    fun migration3To6_matchesCurrentSchemaAndPreservesData() {
         val migrated = migrateLegacyDatabase(
             version = 3,
             createSchema = ::createVersion3Schema
@@ -86,7 +86,7 @@ class RoundtableDatabaseMigrationTest {
     }
 
     @Test
-    fun migration4To5_matchesCurrentSchemaAndPreservesData() {
+    fun migration4To6_matchesCurrentSchemaAndPreservesData() {
         val migrated = migrateLegacyDatabase(
             version = 4,
             createSchema = ::createVersion4Schema
@@ -102,7 +102,82 @@ class RoundtableDatabaseMigrationTest {
     }
 
     @Test
-    fun migration4To5_preservesAnExistingCustomGroup() {
+    fun migration5To6_usesCommittedSchemaAndBackfillsDomainRelations() {
+        val legacy = migrationHelper.createDatabase(TEST_DATABASE, 5)
+        insertVersion5Data(legacy)
+        legacy.close()
+
+        val migrated = migrationHelper.runMigrationsAndValidate(
+            TEST_DATABASE,
+            6,
+            true,
+            RoundtableDatabase.MIGRATION_5_6
+        )
+
+        assertMigratedData(
+            database = migrated,
+            expectedSkillAssetPath = LEGACY_SKILL_PATH,
+            expectedSkillDescriptionVector = LEGACY_VECTOR,
+            expectedRoundIndex = LEGACY_ROUND_INDEX
+        )
+        assertEquals(1, queryCount(migrated, "issues"))
+        assertEquals(1, queryCount(migrated, "stages"))
+        assertEquals(0, queryCount(migrated, "execution_runs"))
+        assertEquals(0, queryCount(migrated, "execution_participant_snapshots"))
+        assertVersion6Indices(migrated)
+        assertNoForeignKeyViolations(migrated)
+        migrated.close()
+    }
+
+    @Test
+    fun migration5To6_preservesOrphanMessageWithoutInventingDomainParents() {
+        val legacy = migrationHelper.createDatabase(TEST_DATABASE, 5)
+        insertVersion5Data(legacy)
+        legacy.execSQL(
+            """
+            INSERT INTO messages (
+                id, chatId, senderId, senderName, avatar, text,
+                timestamp, isPending, roundIndex, audioFilePath,
+                audioFormat, audioSizeBytes
+            ) VALUES (
+                2, 999, 'user', 'User', 'U', 'orphan message',
+                2000, 0, 9, NULL, NULL, 0
+            )
+            """.trimIndent()
+        )
+        legacy.close()
+
+        val migrated = migrationHelper.runMigrationsAndValidate(
+            TEST_DATABASE,
+            6,
+            true,
+            RoundtableDatabase.MIGRATION_5_6
+        )
+
+        migrated.query(
+            """
+            SELECT text, roundIndex, issueId, stageId, executionRunId,
+                participantSnapshotId
+            FROM messages
+            WHERE id = 2
+            """.trimIndent()
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("orphan message", cursor.getString(cursor.getColumnIndexOrThrow("text")))
+            assertEquals(9, cursor.getInt(cursor.getColumnIndexOrThrow("roundIndex")))
+            assertNull(cursor.getString(cursor.getColumnIndexOrThrow("issueId")))
+            assertNull(cursor.getString(cursor.getColumnIndexOrThrow("stageId")))
+            assertNull(cursor.getString(cursor.getColumnIndexOrThrow("executionRunId")))
+            assertNull(cursor.getString(cursor.getColumnIndexOrThrow("participantSnapshotId")))
+        }
+        assertEquals(1, queryCount(migrated, "issues"))
+        assertEquals(1, queryCount(migrated, "stages"))
+        assertNoForeignKeyViolations(migrated)
+        migrated.close()
+    }
+
+    @Test
+    fun migration4To6_preservesAnExistingCustomGroup() {
         val legacyHelper = createLegacyDatabase(version = 4) { database ->
             createVersion4Schema(database)
             createCharacterGroupsTable(database)
@@ -122,7 +197,7 @@ class RoundtableDatabaseMigrationTest {
 
         val migrated = migrationHelper.runMigrationsAndValidate(
             TEST_DATABASE,
-            5,
+            6,
             true,
             *RoundtableDatabase.ALL_MIGRATIONS
         )
@@ -141,6 +216,7 @@ class RoundtableDatabaseMigrationTest {
             assertEquals(0, cursor.getInt(cursor.getColumnIndexOrThrow("isPreset")))
         }
         assertPresetGroups(migrated, expectedGroupCount = 5)
+        assertDomainBackfill(migrated, expectedRoundIndex = LEGACY_ROUND_INDEX)
         migrated.close()
     }
 
@@ -154,7 +230,7 @@ class RoundtableDatabaseMigrationTest {
 
         return migrationHelper.runMigrationsAndValidate(
             TEST_DATABASE,
-            5,
+            6,
             true,
             *RoundtableDatabase.ALL_MIGRATIONS
         )
@@ -195,9 +271,49 @@ class RoundtableDatabaseMigrationTest {
             assertEquals(1000L, cursor.getLong(cursor.getColumnIndexOrThrow("createdAt")))
         }
 
+        assertDomainBackfill(database, expectedRoundIndex)
+        assertPresetGroups(database, expectedGroupCount = 4)
+        assertNoForeignKeyViolations(database)
+    }
+
+    private fun assertDomainBackfill(
+        database: SupportSQLiteDatabase,
+        expectedRoundIndex: Int
+    ) {
         database.query(
             """
-            SELECT text, roundIndex, audioFilePath, audioFormat, audioSizeBytes
+            SELECT title, createdAt, updatedAt, legacyChatSessionId
+            FROM issues
+            WHERE id = 'legacy-chat-10'
+            """.trimIndent()
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("Legacy Session", cursor.getString(cursor.getColumnIndexOrThrow("title")))
+            assertEquals(1000L, cursor.getLong(cursor.getColumnIndexOrThrow("createdAt")))
+            assertEquals(1000L, cursor.getLong(cursor.getColumnIndexOrThrow("updatedAt")))
+            assertEquals(10L, cursor.getLong(cursor.getColumnIndexOrThrow("legacyChatSessionId")))
+        }
+
+        database.query(
+            """
+            SELECT issueId, sequenceIndex, title, objective, createdAt, updatedAt
+            FROM stages
+            WHERE id = 'legacy-chat-10-stage-0'
+            """.trimIndent()
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("legacy-chat-10", cursor.getString(cursor.getColumnIndexOrThrow("issueId")))
+            assertEquals(0, cursor.getInt(cursor.getColumnIndexOrThrow("sequenceIndex")))
+            assertEquals("初始阶段", cursor.getString(cursor.getColumnIndexOrThrow("title")))
+            assertEquals("", cursor.getString(cursor.getColumnIndexOrThrow("objective")))
+            assertEquals(1000L, cursor.getLong(cursor.getColumnIndexOrThrow("createdAt")))
+            assertEquals(1000L, cursor.getLong(cursor.getColumnIndexOrThrow("updatedAt")))
+        }
+
+        database.query(
+            """
+            SELECT text, roundIndex, audioFilePath, audioFormat, audioSizeBytes,
+                issueId, stageId, executionRunId, participantSnapshotId
             FROM messages
             WHERE id = 1
             """.trimIndent()
@@ -208,9 +324,14 @@ class RoundtableDatabaseMigrationTest {
             assertNull(cursor.getString(cursor.getColumnIndexOrThrow("audioFilePath")))
             assertNull(cursor.getString(cursor.getColumnIndexOrThrow("audioFormat")))
             assertEquals(0L, cursor.getLong(cursor.getColumnIndexOrThrow("audioSizeBytes")))
+            assertEquals("legacy-chat-10", cursor.getString(cursor.getColumnIndexOrThrow("issueId")))
+            assertEquals(
+                "legacy-chat-10-stage-0",
+                cursor.getString(cursor.getColumnIndexOrThrow("stageId"))
+            )
+            assertNull(cursor.getString(cursor.getColumnIndexOrThrow("executionRunId")))
+            assertNull(cursor.getString(cursor.getColumnIndexOrThrow("participantSnapshotId")))
         }
-
-        assertPresetGroups(database, expectedGroupCount = 4)
     }
 
     private fun assertPresetGroups(
@@ -232,6 +353,40 @@ class RoundtableDatabaseMigrationTest {
             assertTrue(cursor.moveToFirst())
             assertEquals("硅谷创投", cursor.getString(cursor.getColumnIndexOrThrow("name")))
             assertEquals(1, cursor.getInt(cursor.getColumnIndexOrThrow("isPreset")))
+        }
+    }
+
+    private fun assertVersion6Indices(database: SupportSQLiteDatabase) {
+        val requiredIndices = setOf(
+            "index_issues_legacyChatSessionId",
+            "index_stages_issueId",
+            "index_stages_issueId_sequenceIndex",
+            "index_execution_runs_idempotencyKey",
+            "index_execution_participant_snapshots_runId_position",
+            "index_messages_stageId_issueId",
+            "index_messages_executionRunId_issueId_stageId"
+        )
+        database.query(
+            "SELECT name FROM sqlite_master WHERE type = 'index'"
+        ).use { cursor ->
+            val actual = mutableSetOf<String>()
+            while (cursor.moveToNext()) {
+                actual += cursor.getString(cursor.getColumnIndexOrThrow("name"))
+            }
+            assertTrue("Missing expected indices: ${requiredIndices - actual}", actual.containsAll(requiredIndices))
+        }
+    }
+
+    private fun assertNoForeignKeyViolations(database: SupportSQLiteDatabase) {
+        database.query("PRAGMA foreign_key_check").use { cursor ->
+            assertEquals(0, cursor.count)
+        }
+    }
+
+    private fun queryCount(database: SupportSQLiteDatabase, tableName: String): Int {
+        database.query("SELECT COUNT(*) AS rowCount FROM `$tableName`").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            return cursor.getInt(cursor.getColumnIndexOrThrow("rowCount"))
         }
     }
 
@@ -442,6 +597,68 @@ class RoundtableDatabaseMigrationTest {
         database.execSQL(
             "INSERT INTO messages (${messageColumns.joinToString(", ")}) " +
                 "VALUES (${messageValues.joinToString(", ")})"
+        )
+    }
+
+    private fun insertVersion5Data(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            """
+            INSERT INTO characters (
+                id, name, avatar, tagline, systemPrompt, skillAssetPath,
+                `order`, isActive, skillDescriptionVector, voiceConfig
+            ) VALUES (
+                'legacy_character', 'Legacy Character', 'L', 'legacy tagline',
+                'legacy prompt', '$LEGACY_SKILL_PATH', 1, 1, '$LEGACY_VECTOR', 'Aoede'
+            )
+            """.trimIndent()
+        )
+        database.execSQL(
+            """
+            INSERT INTO chat_sessions (id, title, createdAt)
+            VALUES (10, 'Legacy Session', 1000)
+            """.trimIndent()
+        )
+        database.execSQL(
+            """
+            INSERT INTO messages (
+                id, chatId, senderId, senderName, avatar, text,
+                timestamp, isPending, roundIndex, audioFilePath,
+                audioFormat, audioSizeBytes
+            ) VALUES (
+                1, 10, 'legacy_character', 'Legacy Character', 'L',
+                'legacy message', 1234, 0, $LEGACY_ROUND_INDEX, NULL, NULL, 0
+            )
+            """.trimIndent()
+        )
+        database.execSQL(
+            """
+            INSERT INTO character_groups (
+                id, name, description, characterIds, isPreset
+            ) VALUES (
+                'silicon_valley_venture', '硅谷创投', 'preset', 'legacy_character', 1
+            )
+            """.trimIndent()
+        )
+        database.execSQL(
+            """
+            INSERT INTO character_groups (
+                id, name, description, characterIds, isPreset
+            ) VALUES ('group_2', 'Group 2', '', '', 1)
+            """.trimIndent()
+        )
+        database.execSQL(
+            """
+            INSERT INTO character_groups (
+                id, name, description, characterIds, isPreset
+            ) VALUES ('group_3', 'Group 3', '', '', 1)
+            """.trimIndent()
+        )
+        database.execSQL(
+            """
+            INSERT INTO character_groups (
+                id, name, description, characterIds, isPreset
+            ) VALUES ('group_4', 'Group 4', '', '', 1)
+            """.trimIndent()
         )
     }
 
