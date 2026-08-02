@@ -143,7 +143,13 @@ try {
     $legacyHits = @(
         foreach ($file in $kotlinFiles) {
             $content = Get-Content $file.FullName -Raw
-            if ($content.Contains($LegacyPackage, [System.StringComparison]::Ordinal)) { $file.FullName }
+            if (
+                $content.Contains($LegacyPackage, [System.StringComparison]::Ordinal) -or
+                $content -match 'com\\+\.elio\\+\.skillroundtable' -or
+                $content -match 'com[/\\]+elio[/\\]+skillroundtable'
+            ) {
+                $file.FullName
+            }
         }
     )
     if ($badPackages.Count -eq 0) {
@@ -152,9 +158,9 @@ try {
         Fail 'Kotlin Package Declarations' "异常 package 声明：$($badPackages -join ', ')"
     }
     if ($legacyHits.Count -eq 0) {
-        Pass 'Active Source Legacy References' '活动 Kotlin 源码和测试无完整旧包名残留'
+        Pass 'Active Source Legacy References' '活动 Kotlin 源码和测试无普通、转义或路径形式的旧包残留'
     } else {
-        Fail 'Active Source Legacy References' "活动源码仍含旧包名：$($legacyHits -join ', ')"
+        Fail 'Active Source Legacy References' "活动源码仍含旧包名或旧路径：$($legacyHits -join ', ')"
     }
 
     $uiAgents = Get-Content 'app/src/main/java/com/elio/jianyu/ui/AGENTS.md' -Raw
@@ -249,20 +255,23 @@ try {
     $invalidLegacyCiLines = @(
         $ciLines | Where-Object {
             $_ -match 'com\.elio\.skillroundtable' -and
-            $_ -notmatch '^\s+LEGACY_(PACKAGE|SCHEMA):'
+            $_ -notmatch '^\s+LEGACY_(PACKAGE|LAUNCHER|SCHEMA):'
         }
     )
     if ($ciYaml -match 'CURRENT_PACKAGE:\s*com\.elio\.jianyu' -and
         $ciYaml -match 'CURRENT_LAUNCHER:\s*com\.elio\.jianyu\.MainActivity' -and
         $ciYaml -match 'CURRENT_SCHEMA:\s*app/schemas/com\.elio\.jianyu\.data\.RoundtableDatabase/5\.json' -and
         $ciYaml -match 'LEGACY_PACKAGE:\s*com\.elio\.skillroundtable' -and
+        $ciYaml -match 'LEGACY_LAUNCHER:\s*com\.elio\.skillroundtable\.MainActivity' -and
         $ciYaml -match 'LEGACY_SCHEMA:\s*app/schemas/com\.elio\.skillroundtable\.data\.RoundtableDatabase/5\.json' -and
+        $ciYaml -match 'legacy-apk:' -and
+        $ciYaml -match 'verify-app-coexistence\.ps1' -and
         $ciYaml -match 'AppIdentityIsolationTest' -and
         $ciYaml -match 'notClass=com\.elio\.jianyu\.identity\.AppIdentityIsolationTest' -and
         $invalidLegacyCiLines.Count -eq 0) {
-        Pass 'CI Config' 'CI 使用新包并仅通过显式 LEGACY 常量保留旧身份验收引用'
+        Pass 'CI Config' 'CI 使用新包、固定旧包 APK、双包隔离和分阶段 Instrumentation 门禁'
     } else {
-        Fail 'CI Config' "CI 身份常量、测试顺序或旧包允许清单异常；非法旧包行数=$($invalidLegacyCiLines.Count)"
+        Fail 'CI Config' "CI 身份常量、双包验收、测试顺序或旧包允许清单异常；非法旧包行数=$($invalidLegacyCiLines.Count)"
     }
 
     $readme = Get-Content 'README.md' -Raw
