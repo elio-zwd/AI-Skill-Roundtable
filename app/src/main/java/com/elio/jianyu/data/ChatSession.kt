@@ -49,6 +49,8 @@ data class ChatSession(
         )
     ],
     indices = [
+        Index(value = ["id", "issueId"], unique = true),
+        Index(value = ["id", "issueId", "stageId"], unique = true),
         Index(value = ["issueId"]),
         Index(value = ["stageId", "issueId"]),
         Index(value = ["executionRunId", "issueId", "stageId"]),
