@@ -18,6 +18,7 @@ env:
   CURRENT_PACKAGE: com.elio.jianyu
   CURRENT_LAUNCHER: com.elio.jianyu.MainActivity
   LEGACY_PACKAGE: com.elio.skillroundtable
+  LEGACY_LAUNCHER: com.elio.skillroundtable.MainActivity
   CURRENT_SCHEMA: app/schemas/com.elio.jianyu.data.RoundtableDatabase/5.json
   LEGACY_SCHEMA: app/schemas/com.elio.skillroundtable.data.RoundtableDatabase/5.json
   MIGRATION_BASE_SHA: 4de0bfb0480ea84d3a88af12c11167a3a27c38dc
@@ -90,6 +91,18 @@ jobs:
             --include='*.xml' \
             "${LEGACY_PACKAGE}" "${active_paths[@]}"; then
             echo "::error::Active source, test, resource or script still references the legacy package."
+            exit 1
+          fi
+
+          if grep -RInE \
+            --exclude-dir=build \
+            --include='*.kt' \
+            --include='*.kts' \
+            'com\\+\.elio\\+\.skillroundtable|com[/\\]+elio[/\\]+skillroundtable' \
+            app/src/main/java/com/elio/jianyu \
+            app/src/test/java/com/elio/jianyu \
+            app/src/androidTest/java/com/elio/jianyu; then
+            echo "::error::Active Kotlin source still contains an escaped legacy package or path."
             exit 1
           fi
 
@@ -288,16 +301,75 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  migration-tests:
-    needs: build
+  legacy-apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout fixed legacy baseline
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.MIGRATION_BASE_SHA }}
+          fetch-depth: 1
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+          cache-read-only: true
+          validate-wrappers: true
+
+      - name: Build fixed legacy debug APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace assembleDebug
+
+          legacy_apk="$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit)"
+          aapt="$(find "${ANDROID_HOME}/build-tools" -type f -name aapt -print | sort -V | tail -n 1)"
+          badging="$("${aapt}" dump badging "${legacy_apk}")"
+          grep -Fq "package: name='${LEGACY_PACKAGE}'" <<<"${badging}"
+          grep -Fq "launchable-activity: name='${LEGACY_LAUNCHER}'" <<<"${badging}"
+
+      - name: Upload fixed legacy debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: legacy-debug-apk-${{ github.run_attempt }}
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7
+
+  migration-tests:
+    needs:
+      - build
+      - legacy-apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Download current debug APK
+        uses: actions/download-artifact@v4
+        with:
+          name: debug-apk-${{ github.run_attempt }}
+          path: artifacts/current
+
+      - name: Download fixed legacy debug APK
+        uses: actions/download-artifact@v4
+        with:
+          name: legacy-debug-apk-${{ github.run_attempt }}
+          path: artifacts/legacy
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -323,7 +395,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Run identity test on a fresh install, then the remaining suite
+      - name: Verify coexistence, fresh identity and remaining instrumentation suite
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 30
@@ -334,6 +406,15 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: |
             set -euo pipefail
+
+            legacy_apk="$(find artifacts/legacy -type f -name '*.apk' -print -quit)"
+            current_apk="$(find artifacts/current -type f -name '*.apk' -print -quit)"
+
+            pwsh -NoProfile -File ./tools/verify-app-coexistence.ps1 \
+              -LegacyApk "${legacy_apk}" \
+              -CurrentApk "${current_apk}" \
+              -Install \
+              -CreatePrivateFileSentinel
 
             adb uninstall "${CURRENT_PACKAGE}.test" >/dev/null 2>&1 || true
             adb uninstall "${CURRENT_PACKAGE}" >/dev/null 2>&1 || true
