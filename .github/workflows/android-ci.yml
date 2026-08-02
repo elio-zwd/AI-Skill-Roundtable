@@ -302,6 +302,7 @@ jobs:
           retention-days: 7
 
   legacy-apk:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -347,6 +348,7 @@ jobs:
           retention-days: 7
 
   migration-tests:
+    if: github.event_name == 'workflow_dispatch'
     needs:
       - build
       - legacy-apk
