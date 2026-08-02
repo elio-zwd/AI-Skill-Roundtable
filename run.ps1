@@ -15,7 +15,7 @@ function Exit-Script($exitCode) {
 }
 
 Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host " 开始编译并安装 AI-Skill-Roundtable... " -ForegroundColor Cyan
+Write-Host " 开始编译并安装见域... " -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 
 # 1. 探测 Java 环境
@@ -134,8 +134,8 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "`n安装成功！正在拉起手机上的 App..." -ForegroundColor Green
 
-$packageName = 'com.elio.skillroundtable'
-$activityName = 'com.elio.skillroundtable.MainActivity'
+$packageName = 'com.elio.jianyu'
+$activityName = 'com.elio.jianyu.MainActivity'
 
 # 启动 Activity 并获取输出及退出码（指定目标设备）
 $amStartOutput = adb -s $targetDeviceId shell am start -n "$packageName/$activityName" 2>&1
