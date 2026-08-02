@@ -3,6 +3,8 @@ package com.elio.jianyu.data
 import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
@@ -18,7 +20,41 @@ data class ChatSession(
     val createdAt: Long = System.currentTimeMillis()
 )
 
-@Entity(tableName = "messages")
+@Entity(
+    tableName = "messages",
+    foreignKeys = [
+        ForeignKey(
+            entity = IssueEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["issueId"],
+            onDelete = ForeignKey.RESTRICT
+        ),
+        ForeignKey(
+            entity = StageEntity::class,
+            parentColumns = ["id", "issueId"],
+            childColumns = ["stageId", "issueId"],
+            onDelete = ForeignKey.RESTRICT
+        ),
+        ForeignKey(
+            entity = ExecutionRunEntity::class,
+            parentColumns = ["id", "issueId", "stageId"],
+            childColumns = ["executionRunId", "issueId", "stageId"],
+            onDelete = ForeignKey.RESTRICT
+        ),
+        ForeignKey(
+            entity = ExecutionParticipantSnapshotEntity::class,
+            parentColumns = ["id", "runId"],
+            childColumns = ["participantSnapshotId", "executionRunId"],
+            onDelete = ForeignKey.RESTRICT
+        )
+    ],
+    indices = [
+        Index(value = ["issueId"]),
+        Index(value = ["stageId", "issueId"]),
+        Index(value = ["executionRunId", "issueId", "stageId"]),
+        Index(value = ["participantSnapshotId", "executionRunId"])
+    ]
+)
 data class Message(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val chatId: Long,
@@ -31,7 +67,11 @@ data class Message(
     @ColumnInfo(defaultValue = "0") val roundIndex: Int = 0,
     val audioFilePath: String? = null,
     val audioFormat: String? = null,
-    @ColumnInfo(defaultValue = "0") val audioSizeBytes: Long = 0L
+    @ColumnInfo(defaultValue = "0") val audioSizeBytes: Long = 0L,
+    val issueId: String? = null,
+    val stageId: String? = null,
+    val executionRunId: String? = null,
+    val participantSnapshotId: String? = null
 )
 
 @Dao
