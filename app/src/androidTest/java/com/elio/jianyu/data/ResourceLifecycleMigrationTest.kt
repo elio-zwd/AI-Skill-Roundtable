@@ -26,14 +26,61 @@ class ResourceLifecycleMigrationTest {
 
     @Before
     fun setUp() {
-        context.deleteDatabase(TEST_DATABASE)
-        context.deleteDatabase(V5_DATABASE)
+        allTestDatabases().forEach(context::deleteDatabase)
     }
 
     @After
     fun tearDown() {
-        context.deleteDatabase(TEST_DATABASE)
-        context.deleteDatabase(V5_DATABASE)
+        allTestDatabases().forEach(context::deleteDatabase)
+    }
+
+    @Test
+    fun migration1Through4To7PreservesLegacyMessagesAndBuildsLifecycle() {
+        (1..4).forEach { sourceVersion ->
+            val databaseName = legacyDatabaseName(sourceVersion)
+            val legacy = migrationHelper.createDatabase(databaseName, sourceVersion)
+            insertLegacyChatAndMessage(legacy, sourceVersion)
+            legacy.close()
+
+            val migrated = migrationHelper.runMigrationsAndValidate(
+                databaseName,
+                7,
+                true,
+                *RoundtableDatabase.ALL_MIGRATIONS
+            )
+
+            migrated.query(
+                "SELECT text, roundIndex, audioFilePath, audioFormat, audioSizeBytes, " +
+                    "issueId, stageId FROM messages WHERE id = 1"
+            ).use { cursor ->
+                assertTrue("v$sourceVersion 消息缺失", cursor.moveToFirst())
+                assertEquals(
+                    "legacy-v$sourceVersion-message",
+                    cursor.getString(cursor.getColumnIndexOrThrow("text"))
+                )
+                assertEquals(
+                    if (sourceVersion >= 4) LEGACY_ROUND_INDEX else 0,
+                    cursor.getInt(cursor.getColumnIndexOrThrow("roundIndex"))
+                )
+                assertTrue(cursor.isNull(cursor.getColumnIndexOrThrow("audioFilePath")))
+                assertTrue(cursor.isNull(cursor.getColumnIndexOrThrow("audioFormat")))
+                assertEquals(0L, cursor.getLong(cursor.getColumnIndexOrThrow("audioSizeBytes")))
+                assertEquals(
+                    "legacy-chat-10",
+                    cursor.getString(cursor.getColumnIndexOrThrow("issueId"))
+                )
+                assertEquals(
+                    "legacy-chat-10-stage-0",
+                    cursor.getString(cursor.getColumnIndexOrThrow("stageId"))
+                )
+            }
+            assertEquals(1, count(migrated, "issues"))
+            assertEquals(1, count(migrated, "stages"))
+            assertEquals(1, count(migrated, "issue_lifecycle"))
+            assertEquals(0, count(migrated, "audio_assets"))
+            assertEquals(0, foreignKeyViolations(migrated))
+            migrated.close()
+        }
     }
 
     @Test
@@ -181,6 +228,40 @@ class ResourceLifecycleMigrationTest {
         migrated.close()
     }
 
+    private fun insertLegacyChatAndMessage(
+        database: androidx.sqlite.db.SupportSQLiteDatabase,
+        version: Int
+    ) {
+        database.execSQL(
+            "INSERT INTO chat_sessions (id, title, createdAt) VALUES (10, 'legacy', 900)"
+        )
+        if (version >= 4) {
+            database.execSQL(
+                """
+                INSERT INTO messages (
+                    id, chatId, senderId, senderName, avatar, text,
+                    timestamp, isPending, roundIndex
+                ) VALUES (
+                    1, 10, 'user', 'User', 'U', 'legacy-v$version-message',
+                    901, 0, $LEGACY_ROUND_INDEX
+                )
+                """.trimIndent()
+            )
+        } else {
+            database.execSQL(
+                """
+                INSERT INTO messages (
+                    id, chatId, senderId, senderName, avatar, text,
+                    timestamp, isPending
+                ) VALUES (
+                    1, 10, 'user', 'User', 'U', 'legacy-v$version-message',
+                    901, 0
+                )
+                """.trimIndent()
+            )
+        }
+    }
+
     private fun insertVersion6Fixture(database: androidx.sqlite.db.SupportSQLiteDatabase) {
         database.execSQL(
             "INSERT INTO characters VALUES " +
@@ -251,6 +332,14 @@ class ResourceLifecycleMigrationTest {
         database: androidx.sqlite.db.SupportSQLiteDatabase
     ): Int = database.query("PRAGMA foreign_key_check").use { it.count }
 
+    private fun allTestDatabases(): List<String> {
+        return listOf(TEST_DATABASE, V5_DATABASE) + (1..4).map(::legacyDatabaseName)
+    }
+
+    private fun legacyDatabaseName(version: Int): String {
+        return "resource-lifecycle-v$version-migration-test"
+    }
+
     companion object {
         private const val TEST_DATABASE = "resource-lifecycle-migration-test"
         private const val V5_DATABASE = "resource-lifecycle-v5-migration-test"
@@ -258,5 +347,6 @@ class ResourceLifecycleMigrationTest {
         private const val STAGE_ID = "stage-1"
         private const val RUN_ID = "run-1"
         private const val SNAPSHOT_ID = "snapshot-1"
+        private const val LEGACY_ROUND_INDEX = 4
     }
 }
