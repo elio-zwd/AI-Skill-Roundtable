@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: android-ci-${{ github.workflow }}-${{ github.ref }}
@@ -245,26 +245,6 @@ jobs:
           fi
 
           echo "Confirmed unsigned public release APK: ${release_apk}"
-
-      - name: Commit generated Room v7 schema for PR09-02B
-        if: github.event_name == 'pull_request' && github.head_ref == 'feat/pr-09-02b-resource-lifecycle-schema'
-        shell: bash
-        run: |
-          set -euo pipefail
-          schema='app/schemas/com.elio.jianyu.data.RoundtableDatabase/7.json'
-          test -f "${schema}"
-          cp "${schema}" "${RUNNER_TEMP}/7.json"
-          git checkout "${GITHUB_HEAD_REF}"
-          cp "${RUNNER_TEMP}/7.json" "${schema}"
-          git add "${schema}"
-          if git diff --cached --quiet; then
-            echo 'Room v7 schema is already committed.'
-            exit 0
-          fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'fix: 提交真实Room v7 Schema'
-          git push origin "HEAD:${GITHUB_HEAD_REF}"
 
       - name: Verify committed Room schema is current
         shell: bash
