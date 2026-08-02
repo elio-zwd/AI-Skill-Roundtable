@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">AI 智囊圆桌</string>
+    <string name="app_name">见域</string>
     <string name="add_character">添加新智囊</string>
     <string name="character_details">智囊详情</string>
     <string name="edit_character">编辑智囊</string>
