@@ -95,6 +95,7 @@ class CoreDomainConverters {
     indices = [
         Index(value = ["stageId", "issueId"]),
         Index(value = ["idempotencyKey"], unique = true),
+        Index(value = ["id", "issueId"], unique = true),
         Index(value = ["id", "issueId", "stageId"], unique = true),
         Index(value = ["triggerMessageId"]),
         Index(value = ["retryOfRunId"])

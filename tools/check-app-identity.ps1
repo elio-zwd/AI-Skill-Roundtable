@@ -232,14 +232,21 @@ try {
     }
 
     $databaseSource = Get-Content 'app/src/main/java/com/elio/jianyu/data/RoundtableDatabase.kt' -Raw
-    $requiredMigrations = @('MIGRATION_1_2', 'MIGRATION_2_3', 'MIGRATION_3_4', 'MIGRATION_4_5', 'MIGRATION_5_6')
+    $requiredMigrations = @(
+        'MIGRATION_1_2',
+        'MIGRATION_2_3',
+        'MIGRATION_3_4',
+        'MIGRATION_4_5',
+        'MIGRATION_5_6',
+        'MIGRATION_6_7'
+    )
     $missingMigrations = @($requiredMigrations | Where-Object { $databaseSource -notmatch [regex]::Escape($_) })
-    if ($databaseSource -match 'version\s*=\s*6' -and
+    if ($databaseSource -match 'version\s*=\s*7' -and
         $missingMigrations.Count -eq 0 -and
         $databaseSource -match '"roundtable_database"') {
-        Pass 'Room Runtime Contract' 'Room 已连续升级到 v6，v1→v6 迁移链和数据库名保持完整'
+        Pass 'Room Runtime Contract' 'Room 已连续升级到 v7，v1→v7 迁移链和数据库名保持完整'
     } else {
-        Fail 'Room Runtime Contract' "Room v6、连续迁移链或数据库名异常；缺失迁移=$($missingMigrations -join ', ')"
+        Fail 'Room Runtime Contract' "Room v7、连续迁移链或数据库名异常；缺失迁移=$($missingMigrations -join ', ')"
     }
 
     $keyStoreSource = Get-Content 'app/src/main/java/com/elio/jianyu/network/EncryptedApiKeyStore.kt' -Raw

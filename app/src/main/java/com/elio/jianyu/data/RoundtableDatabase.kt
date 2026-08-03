@@ -21,17 +21,33 @@ import kotlinx.coroutines.launch
         IssueEntity::class,
         StageEntity::class,
         ExecutionRunEntity::class,
-        ExecutionParticipantSnapshotEntity::class
+        ExecutionParticipantSnapshotEntity::class,
+        MaterialReferenceEntity::class,
+        MaterialUsageSnapshotEntity::class,
+        PersonalContextEntryEntity::class,
+        PersonalContextUsageSnapshotEntity::class,
+        StageSummaryDraftEntity::class,
+        StageSummaryDraftRevisionEntity::class,
+        ConfirmedArtifactEntity::class,
+        ArtifactMessageSourceEntity::class,
+        ArtifactRunSourceEntity::class,
+        ArtifactDraftSourceEntity::class,
+        ArtifactMaterialSourceEntity::class,
+        AudioAssetEntity::class,
+        OfficialSkillCombinationEntity::class,
+        OfficialSkillCombinationMemberEntity::class,
+        IssueLifecycleEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
-@TypeConverters(CoreDomainConverters::class)
+@TypeConverters(CoreDomainConverters::class, ResourceLifecycleConverters::class)
 abstract class RoundtableDatabase : RoomDatabase() {
     abstract fun characterDao(): CharacterDao
     abstract fun chatDao(): ChatDao
     abstract fun characterGroupDao(): CharacterGroupDao
     abstract fun coreDomainDao(): CoreDomainDao
+    abstract fun resourceLifecycleDao(): ResourceLifecycleDao
 
     companion object {
         @Volatile
@@ -105,12 +121,15 @@ abstract class RoundtableDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_6_7: Migration = ResourceLifecycleMigration.MIGRATION_6_7
+
         val ALL_MIGRATIONS: Array<Migration> = arrayOf(
             MIGRATION_1_2,
             MIGRATION_2_3,
             MIGRATION_3_4,
             MIGRATION_4_5,
-            MIGRATION_5_6
+            MIGRATION_5_6,
+            MIGRATION_6_7
         )
 
         private fun createCoreDomainTablesForVersion6(db: SupportSQLiteDatabase) {
