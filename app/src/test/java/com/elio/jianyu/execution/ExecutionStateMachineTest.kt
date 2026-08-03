@@ -65,6 +65,19 @@ class ExecutionStateMachineTest {
     }
 
     @Test
+    fun participantAggregationKeepsRunningBeforeAnyParticipantSucceeds() {
+        assertEquals(
+            ExecutionRunStatus.RUNNING,
+            ExecutionStateMachine.aggregate(
+                listOf(
+                    ExecutionParticipantStatus.STREAMING,
+                    ExecutionParticipantStatus.QUEUED,
+                ),
+            ),
+        )
+    }
+
+    @Test
     fun participantAggregationReturnsPartialSuccessWhileWorkRemains() {
         assertEquals(
             ExecutionRunStatus.PARTIAL_SUCCESS,
