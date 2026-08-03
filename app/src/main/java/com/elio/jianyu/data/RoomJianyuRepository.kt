@@ -9,9 +9,10 @@ package com.elio.jianyu.data
 class RoomJianyuRepository(
     database: RoundtableDatabase,
     officialSkillIdValidator: OfficialSkillIdValidator = RejectingOfficialSkillIdValidator
-) : JianyuRepository {
+) : JianyuRepository, JianyuExecutionRuntimeRepository {
     private val transactions = JianyuRepositoryTransactions(database)
     private val issueExecution = IssueExecutionRepositoryComponent(transactions)
+    private val executionRuntime = ExecutionRuntimeRepositoryComponent(transactions)
     private val pendingMessages = PendingMessageRepositoryComponent(transactions)
     private val resources = ResourceRepositoryComponent(
         transactions = transactions,
@@ -47,6 +48,49 @@ class RoomJianyuRepository(
         command: CreateExecutionRunCommand
     ): RepositoryResult<ExecutionRunSnapshot> {
         return issueExecution.createExecutionRun(command)
+    }
+
+    override suspend fun createExecutionRuntime(
+        command: CreateExecutionRuntimeCommand,
+    ): RepositoryResult<ExecutionRuntimeSnapshot> {
+        return executionRuntime.createExecutionRuntime(command)
+    }
+
+    override suspend fun getExecutionRuntime(
+        runId: String,
+    ): RepositoryResult<ExecutionRuntimeSnapshot> {
+        return executionRuntime.getExecutionRuntime(runId)
+    }
+
+    override suspend fun transitionExecutionParticipant(
+        command: TransitionExecutionParticipantCommand,
+    ): RepositoryResult<ExecutionParticipantStateEntity> {
+        return executionRuntime.transitionExecutionParticipant(command)
+    }
+
+    override suspend fun consumeExecutionBudget(
+        command: ConsumeExecutionBudgetCommand,
+    ): RepositoryResult<ExecutionRunBudgetEntity> {
+        return executionRuntime.consumeExecutionBudget(command)
+    }
+
+    override suspend fun setExecutionBudgetReserve(
+        command: SetExecutionBudgetReserveCommand,
+    ): RepositoryResult<ExecutionRunBudgetEntity> {
+        return executionRuntime.setExecutionBudgetReserve(command)
+    }
+
+    override suspend fun closeExecutionBudget(
+        rootRunId: String,
+        updatedAt: Long,
+    ): RepositoryResult<ExecutionRunBudgetEntity> {
+        return executionRuntime.closeExecutionBudget(rootRunId, updatedAt)
+    }
+
+    override suspend fun recoverInterruptedExecution(
+        command: RecoverInterruptedExecutionCommand,
+    ): RepositoryResult<ExecutionRuntimeSnapshot> {
+        return executionRuntime.recoverInterruptedExecution(command)
     }
 
     override suspend fun appendDomainMessage(
