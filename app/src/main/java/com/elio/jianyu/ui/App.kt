@@ -22,6 +22,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -212,7 +214,7 @@ internal fun AppBottomNavigation(
                 icon = {
                     Icon(
                         imageVector = icon,
-                        contentDescription = destination.label,
+                        contentDescription = null,
                     )
                 },
                 label = {
@@ -223,7 +225,9 @@ internal fun AppBottomNavigation(
                         style = MaterialTheme.typography.labelSmall,
                     )
                 },
-                modifier = Modifier.testTag(AppTestTags.destination(destination)),
+                modifier = Modifier
+                    .semantics { contentDescription = destination.label }
+                    .testTag(AppTestTags.destination(destination)),
             )
         }
     }
