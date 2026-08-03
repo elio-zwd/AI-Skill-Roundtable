@@ -2,6 +2,7 @@ package com.elio.jianyu.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -139,6 +140,11 @@ fun NavHostController.navigateToTopLevel(destination: AppDestination) {
     require(destination in AppDestination.topLevelDestinations) {
         "${destination.name} 不是见域一级目的地"
     }
+    val alreadySelected = currentDestination?.hierarchy?.any { entry ->
+        entry.route == destination.routePattern || entry.route == destination.launchRoute
+    } == true
+    if (alreadySelected) return
+
     navigate(destination.launchRoute) {
         popUpTo(graph.findStartDestination().id) {
             saveState = true
@@ -158,14 +164,34 @@ fun NavHostController.navigateToSecondary(destination: AppDestination) {
 }
 
 fun NavHostController.navigateToIssue(issueId: String, stageId: String? = null) {
+    ensureTopLevelParent(
+        graphRoute = JianyuNavigationRoutes.ISSUES_GRAPH,
+        destination = AppDestination.ISSUES,
+    )
     navigate(JianyuNavigationRoutes.issue(issueId, stageId)) {
         launchSingleTop = true
     }
 }
 
 fun NavHostController.navigateToSkillDetail(skillId: String) {
+    ensureTopLevelParent(
+        graphRoute = JianyuNavigationRoutes.SKILLS_GRAPH,
+        destination = AppDestination.SKILLS,
+    )
     navigate(JianyuNavigationRoutes.skillDetail(skillId)) {
         launchSingleTop = true
+    }
+}
+
+private fun NavHostController.ensureTopLevelParent(
+    graphRoute: String,
+    destination: AppDestination,
+) {
+    val alreadyInGraph = currentDestination?.hierarchy?.any { entry ->
+        entry.route == graphRoute
+    } == true
+    if (!alreadyInGraph) {
+        navigateToTopLevel(destination)
     }
 }
 
