@@ -108,10 +108,8 @@ class RoomJianyuRepositoryPendingMessageTest {
                 issueId = ISSUE_ID,
                 stageId = STAGE_ID,
                 idempotencyKey = "pending-run-key",
-                status = ExecutionRunStatus.RUNNING,
                 createdAt = 15L,
-                updatedAt = 15L,
-                startedAt = 15L
+                updatedAt = 15L
             ),
             participants = listOf(
                 ExecutionParticipantSnapshotEntity(
