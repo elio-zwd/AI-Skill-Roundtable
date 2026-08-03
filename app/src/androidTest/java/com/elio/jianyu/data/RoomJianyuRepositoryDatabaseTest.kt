@@ -358,14 +358,15 @@ class RoomJianyuRepositoryDatabaseTest {
             )
                 .allowMainThreadQueries()
                 .build()
+            val openedDatabase = requireNotNull(fileDatabase)
             val fileRepository = RoomJianyuRepository(
-                database = fileDatabase,
+                database = openedDatabase,
                 officialSkillIdValidator = OfficialSkillIdValidator { true }
             )
-            fileDatabase.openHelper.writableDatabase
-            assertTrue(fileDatabase.isOpen)
-            fileDatabase.close()
-            assertFalse(fileDatabase.isOpen)
+            openedDatabase.openHelper.writableDatabase
+            assertTrue(openedDatabase.isOpen)
+            openedDatabase.close()
+            assertFalse(openedDatabase.isOpen)
 
             val result = fileRepository.recoverIssue(ISSUE_ID)
 
