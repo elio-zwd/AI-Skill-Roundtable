@@ -23,6 +23,8 @@ import kotlinx.coroutines.launch
         StageEntity::class,
         ExecutionRunEntity::class,
         ExecutionParticipantSnapshotEntity::class,
+        ExecutionParticipantStateEntity::class,
+        ExecutionRunBudgetEntity::class,
         MaterialReferenceEntity::class,
         MaterialUsageSnapshotEntity::class,
         PersonalContextEntryEntity::class,
@@ -39,10 +41,14 @@ import kotlinx.coroutines.launch
         OfficialSkillCombinationMemberEntity::class,
         IssueLifecycleEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = true
 )
-@TypeConverters(CoreDomainConverters::class, ResourceLifecycleConverters::class)
+@TypeConverters(
+    CoreDomainConverters::class,
+    ResourceLifecycleConverters::class,
+    ExecutionRuntimeConverters::class
+)
 abstract class RoundtableDatabase : RoomDatabase() {
     private val explicitlyClosed = AtomicBoolean(false)
 
@@ -134,6 +140,7 @@ abstract class RoundtableDatabase : RoomDatabase() {
         }
 
         val MIGRATION_6_7: Migration = ResourceLifecycleMigration.MIGRATION_6_7
+        val MIGRATION_7_8: Migration = ExecutionRuntimeMigration.MIGRATION_7_8
 
         val ALL_MIGRATIONS: Array<Migration> = arrayOf(
             MIGRATION_1_2,
@@ -141,7 +148,8 @@ abstract class RoundtableDatabase : RoomDatabase() {
             MIGRATION_3_4,
             MIGRATION_4_5,
             MIGRATION_5_6,
-            MIGRATION_6_7
+            MIGRATION_6_7,
+            MIGRATION_7_8
         )
 
         private fun createCoreDomainTablesForVersion6(db: SupportSQLiteDatabase) {
