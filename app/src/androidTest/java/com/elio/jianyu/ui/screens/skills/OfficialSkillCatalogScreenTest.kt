@@ -1,6 +1,10 @@
 package com.elio.jianyu.ui.screens.skills
 
+import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNode
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -141,8 +145,11 @@ class OfficialSkillCatalogScreenTest {
         composeRule.onNodeWithText(
             "默认职责只描述成员在本组合中的关注点，不是 System Prompt。",
         ).assertExists()
-        composeRule.onNodeWithText(
-            "只整理真实内容；不规避检测、不伪造事实或经历。",
+        composeRule.onNode(
+            hasTestTag(OfficialSkillCatalogTestTags.COMBINATION_EDITOR) and
+                hasAnyDescendant(
+                    hasText("只整理真实内容；不规避检测、不伪造事实或经历。"),
+                ),
         ).assertExists()
     }
 
