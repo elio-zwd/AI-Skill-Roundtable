@@ -42,8 +42,8 @@ class OfficialSkillCatalogRiskSearchTest {
             ),
         )
 
-        assertEquals((1..15).toList(), people.map { it.defaultOrder })
+        assertEquals((1..15).toList() + (17..20).toList(), people.map { it.defaultOrder })
         assertEquals("zhang_xuefeng", people.first().id)
-        assertEquals("sigmund_freud", people.last().id)
+        assertEquals("tim_cook", people.last().id)
     }
 }
