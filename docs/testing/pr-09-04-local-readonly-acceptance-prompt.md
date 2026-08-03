@@ -1,24 +1,21 @@
-# PR09-04 本地 AI 严格只读验收 Prompt
+# PR09-04 最终集成本地 AI 严格只读验收 Prompt
 
-你现在负责 GitHub 仓库 `elio-zwd/AI-Skill-Roundtable` Draft PR #36 的本地严格只读验收。
-
-目标 PR：
+你现在负责 GitHub 仓库 `elio-zwd/AI-Skill-Roundtable` Draft PR #36 的最终本地严格只读验收。
 
 ```text
-https://github.com/elio-zwd/AI-Skill-Roundtable/pull/36
+PR：https://github.com/elio-zwd/AI-Skill-Roundtable/pull/36
+分支：feat/pr-09-04-jianyu-navigation-shell
+Base：main（PR09-05 已合并）
 ```
 
-目标分支：
+本轮验收对象已不是旧 Skill 占位页，而是：
 
-```text
-feat/pr-09-04-jianyu-navigation-shell
-```
-
-基线：
-
-```text
-main@78abf30b60d863ce0ac29323546e61971d50c9c9
-```
+- 四目的地导航壳：`首页 / 议题 / Skill / 资料与成果`；
+- 已合并 PR09-05 的 44 项官方 Skill Catalog；
+- `OfficialSkillCatalogRoute` 正式接线；
+- 统一 `JianyuAppRuntime`、Catalog runtime、Repository 与官方 ID Validator；
+- `jianyu://skills/{skillId}` 正式详情深链；
+- 临时 `SkillPlaceholderRoute` 已删除。
 
 ## 一、最高优先级纪律
 
@@ -26,26 +23,23 @@ main@78abf30b60d863ce0ac29323546e61971d50c9c9
 
 严禁：
 
-- 修改任何源文件、测试、文档、配置、锁文件或生成物清单；
-- 自动格式化或 IDE 自动修复；
-- 创建 Commit；
-- 推送；
-- 变基；
-- 合并；
+- 修改任何源码、测试、文档、配置、锁文件或受跟踪生成物；
+- 自动格式化、IDE 自动修复；
+- Commit、Push、Rebase、Merge；
 - 修改 PR Draft / Ready 状态；
-- 修改分支引用；
-- 删除分支；
+- 修改分支引用、删除分支；
 - 向远端写评论或 Review；
-- 使用测试失败作为理由直接修改代码。
+- 因失败而直接改代码；
+- 使用 `git reset --hard`、`git clean`、`git restore` 清理未知文件。
 
-若构建工具产生受 Git 跟踪文件变化，立即停止，记录变化来源，不得提交，并在报告中判为工作区污染。
+构建产生受跟踪文件变化时立即停止，记录来源并判为工作区污染。只允许删除能够证明由本次验收生成的临时截图、XML Dump 或脚本。
 
-## 二、验收开始前记录环境
+## 二、单设备硬门禁与环境记录
 
-记录真实原始输出：
+首先记录：
 
 ```powershell
-Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, BuildNumber, OSArchitecture
+Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber,OSArchitecture
 $PSVersionTable.PSVersion
 git --version
 java -version
@@ -54,52 +48,46 @@ adb version
 adb devices -l
 ```
 
-同时记录：
+必须同时记录：
 
-- 验收开始时间和结束时间，使用 ISO 8601；
-- Android SDK Platform / Build Tools；
-- 模拟器或真机型号、Android API、分辨率和 density；
-- TalkBack 版本；
-- 当前字体缩放和显示缩放；
-- 是否具备 GitHub CLI；
-- 是否具备网络访问 GitHub Actions。
+- 开始/结束时间（ISO 8601）；
+- JDK、Gradle、Android SDK Platform、Build Tools；
+- 唯一设备序列号、型号、API、分辨率、density；
+- 字体缩放、显示缩放、TalkBack 版本；
+- GitHub CLI 和 GitHub Actions 读取能力。
 
-## 三、解析并锁定 PR 精确 Head
+若 `adb devices -l` 存在多台在线设备，停止。不得混用真机和模拟器结果。
 
-优先使用 GitHub CLI 只读解析：
+## 三、动态锁定 PR 精确 Head
+
+优先执行：
 
 ```powershell
 $expectedHead = gh pr view 36 --repo elio-zwd/AI-Skill-Roundtable --json headRefOid --jq '.headRefOid'
 $expectedBase = gh pr view 36 --repo elio-zwd/AI-Skill-Roundtable --json baseRefOid --jq '.baseRefOid'
-$expectedState = gh pr view 36 --repo elio-zwd/AI-Skill-Roundtable --json isDraft,state,mergeable
-$expectedHead
-$expectedBase
-$expectedState
-```
+gh pr view 36 --repo elio-zwd/AI-Skill-Roundtable --json isDraft,state,mergeable
 
-若无 GitHub CLI，只读打开 PR 页面并记录页面显示的最新 Head SHA；不得凭 Prompt 中历史 SHA 猜测。
-
-检出：
-
-```powershell
 git fetch origin --prune
 git checkout feat/pr-09-04-jianyu-navigation-shell
 git pull --ff-only origin feat/pr-09-04-jianyu-navigation-shell
-git status --short
 git rev-parse HEAD
 git merge-base HEAD origin/main
 git rev-list --left-right --count origin/main...HEAD
+git status --short
 ```
 
 门禁：
 
-- `git rev-parse HEAD` 必须等于 `$expectedHead`；
-- merge-base 必须是本次 PR 实际合法基线或其后同步的最新 `main`；
-- 工作区必须干净；
-- PR 必须仍为 Draft；
-- 不满足任一项则停止后续验收并报告。
+- `HEAD == $expectedHead`；
+- PR 仍为 Open / Draft；
+- Base 为当前 `main`；
+- `main` 必须已包含 PR #35；
+- PR 分支必须包含普通双父 Merge Commit `chore: 同步PR09-05到导航壳`；
+- 工作区必须无输出。
 
-## 四、差异范围与禁止区审计
+任何一项不满足，停止后续验收。
+
+## 四、差异与架构静态审计
 
 执行：
 
@@ -110,46 +98,46 @@ git diff --check origin/main...HEAD
 git log --oneline --decorate origin/main..HEAD
 ```
 
-确认没有修改以下禁止区：
+重点确认：
 
-```text
-app/src/main/java/com/elio/jianyu/data/JianyuRepositoryContract.kt
-app/src/main/java/com/elio/jianyu/data/RoomJianyuRepository.kt
-app/src/main/java/com/elio/jianyu/data/IssueExecutionRepositoryComponent.kt
-app/src/main/java/com/elio/jianyu/data/PendingMessageRepositoryComponent.kt
-app/src/main/java/com/elio/jianyu/data/ResourceRepositoryComponent.kt
-app/src/main/java/com/elio/jianyu/data/UsageRepositoryComponent.kt
-app/src/main/java/com/elio/jianyu/data/LifecycleRecoveryRepositoryComponent.kt
-app/src/main/java/com/elio/jianyu/data/JianyuRepositoryTransactions.kt
-app/src/main/java/com/elio/jianyu/data/JianyuRepositoryDao.kt
-app/src/main/java/com/elio/jianyu/data/ChatSession.kt
-app/src/main/java/com/elio/jianyu/data/RoundtableDatabase.kt
-app/schemas/
+1. Room 仍为 v7；没有 Entity、DAO、Migration、Schema 漂移；
+2. 未修改 Catalog JSON 数量和正式 ID；
+3. `SkillPlaceholderRoute.kt` 已不存在；
+4. `App.kt` 接入 `OfficialSkillNavigationRoute`；
+5. `JianyuAppRuntime` 只创建一份 Catalog runtime 和一份共享 Repository；
+6. Catalog 成功时，`RoomJianyuRepository` 使用同一 runtime 的正式 Validator；
+7. Catalog 加载失败时保持拒绝策略，不允许任意 Skill ID；
+8. Issues 与 Skill 页面消费同一 Repository；
+9. UI/navigation 不直连 DAO；
+10. 没有 Gemini 执行、ExecutionRun 创建、资料/成果写入或最终视觉重做。
+
+执行只读搜索：
+
+```powershell
+git grep -n "SkillPlaceholderRoute\|SkillDetailPlaceholderRoute" HEAD -- app/src
+
+git grep -n "createOfficialSkillCatalogRuntime\|officialSkillIdValidator\|OfficialSkillNavigationRoute" HEAD -- app/src/main/java
+
+git grep -n -E "chatDao\(|coreDomainDao\(|resourceLifecycleDao\(|jianyuRepositoryDao\(" HEAD -- app/src/main/java/com/elio/jianyu/ui
 ```
 
-同时确认：
+预期：占位 Route 无结果；统一 runtime 与正式 Route 有结果；UI DAO 搜索无结果。
 
-- 没有修改 PR09-05 Catalog / Skill 页面内部文件；
-- 没有修改 Gemini 调度或音频任务；
-- 没有引入最终 Logo、正式品牌资产或最终主题重做；
-- `MainActivity.kt` 仍然只挂载主题与 `MainAppContent`；
-- Room 版本仍为 v7；
-- 没有 Schema 漂移。
+## 五、Secret 与深链敏感字段门禁
 
-## 五、Secret 与敏感内容扫描
-
-执行仓库已有 Secret scan，并额外只读搜索：
+执行仓库 Secret scan，并额外执行：
 
 ```powershell
 git grep -n -I -E '(AIza[0-9A-Za-z_-]{20,}|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|api[_-]?key\s*[:=]\s*["''][^"'']+["''])' HEAD -- .
+
 git grep -n -I -E '(prompt=|apiKey=|materialBody=|artifactBody=|personalContext=)' HEAD -- app/src/main/java/com/elio/jianyu/ui app/src/main/AndroidManifest.xml
 ```
 
-第二条允许测试代码中的拒绝断言，但生产 Route、Manifest 和深链中不得携带这些敏感字段。
+生产 Route、Manifest 和深链只能携带稳定 ID 或 Tab，不得携带 Prompt、API Key、资料正文、成果正文或个人背景正文。
 
 ## 六、构建、JVM、Lint 与 APK
 
-从干净工作区执行，逐条记录命令、退出码和关键日志：
+逐条执行并记录命令、退出码、耗时和关键日志：
 
 ```powershell
 ./gradlew --stop
@@ -158,308 +146,250 @@ git grep -n -I -E '(prompt=|apiKey=|materialBody=|artifactBody=|personalContext=
 ./gradlew :app:lintDebug --stacktrace
 ./gradlew :app:assembleDebug --stacktrace
 ./gradlew :app:assembleRelease --stacktrace
+./gradlew :app:compileDebugAndroidTestKotlin --stacktrace
 ```
 
-如仓库 CI 使用额外 Release signing / R8 / Schema 命令，读取 `.github/workflows/` 后按同等参数执行，不得自行降低门禁。
+读取 `.github/workflows/`，按仓库 CI 的同等参数补做 Release signing、R8、包名、Migration 和 Schema 门禁，不得降低要求。
 
-必须单独核对：
+必须确认以下 JVM 测试实际执行：
 
-- `AppDestinationTest`；
-- `JianyuNavigationRoutesTest`；
-- `JianyuDeepLinkManifestTest`；
-- `IssuesNavigationLoaderTest`；
-- `IssuesUiStateTest`；
-- `JianyuNavigationArchitectureTest`；
-- 原有 `UiArchitectureGuardrailTest`；
-- 全量现有 JVM 测试。
+```text
+JianyuNavigationArchitectureTest
+AppDestinationTest
+JianyuNavigationRoutesTest
+JianyuDeepLinkManifestTest
+OfficialSkillCatalogArchitectureTest
+CatalogOfficialSkillIdValidatorTest
+OfficialSkillCatalogManifestTest
+OfficialSkillCatalogQueryTest
+OfficialSkillCatalogRiskSearchTest
+OfficialSkillCombinationDraftValidatorTest
+OfficialSkillPreferencesTest
+IssuesNavigationLoaderTest
+IssuesUiStateTest
+UiArchitectureGuardrailTest
+```
 
-不得只运行新增测试后声称全量通过。
+## 七、定向 Instrumentation
 
-## 七、Instrumentation 与 Compose UI Test
+只在唯一在线设备上分别执行：
 
-设备在线后执行：
+```powershell
+./gradlew :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=com.elio.jianyu.ui.AppBottomNavigationTest" --stacktrace
+
+./gradlew :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=com.elio.jianyu.ui.navigation.AppNavHostTest" --stacktrace
+
+./gradlew :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=com.elio.jianyu.ui.screens.skills.OfficialSkillCatalogScreenTest" --stacktrace
+
+./gradlew :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=com.elio.jianyu.ui.MainNavigationRestorationTest" --stacktrace
+
+./gradlew :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=com.elio.jianyu.ui.JianyuNavigationShellScreenTest" --stacktrace
+```
+
+必须从 XML 报告记录每个测试类的：
+
+```text
+tests / failures / errors / skipped
+```
+
+不得只凭 `BUILD SUCCESSFUL` 猜测数量。
+
+## 八、全量 Instrumentation 与 Base/Head A/B
+
+执行：
 
 ```powershell
 ./gradlew :app:connectedDebugAndroidTest --stacktrace
 ```
 
-重点确认以下测试类真实执行：
+记录测试总数、通过数、失败数和全部失败方法。
+
+若仍只有以下两项 Room 测试失败：
 
 ```text
-AppBottomNavigationTest
-AppNavHostTest
-JianyuNavigationShellScreenTest
-MainNavigationRestorationTest
+RoomJianyuRepositoryDatabaseTest#runAndParticipantsAreAtomicAndIdempotencyKeyDetectsConflict
+RoomJianyuRepositoryDatabaseTest#closedDatabaseReturnsStorageFailureInsteadOfEmptyIssue
 ```
 
-如全量设备测试受历史无关失败阻塞，仍需：
+必须在同一设备、同一 Gradle 参数、同一安装清理口径下，对当前 Base `origin/main` 与精确 Head 分别运行这两个方法。只有 Base 与 Head 表现一致，才能写“PR #36 引入的新失败数为 0”。不得猜测 Android 或 SQLite 根因。
 
-1. 记录全量失败原始日志；
-2. 单独执行上述 PR09-04 测试类；
-3. 明确区分 PR09-04 失败与历史基线失败；
-4. 不修改测试或降低断言。
+如果出现任何 Head 独有失败，结论必须为 FAIL。
 
-## 八、四个一级目的地人工验收
+## 九、四目的地与正式 Skill Catalog 人工验收
 
-冷启动后确认默认首页。
-
-按顺序点击：
+冷启动后按顺序操作：
 
 ```text
 首页 → 议题 → Skill → 资料与成果 → 首页
 ```
 
-逐项验证：
+验证：
 
-- 底部导航精确只有四项；
-- 顺序精确；
+- 底部精确只有四项且顺序正确；
 - 设置不在底部导航；
 - 旧圆桌、智囊大厅、音频库不在底部导航；
-- 每一项可进入对应页面壳；
-- 当前项有可被辅助技术识别的选中状态；
-- 重复点击当前项不会在系统返回时出现重复页面；
-- 切换目的地后返回各自已保存状态。
+- 当前项有辅助技术可识别的选中状态；
+- 重复点击当前目的地不产生重复返回层级；
+- 切换后各自状态按设计恢复；
+- Skill 页面展示正式“官方 Skill”界面，不出现“正在接入”占位文案；
+- 总数显示 44；
+- 搜索、筛选、收藏、最近、组合入口可操作；
+- `office-document-productivity`、`original-expression-naturalizer`、`zhang_xuefeng` 可发现；
+- 不存在 `academic-ai-evasion`；
+- 查看详情不写入“最近使用”；
+- 不可执行 Skill 不触发模型、运行或后台任务。
 
-记录每一步的当前 Route、可见标题和返回结果。
+## 十、正式 Skill 深链
 
-## 九、全局设置与旧设置链
-
-从首页、议题、Skill、资料与成果分别打开全局设置并返回，验证：
-
-- 顶部设置入口存在且可读；
-- 系统返回和顶部返回一致；
-- 返回原一级目的地；
-- API Key 入口可进入现有页面；
-- Telemetry 入口可进入现有页面；
-- API Key / Telemetry 原稳定 `testTag` 仍存在；
-- 旧 Roundtable → API Key → Telemetry 返回链仍正确。
-
-## 十、资料与成果 Tab
-
-验证：
-
-- 首次进入默认资料 Tab；
-- 可切换成果 Tab；
-- 两个 Tab 的选中状态不只依赖颜色；
-- 从成果 Tab 切走再返回时状态按设计保存；
-- Activity 重建后仍在原 Tab；
-- 无效 `tab` 深链回退到资料；
-- 页面不会创建资料、成果或访问 `ResourceLifecycleDao`。
-
-## 十一、议题只读导航与恢复定位
-
-准备至少三类 fixture：
-
-```text
-ACTIVE
-ARCHIVED
-TRASHED
-```
-
-每个 fixture 至少包含稳定 Issue ID；其中一个包含多个 Stage 和一个活跃或可恢复 Run。
-
-验证：
-
-- 议题页显示活跃、归档和回收站分区；
-- 显示生命周期、当前 Stage 和可恢复 Run 数量；
-- 空、加载、失败状态可区分；
-- 点击 Issue 通过稳定 ID 打开恢复页；
-- 指定 Stage 能定位到所属 Stage；
-- 不属于 Issue 的 Stage 显示失败；
-- 无效 ID 显示失败且不创建数据；
-- Archived / Trashed Issue 能定位；
-- 页面加载前后数据库业务行数不增加；
-- 不发生 `saveIssue`、`createStage`、`createExecutionRun` 或生命周期写入。
-
-可通过测试 fixture 前后 SQL/DAO 只读计数或已有 Repository 测试辅助证明，但不得直接修改生产数据库文件。
-
-## 十二、旧 Route 兼容
-
-分别通过测试或显式导航进入：
-
-```text
-roundtable
-characters
-audio-library
-settings/api-keys
-settings/telemetry
-```
-
-验证：
-
-- 页面仍可打开；
-- 不出现在新底部导航；
-- 返回调用来源；
-- 以下旧稳定标签未删除：
-
-```text
-new_session_button
-chat_input
-send_button
-stop_button
-retry_failed_characters_button
-dismiss_failed_characters_button
-character_hall
-audio_library
-api_key_manager
-telemetry_screen
-```
-
-## 十三、外部深链验收
-
-先确保 Debug APK 已安装，然后执行：
+先安装 Debug APK，再执行：
 
 ```powershell
 adb shell am force-stop com.elio.jianyu
-adb shell am start -W -a android.intent.action.VIEW -d "jianyu://resources?tab=artifacts" com.elio.jianyu
-adb shell am force-stop com.elio.jianyu
-adb shell am start -W -a android.intent.action.VIEW -d "jianyu://resources?tab=invalid" com.elio.jianyu
-adb shell am force-stop com.elio.jianyu
-adb shell am start -W -a android.intent.action.VIEW -d "jianyu://issues/<真实稳定IssueID>" com.elio.jianyu
-adb shell am force-stop com.elio.jianyu
-adb shell am start -W -a android.intent.action.VIEW -d "jianyu://issues/<真实稳定IssueID>?stageId=<所属稳定StageID>" com.elio.jianyu
-adb shell am force-stop com.elio.jianyu
-adb shell am start -W -a android.intent.action.VIEW -d "jianyu://issues/invalid%2Fid" com.elio.jianyu
-adb shell am force-stop com.elio.jianyu
-adb shell am start -W -a android.intent.action.VIEW -d "jianyu://skills/decision-reviewer" com.elio.jianyu
+adb shell am start -W -a android.intent.action.VIEW -d "jianyu://skills/zhang_xuefeng" com.elio.jianyu
 ```
-
-将尖括号内容替换为验收 fixture 中真实稳定 ID，不把尖括号原样执行。
 
 验证：
 
-- 冷启动进入正确页面；
-- 成果和无效 Tab 行为正确；
-- Issue / Stage 定位正确；
-- 无效 Issue ID 显示失败；
-- Skill 深链进入稳定详情接口或当前明确占位；
-- 系统返回进入合理父级，而不是退出到错误页面；
-- 深链过程不创建任何业务数据。
+- 冷启动直接打开张雪峰官方 Skill 详情；
+- 详情使用 Catalog 正式 ID；
+- 关闭详情或系统返回进入 Skill 列表；
+- 不写入最近使用；
+- 全局设置入口可进入并返回。
 
-额外执行：
+然后执行：
 
 ```powershell
-adb shell dumpsys package com.elio.jianyu | Select-String -Pattern "jianyu|issues|skills|resources|BROWSABLE"
+adb shell am force-stop com.elio.jianyu
+adb shell am start -W -a android.intent.action.VIEW -d "jianyu://skills/not-official" com.elio.jianyu
 ```
 
-确认 Manifest 只暴露 `issues`、`skills`、`resources` 三个 host。
+验证：
 
-## 十四、Activity 与进程重建
+- 显示明确“未知官方 Skill ID”错误；
+- 不打开伪造详情；
+- 不保存组合、收藏或最近使用；
+- 不调用模型、不创建 ExecutionRun；
+- 系统返回合理。
 
-Activity 重建：
+同时继续验证：
 
-1. 进入资料与成果；
-2. 切换成果 Tab；
-3. 执行旋转或 Activity recreate；
-4. 验证仍为资料与成果、成果 Tab。
+```text
+jianyu://resources?tab=artifacts
+jianyu://resources?tab=invalid
+jianyu://issues/<真实IssueID>
+jianyu://issues/<真实IssueID>?stageId=<真实StageID>
+```
 
-真实进程重建：
+确认 Manifest 只暴露 `issues`、`skills`、`resources` 三个 BROWSABLE host。
 
-1. 分别停留在议题、Skill、资料与成果页面；
-2. 使用开发者选项“不保留活动”或可复现的进程强停方案；
-3. 通过系统任务恢复；
-4. 验证恢复到稳定目的地或由 Android 明确重新冷启动首页；
-5. 不得跳到错误旧页面；
-6. 不得自动调用模型、创建数据或重复恢复写入。
+## 十一、设置、返回栈、重建与旧 Route
 
-必须把“Activity recreate”和“进程被杀后恢复”分开记录，不能用前者代替后者。
+验证：
 
-## 十五、360dp、200% 字号、横竖屏与 TalkBack
+- 从四个一级目的地分别进入设置并返回原位置；
+- Skill 详情返回 Skill 列表；
+- API Key、Telemetry 入口和旧稳定 testTag 保留；
+- `roundtable`、`characters`、`audio-library` 仍可显式进入，但不在底栏；
+- 资料/成果 Tab 在 Activity recreate 后恢复；
+- Skill 搜索、Section、筛选状态在 Activity recreate 后按实现恢复；
+- “Activity recreate”和真实进程被杀后恢复分别记录；
+- 重建不自动调用模型、不创建业务数据。
 
-在 360dp 等效宽度设备执行：
+## 十二、360dp、200% 字号、横竖屏、明暗主题
 
-- 默认字号；
+在最终接线页面实际验证：
+
+- 360dp 等效宽度；
 - 字号 200%；
-- 竖屏；
-- 横屏或可调整窗口；
-- 明色主题；
-- 暗色主题。
+- 竖屏和横屏；
+- 明暗主题；
+- 四个底栏标签可理解；
+- 官方 Skill 搜索框、筛选按钮、Section Tab、列表和详情对话框可操作；
+- 无不可达按钮、严重遮挡或无限布局；
+- 不能用旧三目的地截图替代当前页面证据。
 
-验证：
+## 十三、真实 TalkBack 门禁
 
-- 四个关键导航文案不消失；
-- “资料与成果”允许两行但不截断为不可理解文本；
-- 设置按钮可点击；
-- 标题和副标题不重叠；
-- 页面内容可滚动；
-- 主要动作不被底部导航遮挡；
-- 切换窗口尺寸不丢失目的地和 Tab。
+必须启用真实 TalkBack，通过焦点移动与手势操作验证，不能只使用 UIAutomator/XML Dump。
 
-TalkBack 验证：
+至少验证：
 
-- 顺序为页面标题、设置/返回、页面内容、底部导航；
-- 每个导航项读出名称和选中状态；
-- 设置、返回、资料 Tab、成果 Tab 有明确语义；
-- 选中状态不只靠颜色；
-- 无重复或空白朗读节点阻断主要流程。
+- “首页 / 议题 / Skill / 资料与成果”朗读顺序和选中状态；
+- 全局设置与返回按钮；
+- 官方 Skill 搜索框、筛选按钮；
+- 发现/收藏/最近/组合 Tab；
+- Skill 卡片、收藏按钮、详情关闭；
+- 深链详情的返回行为；
+- 同一控件不重复朗读；
+- 关键控件可被聚焦和激活。
 
-## 十六、PR09-05 Skill 接线状态
+无法真实执行时必须写“尚未验证”，不得将 uidump 写成 TalkBack PASS。
 
-验收开始时读取 PR #35 与 PR #36：
+## 十四、最终 Git 清洁门禁
 
-- 若 PR #35 尚未合并，PR #36 的 Skill 页面应明确显示占位，并在报告中判定“正式 Skill 接线尚未完成”；不得因此假装整个 PR 已完成。
-- 若 PR #35 已合并且 PR #36 已同步，验证正式 `OfficialSkillCatalogRoute`、同一 Catalog runtime、正式 Validator 和公共回调边界。
-- 根导航不得复制 Catalog、筛选、详情、收藏、组合或 ViewModel。
-- 打开详情、搜索、筛选或收藏不得自动记录最近使用。
-- 根导航不得创建 `ExecutionRun` 或调用 Gemini。
-
-## 十七、GitHub CI 复核
-
-只读取当前精确 Head 对应的 Checks：
+结束前执行：
 
 ```powershell
-gh pr checks 36 --repo elio-zwd/AI-Skill-Roundtable
-```
-
-记录：
-
-- Workflow 名称；
-- Run 编号；
-- Job；
-- 状态与结论；
-- 对应 Head SHA；
-- 失败步骤和关键日志。
-
-不得复用旧 Head、被取消 Run 或 PR #35 的 CI 结果。
-
-## 十八、结束时工作区干净性
-
-执行：
-
-```powershell
+git rev-parse HEAD
 git status --short
 git diff --exit-code
 git diff --cached --exit-code
-git rev-parse HEAD
+git ls-remote origin refs/heads/feat/pr-09-04-jianyu-navigation-shell
 ```
 
-必须满足：
+要求：
 
+- 本地 Head 仍等于验收开始锁定的 PR Head；
+- 远端分支未移动；
 - `git status --short` 无输出；
-- 工作区和暂存区无差异；
-- 最终 HEAD 仍等于验收开始锁定的 `$expectedHead`；
-- 没有 Commit、Push、Merge 或分支修改。
+- 两个 diff 命令退出码均为 0。
 
-## 十九、报告格式
+## 十五、结论规则
 
-最终报告必须包含：
+### PASS
 
-1. 结论：`PASS`、`PASS WITH NOTES` 或 `FAIL`；
+仅当精确 Head、CI、JVM、Lint、APK、AndroidTest、正式 Skill 深链、重建、真实 TalkBack和工作区门禁全部通过。
+
+### PASS WITH NOTES
+
+只允许以下情况：
+
+- 两项 Room 测试经严格 Base/Head A/B 证明为 Base 既有失败；
+- 真实 TalkBack因明确环境限制无法执行，但其他自动化与人工交互全部通过。
+
+### FAIL
+
+包括但不限于：
+
+- Head 不一致或验收中移动；
+- 工作区不干净；
+- 多设备结果混用；
+- 编译、JVM、Lint、APK 或 PR 自有测试失败；
+- Head 独有 Instrumentation 失败；
+- Skill 仍为占位页；
+- 正式 ID 深链错误、未知 ID 被接受；
+- Catalog 与 Repository Validator 不是同一事实源；
+- 详情查看错误写入最近使用；
+- 删除/降低测试或放宽安全边界；
+- 将 XML Dump 冒充真实 TalkBack。
+
+## 十六、报告格式
+
+报告必须分别列出：
+
+1. 最终结论；
 2. PR URL、Base、分支、精确 Head；
-3. 操作系统、工具版本、设备参数；
-4. 全部命令、退出码和关键原始日志；
-5. 差异文件与禁止区审计；
-6. Secret scan；
-7. 编译、JVM、Lint、Debug、Release、R8、Schema；
-8. Instrumentation 真实执行结果；
-9. 四目的地、设置、Tab、旧 Route；
-10. 返回栈、Activity 重建、进程重建；
-11. 外部深链；
-12. 360dp、200% 字号、横竖屏、明暗主题、TalkBack；
-13. PR09-05 Skill 接线状态；
-14. GitHub CI；
-15. 未验证项；
-16. 失败复现步骤与可能原因；
-17. 最终工作区干净性。
+3. 环境与唯一设备；
+4. 差异范围与禁止区；
+5. GitHub CI 状态；
+6. 实际执行并通过；
+7. 实际执行但失败；
+8. 仅静态核对；
+9. 尚未验证；
+10. Base/Head A/B 原始结果；
+11. 正式 Skill Catalog、深链、设置和返回栈；
+12. 重建、响应式与 TalkBack；
+13. 最终工作区状态；
+14. 已知风险和重点回归区域。
 
-若失败，只反馈证据、复现步骤和可能原因给远端开发对话；不得自行修改、提交、推送或合并。
+禁止笼统写“全部通过”；必须提供命令、退出码、测试数量和关键日志。
