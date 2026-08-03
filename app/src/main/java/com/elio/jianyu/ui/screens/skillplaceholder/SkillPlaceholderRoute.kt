@@ -22,6 +22,7 @@ fun SkillPlaceholderRoute(
         title = "Skill",
         subtitle = "发现适合当前问题的能力",
         onOpenSettings = onOpenSettings,
+        contentScrollable = true,
         modifier = Modifier.testTag(SkillPlaceholderTestTags.SCREEN),
     ) {
         JianyuStateCard(
@@ -45,6 +46,7 @@ fun SkillDetailPlaceholderRoute(
         title = "Skill 详情",
         subtitle = if (isValid) "正式页面接入点" else "无法定位",
         onBack = onBack,
+        contentScrollable = true,
         modifier = Modifier.testTag(SkillPlaceholderTestTags.DETAIL_SCREEN),
     ) {
         if (isValid) {
