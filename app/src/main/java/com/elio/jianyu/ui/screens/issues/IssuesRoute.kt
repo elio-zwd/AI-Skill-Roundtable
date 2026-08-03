@@ -3,10 +3,8 @@ package com.elio.jianyu.ui.screens.issues
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -69,6 +67,7 @@ fun IssuesScreen(
         title = "议题",
         subtitle = "活跃、归档与恢复",
         onOpenSettings = onOpenSettings,
+        contentScrollable = true,
         modifier = Modifier.testTag(IssuesTestTags.SCREEN),
     ) {
         when (state) {
@@ -100,37 +99,28 @@ fun IssuesScreen(
                 modifier = Modifier.testTag(IssuesTestTags.FAILURE),
             )
 
-            is IssuesUiState.Content -> LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                item {
-                    IssueSection(
-                        title = "活跃议题",
-                        items = state.active,
-                        emptyMessage = "暂无活跃议题",
-                        testTag = IssuesTestTags.ACTIVE_SECTION,
-                        onOpenIssue = onOpenIssue,
-                    )
-                }
-                item {
-                    IssueSection(
-                        title = "已归档",
-                        items = state.archived,
-                        emptyMessage = "暂无归档议题",
-                        testTag = IssuesTestTags.ARCHIVED_SECTION,
-                        onOpenIssue = onOpenIssue,
-                    )
-                }
-                item {
-                    IssueSection(
-                        title = "回收站",
-                        items = state.trashed,
-                        emptyMessage = "回收站为空",
-                        testTag = IssuesTestTags.TRASHED_SECTION,
-                        onOpenIssue = onOpenIssue,
-                    )
-                }
+            is IssuesUiState.Content -> {
+                IssueSection(
+                    title = "活跃议题",
+                    items = state.active,
+                    emptyMessage = "暂无活跃议题",
+                    testTag = IssuesTestTags.ACTIVE_SECTION,
+                    onOpenIssue = onOpenIssue,
+                )
+                IssueSection(
+                    title = "已归档",
+                    items = state.archived,
+                    emptyMessage = "暂无归档议题",
+                    testTag = IssuesTestTags.ARCHIVED_SECTION,
+                    onOpenIssue = onOpenIssue,
+                )
+                IssueSection(
+                    title = "回收站",
+                    items = state.trashed,
+                    emptyMessage = "回收站为空",
+                    testTag = IssuesTestTags.TRASHED_SECTION,
+                    onOpenIssue = onOpenIssue,
+                )
             }
         }
     }
@@ -243,6 +233,7 @@ fun IssueRecoveryScreen(
         title = "议题定位",
         subtitle = "按稳定 ID 恢复",
         onBack = onBack,
+        contentScrollable = true,
         modifier = Modifier.testTag(IssuesTestTags.RECOVERY_SCREEN),
     ) {
         when (state) {
