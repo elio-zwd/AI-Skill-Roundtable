@@ -1,9 +1,12 @@
 package com.elio.jianyu.data
 
 import android.content.Context
+import android.database.sqlite.SQLiteConstraintException
+import android.database.sqlite.SQLiteException
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -317,12 +320,95 @@ class RoomJianyuRepositoryDatabaseTest {
     }
 
     @Test
+    fun openEmptyDatabaseReturnsNotFoundWithoutCreatingDomainRows() = runBlocking {
+        database.openHelper.writableDatabase
+        assertTrue(database.isOpen)
+
+        val result = repository.recoverIssue(ISSUE_ID)
+
+        assertTrue(result.failureError() is RepositoryError.NotFound)
+        assertNull(database.coreDomainDao().getIssue(ISSUE_ID))
+        assertTrue(database.coreDomainDao().getStagesForIssue(ISSUE_ID).isEmpty())
+        assertNull(database.resourceLifecycleDao().getIssueLifecycle(ISSUE_ID))
+    }
+
+    @Test
     fun closedDatabaseReturnsStorageFailureInsteadOfEmptyIssue() = runBlocking {
+        database.openHelper.writableDatabase
+        assertTrue(database.isOpen)
         database.close()
+        assertFalse(database.isOpen)
 
         val result = repository.recoverIssue(ISSUE_ID)
 
         assertTrue(result.failureError() is RepositoryError.StorageFailure)
+        assertFalse(result is RepositoryResult.Success<*>)
+    }
+
+    @Test
+    fun closedFileDatabaseReturnsStorageFailureInsteadOfEmptyIssue() = runBlocking {
+        val databaseName = "repository-closed-${System.nanoTime()}.db"
+        context.deleteDatabase(databaseName)
+        var fileDatabase: RoundtableDatabase? = null
+        try {
+            fileDatabase = Room.databaseBuilder(
+                context,
+                RoundtableDatabase::class.java,
+                databaseName
+            )
+                .allowMainThreadQueries()
+                .build()
+            val fileRepository = RoomJianyuRepository(
+                database = fileDatabase,
+                officialSkillIdValidator = OfficialSkillIdValidator { true }
+            )
+            fileDatabase.openHelper.writableDatabase
+            assertTrue(fileDatabase.isOpen)
+            fileDatabase.close()
+            assertFalse(fileDatabase.isOpen)
+
+            val result = fileRepository.recoverIssue(ISSUE_ID)
+
+            assertTrue(result.failureError() is RepositoryError.StorageFailure)
+            assertFalse(result is RepositoryResult.Success<*>)
+        } finally {
+            if (fileDatabase?.isOpen == true) fileDatabase.close()
+            context.deleteDatabase(databaseName)
+        }
+    }
+
+    @Test
+    fun transactionExecutionMapsSQLiteExceptionToStorageFailure() = runBlocking {
+        val result = JianyuRepositoryTransactions(database).execute<Unit>("storage_failure") {
+            throw SQLiteException("storage unavailable")
+        }
+
+        assertTrue(result.failureError() is RepositoryError.StorageFailure)
+    }
+
+    @Test
+    fun transactionExecutionMapsSQLiteConstraintToConstraintViolation() = runBlocking {
+        val result = JianyuRepositoryTransactions(database).execute<Unit>("constraint_failure") {
+            throw SQLiteConstraintException("constraint failed")
+        }
+
+        assertTrue(result.failureError() is RepositoryError.ConstraintViolation)
+    }
+
+    @Test
+    fun transactionExecutionPropagatesCancellationException() = runBlocking {
+        val expected = CancellationException("cancelled")
+        var observed: CancellationException? = null
+
+        try {
+            JianyuRepositoryTransactions(database).execute<Unit>("cancelled_operation") {
+                throw expected
+            }
+        } catch (error: CancellationException) {
+            observed = error
+        }
+
+        assertTrue(observed === expected)
     }
 
     @Test
