@@ -48,6 +48,7 @@ abstract class RoundtableDatabase : RoomDatabase() {
     abstract fun characterGroupDao(): CharacterGroupDao
     abstract fun coreDomainDao(): CoreDomainDao
     abstract fun resourceLifecycleDao(): ResourceLifecycleDao
+    internal abstract fun jianyuRepositoryDao(): JianyuRepositoryDao
 
     companion object {
         @Volatile

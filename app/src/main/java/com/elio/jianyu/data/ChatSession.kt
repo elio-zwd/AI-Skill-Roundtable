@@ -78,7 +78,12 @@ data class Message(
 
 @Dao
 interface ChatDao {
-    @Query("SELECT * FROM chat_sessions ORDER BY createdAt DESC")
+    @Query(
+        "SELECT * FROM chat_sessions WHERE id NOT IN (" +
+            "SELECT legacyChatSessionId FROM issues " +
+            "WHERE legacyChatSessionId IS NOT NULL AND id NOT LIKE 'legacy-chat-%'" +
+            ") ORDER BY createdAt DESC"
+    )
     fun getAllSessions(): Flow<List<ChatSession>>
 
     @Query("SELECT * FROM chat_sessions WHERE id = :id LIMIT 1")
@@ -87,13 +92,34 @@ interface ChatDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSession(session: ChatSession): Long
 
-    @Query("DELETE FROM chat_sessions WHERE id = :id")
+    @Query(
+        "SELECT EXISTS(SELECT 1 FROM issues " +
+            "WHERE legacyChatSessionId = :sessionId AND id NOT LIKE 'legacy-chat-%')"
+    )
+    suspend fun isDomainCompatibilitySession(sessionId: Long): Boolean
+
+    @Query(
+        "DELETE FROM chat_sessions WHERE id = :id AND NOT EXISTS (" +
+            "SELECT 1 FROM issues " +
+            "WHERE legacyChatSessionId = :id AND id NOT LIKE 'legacy-chat-%'" +
+            ")"
+    )
     suspend fun deleteSessionById(id: Long)
 
-    @Query("UPDATE chat_sessions SET title = :title WHERE id = :id")
+    @Query(
+        "UPDATE chat_sessions SET title = :title WHERE id = :id AND NOT EXISTS (" +
+            "SELECT 1 FROM issues " +
+            "WHERE legacyChatSessionId = :id AND id NOT LIKE 'legacy-chat-%'" +
+            ")"
+    )
     suspend fun updateSessionTitle(id: Long, title: String)
 
-    @Query("DELETE FROM messages WHERE chatId = :chatId")
+    @Query(
+        "DELETE FROM messages WHERE chatId = :chatId AND NOT EXISTS (" +
+            "SELECT 1 FROM issues " +
+            "WHERE legacyChatSessionId = :chatId AND id NOT LIKE 'legacy-chat-%'" +
+            ")"
+    )
     suspend fun deleteMessagesByChatId(chatId: Long)
 
     @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp ASC")
@@ -105,19 +131,43 @@ interface ChatDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: Message): Long
 
-    @Query("UPDATE messages SET text = :text WHERE id = :id AND isPending = 1")
+    @Query(
+        "UPDATE messages SET text = :text WHERE id = :id AND isPending = 1 " +
+            "AND NOT EXISTS (SELECT 1 FROM issues " +
+            "WHERE legacyChatSessionId = messages.chatId " +
+            "AND issues.id NOT LIKE 'legacy-chat-%')"
+    )
     suspend fun updatePendingMessageText(id: Long, text: String)
 
-    @Query("DELETE FROM messages WHERE id = :id")
+    @Query(
+        "DELETE FROM messages WHERE id = :id AND NOT EXISTS (" +
+            "SELECT 1 FROM issues WHERE legacyChatSessionId = messages.chatId " +
+            "AND issues.id NOT LIKE 'legacy-chat-%')"
+    )
     suspend fun deleteMessageById(id: Long)
 
-    @Query("DELETE FROM messages WHERE chatId = :chatId AND isPending = 1")
+    @Query(
+        "DELETE FROM messages WHERE chatId = :chatId AND isPending = 1 " +
+            "AND NOT EXISTS (SELECT 1 FROM issues " +
+            "WHERE legacyChatSessionId = messages.chatId " +
+            "AND issues.id NOT LIKE 'legacy-chat-%')"
+    )
     suspend fun removePendingMessages(chatId: Long)
 
-    @Query("DELETE FROM messages WHERE isPending = 1")
+    @Query(
+        "DELETE FROM messages WHERE isPending = 1 " +
+            "AND NOT EXISTS (SELECT 1 FROM issues " +
+            "WHERE legacyChatSessionId = messages.chatId " +
+            "AND issues.id NOT LIKE 'legacy-chat-%')"
+    )
     suspend fun removeAllPendingMessages()
 
-    @Query("UPDATE messages SET audioFilePath = :path, audioFormat = :format, audioSizeBytes = :size WHERE id = :id")
+    @Query(
+        "UPDATE messages SET audioFilePath = :path, audioFormat = :format, " +
+            "audioSizeBytes = :size WHERE id = :id AND NOT EXISTS (" +
+            "SELECT 1 FROM issues WHERE legacyChatSessionId = messages.chatId " +
+            "AND issues.id NOT LIKE 'legacy-chat-%')"
+    )
     suspend fun updateMessageAudio(id: Long, path: String?, format: String?, size: Long)
 
     @Query("SELECT * FROM messages WHERE audioFilePath IS NOT NULL AND audioFilePath != '' ORDER BY timestamp DESC")
@@ -139,6 +189,13 @@ class ChatRepository(private val chatDao: ChatDao) {
     }
 
     suspend fun deleteSession(id: Long) {
+        if (chatDao.isDomainCompatibilitySession(id)) {
+            PrivacySafeLogger.w(
+                "ChatRepository",
+                "Skipped deletion of domain compatibility session"
+            )
+            return
+        }
         InteractionChainStore.clearSession(id)
         try {
             val messages = chatDao.getMessagesForChat(id)
