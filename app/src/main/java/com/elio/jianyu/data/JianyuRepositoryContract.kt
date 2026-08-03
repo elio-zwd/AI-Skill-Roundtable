@@ -105,6 +105,21 @@ data class AppendDomainMessageCommand(
     val compatibilitySessionTitle: String
 )
 
+/**
+ * 对已存在 Pending 领域消息进行流式文本更新或原位完成。
+ *
+ * 关系字段必须与原消息完全一致；消息一旦完成，迟到片段不得覆盖成功正文。
+ */
+data class UpdatePendingDomainMessageCommand(
+    val messageId: Long,
+    val issueId: String,
+    val stageId: String,
+    val executionRunId: String? = null,
+    val participantSnapshotId: String? = null,
+    val text: String,
+    val keepPending: Boolean
+)
+
 data class TransitionRunCommand(
     val runId: String,
     val expectedStatuses: Set<ExecutionRunStatus>,
@@ -201,6 +216,10 @@ interface JianyuRepository {
 
     suspend fun appendDomainMessage(
         command: AppendDomainMessageCommand
+    ): RepositoryResult<Message>
+
+    suspend fun updatePendingDomainMessage(
+        command: UpdatePendingDomainMessageCommand
     ): RepositoryResult<Message>
 
     suspend fun transitionRun(
