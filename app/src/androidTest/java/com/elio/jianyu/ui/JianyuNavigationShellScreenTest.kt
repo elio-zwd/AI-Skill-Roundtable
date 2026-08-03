@@ -1,5 +1,6 @@
 package com.elio.jianyu.ui
 
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -89,12 +90,12 @@ class JianyuNavigationShellScreenTest {
 
     @Test
     fun resources_switchesBetweenMaterialsAndArtifacts() {
-        var selectedTab = ResourceTab.MATERIALS
+        val selectedTab = mutableStateOf(ResourceTab.MATERIALS)
         composeRule.setContent {
             SkillRoundtableTheme {
                 ResourcesScreen(
-                    selectedTab = selectedTab,
-                    onSelectTab = { selectedTab = it },
+                    selectedTab = selectedTab.value,
+                    onSelectTab = { selectedTab.value = it },
                     onOpenSettings = {},
                 )
             }
@@ -103,8 +104,10 @@ class JianyuNavigationShellScreenTest {
         composeRule.onNodeWithTag(ResourcesTestTags.MATERIALS_TAB).assertIsSelected()
         composeRule.onNodeWithText("暂无资料").assertExists()
         composeRule.onNodeWithTag(ResourcesTestTags.ARTIFACTS_TAB).performClick()
+        composeRule.onNodeWithTag(ResourcesTestTags.ARTIFACTS_TAB).assertIsSelected()
+        composeRule.onNodeWithText("暂无成果").assertExists()
         composeRule.runOnIdle {
-            assertEquals(ResourceTab.ARTIFACTS, selectedTab)
+            assertEquals(ResourceTab.ARTIFACTS, selectedTab.value)
         }
     }
 
@@ -124,8 +127,8 @@ class JianyuNavigationShellScreenTest {
         }
 
         composeRule.onNodeWithTag(SettingsShellTestTags.SCREEN).assertExists()
-        composeRule.onNodeWithTag(SettingsShellTestTags.API_KEYS_ENTRY).performClick()
-        composeRule.onNodeWithTag(SettingsShellTestTags.TELEMETRY_ENTRY).performClick()
+        composeRule.onNodeWithTag(SettingsShellTestTags.API_KEYS_ACTION).performClick()
+        composeRule.onNodeWithTag(SettingsShellTestTags.TELEMETRY_ACTION).performClick()
         composeRule.onNodeWithTag(JianyuShellTestTags.PAGE_BACK_BUTTON).performClick()
         composeRule.runOnIdle {
             assertEquals(1, apiKeyCount)
