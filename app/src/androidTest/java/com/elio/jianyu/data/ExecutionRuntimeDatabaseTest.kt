@@ -69,8 +69,18 @@ class ExecutionRuntimeDatabaseTest {
             TransitionRunCommand(
                 runId = RUN_ID,
                 expectedStatuses = setOf(ExecutionRunStatus.NOT_STARTED),
+                newStatus = ExecutionRunStatus.RUNNING,
+                updatedAt = 190L,
+                startedAt = 190L,
+            ),
+        ).successValue()
+        repository.transitionRun(
+            TransitionRunCommand(
+                runId = RUN_ID,
+                expectedStatuses = setOf(ExecutionRunStatus.RUNNING),
                 newStatus = ExecutionRunStatus.RETRYABLE,
                 updatedAt = 200L,
+                startedAt = 190L,
                 finishedAt = 200L,
             ),
         ).successValue()
@@ -166,8 +176,18 @@ class ExecutionRuntimeDatabaseTest {
                 participantSnapshotId = "$RUN_ID-participant-0",
                 runId = RUN_ID,
                 expectedStatuses = setOf(ExecutionParticipantStatus.QUEUED),
-                newStatus = ExecutionParticipantStatus.STREAMING,
+                newStatus = ExecutionParticipantStatus.RUNNING,
                 attemptIncrement = 1,
+                startedAt = 200L,
+                updatedAt = 201L,
+            ),
+        ).successValue()
+        repository.transitionExecutionParticipant(
+            TransitionExecutionParticipantCommand(
+                participantSnapshotId = "$RUN_ID-participant-0",
+                runId = RUN_ID,
+                expectedStatuses = setOf(ExecutionParticipantStatus.RUNNING),
+                newStatus = ExecutionParticipantStatus.STREAMING,
                 outputMessageId = MESSAGE_ID,
                 startedAt = 200L,
                 updatedAt = 202L,
