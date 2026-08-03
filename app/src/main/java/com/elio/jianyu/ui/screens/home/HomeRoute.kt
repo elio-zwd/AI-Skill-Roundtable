@@ -26,6 +26,7 @@ fun HomeScreen(
         title = "首页",
         subtitle = "问题优先入口",
         onOpenSettings = onOpenSettings,
+        contentScrollable = true,
         modifier = Modifier.testTag(HomeTestTags.SCREEN),
     ) {
         JianyuStateCard(
