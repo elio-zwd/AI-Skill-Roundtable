@@ -106,7 +106,12 @@ interface ChatDao {
     )
     suspend fun deleteSessionById(id: Long)
 
-    @Query("UPDATE chat_sessions SET title = :title WHERE id = :id")
+    @Query(
+        "UPDATE chat_sessions SET title = :title WHERE id = :id AND NOT EXISTS (" +
+            "SELECT 1 FROM issues " +
+            "WHERE legacyChatSessionId = :id AND id NOT LIKE 'legacy-chat-%'" +
+            ")"
+    )
     suspend fun updateSessionTitle(id: Long, title: String)
 
     @Query(
@@ -128,26 +133,41 @@ interface ChatDao {
 
     @Query(
         "UPDATE messages SET text = :text WHERE id = :id AND isPending = 1 " +
-            "AND executionRunId IS NULL AND participantSnapshotId IS NULL"
+            "AND NOT EXISTS (SELECT 1 FROM issues " +
+            "WHERE legacyChatSessionId = messages.chatId " +
+            "AND issues.id NOT LIKE 'legacy-chat-%')"
     )
     suspend fun updatePendingMessageText(id: Long, text: String)
 
-    @Query("DELETE FROM messages WHERE id = :id")
+    @Query(
+        "DELETE FROM messages WHERE id = :id AND NOT EXISTS (" +
+            "SELECT 1 FROM issues WHERE legacyChatSessionId = messages.chatId " +
+            "AND issues.id NOT LIKE 'legacy-chat-%')"
+    )
     suspend fun deleteMessageById(id: Long)
 
     @Query(
         "DELETE FROM messages WHERE chatId = :chatId AND isPending = 1 " +
-            "AND executionRunId IS NULL AND participantSnapshotId IS NULL"
+            "AND NOT EXISTS (SELECT 1 FROM issues " +
+            "WHERE legacyChatSessionId = messages.chatId " +
+            "AND issues.id NOT LIKE 'legacy-chat-%')"
     )
     suspend fun removePendingMessages(chatId: Long)
 
     @Query(
         "DELETE FROM messages WHERE isPending = 1 " +
-            "AND executionRunId IS NULL AND participantSnapshotId IS NULL"
+            "AND NOT EXISTS (SELECT 1 FROM issues " +
+            "WHERE legacyChatSessionId = messages.chatId " +
+            "AND issues.id NOT LIKE 'legacy-chat-%')"
     )
     suspend fun removeAllPendingMessages()
 
-    @Query("UPDATE messages SET audioFilePath = :path, audioFormat = :format, audioSizeBytes = :size WHERE id = :id")
+    @Query(
+        "UPDATE messages SET audioFilePath = :path, audioFormat = :format, " +
+            "audioSizeBytes = :size WHERE id = :id AND NOT EXISTS (" +
+            "SELECT 1 FROM issues WHERE legacyChatSessionId = messages.chatId " +
+            "AND issues.id NOT LIKE 'legacy-chat-%')"
+    )
     suspend fun updateMessageAudio(id: Long, path: String?, format: String?, size: Long)
 
     @Query("SELECT * FROM messages WHERE audioFilePath IS NOT NULL AND audioFilePath != '' ORDER BY timestamp DESC")
