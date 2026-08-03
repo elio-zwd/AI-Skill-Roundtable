@@ -131,6 +131,25 @@ internal interface JianyuRepositoryDao {
     @Query("SELECT * FROM messages WHERE id = :messageId LIMIT 1")
     suspend fun getMessage(messageId: Long): Message?
 
+    @Query(
+        "UPDATE messages SET text = :text, isPending = :keepPending " +
+            "WHERE id = :messageId AND issueId = :issueId AND stageId = :stageId " +
+            "AND ((:executionRunId IS NULL AND executionRunId IS NULL) " +
+            "OR executionRunId = :executionRunId) " +
+            "AND ((:participantSnapshotId IS NULL AND participantSnapshotId IS NULL) " +
+            "OR participantSnapshotId = :participantSnapshotId) " +
+            "AND isPending = 1"
+    )
+    suspend fun compareAndSetPendingDomainMessage(
+        messageId: Long,
+        issueId: String,
+        stageId: String,
+        executionRunId: String?,
+        participantSnapshotId: String?,
+        text: String,
+        keepPending: Boolean
+    ): Int
+
     @Query("SELECT * FROM messages WHERE issueId = :issueId ORDER BY timestamp ASC, id ASC")
     suspend fun getMessagesForIssue(issueId: String): List<Message>
 
@@ -208,6 +227,9 @@ internal interface JianyuRepositoryDao {
             "WHERE artifactId = :artifactId ORDER BY materialUsageSnapshotId"
     )
     suspend fun getArtifactMaterialSources(artifactId: String): List<ArtifactMaterialSourceEntity>
+
+    @Query("SELECT * FROM material_references WHERE id = :id LIMIT 1")
+    suspend fun getMaterialReference(id: String): MaterialReferenceEntity?
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertMaterialUsage(entity: MaterialUsageSnapshotEntity)
