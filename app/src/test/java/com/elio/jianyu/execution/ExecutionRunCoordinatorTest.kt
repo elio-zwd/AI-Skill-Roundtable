@@ -43,9 +43,10 @@ class ExecutionRunCoordinatorTest {
         val network = FakeExecutionNetworkGateway(
             mutableMapOf("skill-a" to FakeOutcome.Success(listOf("A", "Answer"))),
         )
-        val coordinator = coordinator(persistence, network)
 
-        val result = coordinator.start(startCommand("run-1", "skill-a"))
+        val result = coordinator(persistence, network).start(
+            startCommand("run-1", "skill-a"),
+        )
 
         assertEquals(ExecutionRunStatus.SUCCEEDED, result.runtime.run.status)
         assertEquals(listOf("skill-a"), network.calls)
@@ -69,9 +70,8 @@ class ExecutionRunCoordinatorTest {
                 "skill-c" to FakeOutcome.Success(listOf("C")),
             ),
         )
-        val coordinator = coordinator(persistence, network)
 
-        val result = coordinator.start(
+        val result = coordinator(persistence, network).start(
             startCommand("run-1", "skill-a", "skill-b", "skill-c"),
         )
 
@@ -89,9 +89,10 @@ class ExecutionRunCoordinatorTest {
                 "skill-b" to FakeOutcome.Failure(IOException("offline")),
             ),
         )
-        val coordinator = coordinator(persistence, network)
 
-        val result = coordinator.start(startCommand("run-1", "skill-a", "skill-b"))
+        val result = coordinator(persistence, network).start(
+            startCommand("run-1", "skill-a", "skill-b"),
+        )
 
         assertEquals(ExecutionRunStatus.RETRYABLE, result.runtime.run.status)
         assertEquals(ExecutionParticipantStatus.SUCCEEDED, result.runtime.participantStates[0].status)
@@ -107,9 +108,10 @@ class ExecutionRunCoordinatorTest {
         val network = FakeExecutionNetworkGateway(
             mutableMapOf("skill-a" to FakeOutcome.NoKey),
         )
-        val coordinator = coordinator(persistence, network)
 
-        val result = coordinator.start(startCommand("run-1", "skill-a"))
+        val result = coordinator(persistence, network).start(
+            startCommand("run-1", "skill-a"),
+        )
 
         assertTrue(persistence.messages.isEmpty())
         assertEquals(ExecutionRunStatus.RETRYABLE, result.runtime.run.status)
@@ -120,7 +122,7 @@ class ExecutionRunCoordinatorTest {
     }
 
     @Test
-    fun childRunRetriesOnlyFailedMemberAndDoesNotDuplicateSuccess() = runBlocking {
+    fun childRunRetriesOnlyFailedMemberAndKeepsOriginalHistory() = runBlocking {
         val persistence = FakeExecutionPersistence()
         val outcomes = mutableMapOf<String, FakeOutcome>(
             "skill-a" to FakeOutcome.Success(listOf("A answer")),
@@ -146,7 +148,8 @@ class ExecutionRunCoordinatorTest {
         assertEquals(ExecutionRunStatus.SUCCEEDED, retryResult.runtime.run.status)
         assertEquals("run-1", retryResult.runtime.run.retryOfRunId)
         assertEquals(1, persistence.messages.count { it.senderId == "skill-a" })
-        assertEquals(1, persistence.messages.count { it.senderId == "skill-b" && !it.isPending })
+        assertEquals(2, persistence.messages.count { it.senderId == "skill-b" })
+        assertEquals(1, persistence.messages.count { it.text == "B answer" })
         assertEquals("run-1", retryResult.runtime.budget.rootRunId)
     }
 
@@ -155,7 +158,7 @@ class ExecutionRunCoordinatorTest {
         val persistence = FakeExecutionPersistence()
         val started = CompletableDeferred<Unit>()
         val network = FakeExecutionNetworkGateway(
-            outcomes = mutableMapOf("skill-a" to FakeOutcome.Blocking(started)),
+            mutableMapOf("skill-a" to FakeOutcome.Blocking(started)),
         )
         val coordinator = coordinator(persistence, network)
 
@@ -260,15 +263,7 @@ class ExecutionRunCoordinatorTest {
 
     private class FakeExecutionPersistence : ExecutionPersistenceGateway {
         private val issue = IssueEntity(ISSUE_ID, "Issue", 1L, 1L)
-        private val stage = StageEntity(
-            STAGE_ID,
-            ISSUE_ID,
-            0,
-            "Stage",
-            "Objective",
-            1L,
-            1L,
-        )
+        private val stage = StageEntity(STAGE_ID, ISSUE_ID, 0, "Stage", "Objective", 1L, 1L)
         private val runtimes = ConcurrentHashMap<String, ExecutionRuntimeSnapshot>()
         private val budgets = ConcurrentHashMap<String, ExecutionRunBudgetEntity>()
         private var time = 10_000L
@@ -304,7 +299,6 @@ class ExecutionRunCoordinatorTest {
                     pendingMessages = messages.filter { it.isPending },
                 ),
                 resources = IssueRecoveryResources(
-                    materials = emptyList(),
                     materialUsages = emptyList(),
                     personalContextUsages = emptyList(),
                     drafts = emptyList(),
@@ -350,8 +344,7 @@ class ExecutionRunCoordinatorTest {
 
         override suspend fun getRuntime(runId: String): ExecutionRuntimeSnapshot {
             val runtime = runtimes.getValue(runId)
-            val budget = budgets.getValue(runtime.budget.rootRunId)
-            return runtime.copy(budget = budget)
+            return runtime.copy(budget = budgets.getValue(runtime.budget.rootRunId))
         }
 
         override suspend fun transitionParticipant(
@@ -486,16 +479,14 @@ class ExecutionRunCoordinatorTest {
                     state
                 }
             }
-            val updated = runtime.copy(
+            return runtime.copy(
                 run = runtime.run.copy(
                     status = ExecutionRunStatus.RETRYABLE,
                     finishedAt = command.updatedAt,
                     updatedAt = command.updatedAt,
                 ),
                 participantStates = states,
-            )
-            runtimes[command.runId] = updated
-            return updated
+            ).also { runtimes[command.runId] = it }
         }
     }
 
