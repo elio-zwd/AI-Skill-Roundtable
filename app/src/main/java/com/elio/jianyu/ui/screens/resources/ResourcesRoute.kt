@@ -46,6 +46,7 @@ fun ResourcesScreen(
         title = "资料与成果",
         subtitle = "保留来源，回到对应议题与阶段",
         onOpenSettings = onOpenSettings,
+        contentScrollable = true,
         modifier = Modifier.testTag(ResourcesTestTags.SCREEN),
     ) {
         TabRow(selectedTabIndex = selectedTab.ordinal) {
