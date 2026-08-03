@@ -5,7 +5,6 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import androidx.test.espresso.Espresso.pressBack
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.MainActivity
 import com.elio.jianyu.ui.components.JianyuShellTestTags
@@ -49,7 +48,9 @@ class MainNavigationRestorationTest {
         composeRule.onNodeWithTag(JianyuShellTestTags.GLOBAL_SETTINGS_BUTTON).performClick()
         composeRule.onNodeWithTag(SettingsShellTestTags.SCREEN).assertIsDisplayed()
 
-        pressBack()
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.onBackPressedDispatcher.onBackPressed()
+        }
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(ResourcesTestTags.SCREEN).assertIsDisplayed()
