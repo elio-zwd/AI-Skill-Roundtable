@@ -37,6 +37,10 @@ internal class JianyuRepositoryTransactions(
             RepositoryResult.Failure(
                 RepositoryError.CompatibilityFailure(operation, error.code)
             )
+        } catch (error: RepositoryStorageUnavailableAbort) {
+            RepositoryResult.Failure(
+                RepositoryError.StorageFailure(operation, retryable = true)
+            )
         } catch (error: SQLiteConstraintException) {
             RepositoryResult.Failure(
                 RepositoryError.ConstraintViolation(operation, "sqlite_constraint")
@@ -63,6 +67,9 @@ internal class JianyuRepositoryTransactions(
     suspend fun <T> transactionRaw(
         block: suspend JianyuRepositoryDao.() -> RepositoryResult<T>
     ): RepositoryResult<T> {
+        if (database.isExplicitlyClosed) {
+            throw RepositoryStorageUnavailableAbort()
+        }
         return database.withTransaction {
             dao.block()
         }
@@ -72,3 +79,5 @@ internal class JianyuRepositoryTransactions(
 internal class RepositoryCompatibilityAbort(
     val code: String
 ) : RuntimeException()
+
+internal class RepositoryStorageUnavailableAbort : RuntimeException()

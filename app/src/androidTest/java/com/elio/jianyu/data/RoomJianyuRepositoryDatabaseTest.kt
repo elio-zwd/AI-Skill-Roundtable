@@ -1,9 +1,12 @@
 package com.elio.jianyu.data
 
 import android.content.Context
+import android.database.sqlite.SQLiteConstraintException
+import android.database.sqlite.SQLiteException
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -99,17 +102,51 @@ class RoomJianyuRepositoryDatabaseTest {
     fun runAndParticipantsAreAtomicAndIdempotencyKeyDetectsConflict() = runBlocking {
         repository.saveIssue(issueCommand()).successValue()
         val command = runCommand()
+        val conflictingCommand = runCommand(runId = CONFLICTING_RUN_ID)
 
         val first = repository.createExecutionRun(command).successValue()
         val repeated = repository.createExecutionRun(command)
-        val conflict = repository.createExecutionRun(
-            command.copy(run = command.run.copy(id = "run-other"))
-        )
+        val conflict = repository.createExecutionRun(conflictingCommand)
 
         assertEquals(listOf(0, 1), first.participants.map { it.position })
         assertTrue(repeated.isIdempotentSuccess())
         assertTrue(conflict.failureError() is RepositoryError.IdempotencyConflict)
-        assertEquals(2, database.coreDomainDao().getParticipantSnapshots(RUN_ID).size)
+        assertEquals(command.run, database.coreDomainDao().getExecutionRun(RUN_ID))
+        assertEquals(
+            command.participants.sortedBy { it.position },
+            database.coreDomainDao().getParticipantSnapshots(RUN_ID)
+        )
+        assertNull(database.coreDomainDao().getExecutionRun(CONFLICTING_RUN_ID))
+        assertTrue(
+            database.coreDomainDao().getParticipantSnapshots(CONFLICTING_RUN_ID).isEmpty()
+        )
+    }
+
+    @Test
+    fun runParticipantRelationMismatchReturnsConstraintViolationWithoutWrites() = runBlocking {
+        repository.saveIssue(issueCommand()).successValue()
+        val originalCommand = runCommand()
+        repository.createExecutionRun(originalCommand).successValue()
+        val validDifferentRun = runCommand(runId = RELATION_MISMATCH_RUN_ID)
+        val mismatchedCommand = validDifferentRun.copy(
+            participants = validDifferentRun.participants.map { participant ->
+                participant.copy(runId = RUN_ID)
+            }
+        )
+
+        val result = repository.createExecutionRun(mismatchedCommand)
+
+        assertTrue(result.failureError() is RepositoryError.ConstraintViolation)
+        assertNull(database.coreDomainDao().getExecutionRun(RELATION_MISMATCH_RUN_ID))
+        assertTrue(
+            database.coreDomainDao().getParticipantSnapshots(RELATION_MISMATCH_RUN_ID).isEmpty()
+        )
+        assertEquals(originalCommand.run, database.coreDomainDao().getExecutionRun(RUN_ID))
+        assertEquals(
+            originalCommand.participants.sortedBy { it.position },
+            database.coreDomainDao().getParticipantSnapshots(RUN_ID)
+        )
+        assertEquals(1, database.coreDomainDao().getStagesForIssue(ISSUE_ID).size)
     }
 
     @Test
@@ -283,12 +320,106 @@ class RoomJianyuRepositoryDatabaseTest {
     }
 
     @Test
+    fun openEmptyDatabaseReturnsNotFoundWithoutCreatingDomainRows() = runBlocking {
+        assertFalse(database.isOpen)
+        assertFalse(database.isExplicitlyClosed)
+
+        val result = repository.recoverIssue(ISSUE_ID)
+
+        assertTrue(database.isOpen)
+        assertFalse(database.isExplicitlyClosed)
+        assertTrue(result.failureError() is RepositoryError.NotFound)
+        assertNull(database.coreDomainDao().getIssue(ISSUE_ID))
+        assertTrue(database.coreDomainDao().getStagesForIssue(ISSUE_ID).isEmpty())
+        assertNull(database.resourceLifecycleDao().getIssueLifecycle(ISSUE_ID))
+    }
+
+    @Test
     fun closedDatabaseReturnsStorageFailureInsteadOfEmptyIssue() = runBlocking {
+        assertFalse(database.isOpen)
+        assertFalse(database.isExplicitlyClosed)
         database.close()
+        assertTrue(database.isExplicitlyClosed)
+        assertFalse(database.isOpen)
 
         val result = repository.recoverIssue(ISSUE_ID)
 
         assertTrue(result.failureError() is RepositoryError.StorageFailure)
+        assertFalse(result is RepositoryResult.Success<*>)
+        assertTrue(database.isExplicitlyClosed)
+        assertFalse(database.isOpen)
+    }
+
+    @Test
+    fun closedFileDatabaseReturnsStorageFailureInsteadOfEmptyIssue() = runBlocking {
+        val databaseName = "repository-closed-${System.nanoTime()}.db"
+        context.deleteDatabase(databaseName)
+        var fileDatabase: RoundtableDatabase? = null
+        try {
+            fileDatabase = Room.databaseBuilder(
+                context,
+                RoundtableDatabase::class.java,
+                databaseName
+            )
+                .allowMainThreadQueries()
+                .build()
+            val openedDatabase = requireNotNull(fileDatabase)
+            val fileRepository = RoomJianyuRepository(
+                database = openedDatabase,
+                officialSkillIdValidator = OfficialSkillIdValidator { true }
+            )
+            val beforeClose = fileRepository.recoverIssue(ISSUE_ID)
+            assertTrue(beforeClose.failureError() is RepositoryError.NotFound)
+            assertTrue(openedDatabase.isOpen)
+            assertFalse(openedDatabase.isExplicitlyClosed)
+            openedDatabase.close()
+            assertTrue(openedDatabase.isExplicitlyClosed)
+            assertFalse(openedDatabase.isOpen)
+
+            val result = fileRepository.recoverIssue(ISSUE_ID)
+
+            assertTrue(result.failureError() is RepositoryError.StorageFailure)
+            assertFalse(result is RepositoryResult.Success<*>)
+            assertTrue(openedDatabase.isExplicitlyClosed)
+            assertFalse(openedDatabase.isOpen)
+        } finally {
+            if (fileDatabase?.isOpen == true) fileDatabase.close()
+            context.deleteDatabase(databaseName)
+        }
+    }
+
+    @Test
+    fun transactionExecutionMapsSQLiteExceptionToStorageFailure() = runBlocking {
+        val result = JianyuRepositoryTransactions(database).execute<Unit>("storage_failure") {
+            throw SQLiteException("storage unavailable")
+        }
+
+        assertTrue(result.failureError() is RepositoryError.StorageFailure)
+    }
+
+    @Test
+    fun transactionExecutionMapsSQLiteConstraintToConstraintViolation() = runBlocking {
+        val result = JianyuRepositoryTransactions(database).execute<Unit>("constraint_failure") {
+            throw SQLiteConstraintException("constraint failed")
+        }
+
+        assertTrue(result.failureError() is RepositoryError.ConstraintViolation)
+    }
+
+    @Test
+    fun transactionExecutionPropagatesCancellationException() = runBlocking {
+        val expected = CancellationException("cancelled")
+        var observed: CancellationException? = null
+
+        try {
+            JianyuRepositoryTransactions(database).execute<Unit>("cancelled_operation") {
+                throw expected
+            }
+        } catch (error: CancellationException) {
+            observed = error
+        }
+
+        assertTrue(observed === expected)
     }
 
     @Test
@@ -313,28 +444,37 @@ class RoomJianyuRepositoryDatabaseTest {
         )
     }
 
-    private fun runCommand(): CreateExecutionRunCommand {
+    private fun runCommand(
+        runId: String = RUN_ID,
+        idempotencyKey: String = "run-key-1"
+    ): CreateExecutionRunCommand {
         val run = ExecutionRunEntity(
-            id = RUN_ID,
+            id = runId,
             issueId = ISSUE_ID,
             stageId = STAGE_ID,
-            idempotencyKey = "run-key-1",
+            idempotencyKey = idempotencyKey,
             createdAt = 15L,
             updatedAt = 15L
         )
+        val participantIdPrefix = if (runId == RUN_ID) "participant" else "$runId-participant"
         return CreateExecutionRunCommand(
             run = run,
             participants = listOf(
-                participant("participant-1", "skill-a", 0),
-                participant("participant-2", "skill-b", 1)
+                participant("$participantIdPrefix-1", "skill-a", 0, runId),
+                participant("$participantIdPrefix-2", "skill-b", 1, runId)
             )
         )
     }
 
-    private fun participant(id: String, sourceId: String, position: Int): ExecutionParticipantSnapshotEntity {
+    private fun participant(
+        id: String,
+        sourceId: String,
+        position: Int,
+        runId: String = RUN_ID
+    ): ExecutionParticipantSnapshotEntity {
         return ExecutionParticipantSnapshotEntity(
             id = id,
-            runId = RUN_ID,
+            runId = runId,
             sourceType = "official_skill",
             sourceId = sourceId,
             displayName = sourceId,
@@ -382,6 +522,8 @@ class RoomJianyuRepositoryDatabaseTest {
         private const val ISSUE_ID = "issue-1"
         private const val STAGE_ID = "stage-0"
         private const val RUN_ID = "run-1"
+        private const val CONFLICTING_RUN_ID = "run-other"
+        private const val RELATION_MISMATCH_RUN_ID = "run-mismatch"
         private const val MESSAGE_ID = 1001L
     }
 }
