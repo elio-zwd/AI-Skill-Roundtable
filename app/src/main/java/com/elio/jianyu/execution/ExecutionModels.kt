@@ -1,5 +1,10 @@
 package com.elio.jianyu.execution
 
+import com.elio.jianyu.data.ExecutionRuntimeBudgetConfig
+import com.elio.jianyu.data.ExecutionRuntimeSnapshot
+import java.nio.ByteBuffer
+import java.security.MessageDigest
+
 typealias ExecutionParticipantStatus = com.elio.jianyu.data.ExecutionParticipantStatus
 
 enum class ExecutionBudgetCallKind {
@@ -71,3 +76,85 @@ data class ExecutionContextContribution(
         require(userConfirmedAt > 0L)
     }
 }
+
+data class ExecutionStartCommand(
+    val runId: String,
+    val issueId: String,
+    val stageId: String,
+    val triggerMessageId: Long?,
+    val idempotencyKey: String,
+    val selections: List<ExecutionSkillSelection>,
+    val officialCombinationId: String? = null,
+    val currentUserInput: String,
+    val roundIndex: Int,
+    val userConfirmedAt: Long,
+    val model: String = DEFAULT_EXECUTION_MODEL,
+    val budget: ExecutionRuntimeBudgetConfig = ExecutionRuntimeBudgetConfig(),
+    val contributions: List<ExecutionContextContribution> = emptyList(),
+) {
+    init {
+        require(runId.isNotBlank())
+        require(issueId.isNotBlank())
+        require(stageId.isNotBlank())
+        require(idempotencyKey.isNotBlank())
+        require(selections.isNotEmpty())
+        require(currentUserInput.isNotBlank())
+        require(roundIndex >= 0)
+        require(userConfirmedAt > 0L)
+        require(model.isNotBlank())
+    }
+}
+
+data class ExecutionRetryCommand(
+    val previousRunId: String,
+    val newRunId: String,
+    val idempotencyKey: String,
+    val currentUserInput: String,
+    val roundIndex: Int,
+    val userConfirmedAt: Long,
+    val model: String = DEFAULT_EXECUTION_MODEL,
+    val contributions: List<ExecutionContextContribution> = emptyList(),
+) {
+    init {
+        require(previousRunId.isNotBlank())
+        require(newRunId.isNotBlank())
+        require(previousRunId != newRunId)
+        require(idempotencyKey.isNotBlank())
+        require(currentUserInput.isNotBlank())
+        require(roundIndex >= 0)
+        require(userConfirmedAt > 0L)
+        require(model.isNotBlank())
+    }
+}
+
+data class ExecutionRunResult(
+    val runtime: ExecutionRuntimeSnapshot,
+    val participantFailures: Map<String, ExecutionFailure> = emptyMap(),
+)
+
+fun interface ExecutionClock {
+    fun nowMillis(): Long
+}
+
+object SystemExecutionClock : ExecutionClock {
+    override fun nowMillis(): Long = System.currentTimeMillis()
+}
+
+object StableExecutionIds {
+    fun messageId(runId: String, participantSnapshotId: String): Long =
+        positiveLong("message:$runId:$participantSnapshotId")
+
+    fun sessionId(issueId: String): Long = positiveLong("session:$issueId")
+
+    private fun positiveLong(value: String): Long {
+        val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray())
+        val raw = ByteBuffer.wrap(digest.copyOfRange(0, Long.SIZE_BYTES)).long
+        return when (raw) {
+            Long.MIN_VALUE -> Long.MAX_VALUE
+            0L -> 1L
+            else -> kotlin.math.abs(raw)
+        }
+    }
+}
+
+const val DEFAULT_EXECUTION_MODEL = "gemini-3.1-flash-lite"
