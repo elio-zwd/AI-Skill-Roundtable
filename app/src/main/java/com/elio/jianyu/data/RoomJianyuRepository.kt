@@ -3,8 +3,8 @@ package com.elio.jianyu.data
 /**
  * 见域领域数据公共门面。
  *
- * 公共调用方只依赖 [JianyuRepository]；内部按议题执行、资源和生命周期恢复拆分组件，
- * 并共享唯一 [JianyuRepositoryTransactions] 数据库事务协调器。
+ * 公共调用方只依赖 [JianyuRepository]；内部按议题执行、Pending 消息、资源、
+ * 使用快照和生命周期恢复拆分组件，并共享唯一 [JianyuRepositoryTransactions] 事务协调器。
  */
 class RoomJianyuRepository(
     database: RoundtableDatabase,
@@ -12,10 +12,12 @@ class RoomJianyuRepository(
 ) : JianyuRepository {
     private val transactions = JianyuRepositoryTransactions(database)
     private val issueExecution = IssueExecutionRepositoryComponent(transactions)
+    private val pendingMessages = PendingMessageRepositoryComponent(transactions)
     private val resources = ResourceRepositoryComponent(
         transactions = transactions,
         officialSkillIdValidator = officialSkillIdValidator
     )
+    private val usages = UsageRepositoryComponent(transactions)
     private val lifecycleRecovery = LifecycleRecoveryRepositoryComponent(transactions)
 
     override suspend fun saveIssue(command: SaveIssueCommand): RepositoryResult<SavedIssue> {
@@ -43,6 +45,12 @@ class RoomJianyuRepository(
         command: AppendDomainMessageCommand
     ): RepositoryResult<Message> {
         return issueExecution.appendDomainMessage(command)
+    }
+
+    override suspend fun updatePendingDomainMessage(
+        command: UpdatePendingDomainMessageCommand
+    ): RepositoryResult<Message> {
+        return pendingMessages.updatePendingDomainMessage(command)
     }
 
     override suspend fun transitionRun(
@@ -73,13 +81,13 @@ class RoomJianyuRepository(
     override suspend fun recordMaterialUsage(
         entity: MaterialUsageSnapshotEntity
     ): RepositoryResult<MaterialUsageSnapshotEntity> {
-        return resources.recordMaterialUsage(entity)
+        return usages.recordMaterialUsage(entity)
     }
 
     override suspend fun recordPersonalContextUsage(
         entity: PersonalContextUsageSnapshotEntity
     ): RepositoryResult<PersonalContextUsageSnapshotEntity> {
-        return resources.recordPersonalContextUsage(entity)
+        return usages.recordPersonalContextUsage(entity)
     }
 
     override suspend fun saveOfficialSkillCombination(
