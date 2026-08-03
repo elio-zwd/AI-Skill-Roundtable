@@ -1,6 +1,8 @@
 package com.elio.jianyu.skill.catalog
 
+import java.io.File
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -29,11 +31,34 @@ class CatalogOfficialSkillIdValidatorTest {
     }
 
     @Test
+    fun recognizesAll44ManifestOfficialIds() = runBlocking {
+        val catalog = loadManifestCatalog()
+        val manifestValidator = CatalogOfficialSkillIdValidator(catalog)
+
+        assertEquals(44, catalog.skills.size)
+        catalog.skills.forEach { skill ->
+            assertTrue("应识别官方 ID：${skill.id}", manifestValidator.isValid(skill.id))
+        }
+    }
+
+    @Test
     fun rejectsUnknownBlankAndWhitespaceIds() = runBlocking {
         assertFalse(validator.isValid("unknown"))
         assertFalse(validator.isValid(""))
         assertFalse(validator.isValid("   "))
         assertFalse(validator.isValid(" risky-official "))
+    }
+
+    private fun loadManifestCatalog(): OfficialSkillCatalog {
+        val source = listOf(
+            File("src/main/assets/official_skill_catalog_v1.json"),
+            File("app/src/main/assets/official_skill_catalog_v1.json"),
+        ).firstOrNull(File::isFile)?.readText()
+            ?: error("找不到 official_skill_catalog_v1.json")
+        return when (val result = OfficialSkillCatalogParser.parse(source)) {
+            is OfficialSkillCatalogLoadResult.Success -> result.catalog
+            is OfficialSkillCatalogLoadResult.Failure -> error(result.message)
+        }
     }
 
     private fun testSkill(
