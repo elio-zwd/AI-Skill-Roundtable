@@ -1,5 +1,10 @@
 package com.elio.jianyu.data
 
+/**
+ * 草稿、成果及官方 Skill 组合组件。
+ *
+ * 资料和个人背景使用快照由 [UsageRepositoryComponent] 独占处理，避免内部出现第二写入口。
+ */
 internal class ResourceRepositoryComponent(
     private val transactions: JianyuRepositoryTransactions,
     private val officialSkillIdValidator: OfficialSkillIdValidator
@@ -123,68 +128,6 @@ internal class ResourceRepositoryComponent(
                 insertArtifactMaterialSources(command.sources.materials)
             }
             RepositoryResult.Success(artifact)
-        }
-    }
-
-    suspend fun recordMaterialUsage(
-        entity: MaterialUsageSnapshotEntity
-    ): RepositoryResult<MaterialUsageSnapshotEntity> {
-        return transactions.transaction("record_material_usage") {
-            require(entity.userConfirmedAt > 0L)
-            val existing = getMaterialUsage(entity.id)
-            if (existing != null) {
-                return@transaction if (existing == entity) {
-                    RepositoryResult.Success(existing, idempotent = true)
-                } else {
-                    RepositoryResult.Failure(
-                        RepositoryError.IdempotencyConflict(
-                            "record_material_usage",
-                            entity.id
-                        )
-                    )
-                }
-            }
-            val relationError = validateUsageRelations(
-                issueId = entity.issueId,
-                stageId = entity.stageId,
-                runId = entity.runId
-            )
-            if (relationError != null) {
-                return@transaction RepositoryResult.Failure(relationError)
-            }
-            insertMaterialUsage(entity)
-            RepositoryResult.Success(entity)
-        }
-    }
-
-    suspend fun recordPersonalContextUsage(
-        entity: PersonalContextUsageSnapshotEntity
-    ): RepositoryResult<PersonalContextUsageSnapshotEntity> {
-        return transactions.transaction("record_personal_context_usage") {
-            require(entity.userConfirmedAt > 0L)
-            val existing = getPersonalContextUsage(entity.id)
-            if (existing != null) {
-                return@transaction if (existing == entity) {
-                    RepositoryResult.Success(existing, idempotent = true)
-                } else {
-                    RepositoryResult.Failure(
-                        RepositoryError.IdempotencyConflict(
-                            "record_personal_context_usage",
-                            entity.id
-                        )
-                    )
-                }
-            }
-            val relationError = validateUsageRelations(
-                issueId = entity.issueId,
-                stageId = entity.stageId,
-                runId = entity.runId
-            )
-            if (relationError != null) {
-                return@transaction RepositoryResult.Failure(relationError)
-            }
-            insertPersonalContextUsage(entity)
-            RepositoryResult.Success(entity)
         }
     }
 
@@ -385,24 +328,6 @@ internal class ResourceRepositoryComponent(
                     "confirm_artifact",
                     "material_source_mismatch"
                 )
-            }
-        }
-        return null
-    }
-
-    private suspend fun JianyuRepositoryDao.validateUsageRelations(
-        issueId: String,
-        stageId: String,
-        runId: String?
-    ): RepositoryError? {
-        val stage = getStage(stageId)
-        if (stage == null || stage.issueId != issueId) {
-            return RepositoryError.ConstraintViolation("record_usage", "stage_mismatch")
-        }
-        if (runId != null) {
-            val run = getExecutionRun(runId)
-            if (run == null || run.issueId != issueId || run.stageId != stageId) {
-                return RepositoryError.ConstraintViolation("record_usage", "run_mismatch")
             }
         }
         return null
