@@ -3,6 +3,7 @@ package com.elio.jianyu.data
 import android.database.sqlite.SQLiteConstraintException
 import android.database.sqlite.SQLiteException
 import androidx.room.withTransaction
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 
 /**
@@ -13,6 +14,8 @@ import kotlinx.coroutines.CancellationException
 internal class JianyuRepositoryTransactions(
     private val database: RoundtableDatabase
 ) {
+    private val databaseWasOpened = AtomicBoolean(database.isOpen)
+
     private val dao: JianyuRepositoryDao
         get() = database.jianyuRepositoryDao()
 
@@ -20,6 +23,11 @@ internal class JianyuRepositoryTransactions(
         operation: String,
         block: suspend JianyuRepositoryDao.() -> RepositoryResult<T>
     ): RepositoryResult<T> {
+        if (databaseWasOpened.get() && !database.isOpen) {
+            return RepositoryResult.Failure(
+                RepositoryError.StorageFailure(operation, retryable = true)
+            )
+        }
         return execute(operation) {
             transactionRaw(block)
         }
@@ -64,6 +72,7 @@ internal class JianyuRepositoryTransactions(
         block: suspend JianyuRepositoryDao.() -> RepositoryResult<T>
     ): RepositoryResult<T> {
         return database.withTransaction {
+            databaseWasOpened.set(true)
             dao.block()
         }
     }
