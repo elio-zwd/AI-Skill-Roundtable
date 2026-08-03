@@ -1,0 +1,3119 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "jianyu-official-skill-catalog-v1",
+  "generatedFrom": "docs/skills/jianyu-skill-taxonomy.md + docs/skills/jianyu-skill-catalog-mapping.md @ main 78abf30b60d863ce0ac29323546e61971d50c9c9",
+  "skills": [
+    {
+      "id": "zhang_xuefeng",
+      "nameZh": "张雪峰",
+      "aliases": [
+        "张雪峰视角",
+        "Zhang Xuefeng"
+      ],
+      "summary": "以务实的教育选择、职业路径与机会成本框架帮助用户审视决策。",
+      "primaryType": "PERSON_PERSPECTIVE",
+      "primaryValue": "THINKING_EXPANSION",
+      "domainTags": [
+        "learning_exam",
+        "career_workplace",
+        "decision_risk"
+      ],
+      "scenarioTags": [
+        "decide",
+        "compare",
+        "challenge"
+      ],
+      "inputTags": [
+        "question",
+        "conversation_context"
+      ],
+      "outputTags": [
+        "analysis",
+        "comparison",
+        "questions"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "HIGH_STAKES",
+      "publicationStatus": "NOTICE_AND_DISCLOSURE_REQUIRED",
+      "sourceStatus": "EXISTING_ASSET_REVIEW_REQUIRED",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": true,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": true,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "决策与取舍",
+        "选项比较",
+        "反方与假设检查"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "经用户确认的对话背景"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "选项比较",
+        "待确认问题"
+      ],
+      "boundaries": [
+        "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+        "教育、招生、就业和薪资信息必须核对当前年份与地区。",
+        "不替用户作不可逆的人生决定，也不把人物表达当作权威结论。",
+        "涉及高后果决定时必须说明不确定性，并建议由具备资质的现实专业人员复核。"
+      ],
+      "nonExecutableReason": "现有资产仍需完成来源、声明、时效、素材和生产质量门禁，暂不从正式 Catalog 启动执行。",
+      "personDisclaimer": "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+      "integrityBoundaries": [],
+      "sourceSummary": "现有历史资产；直接上游研究证据已记录，仍需核验本仓库内容一致性、附带素材、声明和未来正式采用版本。",
+      "assetPath": "skills/zhangxuefeng-skill-main/SKILL.md",
+      "defaultOrder": 1
+    },
+    {
+      "id": "elon_musk",
+      "nameZh": "埃隆·马斯克",
+      "aliases": [
+        "Elon Musk",
+        "马斯克"
+      ],
+      "summary": "从第一性原理、工程约束和高风险创新角度重新拆解问题。",
+      "primaryType": "PERSON_PERSPECTIVE",
+      "primaryValue": "THINKING_EXPANSION",
+      "domainTags": [
+        "technology_productivity",
+        "creator_business",
+        "decision_risk"
+      ],
+      "scenarioTags": [
+        "brainstorm",
+        "challenge",
+        "decide"
+      ],
+      "inputTags": [
+        "question",
+        "conversation_context"
+      ],
+      "outputTags": [
+        "analysis",
+        "questions",
+        "plan"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "NOTICE_AND_DISCLOSURE_REQUIRED",
+      "sourceStatus": "EXISTING_ASSET_REVIEW_REQUIRED",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": true,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": true,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "观点发散",
+        "反方与假设检查",
+        "决策与取舍"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "经用户确认的对话背景"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "待确认问题",
+        "行动计划"
+      ],
+      "boundaries": [
+        "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "现有资产仍需完成来源、声明、时效、素材和生产质量门禁，暂不从正式 Catalog 启动执行。",
+      "personDisclaimer": "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+      "integrityBoundaries": [],
+      "sourceSummary": "现有历史资产；直接上游研究证据已记录，仍需核验本仓库内容一致性、附带素材、声明和未来正式采用版本。",
+      "assetPath": "skills/elon-musk-skill-main/SKILL.md",
+      "defaultOrder": 2
+    },
+    {
+      "id": "richard_feynman",
+      "nameZh": "理查德·费曼",
+      "aliases": [
+        "Richard Feynman",
+        "费曼"
+      ],
+      "summary": "用可解释、可验证和反复追问的方式检查理解是否真正扎实。",
+      "primaryType": "PERSON_PERSPECTIVE",
+      "primaryValue": "THINKING_EXPANSION",
+      "domainTags": [
+        "learning_exam",
+        "technology_productivity",
+        "writing_research"
+      ],
+      "scenarioTags": [
+        "learn",
+        "challenge",
+        "verify"
+      ],
+      "inputTags": [
+        "question",
+        "notes"
+      ],
+      "outputTags": [
+        "analysis",
+        "questions",
+        "knowledge_note"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "OPTIONAL",
+      "materialRequirements": [
+        "OPTIONAL"
+      ],
+      "riskLevel": "GENERAL",
+      "publicationStatus": "NOTICE_AND_DISCLOSURE_REQUIRED",
+      "sourceStatus": "EXISTING_ASSET_REVIEW_REQUIRED",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": true,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": true,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "学习与解释",
+        "反方与假设检查",
+        "事实核查"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "用户笔记"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "待确认问题",
+        "知识笔记"
+      ],
+      "boundaries": [
+        "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+        "说明关键假设，不编造事实或来源。"
+      ],
+      "nonExecutableReason": "现有资产仍需完成来源、声明、时效、素材和生产质量门禁，暂不从正式 Catalog 启动执行。",
+      "personDisclaimer": "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+      "integrityBoundaries": [],
+      "sourceSummary": "现有历史资产；直接上游研究证据已记录，仍需核验本仓库内容一致性、附带素材、声明和未来正式采用版本。",
+      "assetPath": "skills/feynman-skill-main/SKILL.md",
+      "defaultOrder": 3
+    },
+    {
+      "id": "charlie_munger",
+      "nameZh": "查理·芒格",
+      "aliases": [
+        "Charlie Munger",
+        "芒格"
+      ],
+      "summary": "运用多元思维模型、逆向思考与长期主义检查判断和风险。",
+      "primaryType": "PERSON_PERSPECTIVE",
+      "primaryValue": "THINKING_EXPANSION",
+      "domainTags": [
+        "decision_risk",
+        "personal_finance",
+        "creator_business"
+      ],
+      "scenarioTags": [
+        "decide",
+        "compare",
+        "challenge"
+      ],
+      "inputTags": [
+        "question",
+        "conversation_context"
+      ],
+      "outputTags": [
+        "analysis",
+        "comparison",
+        "decision_record"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "HIGH_STAKES",
+      "publicationStatus": "NOTICE_AND_DISCLOSURE_REQUIRED",
+      "sourceStatus": "EXISTING_ASSET_REVIEW_REQUIRED",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": true,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": true,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "决策与取舍",
+        "选项比较",
+        "反方与假设检查"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "经用户确认的对话背景"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "选项比较",
+        "决策记录"
+      ],
+      "boundaries": [
+        "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+        "不构成投资建议、收益保证或个股推荐。",
+        "涉及高后果决定时必须说明不确定性，并建议由具备资质的现实专业人员复核。"
+      ],
+      "nonExecutableReason": "现有资产仍需完成来源、声明、时效、素材和生产质量门禁，暂不从正式 Catalog 启动执行。",
+      "personDisclaimer": "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+      "integrityBoundaries": [],
+      "sourceSummary": "现有历史资产；直接上游研究证据已记录，仍需核验本仓库内容一致性、附带素材、声明和未来正式采用版本。",
+      "assetPath": "skills/munger-skill-main/SKILL.md",
+      "defaultOrder": 4
+    },
+    {
+      "id": "naval_ravikant",
+      "nameZh": "纳瓦尔",
+      "aliases": [
+        "Naval Ravikant",
+        "纳瓦尔·拉维坎特"
+      ],
+      "summary": "从杠杆、长期积累、判断力与个人自主角度审视成长和选择。",
+      "primaryType": "PERSON_PERSPECTIVE",
+      "primaryValue": "THINKING_EXPANSION",
+      "domainTags": [
+        "career_workplace",
+        "creator_business",
+        "personal_finance"
+      ],
+      "scenarioTags": [
+        "decide",
+        "brainstorm",
+        "challenge"
+      ],
+      "inputTags": [
+        "question",
+        "conversation_context"
+      ],
+      "outputTags": [
+        "analysis",
+        "questions",
+        "plan"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "HIGH_STAKES",
+      "publicationStatus": "NOTICE_AND_DISCLOSURE_REQUIRED",
+      "sourceStatus": "EXISTING_ASSET_REVIEW_REQUIRED",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": true,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": true,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "决策与取舍",
+        "观点发散",
+        "反方与假设检查"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "经用户确认的对话背景"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "待确认问题",
+        "行动计划"
+      ],
+      "boundaries": [
+        "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+        "不构成投资建议、财富保证或人生成功承诺。",
+        "涉及高后果决定时必须说明不确定性，并建议由具备资质的现实专业人员复核。"
+      ],
+      "nonExecutableReason": "现有资产仍需完成来源、声明、时效、素材和生产质量门禁，暂不从正式 Catalog 启动执行。",
+      "personDisclaimer": "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+      "integrityBoundaries": [],
+      "sourceSummary": "现有历史资产；直接上游研究证据已记录，仍需核验本仓库内容一致性、附带素材、声明和未来正式采用版本。",
+      "assetPath": "skills/naval-skill-main/SKILL.md",
+      "defaultOrder": 5
+    },
+    {
+      "id": "steve_jobs",
+      "nameZh": "史蒂夫·乔布斯",
+      "aliases": [
+        "Steve Jobs",
+        "乔布斯"
+      ],
+      "summary": "从产品取舍、体验完整性与表达聚焦角度挑战方案。",
+      "primaryType": "PERSON_PERSPECTIVE",
+      "primaryValue": "THINKING_EXPANSION",
+      "domainTags": [
+        "technology_productivity",
+        "creator_business",
+        "decision_risk"
+      ],
+      "scenarioTags": [
+        "review",
+        "challenge",
+        "decide"
+      ],
+      "inputTags": [
+        "question",
+        "notes"
+      ],
+      "outputTags": [
+        "analysis",
+        "review_report",
+        "questions"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "OPTIONAL",
+      "materialRequirements": [
+        "OPTIONAL"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "NOTICE_AND_DISCLOSURE_REQUIRED",
+      "sourceStatus": "EXISTING_ASSET_REVIEW_REQUIRED",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": true,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": true,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "审校",
+        "反方与假设检查",
+        "决策与取舍"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "用户笔记"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "审校或核查报告",
+        "待确认问题"
+      ],
+      "boundaries": [
+        "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "现有资产仍需完成来源、声明、时效、素材和生产质量门禁，暂不从正式 Catalog 启动执行。",
+      "personDisclaimer": "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+      "integrityBoundaries": [],
+      "sourceSummary": "现有历史资产；直接上游研究证据已记录，仍需核验本仓库内容一致性、附带素材、声明和未来正式采用版本。",
+      "assetPath": "skills/steve-jobs-skill-main/SKILL.md",
+      "defaultOrder": 6
+    },
+    {
+      "id": "nassim_taleb",
+      "nameZh": "纳西姆·塔勒布",
+      "aliases": [
+        "Nassim Taleb",
+        "塔勒布"
+      ],
+      "summary": "以不确定性、脆弱性和尾部风险框架检查计划的失败条件。",
+      "primaryType": "PERSON_PERSPECTIVE",
+      "primaryValue": "THINKING_EXPANSION",
+      "domainTags": [
+        "decision_risk",
+        "personal_finance",
+        "creator_business"
+      ],
+      "scenarioTags": [
+        "challenge",
+        "verify",
+        "decide"
+      ],
+      "inputTags": [
+        "question",
+        "structured_data"
+      ],
+      "outputTags": [
+        "analysis",
+        "questions",
+        "decision_record"
+      ],
+      "useMode": "MULTI_PREFERRED",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "HIGH_STAKES",
+      "publicationStatus": "NOTICE_AND_DISCLOSURE_REQUIRED",
+      "sourceStatus": "EXISTING_ASSET_REVIEW_REQUIRED",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": true,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": true,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "反方与假设检查",
+        "事实核查",
+        "决策与取舍"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "结构化数据"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "待确认问题",
+        "决策记录"
+      ],
+      "boundaries": [
+        "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+        "不以人物观点替代财务、法律或安全专业判断。",
+        "涉及高后果决定时必须说明不确定性，并建议由具备资质的现实专业人员复核。"
+      ],
+      "nonExecutableReason": "现有资产仍需完成来源、声明、时效、素材和生产质量门禁，暂不从正式 Catalog 启动执行。",
+      "personDisclaimer": "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+      "integrityBoundaries": [],
+      "sourceSummary": "现有历史资产；直接上游研究证据已记录，仍需核验本仓库内容一致性、附带素材、声明和未来正式采用版本。",
+      "assetPath": "skills/taleb-skill-main/SKILL.md",
+      "defaultOrder": 7
+    },
+    {
+      "id": "andrej_karpathy",
+      "nameZh": "安德烈·卡帕斯",
+      "aliases": [
+        "Andrej Karpathy",
+        "Karpathy"
+      ],
+      "summary": "从 AI 工程、学习路径和系统构建角度分析技术问题。",
+      "primaryType": "PERSON_PERSPECTIVE",
+      "primaryValue": "THINKING_EXPANSION",
+      "domainTags": [
+        "technology_productivity",
+        "learning_exam",
+        "career_workplace"
+      ],
+      "scenarioTags": [
+        "learn",
+        "review",
+        "brainstorm"
+      ],
+      "inputTags": [
+        "question",
+        "notes",
+        "links"
+      ],
+      "outputTags": [
+        "analysis",
+        "plan",
+        "knowledge_note"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "NOTICE_AND_DISCLOSURE_REQUIRED",
+      "sourceStatus": "EXISTING_ASSET_REVIEW_REQUIRED",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": true,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": true,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "学习与解释",
+        "审校",
+        "观点发散"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "用户笔记",
+        "待核查链接"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "行动计划",
+        "知识笔记"
+      ],
+      "boundaries": [
+        "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "现有资产仍需完成来源、声明、时效、素材和生产质量门禁，暂不从正式 Catalog 启动执行。",
+      "personDisclaimer": "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+      "integrityBoundaries": [],
+      "sourceSummary": "现有历史资产；直接上游研究证据已记录，仍需核验本仓库内容一致性、附带素材、声明和未来正式采用版本。",
+      "assetPath": "skills/karpathy-skill/SKILL.md",
+      "defaultOrder": 8
+    },
+    {
+      "id": "zhang_yiming",
+      "nameZh": "张一鸣",
+      "aliases": [
+        "Zhang Yiming",
+        "字节跳动创始人视角"
+      ],
+      "summary": "从延迟满足、信息密度、组织与产品增长角度审视选择。",
+      "primaryType": "PERSON_PERSPECTIVE",
+      "primaryValue": "THINKING_EXPANSION",
+      "domainTags": [
+        "creator_business",
+        "career_workplace",
+        "technology_productivity"
+      ],
+      "scenarioTags": [
+        "decide",
+        "review",
+        "challenge"
+      ],
+      "inputTags": [
+        "question",
+        "conversation_context"
+      ],
+      "outputTags": [
+        "analysis",
+        "questions",
+        "decision_record"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "NOTICE_AND_DISCLOSURE_REQUIRED",
+      "sourceStatus": "EXISTING_ASSET_REVIEW_REQUIRED",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": true,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": true,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "决策与取舍",
+        "审校",
+        "反方与假设检查"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "经用户确认的对话背景"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "待确认问题",
+        "决策记录"
+      ],
+      "boundaries": [
+        "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "现有资产仍需完成来源、声明、时效、素材和生产质量门禁，暂不从正式 Catalog 启动执行。",
+      "personDisclaimer": "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+      "integrityBoundaries": [],
+      "sourceSummary": "现有历史资产；直接上游研究证据已记录，仍需核验本仓库内容一致性、附带素材、声明和未来正式采用版本。",
+      "assetPath": "skills/zhang-yiming-skill/SKILL.md",
+      "defaultOrder": 9
+    },
+    {
+      "id": "paul_graham",
+      "nameZh": "保罗·格雷厄姆",
+      "aliases": [
+        "Paul Graham",
+        "PG"
+      ],
+      "summary": "从创业、本质问题、用户价值与清晰写作角度挑战方案。",
+      "primaryType": "PERSON_PERSPECTIVE",
+      "primaryValue": "THINKING_EXPANSION",
+      "domainTags": [
+        "creator_business",
+        "writing_research",
+        "decision_risk"
+      ],
+      "scenarioTags": [
+        "brainstorm",
+        "review",
+        "challenge"
+      ],
+      "inputTags": [
+        "question",
+        "notes"
+      ],
+      "outputTags": [
+        "analysis",
+        "questions",
+        "draft"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "OPTIONAL",
+      "materialRequirements": [
+        "OPTIONAL"
+      ],
+      "riskLevel": "GENERAL",
+      "publicationStatus": "NOTICE_AND_DISCLOSURE_REQUIRED",
+      "sourceStatus": "EXISTING_ASSET_REVIEW_REQUIRED",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": true,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": true,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "观点发散",
+        "审校",
+        "反方与假设检查"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "用户笔记"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "待确认问题",
+        "可编辑草稿"
+      ],
+      "boundaries": [
+        "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+        "说明关键假设，不编造事实或来源。"
+      ],
+      "nonExecutableReason": "现有资产仍需完成来源、声明、时效、素材和生产质量门禁，暂不从正式 Catalog 启动执行。",
+      "personDisclaimer": "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+      "integrityBoundaries": [],
+      "sourceSummary": "现有历史资产；直接上游研究证据已记录，仍需核验本仓库内容一致性、附带素材、声明和未来正式采用版本。",
+      "assetPath": "skills/paul-graham-skill/SKILL.md",
+      "defaultOrder": 10
+    },
+    {
+      "id": "ilya_sutskever",
+      "nameZh": "伊利亚·苏茨克维尔",
+      "aliases": [
+        "Ilya Sutskever",
+        "Ilya"
+      ],
+      "summary": "从深度学习研究、长期影响和技术不确定性角度提供补充视角。",
+      "primaryType": "PERSON_PERSPECTIVE",
+      "primaryValue": "THINKING_EXPANSION",
+      "domainTags": [
+        "technology_productivity",
+        "writing_research",
+        "decision_risk"
+      ],
+      "scenarioTags": [
+        "research",
+        "challenge",
+        "brainstorm"
+      ],
+      "inputTags": [
+        "question",
+        "links"
+      ],
+      "outputTags": [
+        "analysis",
+        "questions",
+        "knowledge_note"
+      ],
+      "useMode": "MULTI_PREFERRED",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "NOTICE_AND_DISCLOSURE_REQUIRED",
+      "sourceStatus": "EXISTING_ASSET_REVIEW_REQUIRED",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": true,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": true,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "调研",
+        "反方与假设检查",
+        "观点发散"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "待核查链接"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "待确认问题",
+        "知识笔记"
+      ],
+      "boundaries": [
+        "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "现有资产仍需完成来源、声明、时效、素材和生产质量门禁，暂不从正式 Catalog 启动执行。",
+      "personDisclaimer": "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+      "integrityBoundaries": [],
+      "sourceSummary": "现有历史资产；直接上游研究证据已记录，仍需核验本仓库内容一致性、附带素材、声明和未来正式采用版本。",
+      "assetPath": "skills/ilya-sutskever-skill/SKILL.md",
+      "defaultOrder": 11
+    },
+    {
+      "id": "donald_trump",
+      "nameZh": "唐纳德·特朗普",
+      "aliases": [
+        "Donald Trump",
+        "特朗普"
+      ],
+      "summary": "从谈判、传播、权力关系与强势定位角度提供一种可质疑的模拟视角。",
+      "primaryType": "PERSON_PERSPECTIVE",
+      "primaryValue": "THINKING_EXPANSION",
+      "domainTags": [
+        "decision_risk",
+        "career_workplace",
+        "creator_business"
+      ],
+      "scenarioTags": [
+        "challenge",
+        "compare",
+        "communicate"
+      ],
+      "inputTags": [
+        "question",
+        "conversation_context"
+      ],
+      "outputTags": [
+        "analysis",
+        "comparison",
+        "script"
+      ],
+      "useMode": "MULTI_PREFERRED",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "HIGH_STAKES",
+      "publicationStatus": "NOTICE_AND_DISCLOSURE_REQUIRED",
+      "sourceStatus": "EXISTING_ASSET_REVIEW_REQUIRED",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": true,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": true,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "反方与假设检查",
+        "选项比较",
+        "沟通准备"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "经用户确认的对话背景"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "选项比较",
+        "沟通话术"
+      ],
+      "boundaries": [
+        "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+        "政治人物相关事实、职位和政策必须核对当前时间。",
+        "不得把模拟表达写成本人真实意见或官方立场。",
+        "涉及高后果决定时必须说明不确定性，并建议由具备资质的现实专业人员复核。"
+      ],
+      "nonExecutableReason": "现有资产仍需完成来源、声明、时效、素材和生产质量门禁，暂不从正式 Catalog 启动执行。",
+      "personDisclaimer": "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+      "integrityBoundaries": [],
+      "sourceSummary": "现有历史资产；直接上游研究证据已记录，仍需核验本仓库内容一致性、附带素材、声明和未来正式采用版本。",
+      "assetPath": "skills/trump-skill/SKILL.md",
+      "defaultOrder": 12
+    },
+    {
+      "id": "mr_beast",
+      "nameZh": "吉米·唐纳森（MrBeast）",
+      "aliases": [
+        "MrBeast",
+        "Jimmy Donaldson",
+        "吉米·唐纳森"
+      ],
+      "summary": "从受众价值、内容实验、留存与规模化制作角度审视创作方案。",
+      "primaryType": "PERSON_PERSPECTIVE",
+      "primaryValue": "THINKING_EXPANSION",
+      "domainTags": [
+        "creator_business",
+        "culture_entertainment",
+        "technology_productivity"
+      ],
+      "scenarioTags": [
+        "brainstorm",
+        "review",
+        "compare"
+      ],
+      "inputTags": [
+        "question",
+        "notes"
+      ],
+      "outputTags": [
+        "analysis",
+        "plan",
+        "checklist"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "NOTICE_AND_DISCLOSURE_REQUIRED",
+      "sourceStatus": "EXISTING_ASSET_REVIEW_REQUIRED",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": true,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": true,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "观点发散",
+        "审校",
+        "选项比较"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "用户笔记"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "行动计划",
+        "检查清单"
+      ],
+      "boundaries": [
+        "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "现有资产仍需完成来源、声明、时效、素材和生产质量门禁，暂不从正式 Catalog 启动执行。",
+      "personDisclaimer": "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+      "integrityBoundaries": [],
+      "sourceSummary": "现有历史资产；直接上游研究证据已记录，仍需核验本仓库内容一致性、附带素材、声明和未来正式采用版本。",
+      "assetPath": "skills/mrbeast-skill/SKILL.md",
+      "defaultOrder": 13
+    },
+    {
+      "id": "justin_sun",
+      "nameZh": "孙宇晨",
+      "aliases": [
+        "Justin Sun",
+        "孙宇晨视角"
+      ],
+      "summary": "从加密行业传播、资源整合和高波动商业环境角度提供模拟视角。",
+      "primaryType": "PERSON_PERSPECTIVE",
+      "primaryValue": "THINKING_EXPANSION",
+      "domainTags": [
+        "creator_business",
+        "personal_finance",
+        "decision_risk"
+      ],
+      "scenarioTags": [
+        "challenge",
+        "compare",
+        "decide"
+      ],
+      "inputTags": [
+        "question",
+        "links"
+      ],
+      "outputTags": [
+        "analysis",
+        "comparison",
+        "questions"
+      ],
+      "useMode": "MULTI_PREFERRED",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "HIGH_STAKES",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "EXISTING_ASSET_REVIEW_REQUIRED",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": true,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": true,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "反方与假设检查",
+        "选项比较",
+        "决策与取舍"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "待核查链接"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "选项比较",
+        "待确认问题"
+      ],
+      "boundaries": [
+        "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+        "不构成加密资产投资建议，不提供规避监管或市场操纵帮助。",
+        "涉及高后果决定时必须说明不确定性，并建议由具备资质的现实专业人员复核。"
+      ],
+      "nonExecutableReason": "现有资产仍需完成来源、声明、时效、素材和生产质量门禁，暂不从正式 Catalog 启动执行。",
+      "personDisclaimer": "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+      "integrityBoundaries": [],
+      "sourceSummary": "现有历史资产；研究时未取得直接上游根目录许可证文件，不作许可结论，需独立核验或重构。",
+      "assetPath": "skills/sun-yuchen-perspective/SKILL.md",
+      "defaultOrder": 14
+    },
+    {
+      "id": "sigmund_freud",
+      "nameZh": "西格蒙德·弗洛伊德",
+      "aliases": [
+        "Sigmund Freud",
+        "弗洛伊德"
+      ],
+      "summary": "以历史心理学理论中的冲突、动机与防御概念提供文化性思考视角。",
+      "primaryType": "PERSON_PERSPECTIVE",
+      "primaryValue": "THINKING_EXPANSION",
+      "domainTags": [
+        "health_wellbeing",
+        "life_relationships",
+        "culture_entertainment"
+      ],
+      "scenarioTags": [
+        "challenge",
+        "compare",
+        "brainstorm"
+      ],
+      "inputTags": [
+        "question",
+        "conversation_context"
+      ],
+      "outputTags": [
+        "analysis",
+        "questions",
+        "knowledge_note"
+      ],
+      "useMode": "MULTI_PREFERRED",
+      "networkRequirement": "OPTIONAL",
+      "materialRequirements": [
+        "OPTIONAL",
+        "SENSITIVE"
+      ],
+      "riskLevel": "HIGH_STAKES",
+      "publicationStatus": "NOTICE_AND_DISCLOSURE_REQUIRED",
+      "sourceStatus": "EXISTING_ASSET_REVIEW_REQUIRED",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": true,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": true,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "反方与假设检查",
+        "选项比较",
+        "观点发散"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "经用户确认的对话背景"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "待确认问题",
+        "知识笔记"
+      ],
+      "boundaries": [
+        "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+        "仅作为历史理论和文化思考视角，不用于诊断或治疗心理健康问题。",
+        "涉及高后果决定时必须说明不确定性，并建议由具备资质的现实专业人员复核。"
+      ],
+      "nonExecutableReason": "现有资产仍需完成来源、声明、时效、素材和生产质量门禁，暂不从正式 Catalog 启动执行。",
+      "personDisclaimer": "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+      "integrityBoundaries": [],
+      "sourceSummary": "现有历史资产；直接上游研究证据已记录，仍需核验本仓库内容一致性、附带素材、声明和未来正式采用版本。",
+      "assetPath": "skills/freud-skill/SKILL.md",
+      "defaultOrder": 15
+    },
+    {
+      "id": "x_mentor",
+      "nameZh": "X 增长导师",
+      "aliases": [
+        "X Growth Mentor",
+        "社交媒体增长导师"
+      ],
+      "summary": "围绕 X 平台内容定位、受众反馈和公开增长实践提供一般性框架。",
+      "primaryType": "PROFESSIONAL_ADVISOR",
+      "primaryValue": "BOTH",
+      "domainTags": [
+        "creator_business",
+        "technology_productivity"
+      ],
+      "scenarioTags": [
+        "plan",
+        "review",
+        "compare"
+      ],
+      "inputTags": [
+        "question",
+        "notes",
+        "links"
+      ],
+      "outputTags": [
+        "analysis",
+        "plan",
+        "checklist"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "NOTICE_AND_DISCLOSURE_REQUIRED",
+      "sourceStatus": "EXISTING_ASSET_REVIEW_REQUIRED",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": true,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": true,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "规划与行动拆解",
+        "审校",
+        "选项比较"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "用户笔记",
+        "待核查链接"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "行动计划",
+        "检查清单"
+      ],
+      "boundaries": [
+        "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+        "不代表 X 平台或任何官方机构，不保证流量、曝光或商业结果。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "现有资产仍需完成来源、声明、时效、素材和生产质量门禁，暂不从正式 Catalog 启动执行。",
+      "personDisclaimer": "这是 AI 模拟的增长顾问角色，不代表 X 平台、任何官方机构或真实个人。",
+      "integrityBoundaries": [],
+      "sourceSummary": "现有历史资产；直接上游研究证据已记录，仍需核验本仓库内容一致性、附带素材、声明和未来正式采用版本。",
+      "assetPath": "skills/x-mentor-skill/SKILL.md",
+      "defaultOrder": 16
+    },
+    {
+      "id": "feng_ge",
+      "nameZh": "峰哥亡命天涯",
+      "aliases": [
+        "峰哥",
+        "Feng Ge"
+      ],
+      "summary": "以公开内容中体现的社会观察和直接表达方式提供一种模拟视角。",
+      "primaryType": "PERSON_PERSPECTIVE",
+      "primaryValue": "THINKING_EXPANSION",
+      "domainTags": [
+        "culture_entertainment",
+        "life_relationships",
+        "decision_risk"
+      ],
+      "scenarioTags": [
+        "challenge",
+        "compare",
+        "brainstorm"
+      ],
+      "inputTags": [
+        "question",
+        "conversation_context"
+      ],
+      "outputTags": [
+        "analysis",
+        "questions",
+        "comparison"
+      ],
+      "useMode": "MULTI_PREFERRED",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "NOTICE_AND_DISCLOSURE_REQUIRED",
+      "sourceStatus": "EXISTING_ASSET_REVIEW_REQUIRED",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": true,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": true,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "反方与假设检查",
+        "选项比较",
+        "观点发散"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "经用户确认的对话背景"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "待确认问题",
+        "选项比较"
+      ],
+      "boundaries": [
+        "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "现有资产仍需完成来源、声明、时效、素材和生产质量门禁，暂不从正式 Catalog 启动执行。",
+      "personDisclaimer": "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+      "integrityBoundaries": [],
+      "sourceSummary": "现有历史资产；直接上游研究证据已记录，仍需核验本仓库内容一致性、附带素材、声明和未来正式采用版本。",
+      "assetPath": "skills/fengge-skill/SKILL.md",
+      "defaultOrder": 17
+    },
+    {
+      "id": "changpeng_zhao",
+      "nameZh": "赵长鹏（CZ）",
+      "aliases": [
+        "CZ",
+        "Changpeng Zhao",
+        "赵长鹏"
+      ],
+      "summary": "从加密行业创业、平台运营和高风险监管环境角度提供模拟视角。",
+      "primaryType": "PERSON_PERSPECTIVE",
+      "primaryValue": "THINKING_EXPANSION",
+      "domainTags": [
+        "creator_business",
+        "personal_finance",
+        "decision_risk"
+      ],
+      "scenarioTags": [
+        "challenge",
+        "compare",
+        "decide"
+      ],
+      "inputTags": [
+        "question",
+        "links"
+      ],
+      "outputTags": [
+        "analysis",
+        "comparison",
+        "questions"
+      ],
+      "useMode": "MULTI_PREFERRED",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "HIGH_STAKES",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "EXISTING_ASSET_REVIEW_REQUIRED",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": true,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": true,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "反方与假设检查",
+        "选项比较",
+        "决策与取舍"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "待核查链接"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "选项比较",
+        "待确认问题"
+      ],
+      "boundaries": [
+        "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+        "不构成加密资产投资建议，不提供规避监管或市场操纵帮助。",
+        "涉及高后果决定时必须说明不确定性，并建议由具备资质的现实专业人员复核。"
+      ],
+      "nonExecutableReason": "现有资产仍需完成来源、声明、时效、素材和生产质量门禁，暂不从正式 Catalog 启动执行。",
+      "personDisclaimer": "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+      "integrityBoundaries": [],
+      "sourceSummary": "现有历史资产；研究时未取得直接上游根目录许可证文件，不作许可结论，需独立核验或重构。",
+      "assetPath": "skills/cz-skill/SKILL.md",
+      "defaultOrder": 18
+    },
+    {
+      "id": "duan_yongping",
+      "nameZh": "段永平",
+      "aliases": [
+        "Duan Yongping",
+        "段永平视角"
+      ],
+      "summary": "从长期价值、商业常识、能力圈与组织文化角度检查选择。",
+      "primaryType": "PERSON_PERSPECTIVE",
+      "primaryValue": "THINKING_EXPANSION",
+      "domainTags": [
+        "creator_business",
+        "personal_finance",
+        "decision_risk"
+      ],
+      "scenarioTags": [
+        "decide",
+        "compare",
+        "challenge"
+      ],
+      "inputTags": [
+        "question",
+        "conversation_context"
+      ],
+      "outputTags": [
+        "analysis",
+        "comparison",
+        "decision_record"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "HIGH_STAKES",
+      "publicationStatus": "NOTICE_AND_DISCLOSURE_REQUIRED",
+      "sourceStatus": "EXISTING_ASSET_REVIEW_REQUIRED",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": true,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": true,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "决策与取舍",
+        "选项比较",
+        "反方与假设检查"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "经用户确认的对话背景"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "选项比较",
+        "决策记录"
+      ],
+      "boundaries": [
+        "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+        "不构成投资建议、收益保证或个股推荐。",
+        "涉及高后果决定时必须说明不确定性，并建议由具备资质的现实专业人员复核。"
+      ],
+      "nonExecutableReason": "现有资产仍需完成来源、声明、时效、素材和生产质量门禁，暂不从正式 Catalog 启动执行。",
+      "personDisclaimer": "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+      "integrityBoundaries": [],
+      "sourceSummary": "现有历史资产；直接上游研究证据已记录，仍需核验本仓库内容一致性、附带素材、声明和未来正式采用版本。",
+      "assetPath": "skills/duan-yongping-skill/SKILL.md",
+      "defaultOrder": 19
+    },
+    {
+      "id": "tim_cook",
+      "nameZh": "蒂姆·库克",
+      "aliases": [
+        "Tim Cook",
+        "库克"
+      ],
+      "summary": "从运营、供应链、隐私、组织协同和渐进式产品改进角度审视方案。",
+      "primaryType": "PERSON_PERSPECTIVE",
+      "primaryValue": "THINKING_EXPANSION",
+      "domainTags": [
+        "creator_business",
+        "technology_productivity",
+        "career_workplace"
+      ],
+      "scenarioTags": [
+        "review",
+        "compare",
+        "decide"
+      ],
+      "inputTags": [
+        "question",
+        "notes"
+      ],
+      "outputTags": [
+        "analysis",
+        "review_report",
+        "plan"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "NOTICE_AND_DISCLOSURE_REQUIRED",
+      "sourceStatus": "EXISTING_ASSET_REVIEW_REQUIRED",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": true,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": true,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "审校",
+        "选项比较",
+        "决策与取舍"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "用户笔记"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "审校或核查报告",
+        "行动计划"
+      ],
+      "boundaries": [
+        "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "现有资产仍需完成来源、声明、时效、素材和生产质量门禁，暂不从正式 Catalog 启动执行。",
+      "personDisclaimer": "这是基于公开资料生成的 AI 模拟视角，不代表本人，也不保证复现其当前或完整观点；不是专业执照或事实权威。",
+      "integrityBoundaries": [],
+      "sourceSummary": "现有历史资产；直接上游研究证据已记录，仍需核验本仓库内容一致性、附带素材、声明和未来正式采用版本。",
+      "assetPath": "skills/tim-cook-skill/SKILL.md",
+      "defaultOrder": 20
+    },
+    {
+      "id": "civil-service-coach",
+      "nameZh": "考公备考教练",
+      "aliases": [
+        "公务员考试教练"
+      ],
+      "summary": "围绕考试版本、岗位选择、学习节奏和复盘方法形成可执行备考框架。",
+      "primaryType": "PROFESSIONAL_ADVISOR",
+      "primaryValue": "REALITY_SUPPORT",
+      "domainTags": [
+        "learning_exam",
+        "career_workplace"
+      ],
+      "scenarioTags": [
+        "plan",
+        "learn",
+        "review"
+      ],
+      "inputTags": [
+        "question",
+        "notes",
+        "structured_data"
+      ],
+      "outputTags": [
+        "plan",
+        "checklist",
+        "questions"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "HIGH_STAKES",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "IMPLEMENTATION_SOURCE_PENDING",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "规划与行动拆解",
+        "学习与解释",
+        "审校"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "用户笔记",
+        "结构化数据"
+      ],
+      "outputForms": [
+        "行动计划",
+        "检查清单",
+        "待确认问题"
+      ],
+      "boundaries": [
+        "必须核对当前考试公告、地区规则和岗位条件。",
+        "不协助作弊、替考或伪造材料。",
+        "涉及高后果决定时必须说明不确定性，并建议由具备资质的现实专业人员复核。"
+      ],
+      "nonExecutableReason": "尚无已通过来源、原创性、安全、质量和移动端能力门禁的正式执行资产。",
+      "integrityBoundaries": [],
+      "sourceSummary": "研究目录已记录需求来源；正式实现来源尚未确定，许可明确且适用时才可复用，否则独立原创。",
+      "defaultOrder": 21
+    },
+    {
+      "id": "public-document-coach",
+      "nameZh": "公文与材料教练",
+      "aliases": [
+        "公文写作助手"
+      ],
+      "summary": "帮助梳理公文或材料的目标、结构、依据和审校要点。",
+      "primaryType": "TASK_ASSISTANT",
+      "primaryValue": "REALITY_SUPPORT",
+      "domainTags": [
+        "office_operations",
+        "writing_research"
+      ],
+      "scenarioTags": [
+        "write",
+        "review",
+        "deliver"
+      ],
+      "inputTags": [
+        "question",
+        "document_text",
+        "notes"
+      ],
+      "outputTags": [
+        "draft",
+        "review_report",
+        "checklist"
+      ],
+      "useMode": "SINGLE_PREFERRED",
+      "networkRequirement": "OPTIONAL",
+      "materialRequirements": [
+        "REQUIRED",
+        "USER_AUTHORIZED"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "IMPLEMENTATION_SOURCE_PENDING",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "写作",
+        "审校",
+        "成果交付"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "用户授权的文档文本",
+        "用户笔记"
+      ],
+      "outputForms": [
+        "可编辑草稿",
+        "审校或核查报告",
+        "检查清单"
+      ],
+      "boundaries": [
+        "单位格式、审批权限和事实责任由用户与所在组织确认。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "尚无已通过来源、原创性、安全、质量和移动端能力门禁的正式执行资产。",
+      "integrityBoundaries": [],
+      "sourceSummary": "研究目录已记录需求来源；正式实现来源尚未确定，许可明确且适用时才可复用，否则独立原创。",
+      "defaultOrder": 22
+    },
+    {
+      "id": "study-planner",
+      "nameZh": "学习规划师",
+      "aliases": [
+        "学习计划助手"
+      ],
+      "summary": "根据目标、基础、时间和反馈设计可调整的学习计划。",
+      "primaryType": "TASK_ASSISTANT",
+      "primaryValue": "REALITY_SUPPORT",
+      "domainTags": [
+        "learning_exam",
+        "health_wellbeing"
+      ],
+      "scenarioTags": [
+        "plan",
+        "learn",
+        "review"
+      ],
+      "inputTags": [
+        "question",
+        "notes",
+        "structured_data"
+      ],
+      "outputTags": [
+        "plan",
+        "checklist",
+        "knowledge_note"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "NOT_NEEDED",
+      "materialRequirements": [
+        "OPTIONAL"
+      ],
+      "riskLevel": "GENERAL",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "IMPLEMENTATION_SOURCE_PENDING",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "规划与行动拆解",
+        "学习与解释",
+        "审校"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "用户笔记",
+        "结构化数据"
+      ],
+      "outputForms": [
+        "行动计划",
+        "检查清单",
+        "知识笔记"
+      ],
+      "boundaries": [
+        "不承诺成绩或学习效果，计划必须允许按真实反馈调整。",
+        "说明关键假设，不编造事实或来源。"
+      ],
+      "nonExecutableReason": "尚无已通过来源、原创性、安全、质量和移动端能力门禁的正式执行资产。",
+      "integrityBoundaries": [],
+      "sourceSummary": "研究目录已记录需求来源；正式实现来源尚未确定，许可明确且适用时才可复用，否则独立原创。",
+      "defaultOrder": 23
+    },
+    {
+      "id": "career-navigator",
+      "nameZh": "职业发展顾问",
+      "aliases": [
+        "职业规划顾问"
+      ],
+      "summary": "梳理职业方向、能力差距、市场信息和下一步验证行动。",
+      "primaryType": "PROFESSIONAL_ADVISOR",
+      "primaryValue": "BOTH",
+      "domainTags": [
+        "career_workplace",
+        "decision_risk"
+      ],
+      "scenarioTags": [
+        "decide",
+        "compare",
+        "plan"
+      ],
+      "inputTags": [
+        "question",
+        "conversation_context",
+        "links"
+      ],
+      "outputTags": [
+        "analysis",
+        "comparison",
+        "plan"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "HIGH_STAKES",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "IMPLEMENTATION_SOURCE_PENDING",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "决策与取舍",
+        "选项比较",
+        "规划与行动拆解"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "经用户确认的对话背景",
+        "待核查链接"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "选项比较",
+        "行动计划"
+      ],
+      "boundaries": [
+        "职位、薪资和行业信息必须核对当前地区与时间。",
+        "不保证录用、晋升或收入结果。",
+        "涉及高后果决定时必须说明不确定性，并建议由具备资质的现实专业人员复核。"
+      ],
+      "nonExecutableReason": "尚无已通过来源、原创性、安全、质量和移动端能力门禁的正式执行资产。",
+      "integrityBoundaries": [],
+      "sourceSummary": "研究目录已记录需求来源；正式实现来源尚未确定，许可明确且适用时才可复用，否则独立原创。",
+      "defaultOrder": 24
+    },
+    {
+      "id": "resume-interview-coach",
+      "nameZh": "简历与面试教练",
+      "aliases": [
+        "求职面试助手"
+      ],
+      "summary": "基于用户真实经历优化简历表达并开展面试演练。",
+      "primaryType": "TASK_ASSISTANT",
+      "primaryValue": "REALITY_SUPPORT",
+      "domainTags": [
+        "career_workplace",
+        "writing_research"
+      ],
+      "scenarioTags": [
+        "write",
+        "review",
+        "practice"
+      ],
+      "inputTags": [
+        "question",
+        "document_text",
+        "personal_context_optional"
+      ],
+      "outputTags": [
+        "draft",
+        "review_report",
+        "script"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "OPTIONAL",
+      "materialRequirements": [
+        "REQUIRED",
+        "USER_AUTHORIZED"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "IMPLEMENTATION_SOURCE_PENDING",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "写作",
+        "审校",
+        "情境演练"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "用户授权的文档文本",
+        "用户主动选择的个人背景"
+      ],
+      "outputForms": [
+        "可编辑草稿",
+        "审校或核查报告",
+        "沟通话术"
+      ],
+      "boundaries": [
+        "只优化真实经历的表达，不伪造学历、项目、职责或成果。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "尚无已通过来源、原创性、安全、质量和移动端能力门禁的正式执行资产。",
+      "integrityBoundaries": [],
+      "sourceSummary": "研究目录已记录需求来源；正式实现来源尚未确定，许可明确且适用时才可复用，否则独立原创。",
+      "defaultOrder": 25
+    },
+    {
+      "id": "workplace-communication",
+      "nameZh": "职场沟通陪练",
+      "aliases": [
+        "职场沟通教练"
+      ],
+      "summary": "帮助准备真实、尊重边界且可执行的职场沟通方案。",
+      "primaryType": "PROFESSIONAL_ADVISOR",
+      "primaryValue": "BOTH",
+      "domainTags": [
+        "career_workplace",
+        "life_relationships"
+      ],
+      "scenarioTags": [
+        "communicate",
+        "practice",
+        "review"
+      ],
+      "inputTags": [
+        "question",
+        "conversation_context",
+        "sensitive_material"
+      ],
+      "outputTags": [
+        "script",
+        "questions",
+        "plan"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "NOT_NEEDED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "SENSITIVE"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "IMPLEMENTATION_SOURCE_PENDING",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "沟通准备",
+        "情境演练",
+        "审校"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "经用户确认的对话背景",
+        "用户明确授权的敏感材料"
+      ],
+      "outputForms": [
+        "沟通话术",
+        "待确认问题",
+        "行动计划"
+      ],
+      "boundaries": [
+        "不协助歧视、报复、操控、骚扰或欺骗性沟通。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "尚无已通过来源、原创性、安全、质量和移动端能力门禁的正式执行资产。",
+      "integrityBoundaries": [],
+      "sourceSummary": "研究目录已记录需求来源；正式实现来源尚未确定，许可明确且适用时才可复用，否则独立原创。",
+      "defaultOrder": 26
+    },
+    {
+      "id": "manager-expectation-review",
+      "nameZh": "领导预期复盘助手",
+      "aliases": [
+        "上级预期复盘"
+      ],
+      "summary": "把任务要求、反馈、证据和待确认事项整理成可沟通的复盘。",
+      "primaryType": "TASK_ASSISTANT",
+      "primaryValue": "REALITY_SUPPORT",
+      "domainTags": [
+        "career_workplace",
+        "office_operations"
+      ],
+      "scenarioTags": [
+        "review",
+        "communicate",
+        "plan"
+      ],
+      "inputTags": [
+        "question",
+        "notes",
+        "conversation_context"
+      ],
+      "outputTags": [
+        "analysis",
+        "checklist",
+        "script"
+      ],
+      "useMode": "SINGLE_PREFERRED",
+      "networkRequirement": "NOT_NEEDED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "SENSITIVE"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "IMPLEMENTATION_SOURCE_PENDING",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "审校",
+        "沟通准备",
+        "规划与行动拆解"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "用户笔记",
+        "经用户确认的对话背景"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "检查清单",
+        "沟通话术"
+      ],
+      "boundaries": [
+        "不臆测上级动机；区分事实、观察、推断和待确认事项。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "尚无已通过来源、原创性、安全、质量和移动端能力门禁的正式执行资产。",
+      "integrityBoundaries": [],
+      "sourceSummary": "研究目录已记录需求来源；正式实现来源尚未确定，许可明确且适用时才可复用，否则独立原创。",
+      "defaultOrder": 27
+    },
+    {
+      "id": "team-handover",
+      "nameZh": "团队交接与协作助手",
+      "aliases": [
+        "工作交接助手"
+      ],
+      "summary": "组织交接范围、责任、材料、风险和确认节点。",
+      "primaryType": "WORKFLOW_CAPABILITY",
+      "primaryValue": "REALITY_SUPPORT",
+      "domainTags": [
+        "office_operations",
+        "career_workplace"
+      ],
+      "scenarioTags": [
+        "handover",
+        "plan",
+        "deliver"
+      ],
+      "inputTags": [
+        "notes",
+        "document_text",
+        "structured_data"
+      ],
+      "outputTags": [
+        "handover_package",
+        "checklist",
+        "summary"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "NOT_NEEDED",
+      "materialRequirements": [
+        "REQUIRED",
+        "USER_AUTHORIZED",
+        "SENSITIVE"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "IMPLEMENTATION_SOURCE_PENDING",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "交接",
+        "规划与行动拆解",
+        "成果交付"
+      ],
+      "inputRequirements": [
+        "用户笔记",
+        "用户授权的文档文本",
+        "结构化数据"
+      ],
+      "outputForms": [
+        "交接材料包",
+        "检查清单",
+        "结构化总结"
+      ],
+      "boundaries": [
+        "不披露组织机密；责任、权限和完成状态必须由真实参与者确认。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "尚无已通过来源、原创性、安全、质量和移动端能力门禁的正式执行资产。",
+      "integrityBoundaries": [],
+      "sourceSummary": "研究目录已记录需求来源；正式实现来源尚未确定，许可明确且适用时才可复用，否则独立原创。",
+      "defaultOrder": 28
+    },
+    {
+      "id": "meeting-to-action",
+      "nameZh": "会议纪要与行动项助手",
+      "aliases": [
+        "会议行动助手"
+      ],
+      "summary": "把会议内容整理为结论、分歧、责任人、期限和行动项。",
+      "primaryType": "WORKFLOW_CAPABILITY",
+      "primaryValue": "REALITY_SUPPORT",
+      "domainTags": [
+        "office_operations",
+        "career_workplace"
+      ],
+      "scenarioTags": [
+        "summarize",
+        "plan",
+        "handover"
+      ],
+      "inputTags": [
+        "notes",
+        "document_text",
+        "conversation_context"
+      ],
+      "outputTags": [
+        "summary",
+        "checklist",
+        "decision_record"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "NOT_NEEDED",
+      "materialRequirements": [
+        "REQUIRED",
+        "USER_AUTHORIZED",
+        "SENSITIVE"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "IMPLEMENTATION_SOURCE_PENDING",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "总结",
+        "规划与行动拆解",
+        "交接"
+      ],
+      "inputRequirements": [
+        "用户笔记",
+        "用户授权的文档文本",
+        "经用户确认的对话背景"
+      ],
+      "outputForms": [
+        "结构化总结",
+        "检查清单",
+        "决策记录"
+      ],
+      "boundaries": [
+        "敏感会议材料需授权；行动项责任人和期限必须由参会者确认。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "尚无已通过来源、原创性、安全、质量和移动端能力门禁的正式执行资产。",
+      "integrityBoundaries": [],
+      "sourceSummary": "研究目录已记录需求来源；正式实现来源尚未确定，许可明确且适用时才可复用，否则独立原创。",
+      "defaultOrder": 29
+    },
+    {
+      "id": "report-proposal-writer",
+      "nameZh": "汇报与方案写作助手",
+      "aliases": [
+        "汇报写作助手",
+        "方案写作助手"
+      ],
+      "summary": "依据用户提供的事实、目标和受众形成可编辑汇报或方案。",
+      "primaryType": "TASK_ASSISTANT",
+      "primaryValue": "REALITY_SUPPORT",
+      "domainTags": [
+        "office_operations",
+        "writing_research"
+      ],
+      "scenarioTags": [
+        "write",
+        "review",
+        "deliver"
+      ],
+      "inputTags": [
+        "notes",
+        "document_text",
+        "structured_data"
+      ],
+      "outputTags": [
+        "draft",
+        "review_report",
+        "table"
+      ],
+      "useMode": "SINGLE_PREFERRED",
+      "networkRequirement": "OPTIONAL",
+      "materialRequirements": [
+        "REQUIRED",
+        "USER_AUTHORIZED"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "IMPLEMENTATION_SOURCE_PENDING",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "写作",
+        "审校",
+        "成果交付"
+      ],
+      "inputRequirements": [
+        "用户笔记",
+        "用户授权的文档文本",
+        "结构化数据"
+      ],
+      "outputForms": [
+        "可编辑草稿",
+        "审校或核查报告",
+        "表格"
+      ],
+      "boundaries": [
+        "事实、数据、引用和审批责任必须由用户核验。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "尚无已通过来源、原创性、安全、质量和移动端能力门禁的正式执行资产。",
+      "integrityBoundaries": [],
+      "sourceSummary": "研究目录已记录需求来源；正式实现来源尚未确定，许可明确且适用时才可复用，否则独立原创。",
+      "defaultOrder": 30
+    },
+    {
+      "id": "contract-checklist",
+      "nameZh": "合同要点检查助手",
+      "aliases": [
+        "合同检查清单"
+      ],
+      "summary": "提取合同关键条款、缺失信息和需要专业复核的问题清单。",
+      "primaryType": "TASK_ASSISTANT",
+      "primaryValue": "REALITY_SUPPORT",
+      "domainTags": [
+        "industry_professional",
+        "decision_risk"
+      ],
+      "scenarioTags": [
+        "review",
+        "verify",
+        "compare"
+      ],
+      "inputTags": [
+        "document_text",
+        "question"
+      ],
+      "outputTags": [
+        "checklist",
+        "review_report",
+        "questions"
+      ],
+      "useMode": "SINGLE_ONLY",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "REQUIRED",
+        "USER_AUTHORIZED",
+        "SENSITIVE",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "HIGH_STAKES",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "IMPLEMENTATION_SOURCE_PENDING",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "审校",
+        "事实核查",
+        "选项比较"
+      ],
+      "inputRequirements": [
+        "用户授权的文档文本",
+        "明确的问题与目标"
+      ],
+      "outputForms": [
+        "检查清单",
+        "审校或核查报告",
+        "待确认问题"
+      ],
+      "boundaries": [
+        "只提供一般性检查清单，不构成法律意见或合同效力判断。",
+        "涉及高后果决定时必须说明不确定性，并建议由具备资质的现实专业人员复核。"
+      ],
+      "nonExecutableReason": "尚无已通过来源、原创性、安全、质量和移动端能力门禁的正式执行资产。",
+      "integrityBoundaries": [],
+      "sourceSummary": "研究目录已记录需求来源；正式实现来源尚未确定，许可明确且适用时才可复用，否则独立原创。",
+      "defaultOrder": 31
+    },
+    {
+      "id": "hr-document-assistant",
+      "nameZh": "人事文档助手",
+      "aliases": [
+        "HR文档助手"
+      ],
+      "summary": "基于授权材料整理人事文档草稿、检查项和审批提示。",
+      "primaryType": "TASK_ASSISTANT",
+      "primaryValue": "REALITY_SUPPORT",
+      "domainTags": [
+        "office_operations",
+        "career_workplace"
+      ],
+      "scenarioTags": [
+        "write",
+        "review",
+        "deliver"
+      ],
+      "inputTags": [
+        "document_text",
+        "structured_data",
+        "sensitive_material"
+      ],
+      "outputTags": [
+        "draft",
+        "checklist",
+        "review_report"
+      ],
+      "useMode": "SINGLE_ONLY",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "REQUIRED",
+        "USER_AUTHORIZED",
+        "SENSITIVE",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "HIGH_STAKES",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "IMPLEMENTATION_SOURCE_PENDING",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "写作",
+        "审校",
+        "成果交付"
+      ],
+      "inputRequirements": [
+        "用户授权的文档文本",
+        "结构化数据",
+        "用户明确授权的敏感材料"
+      ],
+      "outputForms": [
+        "可编辑草稿",
+        "检查清单",
+        "审校或核查报告"
+      ],
+      "boundaries": [
+        "不生成歧视性内容；人事决定、法律适用和审批必须人工复核。",
+        "涉及高后果决定时必须说明不确定性，并建议由具备资质的现实专业人员复核。"
+      ],
+      "nonExecutableReason": "尚无已通过来源、原创性、安全、质量和移动端能力门禁的正式执行资产。",
+      "integrityBoundaries": [],
+      "sourceSummary": "研究目录已记录需求来源；正式实现来源尚未确定，许可明确且适用时才可复用，否则独立原创。",
+      "defaultOrder": 32
+    },
+    {
+      "id": "research-fact-checker",
+      "nameZh": "调研与事实核查助手",
+      "aliases": [
+        "事实核查助手",
+        "研究核查流程"
+      ],
+      "summary": "组织问题、来源、证据、时效和不确定性，形成可追溯核查结果。",
+      "primaryType": "WORKFLOW_CAPABILITY",
+      "primaryValue": "BOTH",
+      "domainTags": [
+        "writing_research",
+        "decision_risk"
+      ],
+      "scenarioTags": [
+        "research",
+        "verify",
+        "compare"
+      ],
+      "inputTags": [
+        "question",
+        "links",
+        "document_text"
+      ],
+      "outputTags": [
+        "review_report",
+        "table",
+        "knowledge_note"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "IMPLEMENTATION_SOURCE_PENDING",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "调研",
+        "事实核查",
+        "选项比较"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "待核查链接",
+        "用户授权的文档文本"
+      ],
+      "outputForms": [
+        "审校或核查报告",
+        "表格",
+        "知识笔记"
+      ],
+      "boundaries": [
+        "区分已证实事实、来源主张、推断和未知；记录信息日期。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "尚无已通过来源、原创性、安全、质量和移动端能力门禁的正式执行资产。",
+      "integrityBoundaries": [],
+      "sourceSummary": "研究目录已记录需求来源；正式实现来源尚未确定，许可明确且适用时才可复用，否则独立原创。",
+      "defaultOrder": 33
+    },
+    {
+      "id": "budget-consumption-coach",
+      "nameZh": "预算与消费决策助手",
+      "aliases": [
+        "消费决策顾问"
+      ],
+      "summary": "围绕预算、总成本、机会成本和风险比较消费选项。",
+      "primaryType": "PROFESSIONAL_ADVISOR",
+      "primaryValue": "REALITY_SUPPORT",
+      "domainTags": [
+        "personal_finance",
+        "decision_risk"
+      ],
+      "scenarioTags": [
+        "decide",
+        "compare",
+        "plan"
+      ],
+      "inputTags": [
+        "question",
+        "structured_data",
+        "links"
+      ],
+      "outputTags": [
+        "comparison",
+        "plan",
+        "decision_record"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "HIGH_STAKES",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "IMPLEMENTATION_SOURCE_PENDING",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "决策与取舍",
+        "选项比较",
+        "规划与行动拆解"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "结构化数据",
+        "待核查链接"
+      ],
+      "outputForms": [
+        "选项比较",
+        "行动计划",
+        "决策记录"
+      ],
+      "boundaries": [
+        "不构成投资建议、信贷建议或收益保证。",
+        "涉及高后果决定时必须说明不确定性，并建议由具备资质的现实专业人员复核。"
+      ],
+      "nonExecutableReason": "尚无已通过来源、原创性、安全、质量和移动端能力门禁的正式执行资产。",
+      "integrityBoundaries": [],
+      "sourceSummary": "研究目录已记录需求来源；正式实现来源尚未确定，许可明确且适用时才可复用，否则独立原创。",
+      "defaultOrder": 34
+    },
+    {
+      "id": "habit-wellbeing-coach",
+      "nameZh": "习惯与身心管理教练",
+      "aliases": [
+        "习惯教练",
+        "身心管理教练"
+      ],
+      "summary": "帮助建立低风险的习惯计划、观察指标和调整节点。",
+      "primaryType": "PROFESSIONAL_ADVISOR",
+      "primaryValue": "REALITY_SUPPORT",
+      "domainTags": [
+        "health_wellbeing"
+      ],
+      "scenarioTags": [
+        "plan",
+        "review",
+        "learn"
+      ],
+      "inputTags": [
+        "question",
+        "notes",
+        "personal_context_optional"
+      ],
+      "outputTags": [
+        "plan",
+        "checklist",
+        "questions"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "OPTIONAL",
+      "materialRequirements": [
+        "OPTIONAL",
+        "SENSITIVE"
+      ],
+      "riskLevel": "HIGH_STAKES",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "IMPLEMENTATION_SOURCE_PENDING",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "规划与行动拆解",
+        "审校",
+        "学习与解释"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "用户笔记",
+        "用户主动选择的个人背景"
+      ],
+      "outputForms": [
+        "行动计划",
+        "检查清单",
+        "待确认问题"
+      ],
+      "boundaries": [
+        "不诊断或治疗疾病；出现危机或持续异常时优先寻求现实专业帮助。",
+        "涉及高后果决定时必须说明不确定性，并建议由具备资质的现实专业人员复核。"
+      ],
+      "nonExecutableReason": "尚无已通过来源、原创性、安全、质量和移动端能力门禁的正式执行资产。",
+      "integrityBoundaries": [],
+      "sourceSummary": "研究目录已记录需求来源；正式实现来源尚未确定，许可明确且适用时才可复用，否则独立原创。",
+      "defaultOrder": 35
+    },
+    {
+      "id": "relationship-dialogue-practice",
+      "nameZh": "关系沟通练习伙伴",
+      "aliases": [
+        "关系沟通陪练"
+      ],
+      "summary": "在尊重同意和边界的前提下练习真实关系沟通。",
+      "primaryType": "TASK_ASSISTANT",
+      "primaryValue": "BOTH",
+      "domainTags": [
+        "life_relationships"
+      ],
+      "scenarioTags": [
+        "communicate",
+        "practice",
+        "review"
+      ],
+      "inputTags": [
+        "question",
+        "conversation_context",
+        "sensitive_material"
+      ],
+      "outputTags": [
+        "script",
+        "questions",
+        "analysis"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "NOT_NEEDED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "SENSITIVE"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "IMPLEMENTATION_SOURCE_PENDING",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "沟通准备",
+        "情境演练",
+        "审校"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "经用户确认的对话背景",
+        "用户明确授权的敏感材料"
+      ],
+      "outputForms": [
+        "沟通话术",
+        "待确认问题",
+        "分析与适用条件"
+      ],
+      "boundaries": [
+        "尊重双方同意、隐私和退出权，不协助操控、跟踪、威胁或冒充。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "尚无已通过来源、原创性、安全、质量和移动端能力门禁的正式执行资产。",
+      "integrityBoundaries": [],
+      "sourceSummary": "研究目录已记录需求来源；正式实现来源尚未确定，许可明确且适用时才可复用，否则独立原创。",
+      "defaultOrder": 36
+    },
+    {
+      "id": "chinese-social-etiquette",
+      "nameZh": "人情世故与礼仪助手",
+      "aliases": [
+        "中国礼仪助手"
+      ],
+      "summary": "解释常见礼仪差异并帮助准备合规、尊重的现实沟通。",
+      "primaryType": "PROFESSIONAL_ADVISOR",
+      "primaryValue": "BOTH",
+      "domainTags": [
+        "life_relationships",
+        "culture_entertainment"
+      ],
+      "scenarioTags": [
+        "communicate",
+        "compare",
+        "plan"
+      ],
+      "inputTags": [
+        "question",
+        "conversation_context"
+      ],
+      "outputTags": [
+        "analysis",
+        "script",
+        "checklist"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "OPTIONAL",
+      "materialRequirements": [
+        "OPTIONAL",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "IMPLEMENTATION_SOURCE_PENDING",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "沟通准备",
+        "选项比较",
+        "规划与行动拆解"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "经用户确认的对话背景"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "沟通话术",
+        "检查清单"
+      ],
+      "boundaries": [
+        "礼仪因地区和关系而异；不协助违规送礼、利益输送或隐瞒冲突。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "尚无已通过来源、原创性、安全、质量和移动端能力门禁的正式执行资产。",
+      "integrityBoundaries": [],
+      "sourceSummary": "研究目录已记录需求来源；正式实现来源尚未确定，许可明确且适用时才可复用，否则独立原创。",
+      "defaultOrder": 37
+    },
+    {
+      "id": "culture-fortune-entertainment",
+      "nameZh": "传统命理文化陪伴",
+      "aliases": [
+        "命理文化娱乐"
+      ],
+      "summary": "以文化和娱乐方式介绍传统命理概念，不用于重大现实决策。",
+      "primaryType": "PROFESSIONAL_ADVISOR",
+      "primaryValue": "THINKING_EXPANSION",
+      "domainTags": [
+        "culture_entertainment",
+        "life_relationships"
+      ],
+      "scenarioTags": [
+        "brainstorm",
+        "compare",
+        "learn"
+      ],
+      "inputTags": [
+        "question",
+        "personal_context_optional"
+      ],
+      "outputTags": [
+        "analysis",
+        "questions",
+        "summary"
+      ],
+      "useMode": "SINGLE_PREFERRED",
+      "networkRequirement": "NOT_NEEDED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "SENSITIVE"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "IMPLEMENTATION_SOURCE_PENDING",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "观点发散",
+        "选项比较",
+        "学习与解释"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "用户主动选择的个人背景"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "待确认问题",
+        "结构化总结"
+      ],
+      "boundaries": [
+        "只供文化与娱乐，不用于医疗、法律、金融、婚姻或其他重大决定。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "尚无已通过来源、原创性、安全、质量和移动端能力门禁的正式执行资产。",
+      "integrityBoundaries": [],
+      "sourceSummary": "研究目录已记录需求来源；正式实现来源尚未确定，许可明确且适用时才可复用，否则独立原创。",
+      "defaultOrder": 38
+    },
+    {
+      "id": "content-creator",
+      "nameZh": "内容策划与文案助手",
+      "aliases": [
+        "内容创作助手"
+      ],
+      "summary": "围绕受众、目标、事实和渠道形成原创内容方案与草稿。",
+      "primaryType": "TASK_ASSISTANT",
+      "primaryValue": "REALITY_SUPPORT",
+      "domainTags": [
+        "creator_business",
+        "writing_research"
+      ],
+      "scenarioTags": [
+        "brainstorm",
+        "write",
+        "review"
+      ],
+      "inputTags": [
+        "question",
+        "notes",
+        "links"
+      ],
+      "outputTags": [
+        "plan",
+        "draft",
+        "checklist"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "OPTIONAL",
+      "materialRequirements": [
+        "OPTIONAL",
+        "USER_AUTHORIZED"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "IMPLEMENTATION_SOURCE_PENDING",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "观点发散",
+        "写作",
+        "审校"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "用户笔记",
+        "待核查链接"
+      ],
+      "outputForms": [
+        "行动计划",
+        "可编辑草稿",
+        "检查清单"
+      ],
+      "boundaries": [
+        "不抄袭、不伪造事实，不按要求模仿在世创作者的独特风格。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "尚无已通过来源、原创性、安全、质量和移动端能力门禁的正式执行资产。",
+      "integrityBoundaries": [],
+      "sourceSummary": "研究目录已记录需求来源；正式实现来源尚未确定，许可明确且适用时才可复用，否则独立原创。",
+      "defaultOrder": 39
+    },
+    {
+      "id": "product-competition-analyst",
+      "nameZh": "产品与竞品分析助手",
+      "aliases": [
+        "竞品分析顾问"
+      ],
+      "summary": "基于公开或授权信息比较产品、用户、定位和竞争假设。",
+      "primaryType": "PROFESSIONAL_ADVISOR",
+      "primaryValue": "BOTH",
+      "domainTags": [
+        "creator_business",
+        "technology_productivity",
+        "decision_risk"
+      ],
+      "scenarioTags": [
+        "research",
+        "compare",
+        "decide"
+      ],
+      "inputTags": [
+        "question",
+        "links",
+        "structured_data"
+      ],
+      "outputTags": [
+        "analysis",
+        "comparison",
+        "table"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "OPTIONAL",
+        "USER_AUTHORIZED",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "IMPLEMENTATION_SOURCE_PENDING",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "调研",
+        "选项比较",
+        "决策与取舍"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "待核查链接",
+        "结构化数据"
+      ],
+      "outputForms": [
+        "分析与适用条件",
+        "选项比较",
+        "表格"
+      ],
+      "boundaries": [
+        "只使用公开或获授权信息，不诱导获取商业秘密。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "尚无已通过来源、原创性、安全、质量和移动端能力门禁的正式执行资产。",
+      "integrityBoundaries": [],
+      "sourceSummary": "研究目录已记录需求来源；正式实现来源尚未确定，许可明确且适用时才可复用，否则独立原创。",
+      "defaultOrder": 40
+    },
+    {
+      "id": "software-copyright-organizer",
+      "nameZh": "软件著作权材料整理助手",
+      "aliases": [
+        "软著材料助手"
+      ],
+      "summary": "组织软件著作权申请材料、缺口清单和真实性确认节点。",
+      "primaryType": "WORKFLOW_CAPABILITY",
+      "primaryValue": "REALITY_SUPPORT",
+      "domainTags": [
+        "industry_professional",
+        "office_operations"
+      ],
+      "scenarioTags": [
+        "plan",
+        "review",
+        "deliver"
+      ],
+      "inputTags": [
+        "document_text",
+        "structured_data",
+        "sensitive_material"
+      ],
+      "outputTags": [
+        "checklist",
+        "handover_package",
+        "review_report"
+      ],
+      "useMode": "SINGLE_ONLY",
+      "networkRequirement": "REQUIRED",
+      "materialRequirements": [
+        "REQUIRED",
+        "USER_AUTHORIZED",
+        "SENSITIVE",
+        "TIME_BOUND"
+      ],
+      "riskLevel": "HIGH_STAKES",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "IMPLEMENTATION_SOURCE_PENDING",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "规划与行动拆解",
+        "审校",
+        "成果交付"
+      ],
+      "inputRequirements": [
+        "用户授权的文档文本",
+        "结构化数据",
+        "用户明确授权的敏感材料"
+      ],
+      "outputForms": [
+        "检查清单",
+        "交接材料包",
+        "审校或核查报告"
+      ],
+      "boundaries": [
+        "不伪造权属、开发记录或材料；具体申报要求需核对当前规则并专业复核。",
+        "涉及高后果决定时必须说明不确定性，并建议由具备资质的现实专业人员复核。"
+      ],
+      "nonExecutableReason": "尚无已通过来源、原创性、安全、质量和移动端能力门禁的正式执行资产。",
+      "integrityBoundaries": [],
+      "sourceSummary": "研究目录已记录需求来源；正式实现来源尚未确定，许可明确且适用时才可复用，否则独立原创。",
+      "defaultOrder": 41
+    },
+    {
+      "id": "patent-disclosure-organizer",
+      "nameZh": "专利交底材料整理助手",
+      "aliases": [
+        "专利交底助手"
+      ],
+      "summary": "组织发明背景、技术问题、方案、效果和待专业复核材料。",
+      "primaryType": "WORKFLOW_CAPABILITY",
+      "primaryValue": "REALITY_SUPPORT",
+      "domainTags": [
+        "industry_professional",
+        "technology_productivity"
+      ],
+      "scenarioTags": [
+        "research",
+        "write",
+        "deliver"
+      ],
+      "inputTags": [
+        "document_text",
+        "notes",
+        "sensitive_material"
+      ],
+      "outputTags": [
+        "handover_package",
+        "draft",
+        "checklist"
+      ],
+      "useMode": "SINGLE_ONLY",
+      "networkRequirement": "PROHIBITED_FOR_MATERIAL",
+      "materialRequirements": [
+        "REQUIRED",
+        "USER_AUTHORIZED",
+        "SENSITIVE"
+      ],
+      "riskLevel": "HIGH_STAKES",
+      "publicationStatus": "ORIGINALITY_OR_LICENSE_REVIEW",
+      "sourceStatus": "IMPLEMENTATION_SOURCE_PENDING",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "调研",
+        "写作",
+        "成果交付"
+      ],
+      "inputRequirements": [
+        "用户授权的文档文本",
+        "用户笔记",
+        "用户明确授权的敏感材料"
+      ],
+      "outputForms": [
+        "交接材料包",
+        "可编辑草稿",
+        "检查清单"
+      ],
+      "boundaries": [
+        "涉密材料不得发送到未授权服务；不判断专利性或替代专利代理服务。",
+        "涉及高后果决定时必须说明不确定性，并建议由具备资质的现实专业人员复核。"
+      ],
+      "nonExecutableReason": "尚无已通过来源、原创性、安全、质量和移动端能力门禁的正式执行资产。",
+      "integrityBoundaries": [],
+      "sourceSummary": "研究目录已记录需求来源；正式实现来源尚未确定，许可明确且适用时才可复用，否则独立原创。",
+      "defaultOrder": 42
+    },
+    {
+      "id": "office-document-productivity",
+      "nameZh": "办公文档助手",
+      "aliases": [
+        "Office文档助手",
+        "文档生产力助手"
+      ],
+      "summary": "生成和整理用户可编辑的办公文档内容，不控制桌面软件。",
+      "primaryType": "WORKFLOW_CAPABILITY",
+      "primaryValue": "REALITY_SUPPORT",
+      "domainTags": [
+        "office_operations",
+        "technology_productivity"
+      ],
+      "scenarioTags": [
+        "write",
+        "review",
+        "deliver"
+      ],
+      "inputTags": [
+        "question",
+        "notes",
+        "document_text"
+      ],
+      "outputTags": [
+        "draft",
+        "table",
+        "summary"
+      ],
+      "useMode": "BOTH",
+      "networkRequirement": "OPTIONAL",
+      "materialRequirements": [
+        "OPTIONAL",
+        "USER_AUTHORIZED"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "BLOCKED_REWORK",
+      "sourceStatus": "ORIGINAL_DESIGN_REQUIRED",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "写作",
+        "审校",
+        "成果交付"
+      ],
+      "inputRequirements": [
+        "明确的问题与目标",
+        "用户笔记",
+        "用户授权的文档文本"
+      ],
+      "outputForms": [
+        "可编辑草稿",
+        "表格",
+        "结构化总结"
+      ],
+      "boundaries": [
+        "只生成和整理用户可编辑的文档内容。",
+        "不控制用户桌面 Office 或其他本地软件。",
+        "不自动打开、点击、签署、提交或操作本地文件。",
+        "具体文件能力受当前 App 已实现能力限制。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "能力正在按 Android 实际能力重新设计，尚未形成通过门禁的正式执行资产。",
+      "integrityBoundaries": [],
+      "sourceSummary": "见域 Android 能力需独立原创设计；第三方项目仅作为需求研究来源，不构成正式实现依赖。",
+      "defaultOrder": 43
+    },
+    {
+      "id": "original-expression-naturalizer",
+      "nameZh": "去AI化助手",
+      "aliases": [
+        "自然表达助手",
+        "本人表达整理"
+      ],
+      "summary": "在不改变真实事实和责任归属的前提下，让用户内容更符合本人表达。",
+      "primaryType": "TASK_ASSISTANT",
+      "primaryValue": "REALITY_SUPPORT",
+      "domainTags": [
+        "writing_research",
+        "office_operations",
+        "career_workplace"
+      ],
+      "scenarioTags": [
+        "write",
+        "review",
+        "communicate"
+      ],
+      "inputTags": [
+        "document_text",
+        "notes",
+        "personal_context_optional"
+      ],
+      "outputTags": [
+        "draft",
+        "review_report",
+        "script"
+      ],
+      "useMode": "SINGLE_PREFERRED",
+      "networkRequirement": "NOT_NEEDED",
+      "materialRequirements": [
+        "REQUIRED",
+        "USER_AUTHORIZED"
+      ],
+      "riskLevel": "SENSITIVE",
+      "publicationStatus": "BLOCKED_REWORK",
+      "sourceStatus": "ORIGINAL_DESIGN_REQUIRED",
+      "availability": {
+        "v1Target": true,
+        "hasAsset": false,
+        "discoverable": true,
+        "searchable": true,
+        "recommendable": false,
+        "executable": false
+      },
+      "typicalScenarios": [
+        "写作",
+        "审校",
+        "沟通准备"
+      ],
+      "inputRequirements": [
+        "用户授权的文档文本",
+        "用户笔记",
+        "用户主动选择的个人背景"
+      ],
+      "outputForms": [
+        "可编辑草稿",
+        "审校或核查报告",
+        "沟通话术"
+      ],
+      "boundaries": [
+        "只处理用户真实提供或明确授权的内容。",
+        "不改变事实、责任归属或必要诚信声明。",
+        "仅使用用户授权的最小必要材料，不冒充、不操控，也不推断未提供的敏感事实。"
+      ],
+      "nonExecutableReason": "检测对抗方向已排除；诚信边界、原创执行内容和质量门禁尚未完成。",
+      "integrityBoundaries": [
+        "只让用户真实内容更符合本人表达。",
+        "不规避检测。",
+        "不伪造事实。",
+        "不伪造经历。",
+        "不代写需要本人独立完成的受限内容。",
+        "不删除必要诚信声明。",
+        "不替用户冒充他人。"
+      ],
+      "sourceSummary": "见域 Android 能力需独立原创设计；第三方项目仅作为需求研究来源，不构成正式实现依赖。",
+      "defaultOrder": 44
+    }
+  ]
+}
