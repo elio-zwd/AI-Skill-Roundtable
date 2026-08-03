@@ -321,11 +321,11 @@ class RoomJianyuRepositoryDatabaseTest {
 
     @Test
     fun openEmptyDatabaseReturnsNotFoundWithoutCreatingDomainRows() = runBlocking {
-        database.openHelper.writableDatabase
-        assertTrue(database.isOpen)
+        assertFalse(database.isOpen)
 
         val result = repository.recoverIssue(ISSUE_ID)
 
+        assertTrue(database.isOpen)
         assertTrue(result.failureError() is RepositoryError.NotFound)
         assertNull(database.coreDomainDao().getIssue(ISSUE_ID))
         assertTrue(database.coreDomainDao().getStagesForIssue(ISSUE_ID).isEmpty())
@@ -334,7 +334,8 @@ class RoomJianyuRepositoryDatabaseTest {
 
     @Test
     fun closedDatabaseReturnsStorageFailureInsteadOfEmptyIssue() = runBlocking {
-        database.openHelper.writableDatabase
+        val beforeClose = repository.recoverIssue(ISSUE_ID)
+        assertTrue(beforeClose.failureError() is RepositoryError.NotFound)
         assertTrue(database.isOpen)
         database.close()
         assertFalse(database.isOpen)
@@ -343,6 +344,7 @@ class RoomJianyuRepositoryDatabaseTest {
 
         assertTrue(result.failureError() is RepositoryError.StorageFailure)
         assertFalse(result is RepositoryResult.Success<*>)
+        assertFalse(database.isOpen)
     }
 
     @Test
@@ -363,7 +365,8 @@ class RoomJianyuRepositoryDatabaseTest {
                 database = openedDatabase,
                 officialSkillIdValidator = OfficialSkillIdValidator { true }
             )
-            openedDatabase.openHelper.writableDatabase
+            val beforeClose = fileRepository.recoverIssue(ISSUE_ID)
+            assertTrue(beforeClose.failureError() is RepositoryError.NotFound)
             assertTrue(openedDatabase.isOpen)
             openedDatabase.close()
             assertFalse(openedDatabase.isOpen)
@@ -372,6 +375,7 @@ class RoomJianyuRepositoryDatabaseTest {
 
             assertTrue(result.failureError() is RepositoryError.StorageFailure)
             assertFalse(result is RepositoryResult.Success<*>)
+            assertFalse(openedDatabase.isOpen)
         } finally {
             if (fileDatabase?.isOpen == true) fileDatabase.close()
             context.deleteDatabase(databaseName)
