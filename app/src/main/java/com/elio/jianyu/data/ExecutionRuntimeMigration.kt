@@ -31,6 +31,11 @@ object ExecutionRuntimeMigration {
                 """.trimIndent(),
             )
             database.execSQL(
+                "CREATE INDEX IF NOT EXISTS " +
+                    "`index_execution_participant_states_participantSnapshotId_runId` " +
+                    "ON `execution_participant_states` (`participantSnapshotId`, `runId`)",
+            )
+            database.execSQL(
                 "CREATE INDEX IF NOT EXISTS `index_execution_participant_states_runId` " +
                     "ON `execution_participant_states` (`runId`)",
             )
