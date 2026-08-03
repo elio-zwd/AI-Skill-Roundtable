@@ -32,15 +32,18 @@ private object JianyuRepositoryProvider {
         }
 }
 
+private fun createIssuesNavigationLoader(context: Context): IssuesNavigationLoader {
+    val reader = JianyuIssueNavigationReader(
+        JianyuRepositoryProvider.get(context.applicationContext),
+    )
+    return IssuesNavigationLoader(reader)
+}
+
 class IssuesViewModel internal constructor(
     private val loader: IssuesNavigationLoader,
 ) : ViewModel() {
     private val _issuesState = MutableStateFlow<IssuesUiState>(IssuesUiState.Loading)
     val issuesState: StateFlow<IssuesUiState> = _issuesState.asStateFlow()
-
-    private val _recoveryState =
-        MutableStateFlow<IssueRecoveryUiState>(IssueRecoveryUiState.Loading)
-    val recoveryState: StateFlow<IssueRecoveryUiState> = _recoveryState.asStateFlow()
 
     init {
         refresh()
@@ -52,6 +55,21 @@ class IssuesViewModel internal constructor(
             _issuesState.value = loader.load()
         }
     }
+
+    companion object {
+        fun factory(context: Context): ViewModelProvider.Factory =
+            issuesViewModelFactory {
+                IssuesViewModel(createIssuesNavigationLoader(context))
+            }
+    }
+}
+
+class IssueRecoveryViewModel internal constructor(
+    private val loader: IssuesNavigationLoader,
+) : ViewModel() {
+    private val _recoveryState =
+        MutableStateFlow<IssueRecoveryUiState>(IssueRecoveryUiState.Loading)
+    val recoveryState: StateFlow<IssueRecoveryUiState> = _recoveryState.asStateFlow()
 
     fun recover(
         issueId: String?,
@@ -65,19 +83,21 @@ class IssuesViewModel internal constructor(
 
     companion object {
         fun factory(context: Context): ViewModelProvider.Factory =
-            object : ViewModelProvider.Factory {
-                @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    require(modelClass.isAssignableFrom(IssuesViewModel::class.java)) {
-                        "不支持的 ViewModel 类型：${modelClass.name}"
-                    }
-                    val reader = JianyuIssueNavigationReader(
-                        JianyuRepositoryProvider.get(context.applicationContext),
-                    )
-                    return IssuesViewModel(
-                        IssuesNavigationLoader(reader),
-                    ) as T
-                }
+            issuesViewModelFactory {
+                IssueRecoveryViewModel(createIssuesNavigationLoader(context))
             }
+    }
+}
+
+private fun <T : ViewModel> issuesViewModelFactory(
+    createViewModel: () -> T,
+): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <VM : ViewModel> create(modelClass: Class<VM>): VM {
+        val viewModel = createViewModel()
+        require(modelClass.isAssignableFrom(viewModel::class.java)) {
+            "不支持的 ViewModel 类型：${modelClass.name}"
+        }
+        return viewModel as VM
     }
 }
