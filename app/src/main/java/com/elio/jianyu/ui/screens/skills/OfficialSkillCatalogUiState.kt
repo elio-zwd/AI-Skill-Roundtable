@@ -63,6 +63,7 @@ internal data class OfficialSkillCatalogUiState(
     val filters: OfficialSkillCatalogFilters = OfficialSkillCatalogFilters(),
     val filterDialogVisible: Boolean = false,
     val section: OfficialSkillCatalogSection = OfficialSkillCatalogSection.DISCOVER,
+    val allSkills: List<OfficialSkillDefinition> = emptyList(),
     val visibleSkills: List<OfficialSkillDefinition> = emptyList(),
     val totalSkillCount: Int = 0,
     val favoriteIds: Set<String> = emptySet(),
