@@ -20,7 +20,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -28,6 +30,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.elio.jianyu.JianyuAppRuntime
+import com.elio.jianyu.JianyuAppRuntimeProvider
+import com.elio.jianyu.skill.catalog.OfficialSkillUseRequest
 import com.elio.jianyu.ui.navigation.AppDestination
 import com.elio.jianyu.ui.navigation.AppNavHost
 import com.elio.jianyu.ui.navigation.navigateToIssue
@@ -44,8 +49,7 @@ import com.elio.jianyu.ui.screens.roundtable.RoundtableRoute
 import com.elio.jianyu.ui.screens.settings.ApiKeyManagerRoute
 import com.elio.jianyu.ui.screens.settings.SettingsRoute
 import com.elio.jianyu.ui.screens.settings.TelemetryRoute
-import com.elio.jianyu.ui.screens.skillplaceholder.SkillDetailPlaceholderRoute
-import com.elio.jianyu.ui.screens.skillplaceholder.SkillPlaceholderRoute
+import com.elio.jianyu.ui.screens.skills.OfficialSkillNavigationRoute
 import com.elio.jianyu.viewmodel.RoundtableViewModel
 
 object AppTestTags {
@@ -55,10 +59,28 @@ object AppTestTags {
         "app_destination_${destination.testTagSuffix}"
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainAppContent(
     viewModel: RoundtableViewModel = viewModel(),
+    onOfficialSkillUseRequested: (OfficialSkillUseRequest) -> Unit = {},
+) {
+    val applicationContext = LocalContext.current.applicationContext
+    val appRuntime = remember(applicationContext) {
+        JianyuAppRuntimeProvider.get(applicationContext)
+    }
+    MainAppContent(
+        viewModel = viewModel,
+        appRuntime = appRuntime,
+        onOfficialSkillUseRequested = onOfficialSkillUseRequested,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun MainAppContent(
+    viewModel: RoundtableViewModel,
+    appRuntime: JianyuAppRuntime,
+    onOfficialSkillUseRequested: (OfficialSkillUseRequest) -> Unit = {},
 ) {
     val allCharacters by viewModel.allCharacters.collectAsState()
     val currentSessionId by viewModel.currentSessionId.collectAsState()
@@ -104,6 +126,7 @@ fun MainAppContent(
                 },
                 issuesContent = {
                     IssuesRoute(
+                        repository = appRuntime.repository,
                         onOpenIssue = navController::navigateToIssue,
                         onOpenSettings = {
                             navController.navigateToSecondary(AppDestination.SETTINGS)
@@ -112,22 +135,32 @@ fun MainAppContent(
                 },
                 issueContent = { issueId, stageId ->
                     IssueRecoveryRoute(
+                        repository = appRuntime.repository,
                         issueId = issueId,
                         stageId = stageId,
                         onBack = { navController.popBackStack() },
                     )
                 },
                 skillsContent = {
-                    SkillPlaceholderRoute(
+                    OfficialSkillNavigationRoute(
+                        repository = appRuntime.repository,
+                        runtimeResult = appRuntime.officialSkillCatalogRuntimeResult,
                         onOpenSettings = {
                             navController.navigateToSecondary(AppDestination.SETTINGS)
                         },
+                        onUseSkill = onOfficialSkillUseRequested,
                     )
                 },
                 skillDetailContent = { skillId ->
-                    SkillDetailPlaceholderRoute(
-                        skillId = skillId,
+                    OfficialSkillNavigationRoute(
+                        repository = appRuntime.repository,
+                        runtimeResult = appRuntime.officialSkillCatalogRuntimeResult,
+                        initialSkillId = skillId,
                         onBack = { navController.popBackStack() },
+                        onOpenSettings = {
+                            navController.navigateToSecondary(AppDestination.SETTINGS)
+                        },
+                        onUseSkill = onOfficialSkillUseRequested,
                     )
                 },
                 resourcesContent = { tab ->

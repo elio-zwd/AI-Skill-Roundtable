@@ -15,12 +15,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elio.jianyu.data.IssueLifecycleState
+import com.elio.jianyu.data.JianyuRepository
 import com.elio.jianyu.ui.components.JianyuMetadataRow
 import com.elio.jianyu.ui.components.JianyuPageShell
 import com.elio.jianyu.ui.components.JianyuStateCard
@@ -41,10 +41,11 @@ object IssuesTestTags {
 
 @Composable
 fun IssuesRoute(
+    repository: JianyuRepository,
     onOpenIssue: (issueId: String, stageId: String?) -> Unit,
     onOpenSettings: () -> Unit,
     viewModel: IssuesViewModel = viewModel(
-        factory = IssuesViewModel.factory(LocalContext.current),
+        factory = IssuesViewModel.factory(repository),
     ),
 ) {
     val state by viewModel.issuesState.collectAsState()
@@ -207,11 +208,12 @@ private fun IssueNavigationCard(
 
 @Composable
 fun IssueRecoveryRoute(
+    repository: JianyuRepository,
     issueId: String?,
     stageId: String?,
     onBack: () -> Unit,
     viewModel: IssueRecoveryViewModel = viewModel(
-        factory = IssueRecoveryViewModel.factory(LocalContext.current),
+        factory = IssueRecoveryViewModel.factory(repository),
     ),
 ) {
     val state by viewModel.recoveryState.collectAsState()

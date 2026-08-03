@@ -51,6 +51,8 @@ fun OfficialSkillCatalogRoute(
     runtime: OfficialSkillCatalogRuntime,
     onUseSkill: (OfficialSkillUseRequest) -> Unit,
     modifier: Modifier = Modifier,
+    initialSkillId: String? = null,
+    onDismissInitialDetail: (() -> Unit)? = null,
     clock: () -> Long = System::currentTimeMillis,
     combinationIdFactory: () -> String = { "official-combination-${UUID.randomUUID()}" },
 ) {
@@ -60,6 +62,8 @@ fun OfficialSkillCatalogRoute(
         preferences = runtime.preferences,
         onUseSkill = onUseSkill,
         modifier = modifier,
+        initialSkillId = initialSkillId,
+        onDismissInitialDetail = onDismissInitialDetail,
         clock = clock,
         combinationIdFactory = combinationIdFactory,
     )
@@ -72,6 +76,8 @@ fun OfficialSkillCatalogRoute(
     runtimeResult: OfficialSkillCatalogRuntimeResult,
     onUseSkill: (OfficialSkillUseRequest) -> Unit,
     modifier: Modifier = Modifier,
+    initialSkillId: String? = null,
+    onDismissInitialDetail: (() -> Unit)? = null,
 ) {
     when (runtimeResult) {
         is OfficialSkillCatalogRuntimeResult.Failure -> OfficialSkillCatalogScreen(
@@ -87,6 +93,8 @@ fun OfficialSkillCatalogRoute(
             runtime = runtimeResult.runtime,
             onUseSkill = onUseSkill,
             modifier = modifier,
+            initialSkillId = initialSkillId,
+            onDismissInitialDetail = onDismissInitialDetail,
         )
     }
 }
@@ -98,9 +106,23 @@ fun OfficialSkillCatalogRoute(
     preferences: OfficialSkillPreferences,
     onUseSkill: (OfficialSkillUseRequest) -> Unit,
     modifier: Modifier = Modifier,
+    initialSkillId: String? = null,
+    onDismissInitialDetail: (() -> Unit)? = null,
     clock: () -> Long = System::currentTimeMillis,
     combinationIdFactory: () -> String = { "official-combination-${UUID.randomUUID()}" },
 ) {
+    if (initialSkillId != null && !catalog.containsOfficialId(initialSkillId)) {
+        OfficialSkillCatalogScreen(
+            uiState = OfficialSkillCatalogUiState(
+                isLoading = false,
+                catalogError = "无法定位官方 Skill：未知 ID $initialSkillId",
+            ),
+            onEvent = {},
+            modifier = modifier,
+        )
+        return
+    }
+
     val scope = rememberCoroutineScope()
     val favoriteIds by preferences.favoriteIds.collectAsState()
     val recentUses by preferences.recentUses.collectAsState()
@@ -115,7 +137,9 @@ fun OfficialSkillCatalogRoute(
         mutableStateOf(OfficialSkillCatalogFilters())
     }
     var filterDialogVisible by rememberSaveable { mutableStateOf(false) }
-    var selectedSkillId by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedSkillId by rememberSaveable(initialSkillId) {
+        mutableStateOf(initialSkillId)
+    }
     var combinations by remember { mutableStateOf<List<OfficialSkillCombinationSnapshot>>(emptyList()) }
     var combinationsLoading by remember { mutableStateOf(true) }
     var combinationError by remember { mutableStateOf<String?>(null) }
@@ -162,6 +186,10 @@ fun OfficialSkillCatalogRoute(
             is RepositoryResult.Failure -> combinationError = result.error.toUserMessage()
         }
         combinationsLoading = false
+    }
+
+    LaunchedEffect(initialSkillId, preferences) {
+        initialSkillId?.let { preferences.onSkillDetailViewed(it) }
     }
 
     val recentIds = recentUses.mapTo(linkedSetOf()) { it.skillId }
@@ -256,7 +284,11 @@ fun OfficialSkillCatalogRoute(
                         message = "未知官方 Skill ID"
                     }
                 }
-                OfficialSkillCatalogEvent.DismissDetail -> selectedSkillId = null
+                OfficialSkillCatalogEvent.DismissDetail -> {
+                    val leavesInitialDetail = initialSkillId != null && selectedSkillId == initialSkillId
+                    selectedSkillId = null
+                    if (leavesInitialDetail) onDismissInitialDetail?.invoke()
+                }
                 is OfficialSkillCatalogEvent.ToggleFavorite -> scope.launch {
                     val isFavorite = event.skillId in favoriteIds
                     if (!preferences.setFavorite(event.skillId, !isFavorite)) {

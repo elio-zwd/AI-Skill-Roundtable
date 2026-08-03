@@ -143,6 +143,22 @@ class AppNavHostTest {
     }
 
     @Test
+    fun skillDetailRoute_passesStableOfficialSkillIdAndReturnsToCatalog() {
+        composeRule.runOnIdle {
+            navController.navigateToSkillDetail("zhang_xuefeng")
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(skillMarker("zhang_xuefeng")).assertIsDisplayed()
+        assertCurrentRoute(JianyuNavigationRoutes.SKILL_DETAIL_PATTERN)
+
+        composeRule.runOnIdle { navController.popBackStack() }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(AppDestination.SKILLS.routePattern).assertIsDisplayed()
+        assertCurrentRoute(AppDestination.SKILLS.routePattern)
+    }
+
+    @Test
     fun resourcesRoute_selectsRequestedTabAndDefaultsToMaterials() {
         composeRule.runOnIdle {
             navController.navigate(JianyuNavigationRoutes.resources(ResourceTab.ARTIFACTS))

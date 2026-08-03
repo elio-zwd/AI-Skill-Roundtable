@@ -1,41 +1,16 @@
 package com.elio.jianyu.ui.screens.issues
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.elio.jianyu.data.JianyuRepository
-import com.elio.jianyu.data.RoomJianyuRepository
-import com.elio.jianyu.data.RoundtableDatabase
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-private object JianyuRepositoryProvider {
-    private val databaseScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
-    @Volatile
-    private var repository: JianyuRepository? = null
-
-    fun get(context: Context): JianyuRepository =
-        repository ?: synchronized(this) {
-            repository ?: RoomJianyuRepository(
-                RoundtableDatabase.getDatabase(
-                    context = context.applicationContext,
-                    scope = databaseScope,
-                ),
-            ).also { created -> repository = created }
-        }
-}
-
-private fun createIssuesNavigationLoader(context: Context): IssuesNavigationLoader {
-    val reader = JianyuIssueNavigationReader(
-        JianyuRepositoryProvider.get(context.applicationContext),
-    )
+private fun createIssuesNavigationLoader(repository: JianyuRepository): IssuesNavigationLoader {
+    val reader = JianyuIssueNavigationReader(repository)
     return IssuesNavigationLoader(reader)
 }
 
@@ -57,9 +32,9 @@ class IssuesViewModel internal constructor(
     }
 
     companion object {
-        fun factory(context: Context): ViewModelProvider.Factory =
+        fun factory(repository: JianyuRepository): ViewModelProvider.Factory =
             issuesViewModelFactory {
-                IssuesViewModel(createIssuesNavigationLoader(context))
+                IssuesViewModel(createIssuesNavigationLoader(repository))
             }
     }
 }
@@ -82,9 +57,9 @@ class IssueRecoveryViewModel internal constructor(
     }
 
     companion object {
-        fun factory(context: Context): ViewModelProvider.Factory =
+        fun factory(repository: JianyuRepository): ViewModelProvider.Factory =
             issuesViewModelFactory {
-                IssueRecoveryViewModel(createIssuesNavigationLoader(context))
+                IssueRecoveryViewModel(createIssuesNavigationLoader(repository))
             }
     }
 }

@@ -21,7 +21,7 @@ class JianyuNavigationArchitectureTest {
             "IssueRecoveryRoute",
             "ResourcesRoute",
             "SettingsRoute",
-            "SkillPlaceholderRoute",
+            "OfficialSkillNavigationRoute",
             "RoundtableRoute",
             "CharacterHallRoute",
             "AudioLibraryRoute",
@@ -46,6 +46,27 @@ class JianyuNavigationArchitectureTest {
     }
 
     @Test
+    fun appRuntime_sharesCatalogValidatorWithTheSingleJianyuRepository() {
+        val runtimeSource = packageRoot.resolve("JianyuAppRuntime.kt").readText()
+        val appSource = uiRoot.resolve("App.kt").readText()
+        val issuesViewModelSource = uiRoot.resolve("screens/issues/IssuesViewModel.kt").readText()
+
+        assertTrue(runtimeSource.contains("createOfficialSkillCatalogRuntime(context)"))
+        assertTrue(runtimeSource.contains("officialSkillIdValidator = catalogRuntimeResult.runtime.validator"))
+        assertTrue(runtimeSource.contains("is OfficialSkillCatalogRuntimeResult.Failure -> RoomJianyuRepository"))
+        assertTrue(appSource.contains("repository = appRuntime.repository"))
+        assertTrue(appSource.contains("runtimeResult = appRuntime.officialSkillCatalogRuntimeResult"))
+        assertFalse(issuesViewModelSource.contains("RoundtableDatabase"))
+        assertFalse(issuesViewModelSource.contains("RoomJianyuRepository"))
+    }
+
+    @Test
+    fun placeholderSkillImplementation_isRemovedAfterOfficialCatalogIntegration() {
+        assertFalse(uiRoot.resolve("screens/skillplaceholder").exists())
+        assertTrue(uiRoot.resolve("screens/skills/OfficialSkillNavigationRoute.kt").isFile)
+    }
+
+    @Test
     fun navigationPackage_containsOnlyRouteContractsAndBackStackLogic() {
         val violations = uiRoot.resolve("navigation")
             .walkTopDown()
@@ -64,8 +85,8 @@ class JianyuNavigationArchitectureTest {
     }
 
     @Test
-    fun newScreens_doNotAccessDaosOrRepositoryWriteMethods() {
-        val domains = listOf("home", "issues", "resources", "settings", "skillplaceholder")
+    fun navigationShellScreens_doNotAccessDaosOrRepositoryWriteMethods() {
+        val domains = listOf("home", "issues", "resources", "settings")
         val forbidden = listOf(
             ".chatDao(",
             ".characterDao(",
@@ -103,32 +124,12 @@ class JianyuNavigationArchitectureTest {
     }
 
     @Test
-    fun onlyIssuesViewModel_mayAssembleTheReadOnlyRepository() {
-        val allowed = "screens/issues/IssuesViewModel.kt"
-        val violations = listOf("home", "issues", "resources", "settings", "skillplaceholder")
-            .flatMap { domain ->
-                uiRoot.resolve("screens/$domain")
-                    .walkTopDown()
-                    .filter { it.isFile && it.extension == "kt" }
-                    .filter { file ->
-                        val relative = file.relativeTo(uiRoot).invariantSeparatorsPath
-                        relative != allowed && (
-                            file.readText().contains("RoundtableDatabase") ||
-                                file.readText().contains("RoomJianyuRepository")
-                            )
-                    }
-                    .map { it.relativeTo(uiRoot).invariantSeparatorsPath }
-                    .toList()
-            }
-
-        assertTrue("只有 IssuesViewModel 可装配只读 Repository：$violations", violations.isEmpty())
-    }
-
-    @Test
     fun navigationTestTags_areStableSemanticNames() {
         val appSource = uiRoot.resolve("App.kt").readText()
         val shellSource = uiRoot.resolve("components/JianyuPageShell.kt").readText()
         val resourcesSource = uiRoot.resolve("screens/resources/ResourcesRoute.kt").readText()
+        val skillNavigationSource = uiRoot.resolve("screens/skills/OfficialSkillNavigationRoute.kt")
+            .readText()
 
         assertTrue(appSource.contains("app_bottom_navigation"))
         listOf("home", "issues", "skills", "resources").forEach { suffix ->
@@ -139,6 +140,8 @@ class JianyuNavigationArchitectureTest {
             )
         }
         assertTrue(shellSource.contains("global_settings_button"))
+        assertTrue(skillNavigationSource.contains("GLOBAL_SETTINGS_BUTTON"))
+        assertTrue(skillNavigationSource.contains("PAGE_BACK_BUTTON"))
         assertTrue(resourcesSource.contains("resources_tab_materials"))
         assertTrue(resourcesSource.contains("resources_tab_artifacts"))
     }
