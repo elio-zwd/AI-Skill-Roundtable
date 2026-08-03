@@ -322,10 +322,12 @@ class RoomJianyuRepositoryDatabaseTest {
     @Test
     fun openEmptyDatabaseReturnsNotFoundWithoutCreatingDomainRows() = runBlocking {
         assertFalse(database.isOpen)
+        assertFalse(database.isExplicitlyClosed)
 
         val result = repository.recoverIssue(ISSUE_ID)
 
         assertTrue(database.isOpen)
+        assertFalse(database.isExplicitlyClosed)
         assertTrue(result.failureError() is RepositoryError.NotFound)
         assertNull(database.coreDomainDao().getIssue(ISSUE_ID))
         assertTrue(database.coreDomainDao().getStagesForIssue(ISSUE_ID).isEmpty())
@@ -334,16 +336,17 @@ class RoomJianyuRepositoryDatabaseTest {
 
     @Test
     fun closedDatabaseReturnsStorageFailureInsteadOfEmptyIssue() = runBlocking {
-        val beforeClose = repository.recoverIssue(ISSUE_ID)
-        assertTrue(beforeClose.failureError() is RepositoryError.NotFound)
-        assertTrue(database.isOpen)
+        assertFalse(database.isOpen)
+        assertFalse(database.isExplicitlyClosed)
         database.close()
+        assertTrue(database.isExplicitlyClosed)
         assertFalse(database.isOpen)
 
         val result = repository.recoverIssue(ISSUE_ID)
 
         assertTrue(result.failureError() is RepositoryError.StorageFailure)
         assertFalse(result is RepositoryResult.Success<*>)
+        assertTrue(database.isExplicitlyClosed)
         assertFalse(database.isOpen)
     }
 
@@ -368,13 +371,16 @@ class RoomJianyuRepositoryDatabaseTest {
             val beforeClose = fileRepository.recoverIssue(ISSUE_ID)
             assertTrue(beforeClose.failureError() is RepositoryError.NotFound)
             assertTrue(openedDatabase.isOpen)
+            assertFalse(openedDatabase.isExplicitlyClosed)
             openedDatabase.close()
+            assertTrue(openedDatabase.isExplicitlyClosed)
             assertFalse(openedDatabase.isOpen)
 
             val result = fileRepository.recoverIssue(ISSUE_ID)
 
             assertTrue(result.failureError() is RepositoryError.StorageFailure)
             assertFalse(result is RepositoryResult.Success<*>)
+            assertTrue(openedDatabase.isExplicitlyClosed)
             assertFalse(openedDatabase.isOpen)
         } finally {
             if (fileDatabase?.isOpen == true) fileDatabase.close()
