@@ -8,6 +8,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.elio.jianyu.telemetry.PrivacySafeLogger
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -43,6 +44,16 @@ import kotlinx.coroutines.launch
 )
 @TypeConverters(CoreDomainConverters::class, ResourceLifecycleConverters::class)
 abstract class RoundtableDatabase : RoomDatabase() {
+    private val explicitlyClosed = AtomicBoolean(false)
+
+    internal val isExplicitlyClosed: Boolean
+        get() = explicitlyClosed.get()
+
+    final override fun close() {
+        explicitlyClosed.set(true)
+        super.close()
+    }
+
     abstract fun characterDao(): CharacterDao
     abstract fun chatDao(): ChatDao
     abstract fun characterGroupDao(): CharacterGroupDao
