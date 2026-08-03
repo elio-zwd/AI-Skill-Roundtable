@@ -1,10 +1,10 @@
 # 前置修复 PR：见域 Repository 基线设备测试与错误语义计划
 
-> 本计划只处理 `RoomJianyuRepositoryDatabaseTest` 的两项基线失败，恢复 PR09-07 前置设备测试基线。
+> 本计划只修复 Repository 基线设备测试与对应错误语义，为 PR09-07 提供稳定前置基线。
 >
 > 本 PR 不实现 PR09-07 执行状态机，不修改导航、Skill Catalog、Room Schema、资料、成果、音频、最终视觉或发布能力。
 
-## 一、工作流与实际基线
+## 一、工作流与基线
 
 正在按照仓库内 `systematic-debugging`、`test-driven-development` 和 `verification-before-completion` 工作流，定位并修复 Repository 基线设备测试失败。
 
@@ -19,19 +19,19 @@ Draft PR：#37
 Room：v7
 ```
 
-开始前和本轮续修前均已核验：
+已核验：
 
 1. PR #34、#35、#36 已真实合并；
-2. `main` 当前精确 SHA 仍为 `5ab0ac47e5e4de368a5771c6a5206f979dd8f1c9`；
+2. `main` 仍为上述 Base SHA；
 3. PR #37 保持 Draft；
-4. 当前没有其他开放 PR 修改 Repository、DAO 或目标测试文件；
-5. 分支相对 `main` 无落后提交。
+4. 没有其他开放 PR 修改相同 Repository、DAO 或测试文件；
+5. 开发分支相对 `main` 无落后提交。
 
 ## 二、RED 证据
 
-### 2.1 初始基线 RED
+### 2.1 初始基线
 
-PR #35、PR #36 的本地严格只读验收均只失败以下两项：
+PR #35 与 PR #36 的本地严格只读验收均只失败：
 
 ```text
 RoomJianyuRepositoryDatabaseTest
@@ -41,22 +41,22 @@ RoomJianyuRepositoryDatabaseTest
 #closedDatabaseReturnsStorageFailureInsteadOfEmptyIssue
 ```
 
-已记录：
+实际统计：
 
 ```text
 PR #35：84 项，82 通过，2 失败，退出码 1
 PR #36：95 项，93 通过，2 失败，退出码 1
 ```
 
-### 2.2 PR #37 第一轮本地验收 RED
+### 2.2 PR #37 第一轮本地验收
 
-精确验收 Head：
+精确 Head：
 
 ```text
 6de37901b53ba2158c4f868c72c60e62c48d4b83
 ```
 
-真实设备：
+设备：
 
 ```text
 emulator-5554
@@ -67,11 +67,11 @@ API 28
 结果：
 
 ```text
-runAndParticipantsAreAtomicAndIdempotencyKeyDetectsConflict：1/1 PASS
-closedDatabaseReturnsStorageFailureInsteadOfEmptyIssue：FAIL
-closedFileDatabaseReturnsStorageFailureInsteadOfEmptyIssue：FAIL
-RoomJianyuRepositoryDatabaseTest：15/17 通过，2/17 失败
-全量 connectedDebugAndroidTest：99/101 通过，2/101 失败，退出码 1
+Run 幂等冲突目标测试：1/1 PASS
+内存数据库关闭测试：FAIL
+文件数据库关闭测试：FAIL
+完整 RoomJianyuRepositoryDatabaseTest：15/17 通过
+全量 connectedDebugAndroidTest：99/101 通过，2 失败，退出码 1
 ```
 
 失败断言：
@@ -81,7 +81,7 @@ RoomJianyuRepositoryDatabaseTest.kt:344
 RoomJianyuRepositoryDatabaseTest.kt:373
 ```
 
-两个关闭测试的实际结果均为：
+两项关闭测试实际均返回：
 
 ```text
 RepositoryError.NotFound
@@ -93,13 +93,13 @@ RepositoryError.NotFound
 RepositoryError.StorageFailure
 ```
 
-该设备证据证明第一轮方案 B 不成立，必须继续修复，不能标记 Ready 或启动 PR09-07。
+该结果真实证明“只调整测试打开顺序”不足，PR 不得标记 Ready，也不得启动 PR09-07。
 
 ## 三、问题一：Run 幂等冲突
 
 ### 3.1 根因
 
-原冲突请求只替换 `ExecutionRunEntity.id`，参与者仍指向原 Run：
+原测试只替换 Run ID，参与者仍指向原 Run：
 
 ```text
 ExecutionRun(id = run-other, idempotencyKey = run-key-1)
@@ -113,11 +113,11 @@ ExecutionRun(id = run-other, idempotencyKey = run-key-1)
 require(command.participants.all { it.runId == command.run.id })
 ```
 
-请求因此在幂等比较前被映射为 `ConstraintViolation`，原测试却断言 `IdempotencyConflict`。
+因此请求在幂等比较前被映射为 `ConstraintViolation`，原测试却断言 `IdempotencyConflict`。
 
 ### 3.2 修复
 
-测试夹具现在让 Run 和参与者使用同一目标 `runId`，并分别覆盖：
+测试夹具现在让 Run 与参与者使用同一目标 `runId`，并分别验证：
 
 1. 完全相同请求：幂等成功；
 2. 同一幂等键、合法不同 payload：`IdempotencyConflict`；
@@ -125,178 +125,195 @@ require(command.participants.all { it.runId == command.run.id })
 4. 错配请求不写入新 Run 或孤儿参与者；
 5. 原 Run、参与者和 Stage 保持不变。
 
-### 3.3 验证状态
+### 3.3 已有验证
 
-第一轮本地验收已真实执行并通过：
+第一轮本地验收已真实通过：
 
 ```text
 runAndParticipantsAreAtomicAndIdempotencyKeyDetectsConflict：1/1 PASS
 runParticipantRelationMismatchReturnsConstraintViolationWithoutWrites：PASS
 ```
 
-本轮续修不得改写或削弱这部分断言。
+最新 Head 仍需重新执行，不能复用旧结果。
 
 ## 四、问题二：关闭数据库后的恢复错误
 
-### 4.1 第一轮判断
+### 4.1 真实根因
 
-第一轮认为测试只需先真实打开数据库再关闭，由现有 `withTransaction` 抛出异常并映射为 `StorageFailure`。
+内存数据库与文件数据库行为一致：
 
-该判断已被真实设备证伪。
-
-### 4.2 真实根因
-
-内存数据库与文件数据库均表现一致：
-
-1. 数据库被打开；
-2. `database.close()` 后 `database.isOpen == false`；
-3. Repository 再次执行 `database.withTransaction`；
+1. 调用 `database.close()`；
+2. `database.isOpen` 变为 `false`；
+3. Repository 随后调用 `withTransaction`；
 4. Room 的 OpenHelper 按需重新建立连接；
-5. 内存数据库成为新的空库，文件数据库重新打开原文件；
+5. 内存库成为新的空库，文件库重新打开原文件；
 6. `getIssue(issueId)` 返回 `null`；
-7. Repository 将其解释为 `NotFound`。
+7. Repository 将关闭状态误解释为 `NotFound`。
 
-因此仅依赖 Room 抛异常无法冻结“显式关闭后不可继续使用”的 Repository 契约。
+这说明 `isOpen` 只能表示当前连接是否打开，不能证明该数据库实例是否已经被调用方显式关闭。
 
-### 4.3 冻结语义
+### 4.2 冻结语义
 
 ```text
-Repository 首次访问尚未打开的数据库
+新建但尚未首次打开的数据库实例
 → 允许 Room 惰性打开
 
 打开且为空的可用数据库
 → RepositoryError.NotFound
 
-同一 Repository 已成功进入过数据库事务，随后数据库关闭
+数据库实例已经显式调用 close()
 → RepositoryError.StorageFailure
 
-关闭后不得由 Repository 自动重开并伪装为空议题
+显式关闭后 Repository 不得触发 OpenHelper 自动重开
 ```
+
+显式关闭是该数据库实例的终止状态。需要继续使用存储时，应创建新的数据库实例，而不是复用已关闭实例。
 
 ## 五、方案比较
 
-### 方案 A：每次事务前直接检查 `database.isOpen`
+### 方案 A：事务前直接检查 `database.isOpen`
 
 不采用。
 
-原因：
+新建 Room 实例在首次访问前通常 `isOpen == false`，直接检查会误伤正常首次惰性打开，也无法区分“尚未打开”和“已经关闭”。
 
-- 新建 Room 实例在首次访问前通常 `isOpen == false`；
-- 直接检查会把正常首次惰性打开错误映射为 `StorageFailure`；
-- 无法区分“从未打开”和“使用后关闭”。
+### 方案 B：只修测试，先打开再关闭
 
-### 方案 B：只修正测试，先打开后关闭
-
-已在第一轮采用，现被设备证据否决。
-
-真实结果：
+已被第一轮真实设备验收否决。
 
 ```text
-内存库关闭后自动重新打开 → NotFound
-文件库关闭后自动重新打开 → NotFound
+内存库关闭后被自动重开 → NotFound
+文件库关闭后被自动重开 → NotFound
 ```
 
-### 方案 C：事务协调器记录已进入事务状态
+### 方案 C：事务协调器只记录是否曾进入事务
 
-采用。
+曾作为中间方案，但不作为最终方案。
 
-`JianyuRepositoryTransactions` 使用进程内原子状态记录该 Repository 是否已经真实进入过 Room 事务：
+它能覆盖“使用后关闭”，却不能严格覆盖“数据库在 Repository 首次访问前就已经显式关闭”的原始契约，也不能让多个 Repository 实例共享同一数据库关闭状态。
+
+### 方案 D：数据库实例记录显式关闭状态，事务入口统一门禁
+
+最终采用。
+
+`RoundtableDatabase` 增加进程内原子关闭标记：
 
 ```text
-初始 database.isOpen == false 且未进入事务
-→ 允许首次访问
+构建完成：isExplicitlyClosed = false
+调用 close()：先原子设置 true，再执行 super.close()
+```
 
-进入 withTransaction 后
-→ databaseWasOpened = true
+`JianyuRepositoryTransactions.transactionRaw()` 在进入 Room 前检查：
 
-后续 databaseWasOpened == true 且 database.isOpen == false
-→ 在进入 Room 前返回 StorageFailure
+```text
+isExplicitlyClosed == true
+→ 抛出内部 RepositoryStorageUnavailableAbort
+→ 外层 execute(operation) 映射为 StorageFailure
 ```
 
 选用理由：
 
-1. 保留 Room 首次惰性打开；
-2. 不依赖反射或 Room 私有字段；
-3. 不修改 `RoundtableDatabase`、Entity、Migration 或 Schema；
-4. 不创建测试专用生产接口；
-5. 同时适用于当前内存库与文件库测试；
-6. 当前项目没有配置 Room auto-close；若未来引入 auto-close，必须重新评估该门禁。
+1. 精确区分“尚未打开”和“已经显式关闭”；
+2. 覆盖关闭发生在 Repository 首次访问之前的情况；
+3. 多个 Repository 共享同一数据库实例时看到一致关闭状态；
+4. 门禁位于唯一原始事务入口，不存在 `transactionRaw` 旁路；
+5. 保留准确的 Repository operation；
+6. 不依赖反射或 Room 私有字段；
+7. 不修改 Entity、Migration、数据库版本或 Schema；
+8. 不创建测试专用生产接口。
 
-### 方案 D：在 `RoundtableDatabase.close()` 中维护显式关闭标记
+## 六、生产实现边界
 
-不采用。
+### 6.1 `RoundtableDatabase`
 
-原因：
-
-- 会把 Repository 专属错误语义扩散到通用数据库基类；
-- 修改范围大于当前根因所需；
-- 当前测试和生产调用均使用同一 `RoomJianyuRepository` 实例，事务协调器可以建立足够明确的生命周期边界。
-
-## 六、竞态与取消语义
-
-### 6.1 关闭竞态
-
-`databaseWasOpened` 在 `withTransaction` 已进入后、执行领域 block 前设置。
-
-线性化规则：
-
-- 已经进入事务的操作视为在关闭之前开始，可由 Room 自身锁完成或失败；
-- `close()` 返回后发起的新 Repository 操作看到 `databaseWasOpened == true` 且 `isOpen == false`，直接返回 `StorageFailure`；
-- 门禁不会主动重新打开数据库。
-
-### 6.2 协程取消
-
-关闭状态门禁返回普通 `RepositoryResult.Failure`，不捕获或转换协程取消。
-
-进入事务后的 `CancellationException` 仍由 `execute()` 原样抛出。
-
-### 6.3 其他异常映射
-
-保持：
+仅增加：
 
 ```text
+AtomicBoolean 显式关闭标记
+internal 只读 isExplicitlyClosed
+final override close()
+```
+
+不得修改：
+
+```text
+@Database entities
+version = 7
+TypeConverters
+Migration 1→7
+DAO 声明
+数据库名称
+种子数据
+Schema
+```
+
+### 6.2 `JianyuRepositoryTransactions`
+
+`transactionRaw()` 是所有 Repository 数据库事务的最低入口。
+
+关闭时抛出的内部异常由 `execute(operation)` 映射为：
+
+```text
+RepositoryError.StorageFailure(operation, retryable = true)
+```
+
+普通 `transaction()` 路径和 `ResourceRepositoryComponent` 中“外部校验后调用 `transactionRaw()`”的路径均受同一门禁保护。
+
+### 6.3 异常和取消语义
+
+保持不变：
+
+```text
+CancellationException → 原样抛出
 SQLiteConstraintException → ConstraintViolation
 SQLiteException → StorageFailure
 IllegalArgumentException → ConstraintViolation
 IllegalStateException → StorageFailure
-CancellationException → 原样抛出
 ```
+
+关闭门禁不捕获或转换协程取消。
 
 ## 七、测试设计
 
-目标类继续保持 17 项 `@Test`，不通过增加重复测试制造数量。
+目标类保持 17 项 `@Test`，不通过增加重复测试制造通过数量。
 
 关键覆盖：
 
-1. 首次 Repository 访问前数据库未打开；
+1. 新建数据库 `isOpen == false` 且 `isExplicitlyClosed == false`；
 2. 首次 `recoverIssue()` 允许惰性打开并返回 `NotFound`；
-3. 该访问真实进入事务并建立已打开状态；
-4. 关闭内存数据库后恢复返回 `StorageFailure`；
-5. 关闭文件数据库后恢复返回 `StorageFailure`；
-6. 两项关闭测试断言 Repository 调用后数据库仍未重新打开；
-7. 正常恢复、异常映射、取消传播和外键检查保持不变；
-8. Run 幂等修复继续通过。
+3. 首次访问不会设置显式关闭状态；
+4. 内存数据库在 Repository 首次访问前显式关闭；
+5. 关闭后恢复返回 `StorageFailure`；
+6. 关闭后的 Repository 调用不重新打开数据库；
+7. 文件数据库先正常打开并返回 `NotFound`；
+8. 文件数据库显式关闭后返回 `StorageFailure`；
+9. 文件数据库关闭后保持未打开；
+10. Run 幂等和关系约束继续通过；
+11. SQLite 错误映射、取消传播和外键检查继续通过；
+12. 正常 `recoverIssue()` 和其他 Repository 操作不变。
 
 ## 八、修改文件
 
-本轮允许且实际修改：
+允许且实际修改：
 
 ```text
+app/src/main/java/com/elio/jianyu/data/RoundtableDatabase.kt
 app/src/main/java/com/elio/jianyu/data/JianyuRepositoryTransactions.kt
 app/src/androidTest/java/com/elio/jianyu/data/RoomJianyuRepositoryDatabaseTest.kt
 docs/planning/pr-09-repository-baseline-fix-plan.md
 docs/testing/pr-09-repository-baseline-local-readonly-acceptance-prompt.md
 ```
 
-继续禁止修改：
+`RoundtableDatabase.kt` 只允许生命周期标记变化，不允许版本、Entity、Migration 或 Schema 变化。
+
+继续禁止：
 
 ```text
-RoundtableDatabase.kt 的版本、Entity、Migration 或构建配置
-app/schemas/
 IssueExecutionRepositoryComponent.kt
 LifecycleRecoveryRepositoryComponent.kt
 RoomJianyuRepository.kt
 JianyuRepositoryDao.kt
+app/schemas/
 App.kt
 导航
 Skill Catalog
@@ -310,9 +327,10 @@ Gemini
 
 ### RED
 
-真实 RED 为本地验收 Head `6de37901...`：
+最新可核验设备 RED：
 
 ```text
+Head 6de37901...
 内存关闭测试失败
 文件关闭测试失败
 完整类 15/17
@@ -324,30 +342,33 @@ Gemini
 最小生产修复：
 
 ```text
-JianyuRepositoryTransactions 增加 databaseWasOpened 原子状态
-首次事务内设置状态
-使用后关闭时在 withTransaction 前返回 StorageFailure
+数据库实例记录显式关闭状态
+唯一原始事务入口拒绝显式关闭实例
+内部关闭异常映射为 StorageFailure
 ```
 
-测试只调整数据库打开方式，使状态由 Repository 自身建立，而不是绕过协调器直接调用 OpenHelper。
+测试恢复并强化原始契约：内存库在 Repository 首次访问前关闭，文件库在正常使用后关闭。
 
 ### REFACTOR
 
-本轮不进行额外 Repository 重构。只有本地设备重新全绿后才评估是否需要整理注释或测试辅助函数。
+本轮不进行其他 Repository 重构。只有最新 Head 的设备测试全部绿色后，才考虑任何非必要整理。
 
 ## 十、Commit 边界
 
-已完成：
+续修主要 Commit：
 
 ```text
-ed1e8a043883931d7f67e9ea18fcb65af486dc96
-fix: 阻止Repository在数据库关闭后自动重开
+1709b071ea1fd0ca236c3c29f29f267c3ceaef28
+fix: 记录Room数据库显式关闭状态
 
-4a823e4e3a8f03a317a10d1d6c5aed3dc83521c1
-test: 验证Repository关闭状态门禁
+9c3a4b03f9a976b650580d03793473a25fe0a67e
+fix: 使用数据库显式关闭状态阻止事务重开
+
+91a8e9c5fef4ea268eb29d94facc9d42c41aca74
+test: 覆盖数据库首次访问前显式关闭语义
 ```
 
-文档更新单独提交，不与生产修复混合。
+此前中间方案 Commit 保留在 Draft PR 历史中，最终净差异以当前 Head 为准，不以中间提交内容作为最终设计。
 
 ## 十一、远端验证
 
@@ -376,47 +397,49 @@ test: 验证Repository关闭状态门禁
 2. Run 幂等冲突目标测试；
 3. 内存数据库关闭目标测试；
 4. 文件数据库关闭边界测试；
-5. 其余新增错误映射边界测试；
+5. 其余错误映射边界测试；
 6. 完整 `RoomJianyuRepositoryDatabaseTest`；
 7. 全量 `connectedDebugAndroidTest`；
 8. Room v7、Schema、外键、导航、Skill Catalog、Secret scan、工作区与 Head 复核。
 
-上一轮结果不得复用为本轮 GREEN。
+上一轮结果不得复用为最新 Head 的 GREEN。
 
 ## 十三、完成条件
 
 只有全部满足才算完成：
 
-1. Run 合法不同 payload 返回 `IdempotencyConflict`；
+1. 合法不同 Run payload 返回 `IdempotencyConflict`；
 2. Run/参与者关系错配返回 `ConstraintViolation` 且无写入；
 3. 首次空库访问返回 `NotFound`；
-4. 内存数据库关闭后返回 `StorageFailure`；
-5. 文件数据库关闭后返回 `StorageFailure`；
+4. Repository 首次访问前关闭的内存数据库返回 `StorageFailure`；
+5. 使用后关闭的文件数据库返回 `StorageFailure`；
 6. 关闭后的 Repository 调用不重新打开数据库；
 7. `CancellationException` 原样传播；
 8. 其他异常映射不变；
 9. Room 保持 v7；
-10. `app/schemas/` 无变化且不存在 `8.json`；
-11. 两项目标测试通过；
-12. 完整测试类 17/17 通过；
-13. 全量 Instrumentation 零失败；
-14. GitHub CI 通过；
-15. 工作区干净、Head 精确一致；
-16. Draft PR 保持 Draft；
-17. PR09-07 未启动。
+10. Entity、Migration 和 `app/schemas/` 无变化；
+11. 不存在 `8.json`；
+12. 目标测试全部通过；
+13. 完整测试类 17/17 通过；
+14. 全量 Instrumentation 零失败；
+15. GitHub CI 通过；
+16. 工作区干净、Head 精确一致；
+17. Draft PR 保持 Draft；
+18. PR09-07 未启动。
 
 ## 十四、风险与回滚
 
 风险：
 
-- 当前门禁把“同一 Repository 已使用后数据库变为关闭”视为终止存储状态；未来若项目引入 Room auto-close，必须调整该契约；
-- 新建另一个 Room 数据库实例属于新的存储生命周期，不受旧实例状态影响；
-- 方法过滤格式继续以本地 Android Test Runner 实际支持为准。
+- 显式 `close()` 被定义为数据库实例终止状态；后续若需要恢复存储，必须创建新实例；
+- 当前实现没有启用 Room auto-close；未来若引入自动关闭机制，必须区分框架自动关闭与调用方显式关闭并重新评估；
+- 本地方法过滤格式仍以实际 Android Test Runner 支持为准。
 
 回滚：
 
-- 回滚本轮生产与测试两个 Commit 即可恢复第一轮状态；
-- 本轮不修改 Entity、Migration、Schema 或用户数据格式；
+- 整体回滚 PR #37 可恢复原基线；
+- 仅回滚本轮三个主要代码/测试 Commit 可恢复第一轮 Draft 状态；
+- 本轮没有修改 Entity、Migration、Schema 或用户数据格式；
 - 不需要数据迁移或用户数据回滚。
 
 ## 十五、PR09-07 启动门禁
