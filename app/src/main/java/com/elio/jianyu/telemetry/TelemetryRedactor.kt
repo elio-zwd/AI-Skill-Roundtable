@@ -5,7 +5,7 @@ object TelemetryRedactor {
     private val jwtPattern = Regex("\\beyJ[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\b")
     private val bearerPattern = Regex("(?i)(Bearer\\s+)[A-Za-z0-9._~+/=-]{8,}")
     private val queryKeyPattern = Regex("(?i)((?:^|[?&\\s])(?:key|api_key|access_token)=)[^&\\s]+")
-    private val credentialFieldPattern = Regex("(?i)([\\\"']?(?:key|api[_-]?key|access[_-]?token|authorization|secret)[\\\"']?\\s*[:=]\\s*[\\\"']?)([^\\\"',\\s}]+)")
+    private val credentialFieldPattern = Regex("(?i)([\\\"']?(?:key|key[_-]?id|api[_-]?key|access[_-]?token|authorization|secret)[\\\"']?\\s*[:=]\\s*[\\\"']?)([^\\\"',\\s}]+)")
     private val googleKeyPattern = Regex("\\bAIza[A-Za-z0-9_-]{20,}\\b")
     private val githubTokenPattern = Regex("\\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})\\b")
     private val emailPattern = Regex("(?i)\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b")
