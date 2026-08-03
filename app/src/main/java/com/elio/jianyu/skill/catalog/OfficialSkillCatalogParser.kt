@@ -3,6 +3,7 @@ package com.elio.jianyu.skill.catalog
 import android.content.Context
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 
 object OfficialSkillCatalogParser {
@@ -23,7 +24,9 @@ object OfficialSkillCatalogParser {
     ): OfficialSkillCatalogLoadResult {
         return try {
             val text = context.assets.open(assetPath).use { stream ->
-                BufferedReader(InputStreamReader(stream, Charsets.UTF_8)).use(BufferedReader::readText)
+                BufferedReader(InputStreamReader(stream, Charsets.UTF_8)).use { reader ->
+                    reader.readText()
+                }
             }
             parse(text)
         } catch (error: Exception) {
