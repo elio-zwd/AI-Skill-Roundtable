@@ -1,7 +1,6 @@
 package com.elio.jianyu.ui
 
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
