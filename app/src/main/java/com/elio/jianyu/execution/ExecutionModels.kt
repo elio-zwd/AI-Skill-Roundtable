@@ -1,16 +1,6 @@
 package com.elio.jianyu.execution
 
-/** 可持久化的单个参与者运行状态。 */
-enum class ExecutionParticipantStatus(val storageValue: String) {
-    QUEUED("queued"),
-    RUNNING("running"),
-    STREAMING("streaming"),
-    SUCCEEDED("succeeded"),
-    FAILED("failed"),
-    TIMED_OUT("timed_out"),
-    STOPPED("stopped"),
-    RETRYABLE("retryable"),
-}
+typealias ExecutionParticipantStatus = com.elio.jianyu.data.ExecutionParticipantStatus
 
 enum class ExecutionBudgetCallKind {
     REQUIRED,
