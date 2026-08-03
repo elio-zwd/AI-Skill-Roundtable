@@ -1,5 +1,6 @@
 package com.elio.jianyu.execution
 
+import com.elio.jianyu.data.ExecutionRunStatus
 import com.elio.jianyu.data.ExecutionRuntimeBudgetConfig
 import com.elio.jianyu.data.ExecutionRuntimeSnapshot
 import java.nio.ByteBuffer
@@ -37,6 +38,9 @@ data class ExecutionFailure(
         get() = code.retryable
 }
 
+/** PR09-09 及后续调用方使用的稳定错误名称。 */
+typealias ExecutionError = ExecutionFailure
+
 class NoExecutionApiKeyException : IllegalStateException("No imported API key is available")
 class ExecutionBudgetExhaustedException : IllegalStateException("Execution budget is exhausted")
 class ExecutionSafetyBlockedException : IllegalStateException("Provider blocked the request")
@@ -59,6 +63,58 @@ data class ExecutionBudgetSnapshot(
     val remainingApiCalls: Int
         get() = maxApiCalls - usedApiCalls
 }
+
+data class ExecutionParticipantResult(
+    val participantSnapshotId: String,
+    val status: ExecutionParticipantStatus,
+    val attemptCount: Int,
+    val outputMessageId: Long?,
+    val hasIncompleteOutput: Boolean,
+    val error: ExecutionError?,
+)
+
+data class ExecutionRecoverySnapshot(
+    val runId: String,
+    val runStatus: ExecutionRunStatus,
+    val participants: List<ExecutionParticipantResult>,
+    val budget: ExecutionBudgetSnapshot,
+    val requiresExplicitRetry: Boolean,
+)
+
+fun ExecutionRuntimeSnapshot.toExecutionRecoverySnapshot(): ExecutionRecoverySnapshot =
+    ExecutionRecoverySnapshot(
+        runId = run.id,
+        runStatus = run.status,
+        participants = participantStates.map { state ->
+            ExecutionParticipantResult(
+                participantSnapshotId = state.participantSnapshotId,
+                status = state.status,
+                attemptCount = state.attemptCount,
+                outputMessageId = state.outputMessageId,
+                hasIncompleteOutput = state.hasIncompleteOutput,
+                error = state.lastErrorCode?.let { storedCode ->
+                    val code = ExecutionErrorCode.entries.firstOrNull {
+                        it.storageValue == storedCode
+                    } ?: ExecutionErrorCode.PROVIDER_ERROR
+                    ExecutionFailure(
+                        code = code,
+                        safeMessage = state.lastErrorMessage.orEmpty(),
+                    )
+                },
+            )
+        },
+        budget = ExecutionBudgetSnapshot(
+            rootRunId = budget.rootRunId,
+            maxApiCalls = budget.maxApiCalls,
+            usedApiCalls = budget.usedApiCalls,
+            reservedRequiredCalls = budget.reservedRequiredCalls,
+            closed = budget.closed,
+        ),
+        requiresExplicitRetry = run.status in setOf(
+            ExecutionRunStatus.RETRYABLE,
+            ExecutionRunStatus.STOPPED,
+        ),
+    )
 
 data class ExecutionContextContribution(
     val sourceId: String,
