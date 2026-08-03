@@ -9,7 +9,9 @@ import com.elio.jianyu.ui.components.JianyuStateCard
 object SettingsShellTestTags {
     const val SCREEN = "settings_screen"
     const val API_KEYS_ENTRY = "settings_api_keys_entry"
+    const val API_KEYS_ACTION = "settings_api_keys_action"
     const val TELEMETRY_ENTRY = "settings_telemetry_entry"
+    const val TELEMETRY_ACTION = "settings_telemetry_action"
 }
 
 @Composable
@@ -35,12 +37,14 @@ fun SettingsScreen(
         title = "设置",
         subtitle = "全局能力与本地控制",
         onBack = onBack,
+        contentScrollable = true,
         modifier = Modifier.testTag(SettingsShellTestTags.SCREEN),
     ) {
         JianyuStateCard(
             title = "API Key",
             message = "管理用户自行导入的 BYOK Key 池。",
             actionLabel = "进入",
+            actionTestTag = SettingsShellTestTags.API_KEYS_ACTION,
             onAction = onOpenApiKeys,
             modifier = Modifier.testTag(SettingsShellTestTags.API_KEYS_ENTRY),
         )
@@ -48,6 +52,7 @@ fun SettingsScreen(
             title = "Telemetry",
             message = "查看和配置遥测与诊断。",
             actionLabel = "进入",
+            actionTestTag = SettingsShellTestTags.TELEMETRY_ACTION,
             onAction = onOpenTelemetry,
             modifier = Modifier.testTag(SettingsShellTestTags.TELEMETRY_ENTRY),
         )
