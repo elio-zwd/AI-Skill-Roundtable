@@ -58,6 +58,10 @@ class ExecutionRuntimeMigrationTest {
         assertEquals(1, count(migrated, "execution_participant_snapshots"))
         assertEquals(0, count(migrated, "execution_participant_states"))
         assertEquals(0, count(migrated, "execution_run_budgets"))
+        assertIndex(
+            migrated,
+            "index_execution_participant_states_participantSnapshotId_runId",
+        )
         assertIndex(migrated, "index_execution_participant_states_runId")
         assertIndex(migrated, "index_execution_participant_states_runId_status")
         assertIndex(migrated, "index_execution_participant_states_outputMessageId")
