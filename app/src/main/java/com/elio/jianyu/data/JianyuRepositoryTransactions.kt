@@ -23,11 +23,6 @@ internal class JianyuRepositoryTransactions(
         operation: String,
         block: suspend JianyuRepositoryDao.() -> RepositoryResult<T>
     ): RepositoryResult<T> {
-        if (databaseWasOpened.get() && !database.isOpen) {
-            return RepositoryResult.Failure(
-                RepositoryError.StorageFailure(operation, retryable = true)
-            )
-        }
         return execute(operation) {
             transactionRaw(block)
         }
@@ -44,6 +39,10 @@ internal class JianyuRepositoryTransactions(
         } catch (error: RepositoryCompatibilityAbort) {
             RepositoryResult.Failure(
                 RepositoryError.CompatibilityFailure(operation, error.code)
+            )
+        } catch (error: RepositoryStorageUnavailableAbort) {
+            RepositoryResult.Failure(
+                RepositoryError.StorageFailure(operation, retryable = true)
             )
         } catch (error: SQLiteConstraintException) {
             RepositoryResult.Failure(
@@ -71,6 +70,9 @@ internal class JianyuRepositoryTransactions(
     suspend fun <T> transactionRaw(
         block: suspend JianyuRepositoryDao.() -> RepositoryResult<T>
     ): RepositoryResult<T> {
+        if (databaseWasOpened.get() && !database.isOpen) {
+            throw RepositoryStorageUnavailableAbort()
+        }
         return database.withTransaction {
             databaseWasOpened.set(true)
             dao.block()
@@ -81,3 +83,5 @@ internal class JianyuRepositoryTransactions(
 internal class RepositoryCompatibilityAbort(
     val code: String
 ) : RuntimeException()
+
+internal class RepositoryStorageUnavailableAbort : RuntimeException()
