@@ -81,10 +81,7 @@ internal fun OfficialSkillCatalogScreen(
                 if (uiState.section == OfficialSkillCatalogSection.COMBINATIONS) {
                     OfficialSkillCombinationList(
                         combinations = uiState.combinations,
-                        catalogSkills = uiState.visibleSkills,
-                        allCatalogSkills = uiState.selectedSkill
-                            ?.let(::listOf)
-                            .orEmpty(),
+                        catalogSkills = uiState.allSkills.ifEmpty { uiState.visibleSkills },
                         isLoading = uiState.combinationsLoading,
                         error = uiState.combinationError,
                         onCreate = {
@@ -143,7 +140,7 @@ internal fun OfficialSkillCatalogScreen(
     uiState.combinationEditor?.let { editor ->
         OfficialSkillCombinationEditorDialog(
             editor = editor,
-            catalogSkills = uiState.visibleSkills,
+            catalogSkills = uiState.allSkills.ifEmpty { uiState.visibleSkills },
             onEvent = onEvent,
         )
     }
