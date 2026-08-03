@@ -6,6 +6,7 @@ import com.elio.jianyu.data.CreateExecutionRuntimeCommand
 import com.elio.jianyu.data.ExecutionParticipantStateEntity
 import com.elio.jianyu.data.ExecutionRunBudgetEntity
 import com.elio.jianyu.data.ExecutionRunEntity
+import com.elio.jianyu.data.ExecutionRunStatus
 import com.elio.jianyu.data.ExecutionRuntimeSnapshot
 import com.elio.jianyu.data.IssueRecoverySnapshot
 import com.elio.jianyu.data.JianyuRepository
@@ -100,7 +101,31 @@ class JianyuExecutionPersistenceGateway(
 
     override suspend fun recoverInterrupted(
         command: RecoverInterruptedExecutionCommand,
-    ): ExecutionRuntimeSnapshot = repository.recoverInterruptedExecution(command).valueOrThrow()
+    ): ExecutionRuntimeSnapshot {
+        val recovered = repository.recoverInterruptedExecution(command).valueOrThrow()
+        if (
+            recovered.run.status == ExecutionRunStatus.RUNNING ||
+            recovered.run.status == ExecutionRunStatus.PARTIAL_SUCCESS
+        ) {
+            repository.transitionRun(
+                TransitionRunCommand(
+                    runId = command.runId,
+                    expectedStatuses = setOf(
+                        ExecutionRunStatus.RUNNING,
+                        ExecutionRunStatus.PARTIAL_SUCCESS,
+                    ),
+                    newStatus = ExecutionRunStatus.RETRYABLE,
+                    updatedAt = command.updatedAt,
+                    startedAt = recovered.run.startedAt,
+                    finishedAt = command.updatedAt,
+                    failureCode = ExecutionErrorCode.PROCESS_INTERRUPTED.storageValue,
+                    failureMessage = "运行被系统中断，可由用户显式重试。",
+                ),
+            ).valueOrThrow()
+            return repository.getExecutionRuntime(command.runId).valueOrThrow()
+        }
+        return recovered
+    }
 }
 
 class ExecutionRepositoryException(
