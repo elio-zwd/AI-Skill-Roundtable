@@ -24,6 +24,19 @@ enum class ExecutionErrorCode(val storageValue: String, val retryable: Boolean) 
     PROCESS_INTERRUPTED("process_interrupted", true),
 }
 
+data class ExecutionFailure(
+    val code: ExecutionErrorCode,
+    val safeMessage: String,
+) {
+    val retryable: Boolean
+        get() = code.retryable
+}
+
+class NoExecutionApiKeyException : IllegalStateException("No imported API key is available")
+class ExecutionBudgetExhaustedException : IllegalStateException("Execution budget is exhausted")
+class ExecutionSafetyBlockedException : IllegalStateException("Provider blocked the request")
+class ExecutionEmptyResponseException : IllegalStateException("Provider returned no model text")
+
 data class ExecutionBudgetSnapshot(
     val rootRunId: String,
     val maxApiCalls: Int,
