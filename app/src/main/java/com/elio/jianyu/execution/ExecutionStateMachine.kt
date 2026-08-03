@@ -68,6 +68,7 @@ object ExecutionStateMachine {
                 it == ExecutionParticipantStatus.STREAMING
         }
         if (hasSuccess && hasActive) return ExecutionRunStatus.PARTIAL_SUCCESS
+        if (hasActive) return ExecutionRunStatus.RUNNING
         if (retryableParticipantIds.isNotEmpty()) return ExecutionRunStatus.RETRYABLE
         return ExecutionRunStatus.FAILED
     }
