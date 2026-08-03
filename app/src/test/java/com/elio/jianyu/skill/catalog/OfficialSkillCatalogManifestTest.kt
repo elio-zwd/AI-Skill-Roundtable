@@ -43,21 +43,36 @@ class OfficialSkillCatalogManifestTest {
 
     @Test
     fun manifest_mapsAll20HistoricalAssetsWithoutCopyingPrompts() {
-        val historicalIds = setOf(
-            "zhang_xuefeng", "elon_musk", "richard_feynman", "charlie_munger",
-            "naval_ravikant", "steve_jobs", "nassim_taleb", "andrej_karpathy",
-            "zhang_yiming", "paul_graham", "ilya_sutskever", "donald_trump",
-            "mr_beast", "justin_sun", "sigmund_freud", "x_mentor", "feng_ge",
-            "changpeng_zhao", "duan_yongping", "tim_cook",
+        val expectedAssetPaths = mapOf(
+            "zhang_xuefeng" to "skills/zhangxuefeng-skill-main/SKILL.md",
+            "elon_musk" to "skills/elon-musk-skill-main/SKILL.md",
+            "richard_feynman" to "skills/feynman-skill-main/SKILL.md",
+            "charlie_munger" to "skills/munger-skill-main/SKILL.md",
+            "naval_ravikant" to "skills/naval-skill-main/SKILL.md",
+            "steve_jobs" to "skills/steve-jobs-skill-main/SKILL.md",
+            "nassim_taleb" to "skills/taleb-skill-main/SKILL.md",
+            "andrej_karpathy" to "skills/karpathy-skill/SKILL.md",
+            "zhang_yiming" to "skills/zhang-yiming-skill/SKILL.md",
+            "paul_graham" to "skills/paul-graham-skill/SKILL.md",
+            "ilya_sutskever" to "skills/ilya-sutskever-skill/SKILL.md",
+            "donald_trump" to "skills/trump-skill/SKILL.md",
+            "mr_beast" to "skills/mrbeast-skill/SKILL.md",
+            "justin_sun" to "skills/sun-yuchen-perspective/SKILL.md",
+            "sigmund_freud" to "skills/freud-skill/SKILL.md",
+            "x_mentor" to "skills/x-mentor-skill/SKILL.md",
+            "feng_ge" to "skills/fengge-skill/SKILL.md",
+            "changpeng_zhao" to "skills/cz-skill/SKILL.md",
+            "duan_yongping" to "skills/duan-yongping-skill/SKILL.md",
+            "tim_cook" to "skills/tim-cook-skill/SKILL.md",
         )
-        val historical = catalog.skills.filter { it.id in historicalIds }
+        val historical = catalog.skills.filter { it.id in expectedAssetPaths.keys }
 
         assertEquals(20, historical.size)
         assertTrue(historical.all { it.availability.hasAsset })
         assertTrue(historical.all { it.availability.discoverable })
         assertTrue(historical.all { it.availability.searchable })
         assertTrue(historical.all { it.availability.recommendable })
-        assertTrue(historical.all { !it.assetPath.isNullOrBlank() })
+        assertEquals(expectedAssetPaths, historical.associate { it.id to it.assetPath })
         assertFalse(sourceText.contains("systemPrompt", ignoreCase = true))
     }
 
