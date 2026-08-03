@@ -136,6 +136,7 @@ data class OfficialSkillCatalogValidationIssue(
     val detail: String,
 )
 
+@Serializable
 data class RecentOfficialSkillUse(
     val skillId: String,
     val usedAt: Long,
