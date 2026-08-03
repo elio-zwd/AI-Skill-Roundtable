@@ -1,41 +1,99 @@
 package com.elio.jianyu.ui.navigation
 
 enum class AppDestination(
-    val route: String,
+    val routePattern: String,
+    val launchRoute: String,
     val label: String,
+    val testTagSuffix: String,
     val showsBottomNavigation: Boolean,
+    val isLegacyCompatibility: Boolean = false,
 ) {
-    ROUNDTABLE(
-        route = "roundtable",
-        label = "圆桌脑暴",
+    HOME(
+        routePattern = "home",
+        launchRoute = "home",
+        label = "首页",
+        testTagSuffix = "home",
         showsBottomNavigation = true,
+    ),
+    ISSUES(
+        routePattern = "issues",
+        launchRoute = JianyuNavigationRoutes.ISSUES_GRAPH,
+        label = "议题",
+        testTagSuffix = "issues",
+        showsBottomNavigation = true,
+    ),
+    SKILLS(
+        routePattern = "skills",
+        launchRoute = JianyuNavigationRoutes.SKILLS_GRAPH,
+        label = "Skill",
+        testTagSuffix = "skills",
+        showsBottomNavigation = true,
+    ),
+    RESOURCES(
+        routePattern = "resources?tab={tab}",
+        launchRoute = JianyuNavigationRoutes.resources(ResourceTab.MATERIALS),
+        label = "资料与成果",
+        testTagSuffix = "resources",
+        showsBottomNavigation = true,
+    ),
+    SETTINGS(
+        routePattern = "settings",
+        launchRoute = "settings",
+        label = "设置",
+        testTagSuffix = "settings",
+        showsBottomNavigation = false,
+    ),
+    ROUNDTABLE(
+        routePattern = "roundtable",
+        launchRoute = "roundtable",
+        label = "圆桌脑暴",
+        testTagSuffix = "legacy_roundtable",
+        showsBottomNavigation = false,
+        isLegacyCompatibility = true,
     ),
     CHARACTERS(
-        route = "characters",
+        routePattern = "characters",
+        launchRoute = "characters",
         label = "智囊大厅",
-        showsBottomNavigation = true,
+        testTagSuffix = "legacy_characters",
+        showsBottomNavigation = false,
+        isLegacyCompatibility = true,
     ),
     AUDIO_LIBRARY(
-        route = "audio-library",
+        routePattern = "audio-library",
+        launchRoute = "audio-library",
         label = "音频库",
-        showsBottomNavigation = true,
+        testTagSuffix = "legacy_audio_library",
+        showsBottomNavigation = false,
+        isLegacyCompatibility = true,
     ),
     API_KEYS(
-        route = "settings/api-keys",
+        routePattern = "settings/api-keys",
+        launchRoute = "settings/api-keys",
         label = "API Key 管理",
+        testTagSuffix = "api_keys",
         showsBottomNavigation = false,
     ),
     TELEMETRY(
-        route = "settings/telemetry",
+        routePattern = "settings/telemetry",
+        launchRoute = "settings/telemetry",
         label = "遥测与诊断",
+        testTagSuffix = "telemetry",
         showsBottomNavigation = false,
     ),
     ;
 
     companion object {
-        val startDestination: AppDestination = ROUNDTABLE
+        val startDestination: AppDestination = HOME
 
         val topLevelDestinations: List<AppDestination> = listOf(
+            HOME,
+            ISSUES,
+            SKILLS,
+            RESOURCES,
+        )
+
+        val legacyDestinations: List<AppDestination> = listOf(
             ROUNDTABLE,
             CHARACTERS,
             AUDIO_LIBRARY,
@@ -46,7 +104,7 @@ enum class AppDestination(
             TELEMETRY,
         )
 
-        fun fromRoute(route: String?): AppDestination? =
-            entries.firstOrNull { destination -> destination.route == route }
+        fun fromRoutePattern(routePattern: String?): AppDestination? =
+            entries.firstOrNull { destination -> destination.routePattern == routePattern }
     }
 }

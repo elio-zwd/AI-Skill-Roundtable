@@ -13,6 +13,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.ui.theme.SkillRoundtableTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -36,11 +37,26 @@ class AppNavHostTest {
             SkillRoundtableTheme {
                 AppNavHost(
                     navController = navController,
-                    roundtableContent = { DestinationMarker(AppDestination.ROUNDTABLE) },
-                    charactersContent = { DestinationMarker(AppDestination.CHARACTERS) },
-                    audioLibraryContent = { DestinationMarker(AppDestination.AUDIO_LIBRARY) },
-                    apiKeysContent = { DestinationMarker(AppDestination.API_KEYS) },
-                    telemetryContent = { DestinationMarker(AppDestination.TELEMETRY) },
+                    homeContent = { DestinationMarker(AppDestination.HOME.routePattern) },
+                    issuesContent = { DestinationMarker(AppDestination.ISSUES.routePattern) },
+                    issueContent = { issueId, stageId ->
+                        DestinationMarker(issueMarker(issueId, stageId))
+                    },
+                    skillsContent = { DestinationMarker(AppDestination.SKILLS.routePattern) },
+                    skillDetailContent = { skillId ->
+                        DestinationMarker(skillMarker(skillId))
+                    },
+                    resourcesContent = { tab ->
+                        DestinationMarker(resourcesMarker(tab))
+                    },
+                    settingsContent = { DestinationMarker(AppDestination.SETTINGS.routePattern) },
+                    roundtableContent = { DestinationMarker(AppDestination.ROUNDTABLE.routePattern) },
+                    charactersContent = { DestinationMarker(AppDestination.CHARACTERS.routePattern) },
+                    audioLibraryContent = {
+                        DestinationMarker(AppDestination.AUDIO_LIBRARY.routePattern)
+                    },
+                    apiKeysContent = { DestinationMarker(AppDestination.API_KEYS.routePattern) },
+                    telemetryContent = { DestinationMarker(AppDestination.TELEMETRY.routePattern) },
                 )
             }
         }
@@ -48,59 +64,159 @@ class AppNavHostTest {
     }
 
     @Test
-    fun coldStart_opensRoundtable() {
-        composeRule.onNodeWithTag(AppDestination.ROUNDTABLE.route).assertIsDisplayed()
-        assertCurrentDestination(AppDestination.ROUNDTABLE)
+    fun coldStart_opensHome() {
+        composeRule.onNodeWithTag(AppDestination.HOME.routePattern).assertIsDisplayed()
+        assertCurrentRoute(AppDestination.HOME.routePattern)
     }
 
     @Test
-    fun topLevelNavigation_switchesWithoutChangingRouteContract() {
+    fun topLevelNavigation_switchesAcrossFourDestinations() {
         composeRule.runOnIdle {
-            navController.navigateToTopLevel(AppDestination.CHARACTERS)
+            navController.navigateToTopLevel(AppDestination.ISSUES)
         }
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag(AppDestination.CHARACTERS.route).assertIsDisplayed()
-        assertCurrentDestination(AppDestination.CHARACTERS)
+        composeRule.onNodeWithTag(AppDestination.ISSUES.routePattern).assertIsDisplayed()
+        assertCurrentRoute(AppDestination.ISSUES.routePattern)
 
         composeRule.runOnIdle {
-            navController.navigateToTopLevel(AppDestination.AUDIO_LIBRARY)
+            navController.navigateToTopLevel(AppDestination.SKILLS)
         }
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag(AppDestination.AUDIO_LIBRARY.route).assertIsDisplayed()
-        assertCurrentDestination(AppDestination.AUDIO_LIBRARY)
+        composeRule.onNodeWithTag(AppDestination.SKILLS.routePattern).assertIsDisplayed()
+        assertCurrentRoute(AppDestination.SKILLS.routePattern)
+
+        composeRule.runOnIdle {
+            navController.navigateToTopLevel(AppDestination.RESOURCES)
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(resourcesMarker(ResourceTab.MATERIALS)).assertIsDisplayed()
+        assertCurrentRoute(AppDestination.RESOURCES.routePattern)
     }
 
     @Test
-    fun telemetryPath_returnsThroughApiKeysToRoundtable() {
+    fun repeatedTopLevelNavigation_doesNotCreateDuplicateDestination() {
         composeRule.runOnIdle {
+            navController.navigateToTopLevel(AppDestination.ISSUES)
+            navController.navigateToTopLevel(AppDestination.ISSUES)
+        }
+        composeRule.waitForIdle()
+        assertCurrentRoute(AppDestination.ISSUES.routePattern)
+
+        composeRule.runOnIdle {
+            assertTrue(navController.popBackStack())
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(AppDestination.HOME.routePattern).assertIsDisplayed()
+        assertCurrentRoute(AppDestination.HOME.routePattern)
+    }
+
+    @Test
+    fun settings_returnsToTheOriginTopLevelDestination() {
+        composeRule.runOnIdle {
+            navController.navigateToTopLevel(AppDestination.SKILLS)
+            navController.navigateToSecondary(AppDestination.SETTINGS)
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(AppDestination.SETTINGS.routePattern).assertIsDisplayed()
+        assertCurrentRoute(AppDestination.SETTINGS.routePattern)
+
+        composeRule.runOnIdle { navController.popBackStack() }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(AppDestination.SKILLS.routePattern).assertIsDisplayed()
+        assertCurrentRoute(AppDestination.SKILLS.routePattern)
+    }
+
+    @Test
+    fun issueRoute_passesStableIssueAndStageIds() {
+        composeRule.runOnIdle {
+            navController.navigateToIssue("issue-42", "stage-3")
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(issueMarker("issue-42", "stage-3")).assertIsDisplayed()
+        assertCurrentRoute(JianyuNavigationRoutes.ISSUE_DETAIL_PATTERN)
+
+        composeRule.runOnIdle { navController.popBackStack() }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(AppDestination.ISSUES.routePattern).assertIsDisplayed()
+        assertCurrentRoute(AppDestination.ISSUES.routePattern)
+    }
+
+    @Test
+    fun skillDetailRoute_passesStableOfficialSkillIdAndReturnsToCatalog() {
+        composeRule.runOnIdle {
+            navController.navigateToSkillDetail("zhang_xuefeng")
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(skillMarker("zhang_xuefeng")).assertIsDisplayed()
+        assertCurrentRoute(JianyuNavigationRoutes.SKILL_DETAIL_PATTERN)
+
+        composeRule.runOnIdle { navController.popBackStack() }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(AppDestination.SKILLS.routePattern).assertIsDisplayed()
+        assertCurrentRoute(AppDestination.SKILLS.routePattern)
+    }
+
+    @Test
+    fun resourcesRoute_selectsRequestedTabAndDefaultsToMaterials() {
+        composeRule.runOnIdle {
+            navController.navigate(JianyuNavigationRoutes.resources(ResourceTab.ARTIFACTS))
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(resourcesMarker(ResourceTab.ARTIFACTS)).assertIsDisplayed()
+
+        composeRule.runOnIdle {
+            navController.navigate("resources?tab=invalid")
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(resourcesMarker(ResourceTab.MATERIALS)).assertIsDisplayed()
+    }
+
+    @Test
+    fun legacyTelemetryPath_returnsThroughApiKeysToRoundtable() {
+        composeRule.runOnIdle {
+            navController.navigateToSecondary(AppDestination.ROUNDTABLE)
             navController.navigateToTelemetryFromRoundtable()
         }
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag(AppDestination.TELEMETRY.route).assertIsDisplayed()
-        assertCurrentDestination(AppDestination.TELEMETRY)
+        composeRule.onNodeWithTag(AppDestination.TELEMETRY.routePattern).assertIsDisplayed()
+        assertCurrentRoute(AppDestination.TELEMETRY.routePattern)
 
         composeRule.runOnIdle { navController.popBackStack() }
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag(AppDestination.API_KEYS.route).assertIsDisplayed()
-        assertCurrentDestination(AppDestination.API_KEYS)
+        composeRule.onNodeWithTag(AppDestination.API_KEYS.routePattern).assertIsDisplayed()
+        assertCurrentRoute(AppDestination.API_KEYS.routePattern)
 
         composeRule.runOnIdle { navController.popBackStack() }
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag(AppDestination.ROUNDTABLE.route).assertIsDisplayed()
-        assertCurrentDestination(AppDestination.ROUNDTABLE)
+        composeRule.onNodeWithTag(AppDestination.ROUNDTABLE.routePattern).assertIsDisplayed()
+        assertCurrentRoute(AppDestination.ROUNDTABLE.routePattern)
     }
 
-    private fun assertCurrentDestination(expected: AppDestination) {
+    private fun assertCurrentRoute(expectedRoutePattern: String) {
         composeRule.runOnIdle {
-            assertEquals(expected.route, navController.currentBackStackEntry?.destination?.route)
+            assertEquals(
+                expectedRoutePattern,
+                navController.currentBackStackEntry?.destination?.route,
+            )
         }
     }
 }
 
+private fun issueMarker(issueId: String?, stageId: String?): String =
+    "issue:${issueId.orEmpty()}:${stageId.orEmpty()}"
+
+private fun skillMarker(skillId: String?): String =
+    "skill:${skillId.orEmpty()}"
+
+private fun resourcesMarker(tab: ResourceTab): String =
+    "resources:${tab.routeValue}"
+
 @androidx.compose.runtime.Composable
-private fun DestinationMarker(destination: AppDestination) {
+private fun DestinationMarker(tag: String) {
     Text(
-        text = destination.label,
-        modifier = Modifier.testTag(destination.route),
+        text = tag,
+        modifier = Modifier.testTag(tag),
     )
 }
