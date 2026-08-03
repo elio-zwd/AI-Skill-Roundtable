@@ -21,6 +21,14 @@ class RoomJianyuRepository(
     private val lifecycleRecovery = LifecycleRecoveryRepositoryComponent(transactions)
 
     override suspend fun saveIssue(command: SaveIssueCommand): RepositoryResult<SavedIssue> {
+        if (command.issueId.startsWith(LEGACY_ISSUE_ID_PREFIX)) {
+            return RepositoryResult.Failure(
+                RepositoryError.ConstraintViolation(
+                    operation = "save_issue",
+                    constraintCode = "reserved_legacy_issue_id_prefix"
+                )
+            )
+        }
         return issueExecution.saveIssue(command)
     }
 
@@ -155,5 +163,9 @@ class RoomJianyuRepository(
         states: Set<IssueLifecycleState>
     ): RepositoryResult<List<IssueNavigationItem>> {
         return lifecycleRecovery.listIssueNavigation(states)
+    }
+
+    private companion object {
+        const val LEGACY_ISSUE_ID_PREFIX = "legacy-chat-"
     }
 }
