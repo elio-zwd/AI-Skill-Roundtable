@@ -46,6 +46,7 @@ class ExecutionRuntimeConverters {
         ),
     ],
     indices = [
+        Index(value = ["participantSnapshotId", "runId"]),
         Index(value = ["runId"]),
         Index(value = ["runId", "status"]),
         Index(value = ["outputMessageId"]),
