@@ -1,6 +1,6 @@
-# 见域 Repository 基线设备测试续修：本地 AI 严格只读复验 Prompt
+# 见域 Repository 基线设备测试最终续修：本地 AI 严格只读复验 Prompt
 
-你现在负责对 GitHub 仓库 `elio-zwd/AI-Skill-Roundtable` 的 Draft PR #37 最新 Head 进行第二轮严格只读验收。
+你现在负责对 GitHub 仓库 `elio-zwd/AI-Skill-Roundtable` 的 Draft PR #37 最新 Head 进行严格只读复验。
 
 目标分支：
 
@@ -11,13 +11,15 @@ fix/pr-09-repository-baseline-instrumentation
 本轮背景：
 
 ```text
-第一轮本地验收 Head：6de37901b53ba2158c4f868c72c60e62c48d4b83
-第一轮完整类：15/17 通过，2 失败
-第一轮全量 Instrumentation：99/101 通过，2 失败
-失败项：内存数据库关闭恢复、文件数据库关闭恢复
+第一轮验收 Head：6de37901b53ba2158c4f868c72c60e62c48d4b83
+Run 幂等冲突：PASS
+内存数据库关闭测试：FAIL
+文件数据库关闭测试：FAIL
+完整类：15/17 通过
+全量 Instrumentation：99/101 通过，2 失败
 ```
 
-远端已基于该真实 RED 继续修改生产事务门禁和测试。你必须以远端分支当前最新 Head 为准，上一轮结果不得作为本轮 GREEN 证据。
+远端已根据上述真实 RED 继续修复。你必须以远端分支当前最新 Head 为准，上一轮结果不得复用为本轮 GREEN。
 
 ## 一、严格只读纪律
 
@@ -25,9 +27,9 @@ fix/pr-09-repository-baseline-instrumentation
 
 ```text
 读取
-检出和同步
+同步和检出
 构建
-安装与卸载测试包
+安装或卸载测试包
 运行测试
 读取报告和日志
 输出验收报告
@@ -47,11 +49,11 @@ fix/pr-09-repository-baseline-instrumentation
 以本地补丁代替反馈失败
 ```
 
-发现问题时，只输出命令、退出码、设备信息、失败测试、关键堆栈、断言位置、复现步骤和根因线索。
+发现问题时，只输出命令、退出码、设备信息、失败测试、实际返回结果、关键堆栈、断言位置、复现步骤和根因线索。
 
 ## 二、记录环境
 
-在 PowerShell 7 中执行并保留完整输出：
+在 PowerShell 7 中执行并记录完整输出：
 
 ```powershell
 Get-CimInstance Win32_OperatingSystem |
@@ -70,9 +72,7 @@ Get-Date -Format "yyyy-MM-dd HH:mm:ss K"
 1. 使用 JDK 17；
 2. 只能有一个目标 Android 设备在线；
 3. 记录设备 ID、型号、Android 版本和 API Level；
-4. 设备离线、多设备冲突或 JDK 错误时停止测试并报告。
-
-设备信息命令：
+4. 设备离线、多设备冲突或 JDK 错误时停止并报告。
 
 ```powershell
 $DeviceLine = adb devices | Select-String "`tdevice$"
@@ -86,7 +86,7 @@ adb -s $Device shell getprop ro.build.version.release
 adb -s $Device shell getprop ro.build.version.sdk
 ```
 
-## 三、同步并锁定最新远端 Head
+## 三、同步并锁定最新 Head
 
 ```powershell
 git fetch origin --prune
@@ -113,7 +113,7 @@ if ($ActualHead -ne $ExpectedHead) {
 ```powershell
 git status --short
 git branch --show-current
-git log -12 --oneline --decorate
+git log -16 --oneline --decorate
 git diff --name-status origin/main...HEAD
 git diff --stat origin/main...HEAD
 git diff --check origin/main...HEAD
@@ -121,40 +121,39 @@ git diff --check origin/main...HEAD
 
 门禁：
 
-1. 分支必须精确为 `fix/pr-09-repository-baseline-instrumentation`；
+1. 分支必须精确为目标分支；
 2. `HEAD` 必须等于远端目标分支 Head；
-3. 初始 `git status --short` 必须无输出；
-4. Base 和 Merge Base 应为当前远端 `main`；
-5. `git diff --check` 退出码必须为 0。
+3. 初始工作区必须干净；
+4. Merge Base 必须是当前 `origin/main`；
+5. `git diff --check` 退出码为 0。
 
 净差异只能涉及：
 
 ```text
+app/src/main/java/com/elio/jianyu/data/RoundtableDatabase.kt
 app/src/main/java/com/elio/jianyu/data/JianyuRepositoryTransactions.kt
 app/src/androidTest/java/com/elio/jianyu/data/RoomJianyuRepositoryDatabaseTest.kt
 docs/planning/pr-09-repository-baseline-fix-plan.md
 docs/testing/pr-09-repository-baseline-local-readonly-acceptance-prompt.md
 ```
 
-不得出现：
+`RoundtableDatabase.kt` 只允许显式关闭生命周期标记相关变化。不得出现：
 
 ```text
-Entity
-Migration
-Database version
-app/schemas/
-RoundtableDatabase.kt
-导航
-Skill Catalog
-ViewModel
-Gemini
-执行调度
-资料、成果、音频、视觉或发布能力
+Entity 变化
+Migration 变化
+version 变化
+DAO 接口变化
+数据库名变化
+app/schemas/ 变化
+导航或 Skill Catalog 变化
+ViewModel、Gemini、执行调度变化
+资料、成果、音频、视觉或发布变化
 ```
 
-若远端分支在验收期间发生变化，立即停止，记录旧 Head 和新 Head，不沿用旧结果。
+若远端分支在验收期间变化，立即停止并记录新旧 Head。
 
-## 四、读取规则与相关实现
+## 四、读取规则与相关文件
 
 完整读取：
 
@@ -165,53 +164,70 @@ docs/planning/pr-09-jianyu-implementation-plan.md
 docs/planning/pr-09-03-repository-recovery-plan.md
 docs/planning/pr-09-03-interface-handoff.md
 docs/planning/pr-09-repository-baseline-fix-plan.md
+app/src/main/java/com/elio/jianyu/data/RoundtableDatabase.kt
 app/src/main/java/com/elio/jianyu/data/JianyuRepositoryTransactions.kt
 app/src/main/java/com/elio/jianyu/data/IssueExecutionRepositoryComponent.kt
 app/src/main/java/com/elio/jianyu/data/LifecycleRecoveryRepositoryComponent.kt
+app/src/main/java/com/elio/jianyu/data/ResourceRepositoryComponent.kt
 app/src/main/java/com/elio/jianyu/data/RoomJianyuRepository.kt
 app/src/main/java/com/elio/jianyu/data/JianyuRepositoryDao.kt
-app/src/main/java/com/elio/jianyu/data/RoundtableDatabase.kt
 app/src/androidTest/java/com/elio/jianyu/data/RoomJianyuRepositoryDatabaseTest.kt
 ```
 
 ## 五、静态语义核验
 
-### 5.1 Run 幂等语义
+### 5.1 Run 幂等冲突
 
 确认：
 
 1. 合法冲突请求使用相同 `idempotencyKey` 和不同 Run ID；
-2. 参与者 `runId` 与新 Run ID 一致；
+2. 参与者全部指向新 Run；
 3. 合法不同 payload 断言 `IdempotencyConflict`；
-4. 独立关系错配断言 `ConstraintViolation`；
-5. 错配请求不写入新 Run 或孤儿参与者；
+4. 关系错配独立断言 `ConstraintViolation`；
+5. 错配不写入新 Run 或孤儿参与者；
 6. 生产关系约束未删除或绕过。
 
-### 5.2 数据库关闭门禁
+### 5.2 数据库实例显式关闭状态
 
-确认 `JianyuRepositoryTransactions`：
+确认 `RoundtableDatabase.kt`：
 
-1. 使用进程内原子状态记录数据库是否已真实进入过事务；
-2. 初始未打开数据库仍允许首次惰性访问；
-3. 原子状态在真实进入 `withTransaction` 后设置；
-4. 已进入过事务且 `database.isOpen == false` 时，在再次进入 Room 前返回 `StorageFailure`；
-5. 不通过反射访问 Room 私有字段；
-6. 不修改 `RoundtableDatabase`；
-7. 不捕获或转换 `CancellationException`；
-8. 不改变 SQLite 约束和普通存储异常映射。
+1. 使用线程安全的进程内标记记录显式关闭；
+2. 新建数据库实例初始不是显式关闭；
+3. `close()` 在调用 `super.close()` 前设置显式关闭；
+4. 标记一旦设置不会在同一实例上复位；
+5. `version` 仍精确为 7；
+6. Entity、Migration、DAO、数据库名称和 Schema 契约未改变。
 
-确认关闭测试：
+### 5.3 唯一原始事务门禁
 
-1. 先通过同一个 Repository 执行一次 `recoverIssue()`；
-2. 首次访问返回 `NotFound` 并使数据库真实打开；
-3. 调用 `database.close()` 后 `isOpen == false`；
-4. 第二次 Repository 调用返回 `StorageFailure`；
-5. 第二次调用后数据库仍保持关闭，没有被自动重开；
-6. 内存数据库和文件数据库均覆盖。
+确认 `JianyuRepositoryTransactions.kt`：
 
-目标类静态预期仍为 17 个 `@Test` 方法，以最新源码和 Runner 实际输出为最终证据。
+1. `transactionRaw()` 在进入 `database.withTransaction` 前检查显式关闭；
+2. 显式关闭时抛出内部存储不可用中止异常；
+3. `execute(operation)` 将其映射为 `StorageFailure`；
+4. operation 名称保持调用方实际操作名称；
+5. 普通 `transaction()` 路径受保护；
+6. `ResourceRepositoryComponent` 中先 `execute()`、再 `transactionRaw()` 的路径也受保护；
+7. 不依赖反射或 Room 私有字段；
+8. `CancellationException` 仍原样抛出；
+9. SQLite 约束和普通存储异常映射未改变。
 
-## 六、停止旧进程并清理构建输出
+### 5.4 关闭测试
+
+确认：
+
+1. 打开空库测试在首次访问前 `isOpen == false`、显式关闭为 false；
+2. 首次 Repository 恢复允许惰性打开并返回 `NotFound`；
+3. 内存关闭测试在 Repository 首次访问前直接 `close()`；
+4. 内存关闭测试随后返回 `StorageFailure`；
+5. 调用后数据库仍保持关闭；
+6. 文件库先正常打开并得到 `NotFound`；
+7. 文件库显式关闭后恢复返回 `StorageFailure`；
+8. 文件库调用后仍未重开。
+
+目标测试类静态预期为 17 个 `@Test`，以最新源码和 Runner 实际输出为准。
+
+## 六、停止进程并清理构建输出
 
 ```powershell
 .\gradlew.bat --stop
@@ -223,11 +239,11 @@ Write-Host "clean_exit=$LASTEXITCODE"
 git status --short
 ```
 
-只允许清理 Gradle 构建产物，不运行 `git clean`，不删除未跟踪用户文件。
+只允许清理 Gradle 构建产物，不运行 `git clean`。
 
 ## 七、基础构建与 JVM 验证
 
-逐条执行，记录开始时间、结束时间、退出码和关键摘要：
+逐条执行，分别记录开始时间、结束时间、退出码和摘要：
 
 ```powershell
 .\gradlew.bat compileDebugKotlin
@@ -238,13 +254,17 @@ git status --short
 .\gradlew.bat assembleRelease
 ```
 
-要求：
+报告：
 
-- 每条命令单独记录结果；
-- JVM 测试报告总数、通过、失败、跳过；
-- Lint Error 和 Warning 数；
-- Debug 与 Release APK 实际路径；
-- 不以某一命令通过推断其他命令通过。
+```text
+JVM 总数、通过、失败、跳过
+Lint Error 和 Warning
+Debug APK 路径
+Release APK 路径
+每条命令退出码
+```
+
+不得用一项通过推断其他项通过。
 
 ## 八、设备隔离
 
@@ -256,7 +276,7 @@ adb -s $Device uninstall com.elio.jianyu.test
 adb -s $Device uninstall com.elio.jianyu
 ```
 
-包不存在时允许 `uninstall` 返回非零，但必须保留原始输出。
+包不存在时允许卸载返回非零，但必须记录原始输出。
 
 ## 九、定向测试一：Run 幂等冲突
 
@@ -276,9 +296,9 @@ Write-Host "run_conflict_exit=$LASTEXITCODE"
 退出码 0
 ```
 
-该项第一轮已经通过，但必须在最新 Head 上重新执行，不能复用旧结果。
+即使上一轮已经通过，也必须在最新 Head 重跑。
 
-## 十、定向测试二：内存数据库关闭
+## 十、定向测试二：首次访问前关闭内存数据库
 
 ```powershell
 .\gradlew.bat connectedDebugAndroidTest `
@@ -287,17 +307,18 @@ Write-Host "run_conflict_exit=$LASTEXITCODE"
 Write-Host "closed_memory_exit=$LASTEXITCODE"
 ```
 
-必须记录：
+完成条件：
 
-- 测试统计；
-- 退出码；
-- 若失败，实际 `RepositoryError`；
-- 关键堆栈与断言位置；
-- 是否在第二次 Repository 调用后重新打开数据库。
+```text
+1/1 PASS
+退出码 0
+实际错误为 StorageFailure
+Repository 调用后数据库没有重新打开
+```
 
-完成条件：1/1 PASS，退出码 0。
+若失败，必须记录实际 `RepositoryError`、关键堆栈和断言位置。
 
-## 十一、定向测试三：文件数据库关闭
+## 十一、定向测试三：使用后关闭文件数据库
 
 ```powershell
 .\gradlew.bat connectedDebugAndroidTest `
@@ -306,9 +327,17 @@ Write-Host "closed_memory_exit=$LASTEXITCODE"
 Write-Host "closed_file_exit=$LASTEXITCODE"
 ```
 
-完成条件：1/1 PASS，退出码 0。
+完成条件：
 
-如当前 Runner 不接受 `Class#method`，只允许调整过滤参数的引号或等价 Runner 格式，不得修改测试源码。报告必须写出最终实际命令。
+```text
+1/1 PASS
+退出码 0
+关闭前空库为 NotFound
+关闭后为 StorageFailure
+第二次调用后数据库没有重新打开
+```
+
+如 Runner 不接受 `Class#method`，只允许调整过滤参数的引号或等价 Runner 格式，不得修改测试源码。
 
 ## 十二、其余边界测试
 
@@ -323,16 +352,16 @@ transactionExecutionPropagatesCancellationException
 foreignKeyCheckRemainsClean
 ```
 
-每项都必须真实执行并通过。
+每项必须真实执行并通过。
 
 重点确认：
 
 - 首次空库访问仍为 `NotFound`；
-- `CancellationException` 原样抛出；
-- SQLite 错误映射未被关闭门禁覆盖；
+- 取消原样传播；
+- SQLite 错误映射未受影响；
 - 外键检查为 0。
 
-## 十三、完整 Repository 数据库测试类
+## 十三、完整 Repository 测试类
 
 ```powershell
 .\gradlew.bat connectedDebugAndroidTest `
@@ -351,18 +380,16 @@ Write-Host "repository_class_exit=$LASTEXITCODE"
 退出码 0
 ```
 
-若数量不是 17，必须对照源码逐项核对，不能直接放行。
+数量不是 17 时必须对照源码逐项核验，不能直接放行。
 
 ## 十四、全量 Instrumentation
-
-确保只有一个设备在线后执行：
 
 ```powershell
 .\gradlew.bat connectedDebugAndroidTest
 Write-Host "full_instrumentation_exit=$LASTEXITCODE"
 ```
 
-必须记录：
+记录：
 
 ```text
 总数
@@ -381,7 +408,7 @@ Write-Host "full_instrumentation_exit=$LASTEXITCODE"
 退出码 = 0
 ```
 
-上一轮为 101 项、99 通过、2 失败。本轮实际总数以最新 Head 为准，但两项关闭测试必须从失败变为通过。
+上一轮为 101 项、99 通过、2 失败。本轮总数以最新 Head 为准，但两项关闭测试必须变为通过。
 
 不得使用：
 
@@ -393,9 +420,9 @@ PASS WITH BASELINE FAILURES
 
 重点回归：
 
-- Repository 全部测试；
+- Repository；
 - 导航框架；
-- Skill Catalog 检索和选择；
+- Skill Catalog；
 - DAO；
 - Migration；
 - 身份隔离；
@@ -418,11 +445,12 @@ git status --short -- app/schemas
 
 1. Room 继续为 v7；
 2. 不存在 `8.json`；
-3. `app/schemas/` 相对 `origin/main` 无差异；
+3. `app/schemas/` 无差异；
 4. 构建后没有生成未提交 Schema；
-5. `foreignKeyCheckRemainsClean` 真实通过。
+5. `foreignKeyCheckRemainsClean` 真实通过；
+6. `RoundtableDatabase.kt` 除关闭生命周期标记外没有数据库契约变化。
 
-## 十六、Secret scan 与最终差异检查
+## 十六、Secret scan 与最终状态
 
 ```powershell
 pwsh.exe -NoProfile -File .\tools\check-secrets.ps1 -IncludeHistory
@@ -453,7 +481,7 @@ if ($FinalHead -ne $ExpectedHead) {
 - `git diff --check` 退出码 0；
 - 最终工作区无修改；
 - 没有 staged 或 unstaged diff；
-- 最终 Head 与开始时精确一致。
+- 最终 Head 与开始时一致。
 
 ## 十七、最终报告格式
 
@@ -461,27 +489,28 @@ if ($FinalHead -ne $ExpectedHead) {
 
 1. 最终结论：`PASS` 或 `FAIL`；
 2. 仓库、PR、分支、Base SHA、精确 Head SHA；
-3. 操作系统、PowerShell、Git、JDK、Gradle、ADB、设备和 API Level；
-4. 初始与最终工作区状态；
+3. 环境、工具、设备和 API Level；
+4. 初始与最终工作区；
 5. 净差异文件清单；
-6. 事务关闭门禁静态核验；
-7. `compileDebugKotlin`；
-8. JVM 测试统计；
-9. `compileDebugAndroidTestKotlin`；
-10. Lint、Debug、Release；
-11. Run 幂等冲突定向测试；
-12. 内存数据库关闭定向测试；
-13. 文件数据库关闭定向测试；
-14. 其余边界测试；
-15. 完整测试类 17 项统计；
-16. 全量 Instrumentation 统计；
-17. Room v7、Schema 和 `8.json`；
-18. `PRAGMA foreign_key_check`；
-19. 导航与 Skill Catalog 回归；
-20. Secret scan 和 `git diff --check`；
-21. 最终 Head 精确不变；
-22. 尚未验证项；
-23. 失败项、完整复现步骤和关键日志。
+6. 数据库显式关闭标记静态核验；
+7. 事务原始入口门禁静态核验；
+8. `compileDebugKotlin`；
+9. JVM 测试统计；
+10. `compileDebugAndroidTestKotlin`；
+11. Lint、Debug、Release；
+12. Run 幂等定向测试；
+13. 内存数据库关闭定向测试；
+14. 文件数据库关闭定向测试；
+15. 其余边界测试；
+16. 完整测试类统计；
+17. 全量 Instrumentation 统计；
+18. Room v7、Schema 和 `8.json`；
+19. `PRAGMA foreign_key_check`；
+20. 导航与 Skill Catalog 回归；
+21. Secret scan 和 `git diff --check`；
+22. 最终 Head 一致性；
+23. 尚未验证项；
+24. 失败项、复现步骤和关键日志。
 
 必须严格区分：
 
@@ -493,7 +522,7 @@ GitHub CI 已通过
 尚未验证
 ```
 
-只有以下条件全部满足才可输出 `PASS`：
+只有以下全部满足才可输出 `PASS`：
 
 ```text
 Run 幂等冲突通过
@@ -510,4 +539,4 @@ foreign_key_check 无错误
 Head 精确不变
 ```
 
-即使验收 PASS，也不得标记 Ready、合并、删除分支或启动 PR09-07，必须等待用户明确授权。
+即使 PASS，也不得标记 Ready、合并、删除分支或启动 PR09-07，等待用户明确授权。
