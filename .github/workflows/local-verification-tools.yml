@@ -46,4 +46,6 @@ jobs:
 
       - name: Run local verification tool tests
         shell: pwsh
-        run: ./tools/local-verification/tests/Run-LocalVerificationToolTests.ps1
+        run: |
+          ./tools/local-verification/tests/Run-LocalVerificationToolTests.ps1
+          ./tools/local-verification/tests/Run-EmptyLineRegressionTest.ps1
