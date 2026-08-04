@@ -17,9 +17,11 @@ import com.elio.jianyu.execution.ExecutionRunCoordinator
 import com.elio.jianyu.execution.ExecutionStartCommand
 import com.elio.jianyu.execution.ExecutionStartException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class IssueExecutionViewModel internal constructor(
@@ -52,9 +54,29 @@ class IssueExecutionViewModel internal constructor(
         }
     }
 
+    /** 停止必须绕过普通操作的忙碌门禁，才能取消正在执行的 Run。 */
     fun stop() {
         val runId = latestRuntime?.run?.id ?: return
-        runOperation { requireNotNull(coordinator).stop(runId) }
+        viewModelScope.launch {
+            try {
+                requireNotNull(coordinator).stop(runId)
+                refreshInternal()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: ExecutionRepositoryException) {
+                _state.value = repositoryFailure(error.repositoryError)
+            } catch (error: IllegalArgumentException) {
+                _state.value = operationFailure(
+                    error.message ?: "停止执行参数无效，请刷新后重试。",
+                    false,
+                )
+            } catch (error: IllegalStateException) {
+                _state.value = operationFailure(
+                    error.message ?: "停止执行失败，请刷新后重试。",
+                    false,
+                )
+            }
+        }
     }
 
     fun recoverInterrupted() {
@@ -95,6 +117,12 @@ class IssueExecutionViewModel internal constructor(
             if (content != null) {
                 _state.value = content.copy(operationInProgress = true)
             }
+            val refreshJob = launch {
+                while (isActive) {
+                    delay(STATE_REFRESH_INTERVAL_MILLIS)
+                    refreshInternal(operationInProgress = true)
+                }
+            }
             try {
                 operation()
                 refreshInternal()
@@ -114,11 +142,13 @@ class IssueExecutionViewModel internal constructor(
                     error.message ?: "当前执行状态已经变化，请刷新后重试。",
                     false,
                 )
+            } finally {
+                refreshJob.cancel()
             }
         }
     }
 
-    private suspend fun refreshInternal() {
+    private suspend fun refreshInternal(operationInProgress: Boolean = false) {
         val issueId = currentIssueId
         if (issueId.isNullOrBlank()) {
             _state.value = operationFailure("缺少稳定的 issueId，无法恢复工作区。", false)
@@ -155,6 +185,7 @@ class IssueExecutionViewModel internal constructor(
                 latestRecovery = recovery
                 latestRuntime = runtime
                 _state.value = buildContent(recovery, runtime, selectedStage?.id)
+                    .copy(operationInProgress = operationInProgress)
             }
         }
     }
@@ -183,7 +214,8 @@ class IssueExecutionViewModel internal constructor(
                     snapshotId = snapshot.id,
                     displayName = snapshot.displayName,
                     position = snapshot.position,
-                    status = runtimeState?.status ?: com.elio.jianyu.data.ExecutionParticipantStatus.QUEUED,
+                    status = runtimeState?.status
+                        ?: com.elio.jianyu.data.ExecutionParticipantStatus.QUEUED,
                     attemptCount = runtimeState?.attemptCount ?: 0,
                     text = message?.text,
                     isPending = message?.isPending == true,
@@ -272,6 +304,8 @@ class IssueExecutionViewModel internal constructor(
     )
 
     companion object {
+        private const val STATE_REFRESH_INTERVAL_MILLIS = 120L
+
         private val ACTIVE_RUN_STATES = setOf(
             ExecutionRunStatus.NOT_STARTED,
             ExecutionRunStatus.RUNNING,
