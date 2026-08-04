@@ -67,7 +67,9 @@ class HomeViewModel internal constructor(
     }
 
     private val restoredWorkflow = savedStateHandle.get<String>(WORKFLOW_STATE_KEY)
-        ?.let { encoded -> runCatching { json.decodeFromString<HomeWorkflowState>(encoded) }.getOrNull() }
+        ?.let { encoded ->
+            runCatching { json.decodeFromString<HomeWorkflowState>(encoded) }.getOrNull()
+        }
     private val initialWorkflow = restoredWorkflow
         ?.let(HomeWorkflow::restore)
         ?: HomeWorkflow.initial(idProvider.create())
@@ -278,7 +280,7 @@ class HomeViewModel internal constructor(
             }.joinToString("；").takeIf(String::isNotBlank)
             val selection = HomeContextSelectionSnapshot(
                 baseContextCharacters = baseCharacters,
-                items = candidates.map(ContextCandidateUi::toSnapshot),
+                items = candidates.map { candidate -> candidate.toSnapshot() },
                 confirmed = false,
             )
             setWorkflow(HomeWorkflow.updateContextSelection(workflow, selection), message)
@@ -308,7 +310,11 @@ class HomeViewModel internal constructor(
             candidate.copy(
                 selected = !candidate.selected,
                 networkAllowed = if (candidate.selected) false else candidate.networkAllowed,
-                sensitiveConfirmed = if (candidate.selected) false else candidate.sensitiveConfirmed,
+                sensitiveConfirmed = if (candidate.selected) {
+                    false
+                } else {
+                    candidate.sensitiveConfirmed
+                },
             )
         }
     }
@@ -368,7 +374,7 @@ class HomeViewModel internal constructor(
             contextConfirmation = dialog.copy(
                 visible = false,
                 confirmedForStart = true,
-                candidates = confirmedItems.map(HomeContextItemSnapshot::toCandidateUi),
+                candidates = confirmedItems.map { item -> item.toCandidateUi() },
                 errorMessage = null,
             ),
         )
@@ -491,7 +497,7 @@ class HomeViewModel internal constructor(
         )
         val selection = HomeContextSelectionSnapshot(
             baseContextCharacters = updated.baseContextCharacters,
-            items = updated.candidates.map(ContextCandidateUi::toSnapshot),
+            items = updated.candidates.map { candidate -> candidate.toSnapshot() },
             confirmed = false,
         )
         setWorkflow(HomeWorkflow.updateContextSelection(_uiState.value.workflow, selection))
