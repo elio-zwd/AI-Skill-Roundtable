@@ -1,90 +1,340 @@
-# 🛠️ 运行时 ADB 自动化工具集 (Root Tools)
+# 运行时与本地验收工具
 
-本目录存放用于 Android 模拟器与真机（小米 14 Ultra）运行时自动化控制与 UI 交互定位的 API 级极简工具链。这套工具设计为 **“精简 API 模式”**，通常只输出最关键的路径或坐标信息，非常方便 AI 代理进行管道化流式调用（即“盲操点击”）。
+本目录包含：
 
----
+- Android 构建辅助脚本；
+- 本地 AI 使用的 ADB 设备语义控制层；
+- 旧版截图、点击、UI Dump 与视觉模板兼容入口；
+- 低 Token 本地验收证据工具。
 
-## 🔍 与 `workspace/tools/` 的职能区分
+## 1. 推荐入口：`tools/device/cli.py`
 
-为了保持项目工程目录的整洁，本目录与 `workspace/tools/` 进行了清晰的界限划分：
+新的统一入口遵循：
 
-| 维度 | 根目录 `/tools/` (本目录) | 工程子目录 `/workspace/tools/` |
-| :--- | :--- | :--- |
-| **核心关注** | **运行时自动化 (Runtime Automation)** | **工程构建期编译 (Build-phase Compile)** |
-| **主要职能** | 控制在线设备进行截图、点击、滑屏、Dump XML 解析、以及 OpenCV 多尺度视觉匹配。 | 提取名人 SKILL.md 介绍、自动生成向量特征入库 Seeding 库、批量重命名 Morandi JPG 头像等。 |
-| **主要消费方** | 本地调试运行的 AI 代理（如 Antigravity）与 E2E 自动化测试。 | Android 编译 Gradle 脚本与预编译资产维护。 |
-
----
-
-## 🚀 脚本使用指南
-
-### Release APK 构建：`build-release-apk.ps1`
-
-此脚本仅适用于 Windows PowerShell 7，使用本机 `keystore.properties` 或 `RELEASE_*` 环境变量构建并验证**已签名** Release APK；缺少完整签名配置时会在构建前失败，绝不会回退为 Debug 或上传未签名 APK。
-
-```powershell
-pwsh.exe -File .\tools\build-release-apk.ps1 -VersionName 1.1 -VersionCode 2
+```text
+确定唯一设备
+→ 观察当前状态
+→ 语义定位控件
+→ 执行动作
+→ 等待并验证预期状态
+→ 保存仓库外紧凑证据
 ```
 
-产物位于 `app\build\outputs\apk\release\`。签名材料必须保留在本机，禁止提交到仓库。
-
-### Debug APK 构建：`build-debug-apk.ps1`
-
-用于生成可安装的 Debug 测试包。脚本将 Gradle worker 限制为 1，不需要 Release keystore；仅适合测试或预发布分发，不可替代正式签名 Release。
+查看帮助：
 
 ```powershell
-pwsh.exe -File .\tools\build-debug-apk.ps1 -VersionName 1.1 -VersionCode 2
+python tools/device/cli.py --help
 ```
 
-产物位于 `app\build\outputs\apk\debug\app-debug.apk`。
+### 1.1 设备安全规则
 
-所有脚本在有多台设备连接时，均会**自动选择第一台是在线 `device` 状态的设备**进行交互；也支持通过 `-d <deviceId>` 参数强制指定。
+设备选择顺序：
 
-### 1. 极简屏幕截图：`screencap.py`
-截取当前手机屏幕并拉取到本地，拉取后手机端临时文件会被自动清除。
-* **命令**：
-  ```bash
-  python tools/screencap.py -o tmp_debug_media/my_screen.png
-  ```
-* **API 输出**：成功时**仅输出**本地 PNG 的绝对路径。
+1. `--device <adb-serial>`；
+2. `--profile <json>` 中的 `serial`；
+3. 只有恰好一台在线设备时才允许自动选择。
 
-### 2. 极简屏幕触控：`click.py`
-向设备模拟发送点击、长按、滑动轨迹、按键与文本。
-* **点击**：`python tools/click.py 540 1900`
-* **长按**：`python tools/click.py 540 1900 -l 1000` (长按 1 秒)
-* **滑动**：`python tools/click.py -s 100 2000 100 500 400` (从 Y:2000 滑动到 500，历时 400ms)
-* **物理按键**：`python tools/click.py -k 4` (发送 Back 物理返回键)
-* **文字输入**：`python tools/click.py -t "马斯克"`
-* **API 输出**：成功时仅输出一行 `OK: <具体操作结果>`。
+多台设备在线且没有指定目标时，工具会返回 `AMBIGUOUS_DEVICE`，不会静默选择第一台。
 
-### 3. XML 同义词定位查找：`uidump.py`
-转储当前界面的 UI 层次树 XML 文件，并支持文字（含别名同义词推导）定位。
-* **别名内置**：搜“设置”或“配置”时，会自动包含 `setting`, `setup`, `config`, `密钥配置` 属性，搜“菜单”或“抽屉”时会自动匹配 `menu`, `drawer`, `navigation` 等。
-* **命令（搜文字坐标）**：
-  ```bash
-  python tools/uidump.py --find "设置"
-  ```
-* **API 输出**：若搜字成功，**仅打印中点 X Y 坐标**（如 `975 142`），失败时向 stderr 输出 ERROR。
+### 1.2 雷电 Profile
 
-### 4. 视觉级多尺度图像定位：`find_icon.py`
-当界面没有文字（如自定义 Canvas 或占位符），读取 `tools/templates/` 目录下的特征图，在截屏中滑窗匹配。
-* **多尺度自适应**：支持在 $0.5 \sim 1.5$ 范围内缩放特征图查找，因此能**完美兼容模拟器 (1080x2400) 与真机小米 14 Ultra (1440x3200)** 不同的 DPI 分辨率。
-* **命令**：
-  ```bash
-  python tools/find_icon.py -t tools/templates/setting.png
-  ```
-* **API 输出**：成功匹配时，**仅输出中点 X Y 坐标**（如 `975 142`）。
+复制示例到仓库外，再按实际环境修改：
 
-### 5. 详细日志诊断：`adb_verbose_diagnose.py`
-输出最完整的 adb 连接、屏幕分辨率、DPI、当前顶层 Activity 及转储耗时的 verbose 诊断报告，用于排查设备连通性故障。
-* **命令**：
-  ```bash
-  python tools/adb_verbose_diagnose.py
-  ```
+```powershell
+$profile = Join-Path $env:TEMP 'jianyu-ldplayer-profile.json'
+Copy-Item `
+  .\tools\device\profiles\ldplayer-main.example.json `
+  $profile
+```
 
----
+示例：
 
-## 📂 目录图标特征库 `tools/templates/`
-本目录下存放用于视觉图像匹配的原始高保真特征小图：
-* `setting.png`：齿轮设置图标特征图（中点 975 142）。
-* `menu.png`：三横菜单图标特征图（中点 64 142）。
+```json
+{
+  "name": "ldplayer-main",
+  "serial": "emulator-5554",
+  "package": "com.elio.jianyu",
+  "expected": {
+    "size": "1080x2400",
+    "density": 420,
+    "api": 28,
+    "orientation": "portrait"
+  }
+}
+```
+
+Profile 只做门禁检查，不擅自修改雷电配置。
+
+### 1.3 检查设备
+
+```powershell
+python tools/device/cli.py doctor `
+  --profile $profile `
+  --json
+```
+
+检查：
+
+- Serial 和在线状态；
+- 分辨率；
+- DPI；
+- API；
+- 横竖屏；
+- 当前前台 package/activity。
+
+### 1.4 观察当前页面
+
+```powershell
+$evidence = Join-Path $env:TEMP 'jianyu-device-evidence'
+
+python tools/device/cli.py observe `
+  --profile $profile `
+  --output $evidence
+```
+
+仓库外生成：
+
+```text
+observation.png
+observation.xml
+observation.json
+```
+
+终端只输出紧凑摘要，不输出完整 XML。
+
+### 1.5 语义定位
+
+支持：
+
+```text
+tag
+resource-id
+content-desc
+text-exact
+text-contains
+```
+
+`tag` 是 `resource-id` 的友好别名，为后续 Compose `testTagsAsResourceId` 契约预留。
+
+```powershell
+python tools/device/cli.py find `
+  --profile $profile `
+  --by content-desc `
+  --value '设置' `
+  --output $evidence `
+  --json
+```
+
+默认要求唯一匹配。多个候选不会静默选择第一个；确需选择时显式传 `--index`。
+
+### 1.6 点击并验证
+
+```powershell
+python tools/device/cli.py tap `
+  --profile $profile `
+  --by content-desc `
+  --value '设置' `
+  --expect-by text-exact `
+  --expect-value '<设置页唯一文字>' `
+  --timeout 5000 `
+  --output $evidence `
+  --json
+```
+
+只有预期状态出现才返回 `PASS`。
+
+不提供 `--expect-*` 时，动作返回 `NOT_VERIFIED` 和退出码 `2`；ADB 点击命令返回零不等于 UI 验收通过。
+
+### 1.7 等待与断言
+
+```powershell
+python tools/device/cli.py wait `
+  --profile $profile `
+  --by text-exact `
+  --value '首页' `
+  --timeout 5000
+```
+
+```powershell
+python tools/device/cli.py assert `
+  --profile $profile `
+  --by content-desc `
+  --value '设置'
+```
+
+### 1.8 启动与强停恢复
+
+```powershell
+python tools/device/cli.py launch `
+  --profile $profile `
+  --mode force-stop `
+  --timeout 8000 `
+  --output $evidence `
+  --json
+```
+
+首版仅支持：
+
+```text
+warm
+force-stop
+```
+
+不实现 `pm clear`、卸载或重装等破坏性动作。
+
+## 2. 证据安全与 Token 约束
+
+截图、UI XML、动作 JSON 和日志必须写在仓库外。
+
+如果 `--output` 指向仓库内部，统一入口会返回：
+
+```text
+OUTPUT_INSIDE_REPOSITORY
+exit=70
+```
+
+成功输出最多三行；失败只返回有限错误、候选摘要和证据路径。
+
+## 3. 旧工具兼容入口
+
+旧工具继续保留：
+
+```text
+tools/screencap.py
+tools/click.py
+tools/uidump.py
+tools/find_icon.py
+tools/adb_verbose_diagnose.py
+```
+
+它们现在共享安全设备解析：
+
+- 显式 `-d <serial>` 行为保留；
+- 恰好一台在线设备时可自动解析；
+- 多台在线设备且未指定时明确失败。
+
+### 截图
+
+```powershell
+python tools/screencap.py `
+  -d emulator-5554 `
+  -o $env:TEMP\jianyu-screen.png
+```
+
+成功时仍只输出 PNG 绝对路径。
+
+### 坐标操作
+
+```powershell
+python tools/click.py -d emulator-5554 540 1900
+python tools/click.py -d emulator-5554 540 1900 -l 1000
+python tools/click.py -d emulator-5554 -s 100 2000 100 500 400
+python tools/click.py -d emulator-5554 -k 4
+```
+
+这些入口只证明 ADB 命令已发送，不提供动作后 UI 验证。新的自动化流程应优先使用 `tools/device/cli.py tap --expect-*`。
+
+`adb shell input text` 对中文输入并不稳定，因此旧 `-t` 不作为可靠中文输入契约。
+
+### UI Dump
+
+```powershell
+python tools/uidump.py `
+  -d emulator-5554 `
+  -o $env:TEMP\jianyu-window.xml
+```
+
+旧 `--find` 仍可使用，但只返回第一个模糊文字坐标；需要唯一性、节点字段和歧义检测时使用统一 CLI。
+
+### 视觉模板
+
+```powershell
+python tools/find_icon.py `
+  -d emulator-5554 `
+  -t tools/templates/setting.png
+```
+
+依赖本地 OpenCV 与 NumPy。视觉模板仅作为语义定位失败后的兜底。
+
+`tools/templates/` 中部分图标和固定坐标来自历史 UI，不是当前见域页面的稳定契约。
+
+### 详细诊断
+
+```powershell
+python tools/adb_verbose_diagnose.py -d emulator-5554
+```
+
+## 4. 工具测试
+
+不需要真实模拟器：
+
+```powershell
+python -m compileall -q tools/device
+python -m unittest discover `
+  -s tools/device/tests `
+  -p 'test_*.py' `
+  -v
+python tools/device/cli.py --help
+```
+
+Windows 与 Ubuntu GitHub Actions 使用 `.github/workflows/device-control-tools.yml` 执行同一套测试。
+
+真实设备旧入口集成测试必须显式设置 Serial：
+
+```powershell
+$env:JIANYU_ADB_DEVICE = 'emulator-5554'
+python test/test_adb_tools.py -v
+```
+
+可选设置当前页面可见文字：
+
+```powershell
+$env:JIANYU_FIND_TEXT = '首页'
+```
+
+## 5. 本地严格验收
+
+完整只读验收流程：
+
+```text
+docs/testing/local-ai-device-control-acceptance.md
+```
+
+## 6. APK 构建
+
+### Debug APK
+
+```powershell
+pwsh.exe -File .\tools\build-debug-apk.ps1 `
+  -VersionName 1.1 `
+  -VersionCode 2
+```
+
+产物：
+
+```text
+app\build\outputs\apk\debug\app-debug.apk
+```
+
+### Release APK
+
+```powershell
+pwsh.exe -File .\tools\build-release-apk.ps1 `
+  -VersionName 1.1 `
+  -VersionCode 2
+```
+
+Release 构建必须使用本机签名配置，不会回退为 Debug。签名材料禁止提交。
+
+## 7. 低 Token 本地验收证据
+
+```text
+tools/local-verification/
+```
+
+该工具负责包装 Gradle/JUnit 等命令，把完整日志保存在仓库外，只向本地 AI 提供紧凑证据。它与 `tools/device/` 分工如下：
+
+| 目录 | 职责 |
+|---|---|
+| `tools/device/` | 设备观察、语义定位、交互和状态验证 |
+| `tools/local-verification/` | 构建、测试命令和 JUnit 的低 Token 证据 |

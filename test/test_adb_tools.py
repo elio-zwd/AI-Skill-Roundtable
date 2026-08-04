@@ -1,113 +1,112 @@
 #!/usr/bin/env python3
-import unittest
-import subprocess
-import os
+"""根目录旧 ADB 小工具的显式设备集成测试。
 
+普通 CI 不运行本文件。需要真实设备时必须设置：
+
+    JIANYU_ADB_DEVICE=<adb-serial>
+
+可选：
+
+    JIANYU_FIND_TEXT=<当前页面可见文字>
+
+这样不会在多设备场景误选目标，也不再依赖历史页面或固定坐标。
+"""
+
+import os
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+DEVICE = os.environ.get("JIANYU_ADB_DEVICE", "").strip()
+FIND_TEXT = os.environ.get("JIANYU_FIND_TEXT", "").strip()
+
+
+@unittest.skipUnless(DEVICE, "Set JIANYU_ADB_DEVICE to run real-device integration tests")
 class TestADBTools(unittest.TestCase):
-    
     @classmethod
     def setUpClass(cls):
-        # 确保 adb devices 在线，否则跳过所有测试
-        try:
-            output = subprocess.check_output(["adb", "devices"], text=True)
-            lines = output.strip().split("\n")[1:]
-            cls.has_device = any(line.strip() and "device" in line for line in lines)
-        except Exception:
-            cls.has_device = False
+        result = subprocess.run(
+            ["adb", "devices"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise unittest.SkipTest("adb devices failed")
+        states = {}
+        for line in result.stdout.splitlines()[1:]:
+            parts = line.split()
+            if len(parts) >= 2:
+                states[parts[0]] = parts[1]
+        if states.get(DEVICE) != "device":
+            raise unittest.SkipTest(f"Requested device is not online: {DEVICE} state={states.get(DEVICE)}")
 
-    def test_screencap_silent(self):
-        if not self.has_device:
-            self.skipTest("No ADB device online. Skipping.")
-            
-        out_png = os.path.abspath("tmp_debug_media/test_cap.png")
-        # 确保没有遗留文件
-        if os.path.exists(out_png):
-            os.remove(out_png)
-            
-        cmd = ["python", "tools/screencap.py", "-o", out_png]
-        res = subprocess.run(cmd, capture_output=True, text=True)
-        
-        # 检查退出码
-        self.assertEqual(res.returncode, 0, f"Screencap failed with error: {res.stderr}")
-        # 检查 stdout 仅输出一行文件路径
-        self.assertEqual(res.stdout.strip(), out_png)
-        # 检查物理文件存在且大小合理
-        self.assertTrue(os.path.exists(out_png))
-        self.assertGreater(os.path.getsize(out_png), 1024) # 大于 1KB
-        
-        # 清理
-        os.remove(out_png)
+    def test_screencap_explicit_device(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output = Path(temp_dir) / "screen.png"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(REPOSITORY_ROOT / "tools" / "screencap.py"),
+                    "-d",
+                    DEVICE,
+                    "-o",
+                    str(output),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual(str(output.resolve()), result.stdout.strip())
+            self.assertTrue(output.is_file())
+            self.assertGreater(output.stat().st_size, 1024)
 
-    def test_uidump_silent(self):
-        if not self.has_device:
-            self.skipTest("No ADB device online. Skipping.")
-            
-        out_xml = os.path.abspath("tmp_debug_media/test_dump.xml")
-        if os.path.exists(out_xml):
-            os.remove(out_xml)
-            
-        cmd = ["python", "tools/uidump.py", "-o", out_xml]
-        res = subprocess.run(cmd, capture_output=True, text=True)
-        
-        self.assertEqual(res.returncode, 0, f"Uidump failed with error: {res.stderr}")
-        self.assertEqual(res.stdout.strip(), out_xml)
-        self.assertTrue(os.path.exists(out_xml))
-        
-        os.remove(out_xml)
+    def test_uidump_explicit_device(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output = Path(temp_dir) / "window.xml"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(REPOSITORY_ROOT / "tools" / "uidump.py"),
+                    "-d",
+                    DEVICE,
+                    "-o",
+                    str(output),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual(str(output.resolve()), result.stdout.strip())
+            self.assertIn("<hierarchy", output.read_text(encoding="utf-8"))
 
-    def test_uidump_find_text(self):
-        if not self.has_device:
-            self.skipTest("No ADB device online. Skipping.")
-            
-        cmd = ["python", "tools/uidump.py", "--find", "智囊"]
-        res = subprocess.run(cmd, capture_output=True, text=True)
-        
-        if res.returncode == 0:
-            coords = res.stdout.strip().split()
-            self.assertEqual(len(coords), 2, f"Coordinate output should be two ints: {res.stdout}")
-            x, y = int(coords[0]), int(coords[1])
-            self.assertGreaterEqual(x, 0)
-            self.assertGreaterEqual(y, 0)
-            self.assertLessEqual(x, 2000)
-            self.assertLessEqual(y, 3000)
-        else:
-            self.assertIn("ERROR: Widget with text/desc containing", res.stderr)
+    @unittest.skipUnless(FIND_TEXT, "Set JIANYU_FIND_TEXT to test current-page text lookup")
+    def test_uidump_find_current_page_text(self):
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(REPOSITORY_ROOT / "tools" / "uidump.py"),
+                "-d",
+                DEVICE,
+                "--find",
+                FIND_TEXT,
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
+        coordinates = result.stdout.strip().split()
+        self.assertEqual(2, len(coordinates))
+        self.assertGreaterEqual(int(coordinates[0]), 0)
+        self.assertGreaterEqual(int(coordinates[1]), 0)
 
-    def test_uidump_synonyms(self):
-        if not self.has_device:
-            self.skipTest("No ADB device online. Skipping.")
-            
-        # 搜别名同义词，联想匹配齿轮图标 content-desc "设置"
-        cmd = ["python", "tools/uidump.py", "--find", "配置"]
-        res = subprocess.run(cmd, capture_output=True, text=True)
-        
-        if res.returncode == 0:
-            coords = res.stdout.strip().split()
-            self.assertEqual(len(coords), 2)
-            x, y = int(coords[0]), int(coords[1])
-            self.assertGreaterEqual(x, 0)
-            self.assertLessEqual(x, 1080)
-            self.assertGreaterEqual(y, 0)
-            self.assertLessEqual(y, 2400)
-
-    def test_find_icon_image(self):
-        if not self.has_device:
-            self.skipTest("No ADB device online. Skipping.")
-            
-        # 测试在屏幕上模板匹配寻找设置齿轮图标
-        template_png = os.path.abspath("tools/templates/setting.png")
-        self.assertTrue(os.path.exists(template_png), f"Template image {template_png} does not exist.")
-        
-        cmd = ["python", "tools/find_icon.py", "-t", template_png]
-        res = subprocess.run(cmd, capture_output=True, text=True)
-        
-        self.assertEqual(res.returncode, 0, f"find_icon.py failed with: {res.stderr}")
-        coords = res.stdout.strip().split()
-        self.assertEqual(len(coords), 2)
-        x, y = int(coords[0]), int(coords[1])
-        # 齿轮中点大致位置在 975 142 附近 (误差在 10px 内)
-        self.assertTrue(965 <= x <= 985, f"X coordinate {x} out of range.")
-        self.assertTrue(132 <= y <= 152, f"Y coordinate {y} out of range.")
 
 if __name__ == "__main__":
     unittest.main()

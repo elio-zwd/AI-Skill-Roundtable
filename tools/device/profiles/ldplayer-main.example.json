@@ -1,0 +1,11 @@
+{
+  "name": "ldplayer-main",
+  "serial": "emulator-5554",
+  "package": "com.elio.jianyu",
+  "expected": {
+    "size": "1080x2400",
+    "density": 420,
+    "api": 28,
+    "orientation": "portrait"
+  }
+}

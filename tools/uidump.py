@@ -1,77 +1,49 @@
 #!/usr/bin/env python3
-import sys
-import os
-import subprocess
 import argparse
-import tempfile
+import os
 import re
+import sys
+import tempfile
 import xml.etree.ElementTree as ET
 
-def get_target_device(device_arg=None):
-    if device_arg:
-        return device_arg
-    try:
-        output = subprocess.check_output(["adb", "devices"], text=True)
-    except Exception:
-        sys.stderr.write("ERROR: ADB executable not found in system PATH.\n")
-        sys.exit(1)
-        
-    lines = output.strip().split("\n")[1:]
-    devices = []
-    for line in lines:
-        if not line.strip():
-            continue
-        parts = line.split()
-        if len(parts) >= 2 and parts[1] == "device":
-            devices.append(parts[0])
-            
-    if not devices:
-        sys.stderr.write("ERROR: No active Android devices/emulators detected via ADB.\n")
-        sys.exit(1)
-    return devices[0]
+from device.adb_client import AdbClient
+from device.models import DeviceControlError
+
+
+SYNONYMS = {
+    "菜单": ["menu", "抽屉", "drawer", "navigation", "nav"],
+    "设置": ["setting", "setup", "配置", "config", "齿轮"],
+    "添加": ["add", "plus", "加号", "新建"],
+    "保存": ["save", "存储", "确认"],
+}
+
 
 def parse_bounds(bounds_str):
-    pattern = r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]"
-    match = re.match(pattern, bounds_str)
+    match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", bounds_str)
     if not match:
         return None
     x1, y1, x2, y2 = map(int, match.groups())
+    if x2 <= x1 or y2 <= y1:
+        return None
     return (x1 + x2) // 2, (y1 + y2) // 2
 
-SYNONYMS = {
-    "菜单": ["menu", "抽屉", "drawer", "navigation", "nav", "打开导航抽屉", "打开会议历史", "历史会议"],
-    "抽屉": ["菜单", "menu", "drawer", "navigation", "nav", "打开导航抽屉", "打开会议历史", "历史会议"],
-    "设置": ["setting", "setup", "配置", "config", "齿轮", "key", "密钥配置", "设置密钥", "api"],
-    "添加": ["add", "plus", "加号", "添客", "录入", "新建", "录入新席位"],
-    "存组": ["save", "group", "星标", "另存为分组", "保存"]
-}
 
 def find_node_by_text(node, search_text):
-    # 构建搜索候选项
-    candidates = [search_text.lower()]
+    candidates = [search_text.casefold()]
     for key, aliases in SYNONYMS.items():
-        if search_text.lower() in key.lower() or key.lower() in search_text.lower():
-            for alias in aliases:
-                candidates.append(alias.lower())
-                
-    # 检查节点是否匹配任意一个候选项
-    def is_match(node_val):
-        if not node_val:
-            return False
-        val_lower = node_val.lower()
-        for cand in candidates:
-            if cand in val_lower:
-                return True
-        return False
+        if search_text.casefold() in key.casefold() or key.casefold() in search_text.casefold():
+            candidates.extend(alias.casefold() for alias in aliases)
+
+    def is_match(value):
+        folded = (value or "").casefold()
+        return any(candidate in folded for candidate in candidates)
 
     text = node.get("text", "")
-    desc = node.get("content-desc", "")
-    
-    if is_match(text) or is_match(desc):
-        bounds = node.get("bounds", "")
-        coords = parse_bounds(bounds)
-        if coords:
-            return coords, text or desc
+    description = node.get("content-desc", "")
+    if is_match(text) or is_match(description):
+        coordinates = parse_bounds(node.get("bounds", ""))
+        if coordinates:
+            return coordinates, text or description
 
     for child in node:
         result = find_node_by_text(child, search_text)
@@ -79,65 +51,61 @@ def find_node_by_text(node, search_text):
             return result
     return None
 
-def main():
+
+def main() -> int:
     parser = argparse.ArgumentParser(description="Silent ADB UI Automator Tree Dumper & Node Locator API")
     parser.add_argument("-o", "--out", help="Destination path for XML hierarchy tree")
-    parser.add_argument("-f", "--find", help="Text/content-desc of the widget to find. Returns middle coordinate 'x y'")
+    parser.add_argument("-f", "--find", help="Text/content-desc to find; returns 'x y'")
     parser.add_argument("-d", "--device", help="Target ADB device ID")
     args = parser.parse_args()
 
-    # 1. 寻找设备
+    temporary_path = None
     try:
-        device = get_target_device(args.device)
-    except SystemExit:
-        sys.exit(1)
+        client = AdbClient()
+        client.bind(args.device)
+        xml_text = client.dump_ui_xml()
 
-    # 2. 导出 XML 到手机，并拉取到本地
-    temp_xml_fd, temp_xml_path = tempfile.mkstemp(suffix=".xml")
-    os.close(temp_xml_fd)
-    
-    local_xml = args.out if args.out else temp_xml_path
-    
-    try:
-        # 执行转储
-        subprocess.check_call(["adb", "-s", device, "shell", "uiautomator", "dump", "/sdcard/window_dump.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        # 拉取文件
-        subprocess.check_call(["adb", "-s", device, "pull", "/sdcard/window_dump.xml", local_xml], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        # 清除手机临时文件
-        subprocess.check_call(["adb", "-s", device, "shell", "rm", "/sdcard/window_dump.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except subprocess.CalledProcessError as e:
-        sys.stderr.write(f"ERROR: ADB uiautomator dump command failed. {str(e)}\n")
-        # 清理临时文件
-        if os.path.exists(temp_xml_path):
-            os.remove(temp_xml_path)
-        sys.exit(1)
+        if args.out:
+            local_xml = os.path.abspath(args.out)
+        elif args.find:
+            local_xml = None
+        else:
+            file_descriptor, temporary_path = tempfile.mkstemp(suffix=".xml")
+            os.close(file_descriptor)
+            local_xml = temporary_path
 
-    # 3. 如果是查找模式，在本地解析 XML 并提取 bounds 中点
-    if args.find:
-        try:
-            tree = ET.parse(local_xml)
-            root = tree.getroot()
-            match_res = find_node_by_text(root, args.find)
-            
-            # 清理临时文件
-            if not args.out and os.path.exists(temp_xml_path):
-                os.remove(temp_xml_path)
-                
-            if match_res:
-                coords, matched_val = match_res
-                # 仅打印 X Y，方便 AI 直接输入 click
-                print(f"{coords[0]} {coords[1]}")
-            else:
-                sys.stderr.write(f"ERROR: Widget with text/desc containing '{args.find}' not found on screen.\n")
-                sys.exit(1)
-        except Exception as e:
-            sys.stderr.write(f"ERROR: Failed to parse XML or search node. {str(e)}\n")
-            if not args.out and os.path.exists(temp_xml_path):
-                os.remove(temp_xml_path)
-            sys.exit(1)
-    else:
-        # 非查找模式仅打印保存路径
+        if local_xml:
+            os.makedirs(os.path.dirname(local_xml) or ".", exist_ok=True)
+            with open(local_xml, "w", encoding="utf-8") as stream:
+                stream.write(xml_text)
+
+        if args.find:
+            root = ET.fromstring(xml_text)
+            match = find_node_by_text(root, args.find)
+            if not match:
+                sys.stderr.write(
+                    f"ERROR: Widget with text/desc containing '{args.find}' not found on screen.\n"
+                )
+                return 1
+            coordinates, _ = match
+            print(f"{coordinates[0]} {coordinates[1]}")
+            return 0
+
         print(os.path.abspath(local_xml))
+        return 0
+    except DeviceControlError as exc:
+        sys.stderr.write(f"ERROR: {exc}\n")
+        return exc.exit_code
+    except (OSError, ET.ParseError) as exc:
+        sys.stderr.write(f"ERROR: Failed to save or parse UI XML. {exc}\n")
+        return 1
+    finally:
+        if temporary_path and not os.path.exists(temporary_path):
+            try:
+                os.remove(temporary_path)
+            except OSError:
+                pass
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
