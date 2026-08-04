@@ -1,0 +1,155 @@
+name: PR09-09 Instrumentation Fix
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Apply focused fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          runtime_path = Path("app/src/main/java/com/elio/jianyu/data/ExecutionRuntimeRepositoryComponent.kt")
+          runtime = runtime_path.read_text(encoding="utf-8")
+          old = '''        val currentSourcesMatch = command.contextUsage.sourceExpectations.all { expectation ->
+              when (expectation.sourceType) {
+                  ContextSourceType.MATERIAL -> getMaterialReference(expectation.sourceId)?.let { source ->
+                      source.lifecycleState == ContextSourceLifecycle.ACTIVE &&
+                          source.updatedAt == expectation.expectedUpdatedAt &&
+                          source.contentHash == expectation.expectedContentHash
+                  } ?: false
+                  ContextSourceType.PERSONAL_CONTEXT ->
+                      getPersonalContextEntry(expectation.sourceId)?.let { source ->
+                          source.lifecycleState == ContextSourceLifecycle.ACTIVE &&
+                              source.updatedAt == expectation.expectedUpdatedAt &&
+                              source.contentHash == expectation.expectedContentHash
+                      } ?: false
+              }
+          }
+          return if (
+              allMaterialValid && allPersonalValid &&
+              materialKeys.distinct().size == materialKeys.size &&
+              personalKeys.distinct().size == personalKeys.size &&
+              expectedUnique && expectedCountMatches && currentSourcesMatch
+          ) {
+              null
+          } else {
+              RepositoryError.ConstraintViolation(
+                  "create_execution_runtime",
+                  ContextValidationError.USAGE_SNAPSHOT_CONFLICT.code,
+              )
+          }
+          '''
+          new = '''        val snapshotPayloadValid =
+              allMaterialValid && allPersonalValid &&
+                  materialKeys.distinct().size == materialKeys.size &&
+                  personalKeys.distinct().size == personalKeys.size &&
+                  expectedUnique && expectedCountMatches
+          if (!snapshotPayloadValid) {
+              return RepositoryError.ConstraintViolation(
+                  "create_execution_runtime",
+                  ContextValidationError.USAGE_SNAPSHOT_CONFLICT.code,
+              )
+          }
+
+          val currentSourcesMatch = command.contextUsage.sourceExpectations.all { expectation ->
+              when (expectation.sourceType) {
+                  ContextSourceType.MATERIAL -> getMaterialReference(expectation.sourceId)?.let { source ->
+                      source.lifecycleState == ContextSourceLifecycle.ACTIVE &&
+                          source.updatedAt == expectation.expectedUpdatedAt &&
+                          source.contentHash == expectation.expectedContentHash
+                  } ?: false
+                  ContextSourceType.PERSONAL_CONTEXT ->
+                      getPersonalContextEntry(expectation.sourceId)?.let { source ->
+                          source.lifecycleState == ContextSourceLifecycle.ACTIVE &&
+                              source.updatedAt == expectation.expectedUpdatedAt &&
+                              source.contentHash == expectation.expectedContentHash
+                      } ?: false
+              }
+          }
+          return if (currentSourcesMatch) {
+              null
+          } else {
+              RepositoryError.InvalidState(
+                  "create_execution_runtime",
+                  ContextValidationError.SOURCE_STALE.code,
+              )
+          }
+          '''
+          if old not in runtime:
+              raise SystemExit("ExecutionRuntimeRepositoryComponent.kt target block not found")
+          runtime_path.write_text(runtime.replace(old, new, 1), encoding="utf-8")
+
+          migration_path = Path("app/src/androidTest/java/com/elio/jianyu/data/ResourceLifecycleMigrationTest.kt")
+          migration = migration_path.read_text(encoding="utf-8")
+          old_migration = '''    fun allMigrationsRemainContinuousFromVersion1ToVersion8() {
+              val migrationPairs = RoundtableDatabase.ALL_MIGRATIONS.map {
+                  it.startVersion to it.endVersion
+              }
+
+              assertEquals(
+                  listOf(1 to 2, 2 to 3, 3 to 4, 4 to 5, 5 to 6, 6 to 7, 7 to 8),
+                  migrationPairs
+              )
+          }
+          '''
+          new_migration = '''    fun allMigrationsRemainContinuousFromVersion1ToVersion9() {
+              val migrationPairs = RoundtableDatabase.ALL_MIGRATIONS.map {
+                  it.startVersion to it.endVersion
+              }
+
+              assertEquals(
+                  listOf(1 to 2, 2 to 3, 3 to 4, 4 to 5, 5 to 6, 6 to 7, 7 to 8, 8 to 9),
+                  migrationPairs
+              )
+          }
+          '''
+          if old_migration not in migration:
+              raise SystemExit("ResourceLifecycleMigrationTest.kt target block not found")
+          migration_path.write_text(migration.replace(old_migration, new_migration, 1), encoding="utf-8")
+          PY
+
+          git diff --check
+          grep -q 'ContextValidationError.SOURCE_STALE.code' \
+            app/src/main/java/com/elio/jianyu/data/ExecutionRuntimeRepositoryComponent.kt
+          grep -q 'allMigrationsRemainContinuousFromVersion1ToVersion9' \
+            app/src/androidTest/java/com/elio/jianyu/data/ResourceLifecycleMigrationTest.kt
+
+      - name: Compile and run JVM regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./gradlew
+          ./gradlew \
+            :app:compileDebugKotlin \
+            :app:compileDebugAndroidTestKotlin \
+            :app:testDebugUnitTest \
+            --no-daemon --stacktrace
+
+      - name: Commit fixes and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/pr09-09-instrumentation-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "fix: 修复上下文陈旧错误与v9迁移守卫"
+          git push origin "HEAD:${{ github.head_ref }}"
