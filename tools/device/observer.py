@@ -5,7 +5,7 @@ from pathlib import Path
 from .adb_client import AdbClient
 from .evidence import sha256_file, write_json
 from .models import Observation
-from .selectors import parse_ui_nodes, visible_texts
+from .ui_selectors import parse_ui_nodes, visible_texts
 
 
 def capture_observation(
