@@ -21,17 +21,29 @@ class JianyuUiAutomationArchitectureTest {
         assertTrue(contractSource.contains("jianyu_app_content_root"))
 
         val scaffoldIndex = appSource.indexOf("Scaffold(")
-        val rootTagIndex = appSource.indexOf(
-            ".testTag(JianyuAutomationTags.App.CONTENT_ROOT)",
+        val contentInsetsIndex = appSource.indexOf(
+            "contentWindowInsets = contentWindowInsets",
+            startIndex = scaffoldIndex,
         )
-        val exportIndex = appSource.indexOf(
-            ".semantics { testTagsAsResourceId = true }",
-        )
-        assertTrue("App 根标签必须挂载在 Scaffold 及底部导航的共同祖先上", rootTagIndex >= 0)
-        assertTrue("UIAutomator 标签导出必须挂载在 Scaffold 及底部导航的共同祖先上", exportIndex >= 0)
         assertTrue("无法定位 Scaffold 根节点", scaffoldIndex >= 0)
-        assertTrue("App 根标签不得仅挂载在 Scaffold content 子树", rootTagIndex < scaffoldIndex)
-        assertTrue("UIAutomator 标签导出不得遗漏 Scaffold bottomBar", exportIndex < scaffoldIndex)
+        assertTrue("无法定位 Scaffold 参数边界", contentInsetsIndex > scaffoldIndex)
+
+        val scaffoldRootConfiguration = appSource.substring(
+            scaffoldIndex,
+            contentInsetsIndex,
+        )
+        assertTrue(
+            "App 根标签必须直接挂载在 Scaffold 根节点",
+            scaffoldRootConfiguration.contains(
+                ".testTag(JianyuAutomationTags.App.CONTENT_ROOT)",
+            ),
+        )
+        assertTrue(
+            "UIAutomator 标签导出必须覆盖 Scaffold content 与 bottomBar",
+            scaffoldRootConfiguration.contains(
+                ".semantics { testTagsAsResourceId = true }",
+            ),
+        )
     }
 
     @Test
