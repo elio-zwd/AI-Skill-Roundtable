@@ -16,6 +16,7 @@ if __name__ == "selectors" and not __package__:
         _source = _stream.read()
     exec(compile(_source, _stdlib_path, "exec"), globals(), globals())
 else:
+    from . import ui_selectors as _ui_selectors
     from .ui_selectors import (
         find_nodes,
         parse_bounds,
@@ -25,6 +26,9 @@ else:
         wait_for_selector,
     )
 
+    # 保留既有测试和调用方通过 device.selectors.time 注入时钟的兼容性。
+    time = _ui_selectors.time
+
     __all__ = [
         "find_nodes",
         "parse_bounds",
@@ -32,4 +36,5 @@ else:
         "select_unique_node",
         "visible_texts",
         "wait_for_selector",
+        "time",
     ]
