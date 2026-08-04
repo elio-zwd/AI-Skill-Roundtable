@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.data.ContextSourceLifecycle
+import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.components.JianyuPageShell
 import com.elio.jianyu.ui.components.JianyuStateCard
 import com.elio.jianyu.ui.navigation.ResourceTab
@@ -192,7 +193,12 @@ private fun ResourceLibraryContent(
                 }
             }
             when (state.section) {
-                ResourceLibrarySection.MATERIALS -> {
+                ResourceLibrarySection.MATERIALS -> Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(JianyuAutomationTags.Resources.MATERIALS_CONTENT),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
                     if (state.visibleMaterials.isEmpty()) {
                         JianyuStateCard(
                             title = "暂无资料",
@@ -210,7 +216,12 @@ private fun ResourceLibraryContent(
                         }
                     }
                 }
-                ResourceLibrarySection.PERSONAL_CONTEXTS -> {
+                ResourceLibrarySection.PERSONAL_CONTEXTS -> Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(JianyuAutomationTags.Resources.PERSONAL_CONTEXT_CONTENT),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
                     if (state.visiblePersonalContexts.isEmpty()) {
                         JianyuStateCard(
                             title = "暂无匹配个人背景",

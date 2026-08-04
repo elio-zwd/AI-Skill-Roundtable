@@ -21,11 +21,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -33,6 +35,7 @@ import androidx.navigation.compose.rememberNavController
 import com.elio.jianyu.JianyuAppRuntime
 import com.elio.jianyu.JianyuAppRuntimeProvider
 import com.elio.jianyu.skill.catalog.OfficialSkillUseRequest
+import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.navigation.AppDestination
 import com.elio.jianyu.ui.navigation.AppNavHost
 import com.elio.jianyu.ui.navigation.navigateToIssue
@@ -53,10 +56,10 @@ import com.elio.jianyu.ui.screens.skills.OfficialSkillNavigationRoute
 import com.elio.jianyu.viewmodel.RoundtableViewModel
 
 object AppTestTags {
-    const val BOTTOM_NAVIGATION = "app_bottom_navigation"
+    const val BOTTOM_NAVIGATION = JianyuAutomationTags.App.BOTTOM_NAVIGATION
 
     fun destination(destination: AppDestination): String =
-        "app_destination_${destination.testTagSuffix}"
+        JianyuAutomationTags.Navigation.destination(destination.testTagSuffix)
 }
 
 @Composable
@@ -75,7 +78,7 @@ fun MainAppContent(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
 internal fun MainAppContent(
     viewModel: RoundtableViewModel,
@@ -99,6 +102,10 @@ internal fun MainAppContent(
     }
 
     Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag(JianyuAutomationTags.App.CONTENT_ROOT)
+            .semantics { testTagsAsResourceId = true },
         contentWindowInsets = contentWindowInsets,
         bottomBar = {
             if (currentTopLevel != null) {
