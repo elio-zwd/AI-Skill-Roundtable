@@ -1,32 +1,12 @@
 #!/usr/bin/env python3
-import sys
-import subprocess
 import argparse
+import sys
 
-def get_target_device(device_arg=None):
-    if device_arg:
-        return device_arg
-    try:
-        output = subprocess.check_output(["adb", "devices"], text=True)
-    except Exception:
-        sys.stderr.write("ERROR: ADB executable not found in system PATH.\n")
-        sys.exit(1)
-        
-    lines = output.strip().split("\n")[1:]
-    devices = []
-    for line in lines:
-        if not line.strip():
-            continue
-        parts = line.split()
-        if len(parts) >= 2 and parts[1] == "device":
-            devices.append(parts[0])
-            
-    if not devices:
-        sys.stderr.write("ERROR: No active Android devices/emulators detected via ADB.\n")
-        sys.exit(1)
-    return devices[0]
+from device.adb_client import AdbClient
+from device.models import DeviceControlError
 
-def main():
+
+def main() -> int:
     parser = argparse.ArgumentParser(description="Silent ADB Input/Click API")
     parser.add_argument("coords", nargs="*", type=int, help="Click coordinates (x y)")
     parser.add_argument("-l", "--long-press", type=int, help="Long press duration in milliseconds")
@@ -36,52 +16,58 @@ def main():
     parser.add_argument("-d", "--device", help="Target ADB device ID")
     args = parser.parse_args()
 
-    # 1. 寻找设备
     try:
-        device = get_target_device(args.device)
-    except SystemExit:
-        sys.exit(1)
+        client = AdbClient()
+        device = client.bind(args.device)
 
-    # 2. 执行操作
-    try:
         if args.coords:
             if len(args.coords) != 2:
-                sys.stderr.write("ERROR: Click coordinates must be exactly 2 integers: x y\n")
-                sys.exit(1)
-            x, y = args.coords[0], args.coords[1]
+                parser.error("Click coordinates must be exactly 2 integers: x y")
+            x, y = args.coords
             if args.long_press:
-                # 用 swipe 模拟长按
-                subprocess.check_call(["adb", "-s", device, "shell", "input", "swipe", str(x), str(y), str(x), str(y), str(args.long_press)])
-                print(f"OK: Long-pressed ({x}, {y}) for {args.long_press}ms")
+                client.shell(
+                    "input",
+                    "swipe",
+                    str(x),
+                    str(y),
+                    str(x),
+                    str(y),
+                    str(args.long_press),
+                )
+                print(f"OK: Long-pressed ({x}, {y}) for {args.long_press}ms on {device}")
             else:
-                subprocess.check_call(["adb", "-s", device, "shell", "input", "tap", str(x), str(y)])
-                print(f"OK: Tapped ({x}, {y})")
+                client.tap(x, y)
+                print(f"OK: Tapped ({x}, {y}) on {device}")
+            return 0
 
-        elif args.swipe:
-            if len(args.swipe) < 4 or len(args.swipe) > 5:
-                sys.stderr.write("ERROR: Swipe parameters must be: x1 y1 x2 y2 [duration]\n")
-                sys.exit(1)
-            cmd = ["adb", "-s", device, "shell", "input", "swipe"] + [str(p) for p in args.swipe]
-            subprocess.check_call(cmd)
-            duration_str = f" for {args.swipe[4]}ms" if len(args.swipe) == 5 else ""
-            print(f"OK: Swiped from ({args.swipe[0]}, {args.swipe[1]}) to ({args.swipe[2]}, {args.swipe[3]}){duration_str}")
+        if args.swipe:
+            if len(args.swipe) not in {4, 5}:
+                parser.error("Swipe parameters must be: x1 y1 x2 y2 [duration]")
+            client.shell("input", "swipe", *[str(value) for value in args.swipe])
+            duration = f" for {args.swipe[4]}ms" if len(args.swipe) == 5 else ""
+            print(
+                f"OK: Swiped from ({args.swipe[0]}, {args.swipe[1]}) "
+                f"to ({args.swipe[2]}, {args.swipe[3]}){duration} on {device}"
+            )
+            return 0
 
-        elif args.key is not None:
-            subprocess.check_call(["adb", "-s", device, "shell", "input", "keyevent", str(args.key)])
-            print(f"OK: Keyevent {args.key} sent")
+        if args.key is not None:
+            client.shell("input", "keyevent", str(args.key))
+            print(f"OK: Keyevent {args.key} sent on {device}")
+            return 0
 
-        elif args.text is not None:
-            # 替换空格为 %s 并在 adb shell input text 中发送以支持空格输入
+        if args.text is not None:
             safe_text = args.text.replace(" ", "%s")
-            subprocess.check_call(["adb", "-s", device, "shell", "input", "text", safe_text])
-            print("OK: Text input sent")
-        else:
-            sys.stderr.write("ERROR: No action specified. Must provide coords, --swipe, --key, or --text.\n")
-            sys.exit(1)
-            
-    except subprocess.CalledProcessError as e:
-        sys.stderr.write(f"ERROR: ADB input command failed. {str(e)}\n")
-        sys.exit(1)
+            client.shell("input", "text", safe_text)
+            print(f"OK: Text input sent on {device}")
+            return 0
+
+        parser.error("No action specified. Must provide coords, --swipe, --key, or --text.")
+        return 64
+    except DeviceControlError as exc:
+        sys.stderr.write(f"ERROR: {exc}\n")
+        return exc.exit_code
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
