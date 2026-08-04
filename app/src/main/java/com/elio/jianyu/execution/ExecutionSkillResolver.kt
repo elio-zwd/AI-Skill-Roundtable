@@ -4,8 +4,10 @@ import android.content.Context
 import com.elio.jianyu.data.ExecutionParticipantSnapshotEntity
 import com.elio.jianyu.skill.SkillConfig
 import com.elio.jianyu.skill.SkillLoader
+import com.elio.jianyu.skill.catalog.AndroidOfficialSkillAssetReader
 import com.elio.jianyu.skill.catalog.OfficialSkillCatalog
 import com.elio.jianyu.skill.catalog.OfficialSkillDefinition
+import com.elio.jianyu.skill.catalog.OfficialSkillExecutionEligibility
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -25,6 +27,11 @@ fun interface ExecutionSkillResolver {
 class OfficialCatalogExecutionSkillResolver(
     context: Context,
     private val catalog: OfficialSkillCatalog,
+    private val executionEligibility: OfficialSkillExecutionEligibility =
+        OfficialSkillExecutionEligibility(
+            catalog = catalog,
+            assetReader = AndroidOfficialSkillAssetReader(context.applicationContext),
+        ),
 ) : ExecutionSkillResolver {
     private val appContext = context.applicationContext
     private val json = Json { encodeDefaults = true }
@@ -49,6 +56,13 @@ class OfficialCatalogExecutionSkillResolver(
                     "unknown_official_skill",
                 )
             validateExecutable(definition)
+            val audit = executionEligibility.audit(definition)
+            if (!audit.eligible) {
+                throw InvalidExecutionSkillException(
+                    definition.id,
+                    audit.issues.first().code.reasonCode,
+                )
+            }
             val assetPath = requireNotNull(definition.assetPath) {
                 "可执行 Skill ${definition.id} 缺少资源路径"
             }
