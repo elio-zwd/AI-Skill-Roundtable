@@ -1,0 +1,40 @@
+name: PR09 UI Patch
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Apply UI patch when ready
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          parts=(.github/pr09-ui.patch.gz.b64.part-*)
+          if [[ ! -f .github/pr09-ui.patch.ready || ${#parts[@]} -ne 3 ]]; then
+            echo "UI patch is not complete."
+            exit 0
+          fi
+          cat "${parts[@]}" | base64 --decode | gzip --decompress > /tmp/pr09-ui.patch
+          git apply --check /tmp/pr09-ui.patch
+          git apply /tmp/pr09-ui.patch
+          rm -f "${parts[@]}" .github/pr09-ui.patch.ready .github/workflows/pr09-ui-patch.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "feat: 接入资料背景管理与上下文确认页面"
+          git push origin "HEAD:${{ github.head_ref }}"
