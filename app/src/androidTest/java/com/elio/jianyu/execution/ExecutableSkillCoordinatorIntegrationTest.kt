@@ -166,8 +166,8 @@ class ExecutableSkillCoordinatorIntegrationTest {
                 onAttemptStarted()
                 chunks.forEach { onTextUpdate(it) }
                 ExecutionNetworkResult(
-                    interactionId = "interaction-${request.participant.position}",
-                    text = chunks.last(),
+                    providerInteractionId = "interaction-${request.participant.position}",
+                    outputText = chunks.last(),
                 )
             }
         }
