@@ -42,7 +42,7 @@ class HomeExecutableSkillIntegrationTest {
         val outcome = HomeRecommendationPolicy.recommend(
             catalog = catalog,
             request = HomeRecommendationRequest(
-                question = "请让调研与事实核查助手核查证据，再由会议行动助手整理行动并形成汇报方案",
+                question = "请让调研与事实核查助手核查证据，再由汇报与方案写作助手形成汇报草稿",
                 directions = setOf(
                     ValueDirection.REALITY_SUPPORT,
                     ValueDirection.THINKING_EXPANSION,
@@ -54,7 +54,10 @@ class HomeExecutableSkillIntegrationTest {
         val recommendation = (outcome as HomeRecommendationOutcome.Ready).recommendation
         assertEquals(RecommendationMode.MULTI, recommendation.mode)
         assertEquals(2, recommendation.selectedSkills.size)
-        assertEquals(2, recommendation.selectedSkills.map { it.skillId }.distinct().size)
+        assertEquals(
+            setOf("research-fact-checker", "report-proposal-writer"),
+            recommendation.selectedSkills.map { it.skillId }.toSet(),
+        )
         assertTrue(recommendation.selectedSkills.all { it.executable })
         assertTrue(HomeRecommendationPolicy.validateForStart(catalog, recommendation).isEmpty())
     }
@@ -64,8 +67,8 @@ class HomeExecutableSkillIntegrationTest {
         val outcome = HomeRecommendationPolicy.recommend(
             catalog = catalog,
             request = HomeRecommendationRequest(
-                question = "请用张雪峰视角比较教育选择，再由学习规划师形成学习计划",
-                directions = setOf(ValueDirection.REALITY_SUPPORT),
+                question = "请比较张雪峰视角与学习规划师的建议",
+                directions = emptySet(),
             ),
         )
         val recommendation = (outcome as HomeRecommendationOutcome.Ready).recommendation
