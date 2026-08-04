@@ -208,18 +208,59 @@ def _execute_tap(
 ) -> tuple[dict[str, Any], int]:
     started = time.monotonic()
     selector = _selector_from_args(args)
+    expected = _expected_selector_from_args(args)
     before = capture_observation(client, output, prefix="before")
     xml_text = Path(before.xml_path).read_text(encoding="utf-8")
-    node = select_unique_node(parse_ui_nodes(xml_text), selector)
+    before_nodes = parse_ui_nodes(xml_text)
+    node = select_unique_node(before_nodes, selector)
     if not node.enabled:
         raise DeviceControlError(
             "目标控件未启用，拒绝点击。",
             category="TARGET_DISABLED",
-            details={"node": node.to_dict()},
+            details={"node": node.to_dict(), "beforeObservation": before.json_path},
+        )
+    if not node.clickable:
+        raise DeviceControlError(
+            "目标节点不可点击，拒绝发送 tap。请改用可点击父节点或稳定语义节点。",
+            category="TARGET_NOT_CLICKABLE",
+            details={"node": node.to_dict(), "beforeObservation": before.json_path},
         )
 
+    expected_node_before = None
+    if expected is not None:
+        try:
+            expected_node_before = select_unique_node(before_nodes, expected)
+        except DeviceControlError as exc:
+            if exc.category != "SELECTOR_NOT_FOUND":
+                raise
+
+    if expected_node_before is not None:
+        result = {
+            "schemaVersion": 1,
+            "status": "NOT_VERIFIED",
+            "action": "tap",
+            "serial": client.serial,
+            "selector": selector.to_dict(),
+            "matchedNode": node.to_dict(),
+            "expected": expected.to_dict(),
+            "expectedNodeBefore": expected_node_before.to_dict(),
+            "expectedNode": None,
+            "expectedPresentBefore": True,
+            "tapSent": False,
+            "durationMilliseconds": int((time.monotonic() - started) * 1000),
+            "beforeObservation": before.json_path,
+            "afterObservation": None,
+            "beforeScreenshotSha256": before.screenshot_sha256,
+            "afterScreenshotSha256": None,
+            "warning": "预期状态在点击前已存在，无法证明动作导致状态变化；未发送 tap。",
+            "error": None,
+            "afterCaptureError": None,
+        }
+        evidence = write_json(output / "tap-result.json", result)
+        result["evidence"] = str(evidence)
+        return result, NOT_VERIFIED
+
     client.tap(*node.center)
-    expected = _expected_selector_from_args(args)
     expected_node = None
     wait_error: DeviceControlError | None = None
     status = "NOT_VERIFIED"
@@ -258,7 +299,10 @@ def _execute_tap(
         "selector": selector.to_dict(),
         "matchedNode": node.to_dict(),
         "expected": expected.to_dict() if expected else None,
+        "expectedNodeBefore": None,
         "expectedNode": expected_node.to_dict() if expected_node else None,
+        "expectedPresentBefore": False,
+        "tapSent": True,
         "durationMilliseconds": int((time.monotonic() - started) * 1000),
         "beforeObservation": before.json_path,
         "afterObservation": after.json_path if after else None,
