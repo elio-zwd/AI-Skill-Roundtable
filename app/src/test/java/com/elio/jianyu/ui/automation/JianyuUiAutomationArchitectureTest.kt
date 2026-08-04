@@ -55,6 +55,8 @@ class JianyuUiAutomationArchitectureTest {
                 "RECOMMENDATION_REQUEST_BUTTON",
                 "RECOMMENDATION_RESULT",
                 "CONTEXT_CONFIRMED_SUMMARY",
+            ),
+            "screens/home/HomeComponents.kt" to listOf(
                 "FINAL_REVIEW",
                 "START_ISSUE_BUTTON",
             ),
