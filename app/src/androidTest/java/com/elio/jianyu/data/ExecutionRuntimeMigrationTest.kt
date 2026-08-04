@@ -42,7 +42,7 @@ class ExecutionRuntimeMigrationTest {
     }
 
     @Test
-    fun migration7To8AddsOnlyEmptyExecutionRuntimeTables() {
+    fun migration7To8SafelyBackfillsLegacyRuntimeWithoutInventingBudgetUse() {
         val version7 = migrationHelper.createDatabase(TEST_DATABASE, 7)
         insertVersion7Fixture(version7)
         version7.close()
@@ -56,8 +56,8 @@ class ExecutionRuntimeMigrationTest {
 
         assertEquals(1, count(migrated, "execution_runs"))
         assertEquals(1, count(migrated, "execution_participant_snapshots"))
-        assertEquals(0, count(migrated, "execution_participant_states"))
-        assertEquals(0, count(migrated, "execution_run_budgets"))
+        assertEquals(1, count(migrated, "execution_participant_states"))
+        assertEquals(1, count(migrated, "execution_run_budgets"))
         assertIndex(
             migrated,
             "index_execution_participant_states_participantSnapshotId_runId",
@@ -65,6 +65,17 @@ class ExecutionRuntimeMigrationTest {
         assertIndex(migrated, "index_execution_participant_states_runId")
         assertIndex(migrated, "index_execution_participant_states_runId_status")
         assertIndex(migrated, "index_execution_participant_states_outputMessageId")
+        assertEquals("retryable", scalarString(migrated, "SELECT status FROM execution_runs"))
+        assertEquals(
+            "retryable",
+            scalarString(migrated, "SELECT status FROM execution_participant_states"),
+        )
+        assertEquals(
+            "process_interrupted",
+            scalarString(migrated, "SELECT lastErrorCode FROM execution_participant_states"),
+        )
+        assertEquals(0, scalarInt(migrated, "SELECT usedApiCalls FROM execution_run_budgets"))
+        assertEquals(1, scalarInt(migrated, "SELECT closed FROM execution_run_budgets"))
         assertEquals(0, foreignKeyViolations(migrated))
         migrated.close()
     }
@@ -97,9 +108,22 @@ class ExecutionRuntimeMigrationTest {
     private fun count(
         database: androidx.sqlite.db.SupportSQLiteDatabase,
         table: String,
-    ): Int = database.query("SELECT COUNT(*) FROM `$table`").use { cursor ->
+    ): Int = scalarInt(database, "SELECT COUNT(*) FROM `$table`")
+
+    private fun scalarInt(
+        database: androidx.sqlite.db.SupportSQLiteDatabase,
+        sql: String,
+    ): Int = database.query(sql).use { cursor ->
         assertTrue(cursor.moveToFirst())
         cursor.getInt(0)
+    }
+
+    private fun scalarString(
+        database: androidx.sqlite.db.SupportSQLiteDatabase,
+        sql: String,
+    ): String = database.query(sql).use { cursor ->
+        assertTrue(cursor.moveToFirst())
+        cursor.getString(0)
     }
 
     private fun assertIndex(
