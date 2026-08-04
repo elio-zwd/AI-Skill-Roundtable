@@ -303,8 +303,9 @@ object HomeWorkflow {
         transform: (HomeRecommendation) -> HomeRecommendation,
     ): HomeWorkflowState {
         val current = state.recommendation ?: return state
-        val updated = transform(current).copy(
-            skills = transform(current).skills.mapIndexed { index, skill ->
+        val transformed = transform(current)
+        val updated = transformed.copy(
+            skills = transformed.skills.mapIndexed { index, skill ->
                 skill.copy(position = index)
             },
         )
