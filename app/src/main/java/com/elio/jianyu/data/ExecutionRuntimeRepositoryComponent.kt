@@ -23,7 +23,8 @@ internal class ExecutionRuntimeRepositoryComponent(
                 val participants = getParticipantSnapshots(existing.id)
                 if (
                     sameCreationPayload(existing, command.run) &&
-                    participants == command.participants.sortedBy { it.position }
+                    participants == command.participants.sortedBy { it.position } &&
+                    contextUsageMatches(existing.id, command.contextUsage)
                 ) {
                     return@transaction loadRuntimeSnapshot(existing)
                         .withIdempotentFlag()
@@ -80,6 +81,10 @@ internal class ExecutionRuntimeRepositoryComponent(
                 }
             }
 
+            validateContextUsage(command)?.let { error ->
+                return@transaction RepositoryResult.Failure(error)
+            }
+
             insertExecutionRun(command.run)
             val participants = command.participants.sortedBy { it.position }
             insertParticipantSnapshots(participants)
@@ -113,6 +118,13 @@ internal class ExecutionRuntimeRepositoryComponent(
                         "retry_budget_root_missing",
                     ),
                 )
+            }
+
+            if (command.contextUsage.materials.isNotEmpty()) {
+                insertMaterialUsages(command.contextUsage.materials.sortedBy { it.id })
+            }
+            if (command.contextUsage.personalContexts.isNotEmpty()) {
+                insertPersonalContextUsages(command.contextUsage.personalContexts.sortedBy { it.id })
             }
 
             loadRuntimeSnapshot(command.run)
@@ -422,6 +434,74 @@ internal class ExecutionRuntimeRepositoryComponent(
                 ?: throw RepositoryCompatibilityAbort("missing_retry_parent")
         }
         return current.id
+    }
+
+    private suspend fun JianyuRepositoryDao.contextUsageMatches(
+        runId: String,
+        requested: ContextUsageWriteSet,
+    ): Boolean {
+        val sorted = requested.sorted()
+        return getMaterialUsagesForRun(runId) == sorted.materials &&
+            getPersonalContextUsagesForRun(runId) == sorted.personalContexts
+    }
+
+    private suspend fun JianyuRepositoryDao.validateContextUsage(
+        command: CreateExecutionRuntimeCommand,
+    ): RepositoryError? {
+        val allMaterialValid = command.contextUsage.materials.all { usage ->
+            usage.runId == command.run.id &&
+                usage.issueId == command.run.issueId &&
+                usage.stageId == command.run.stageId &&
+                usage.materialReferenceId != null &&
+                usage.contentSnapshot?.isNotBlank() == true &&
+                usage.contentHash == ContextContentHasher.hash(requireNotNull(usage.contentSnapshot)) &&
+                usage.networkAllowed &&
+                usage.userConfirmedAt > 0L
+        }
+        val allPersonalValid = command.contextUsage.personalContexts.all { usage ->
+            usage.runId == command.run.id &&
+                usage.issueId == command.run.issueId &&
+                usage.stageId == command.run.stageId &&
+                usage.personalContextEntryId != null &&
+                usage.contentSnapshot?.isNotBlank() == true &&
+                usage.contentHash == ContextContentHasher.hash(requireNotNull(usage.contentSnapshot)) &&
+                usage.networkAllowed &&
+                usage.userConfirmedAt > 0L
+        }
+        val materialKeys = command.contextUsage.materials.map { it.materialReferenceId }
+        val personalKeys = command.contextUsage.personalContexts.map { it.personalContextEntryId }
+        val expectedKeys = command.contextUsage.sourceExpectations.map { it.sourceType to it.sourceId }
+        val expectedUnique = expectedKeys.distinct().size == expectedKeys.size
+        val expectedCountMatches = command.contextUsage.sourceExpectations.size ==
+            command.contextUsage.materials.size + command.contextUsage.personalContexts.size
+        val currentSourcesMatch = command.contextUsage.sourceExpectations.all { expectation ->
+            when (expectation.sourceType) {
+                ContextSourceType.MATERIAL -> getMaterialReference(expectation.sourceId)?.let { source ->
+                    source.lifecycleState == ContextSourceLifecycle.ACTIVE &&
+                        source.updatedAt == expectation.expectedUpdatedAt &&
+                        source.contentHash == expectation.expectedContentHash
+                } ?: false
+                ContextSourceType.PERSONAL_CONTEXT ->
+                    getPersonalContextEntry(expectation.sourceId)?.let { source ->
+                        source.lifecycleState == ContextSourceLifecycle.ACTIVE &&
+                            source.updatedAt == expectation.expectedUpdatedAt &&
+                            source.contentHash == expectation.expectedContentHash
+                    } ?: false
+            }
+        }
+        return if (
+            allMaterialValid && allPersonalValid &&
+            materialKeys.distinct().size == materialKeys.size &&
+            personalKeys.distinct().size == personalKeys.size &&
+            expectedUnique && expectedCountMatches && currentSourcesMatch
+        ) {
+            null
+        } else {
+            RepositoryError.ConstraintViolation(
+                "create_execution_runtime",
+                ContextValidationError.USAGE_SNAPSHOT_CONFLICT.code,
+            )
+        }
     }
 
     private fun sameCreationPayload(

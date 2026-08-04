@@ -39,6 +39,9 @@ class ExecutionRunCoordinator(
     private val locallyStoppedRuns = ConcurrentHashMap.newKeySet<String>()
 
     suspend fun start(command: ExecutionStartCommand): ExecutionRunResult {
+        ExecutionContextGate.validate(command.contributions, command.contextUsage)?.let { failure ->
+            throw ExecutionStartException(failure)
+        }
         return withRunRegistration(command.runId) {
             val issueRecovery = persistence.recoverIssue(command.issueId)
             val stage = requireStage(issueRecovery, command.stageId)
@@ -75,6 +78,7 @@ class ExecutionRunCoordinator(
                     participants = participants,
                     budgetRootRunId = command.runId,
                     budget = command.budget,
+                    contextUsage = command.contextUsage,
                 ),
             )
 
@@ -105,6 +109,9 @@ class ExecutionRunCoordinator(
     }
 
     suspend fun retry(command: ExecutionRetryCommand): ExecutionRunResult {
+        ExecutionContextGate.validate(command.contributions, command.contextUsage)?.let { failure ->
+            throw ExecutionStartException(failure)
+        }
         return withRunRegistration(command.newRunId) {
             val previous = persistence.getRuntime(command.previousRunId)
             require(
@@ -153,6 +160,7 @@ class ExecutionRunCoordinator(
                     participants = retryParticipants,
                     budgetRootRunId = previous.budget.rootRunId,
                     budget = budgetConfig,
+                    contextUsage = command.contextUsage,
                 ),
             )
             if (child.run.status != ExecutionRunStatus.NOT_STARTED) {

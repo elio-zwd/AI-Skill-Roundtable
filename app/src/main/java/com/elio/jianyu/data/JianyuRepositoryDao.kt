@@ -328,14 +328,47 @@ internal interface JianyuRepositoryDao {
     )
     suspend fun getArtifactMaterialSources(artifactId: String): List<ArtifactMaterialSourceEntity>
 
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertMaterialReference(entity: MaterialReferenceEntity)
+
+    @Update
+    suspend fun updateMaterialReference(entity: MaterialReferenceEntity): Int
+
     @Query("SELECT * FROM material_references WHERE id = :id LIMIT 1")
     suspend fun getMaterialReference(id: String): MaterialReferenceEntity?
+
+    @Query("SELECT * FROM material_references ORDER BY updatedAt DESC, id ASC")
+    suspend fun getAllMaterialReferences(): List<MaterialReferenceEntity>
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertMaterialUsage(entity: MaterialUsageSnapshotEntity)
 
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertMaterialUsages(entities: List<MaterialUsageSnapshotEntity>)
+
     @Query("SELECT * FROM material_usage_snapshots WHERE id = :id LIMIT 1")
     suspend fun getMaterialUsage(id: String): MaterialUsageSnapshotEntity?
+
+    @Query(
+        "SELECT * FROM material_usage_snapshots WHERE runId = :runId " +
+            "ORDER BY userConfirmedAt ASC, materialReferenceId ASC, id ASC"
+    )
+    suspend fun getMaterialUsagesForRun(runId: String): List<MaterialUsageSnapshotEntity>
+
+    @Query(
+        "SELECT * FROM material_usage_snapshots WHERE runId = :runId " +
+            "AND materialReferenceId = :sourceId LIMIT 1"
+    )
+    suspend fun getMaterialUsageForRunAndSource(
+        runId: String,
+        sourceId: String,
+    ): MaterialUsageSnapshotEntity?
+
+    @Query(
+        "SELECT * FROM material_usage_snapshots WHERE materialReferenceId = :sourceId " +
+            "ORDER BY createdAt ASC, id ASC"
+    )
+    suspend fun getMaterialUsagesForSource(sourceId: String): List<MaterialUsageSnapshotEntity>
 
     @Query(
         "SELECT * FROM material_usage_snapshots WHERE issueId = :issueId " +
@@ -343,11 +376,57 @@ internal interface JianyuRepositoryDao {
     )
     suspend fun getMaterialUsagesForIssue(issueId: String): List<MaterialUsageSnapshotEntity>
 
+    @Query(
+        "UPDATE material_usage_snapshots SET titleSnapshot = '', sourceTypeSnapshot = '', " +
+            "sourceLocatorSnapshot = NULL, contentSnapshot = NULL, contentHash = '', " +
+            "contentState = 'purged', networkAllowed = 0, sensitive = 0 " +
+            "WHERE materialReferenceId = :sourceId"
+    )
+    suspend fun purgeMaterialUsageSnapshots(sourceId: String): Int
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertPersonalContextEntry(entity: PersonalContextEntryEntity)
+
+    @Update
+    suspend fun updatePersonalContextEntry(entity: PersonalContextEntryEntity): Int
+
+    @Query("SELECT * FROM personal_context_entries WHERE id = :id LIMIT 1")
+    suspend fun getPersonalContextEntry(id: String): PersonalContextEntryEntity?
+
+    @Query("SELECT * FROM personal_context_entries ORDER BY updatedAt DESC, id ASC")
+    suspend fun getAllPersonalContextEntries(): List<PersonalContextEntryEntity>
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertPersonalContextUsage(entity: PersonalContextUsageSnapshotEntity)
 
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertPersonalContextUsages(entities: List<PersonalContextUsageSnapshotEntity>)
+
     @Query("SELECT * FROM personal_context_usage_snapshots WHERE id = :id LIMIT 1")
     suspend fun getPersonalContextUsage(id: String): PersonalContextUsageSnapshotEntity?
+
+    @Query(
+        "SELECT * FROM personal_context_usage_snapshots WHERE runId = :runId " +
+            "ORDER BY userConfirmedAt ASC, personalContextEntryId ASC, id ASC"
+    )
+    suspend fun getPersonalContextUsagesForRun(runId: String): List<PersonalContextUsageSnapshotEntity>
+
+    @Query(
+        "SELECT * FROM personal_context_usage_snapshots WHERE runId = :runId " +
+            "AND personalContextEntryId = :sourceId LIMIT 1"
+    )
+    suspend fun getPersonalContextUsageForRunAndSource(
+        runId: String,
+        sourceId: String,
+    ): PersonalContextUsageSnapshotEntity?
+
+    @Query(
+        "SELECT * FROM personal_context_usage_snapshots WHERE personalContextEntryId = :sourceId " +
+            "ORDER BY createdAt ASC, id ASC"
+    )
+    suspend fun getPersonalContextUsagesForSource(
+        sourceId: String,
+    ): List<PersonalContextUsageSnapshotEntity>
 
     @Query(
         "SELECT * FROM personal_context_usage_snapshots WHERE issueId = :issueId " +
@@ -356,6 +435,13 @@ internal interface JianyuRepositoryDao {
     suspend fun getPersonalContextUsagesForIssue(
         issueId: String
     ): List<PersonalContextUsageSnapshotEntity>
+
+    @Query(
+        "UPDATE personal_context_usage_snapshots SET titleSnapshot = '', contentSnapshot = NULL, " +
+            "contentHash = '', contentState = 'purged', networkAllowed = 0, sensitive = 0 " +
+            "WHERE personalContextEntryId = :sourceId"
+    )
+    suspend fun purgePersonalContextUsageSnapshots(sourceId: String): Int
 
     @Query(
         "SELECT * FROM audio_assets WHERE issueId = :issueId " +

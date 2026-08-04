@@ -3,6 +3,7 @@ package com.elio.jianyu.execution
 import com.elio.jianyu.data.ExecutionRunStatus
 import com.elio.jianyu.data.ExecutionRuntimeBudgetConfig
 import com.elio.jianyu.data.ExecutionRuntimeSnapshot
+import com.elio.jianyu.data.ContextUsageWriteSet
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 
@@ -28,6 +29,9 @@ enum class ExecutionErrorCode(val storageValue: String, val retryable: Boolean) 
     INVALID_STATE("invalid_state", false),
     USER_STOPPED("user_stopped", true),
     PROCESS_INTERRUPTED("process_interrupted", true),
+    CONTEXT_NETWORK_NOT_ALLOWED("context_network_not_allowed", true),
+    CONTEXT_USAGE_CONFLICT("context_usage_conflict", true),
+    CONTEXT_TOO_LARGE("context_too_large", true),
 }
 
 data class ExecutionFailure(
@@ -147,6 +151,7 @@ data class ExecutionStartCommand(
     val model: String = DEFAULT_EXECUTION_MODEL,
     val budget: ExecutionRuntimeBudgetConfig = ExecutionRuntimeBudgetConfig(),
     val contributions: List<ExecutionContextContribution> = emptyList(),
+    val contextUsage: ContextUsageWriteSet = ContextUsageWriteSet(),
 ) {
     init {
         require(runId.isNotBlank())
@@ -170,6 +175,7 @@ data class ExecutionRetryCommand(
     val userConfirmedAt: Long,
     val model: String = DEFAULT_EXECUTION_MODEL,
     val contributions: List<ExecutionContextContribution> = emptyList(),
+    val contextUsage: ContextUsageWriteSet = ContextUsageWriteSet(),
 ) {
     init {
         require(previousRunId.isNotBlank())

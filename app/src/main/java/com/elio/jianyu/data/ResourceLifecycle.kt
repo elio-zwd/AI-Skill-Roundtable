@@ -7,6 +7,15 @@ enum class SnapshotContentState(val storageValue: String) {
     PURGED("purged")
 }
 
+enum class ContextSourceLifecycle(val storageValue: String) {
+    ACTIVE("active"),
+    DISABLED("disabled"),
+    ARCHIVED("archived"),
+    DELETED("deleted"),
+    PURGE_REQUESTED("purge_requested"),
+    PURGED("purged")
+}
+
 enum class AudioFileState(val storageValue: String) {
     PENDING("pending"),
     AVAILABLE("available"),
@@ -21,6 +30,15 @@ enum class IssueLifecycleState(val storageValue: String) {
 }
 
 class ResourceLifecycleConverters {
+    @TypeConverter
+    fun contextSourceLifecycleToStorage(value: ContextSourceLifecycle): String = value.storageValue
+
+    @TypeConverter
+    fun storageToContextSourceLifecycle(value: String): ContextSourceLifecycle {
+        return ContextSourceLifecycle.entries.firstOrNull { it.storageValue == value }
+            ?: throw IllegalArgumentException("未知的上下文来源生命周期")
+    }
+
     @TypeConverter
     fun snapshotContentStateToStorage(value: SnapshotContentState): String = value.storageValue
 

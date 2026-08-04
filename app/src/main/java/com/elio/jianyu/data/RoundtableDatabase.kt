@@ -41,7 +41,7 @@ import kotlinx.coroutines.launch
         OfficialSkillCombinationMemberEntity::class,
         IssueLifecycleEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = true
 )
 @TypeConverters(
@@ -141,6 +141,7 @@ abstract class RoundtableDatabase : RoomDatabase() {
 
         val MIGRATION_6_7: Migration = ResourceLifecycleMigration.MIGRATION_6_7
         val MIGRATION_7_8: Migration = ExecutionRuntimeMigration.MIGRATION_7_8
+        val MIGRATION_8_9: Migration = MaterialContextMigration.MIGRATION_8_9
 
         val ALL_MIGRATIONS: Array<Migration> = arrayOf(
             MIGRATION_1_2,
@@ -149,7 +150,8 @@ abstract class RoundtableDatabase : RoomDatabase() {
             MIGRATION_4_5,
             MIGRATION_5_6,
             MIGRATION_6_7,
-            MIGRATION_7_8
+            MIGRATION_7_8,
+            MIGRATION_8_9
         )
 
         private fun createCoreDomainTablesForVersion6(db: SupportSQLiteDatabase) {

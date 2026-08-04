@@ -12,20 +12,27 @@ class JianyuRepositoryArchitectureTest {
     }
 
     @Test
-    fun roomUsesContinuousVersionEightExecutionRuntimeSchema() {
+    fun roomUsesContinuousVersionNineMaterialContextSchema() {
         val databaseSource = source("app/src/main/java/com/elio/jianyu/data/RoundtableDatabase.kt")
-        val migrationSource = source(
+        val executionMigrationSource = source(
             "app/src/main/java/com/elio/jianyu/data/ExecutionRuntimeMigration.kt"
         )
+        val contextMigrationSource = source(
+            "app/src/main/java/com/elio/jianyu/data/MaterialContextMigration.kt"
+        )
 
-        assertTrue(databaseSource.contains("version = 8"))
-        assertFalse(databaseSource.contains("version = 9"))
+        assertTrue(databaseSource.contains("version = 9"))
+        assertFalse(databaseSource.contains("version = 10"))
         assertTrue(databaseSource.contains("MIGRATION_7_8"))
+        assertTrue(databaseSource.contains("MIGRATION_8_9"))
         assertTrue(databaseSource.contains("ExecutionParticipantStateEntity::class"))
         assertTrue(databaseSource.contains("ExecutionRunBudgetEntity::class"))
-        assertTrue(migrationSource.contains("Migration(7, 8)"))
-        assertTrue(migrationSource.contains("execution_participant_states"))
-        assertTrue(migrationSource.contains("execution_run_budgets"))
+        assertTrue(executionMigrationSource.contains("Migration(7, 8)"))
+        assertTrue(executionMigrationSource.contains("execution_participant_states"))
+        assertTrue(executionMigrationSource.contains("execution_run_budgets"))
+        assertTrue(contextMigrationSource.contains("Migration(8, 9)"))
+        assertTrue(contextMigrationSource.contains("networkAllowed"))
+        assertTrue(contextMigrationSource.contains("sensitive"))
     }
 
     @Test
@@ -64,6 +71,7 @@ class JianyuRepositoryArchitectureTest {
             "app/src/main/java/com/elio/jianyu/data/ResourceRepositoryComponent.kt",
             "app/src/main/java/com/elio/jianyu/data/UsageRepositoryComponent.kt",
             "app/src/main/java/com/elio/jianyu/data/LifecycleRecoveryRepositoryComponent.kt",
+            "app/src/main/java/com/elio/jianyu/data/MaterialContextRepositoryComponent.kt",
             "app/src/main/java/com/elio/jianyu/data/JianyuRepositoryTransactions.kt"
         ).map(::source)
 
@@ -87,13 +95,14 @@ class JianyuRepositoryArchitectureTest {
         val facade = source("app/src/main/java/com/elio/jianyu/data/RoomJianyuRepository.kt")
         val lineCount = facade.lineSequence().count()
 
-        assertTrue("公共 Repository 门面不应重新膨胀，当前行数：$lineCount", lineCount < 260)
+        assertTrue("公共 Repository 门面不应重新膨胀，当前行数：$lineCount", lineCount < 320)
         assertTrue(facade.contains("IssueExecutionRepositoryComponent"))
         assertTrue(facade.contains("ExecutionRuntimeRepositoryComponent"))
         assertTrue(facade.contains("PendingMessageRepositoryComponent"))
         assertTrue(facade.contains("ResourceRepositoryComponent"))
         assertTrue(facade.contains("UsageRepositoryComponent"))
         assertTrue(facade.contains("LifecycleRecoveryRepositoryComponent"))
+        assertTrue(facade.contains("MaterialContextRepositoryComponent"))
         assertFalse(facade.contains("withTransaction"))
     }
 
