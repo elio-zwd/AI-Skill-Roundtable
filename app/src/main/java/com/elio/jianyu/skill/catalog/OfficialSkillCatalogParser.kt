@@ -12,7 +12,8 @@ object OfficialSkillCatalogParser {
 
     private const val EXPECTED_SCHEMA_VERSION = 1
     private const val EXPECTED_SKILL_COUNT = 44
-    private const val EXPECTED_EXECUTION_BATCH_SIZE = 4
+    private const val MIN_EXECUTION_BATCH_SIZE = 3
+    private const val MAX_EXECUTION_BATCH_SIZE = 5
     private const val EXPECTED_EXECUTION_BATCH_ID = "jianyu-official-skill-execution-batch-v1"
 
     private val json = Json {
@@ -227,10 +228,10 @@ object OfficialSkillCatalogParser {
         if (publication.generatedFrom.isBlank()) {
             issues += issue("missing_execution_generation_source", "执行发布必须记录原创实现来源")
         }
-        if (publication.skills.size != EXPECTED_EXECUTION_BATCH_SIZE) {
+        if (publication.skills.size !in MIN_EXECUTION_BATCH_SIZE..MAX_EXECUTION_BATCH_SIZE) {
             issues += issue(
                 "invalid_execution_batch_size",
-                "首批执行发布必须精确包含 $EXPECTED_EXECUTION_BATCH_SIZE 项",
+                "首批执行发布必须包含 $MIN_EXECUTION_BATCH_SIZE～$MAX_EXECUTION_BATCH_SIZE 项",
             )
         }
         val publicationIds = publication.skills.map(OfficialSkillExecutionPublication::id)
