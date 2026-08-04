@@ -56,6 +56,7 @@ object JianyuAppRuntimeProvider {
                 skillResolver = OfficialCatalogExecutionSkillResolver(
                     context = context,
                     catalog = catalogRuntimeResult.runtime.catalog,
+                    executionEligibility = catalogRuntimeResult.runtime.executionEligibility,
                 ),
                 networkGateway = InteractionExecutionNetworkGateway(context),
                 contextBuilder = ExecutionContextBuilder(),
