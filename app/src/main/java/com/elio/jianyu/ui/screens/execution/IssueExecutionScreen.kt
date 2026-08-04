@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.data.ContextSourceType
+import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.components.JianyuPageShell
 import com.elio.jianyu.ui.components.JianyuStateCard
 import com.elio.jianyu.ui.screens.context.ContextConfirmationDialog
@@ -89,14 +90,21 @@ fun IssueExecutionScreen(
                         message = "仅在确认原网络调用已经停止后执行恢复。恢复只收敛数据库状态，不会自动重发请求。",
                     )
                 }
-                state.participants.forEach { participant ->
-                    ExecutionParticipantCard(participant)
-                }
-                if (state.participants.isEmpty() && state.runId != null) {
-                    JianyuStateCard(
-                        title = "没有参与者运行快照",
-                        message = "当前 Run 无法安全执行，请返回后重新选择 Skill。",
-                    )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(JianyuAutomationTags.Execution.PARTICIPANTS),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    state.participants.forEach { participant ->
+                        ExecutionParticipantCard(participant)
+                    }
+                    if (state.participants.isEmpty() && state.runId != null) {
+                        JianyuStateCard(
+                            title = "没有参与者运行快照",
+                            message = "当前 Run 无法安全执行，请返回后重新选择 Skill。",
+                        )
+                    }
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),

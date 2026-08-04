@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.data.ContextSourceType
 import com.elio.jianyu.data.SnapshotContentState
+import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.components.JianyuMetadataRow
 
 object ContextConfirmationTestTags {
@@ -81,26 +82,39 @@ fun ContextConfirmationDialog(
                     modifier = Modifier.testTag(ContextConfirmationTestTags.TOTAL),
                 )
                 JianyuMetadataRow("剩余额度", state.remainingCharacters.coerceAtLeast(0).toString())
-                if (state.tooLarge) {
-                    Text(
-                        "上下文超出 24,000 字符。请主动缩短摘录或移除来源；系统不会静默截断。",
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-                if (state.networkPermissionMissing) {
-                    Text(
-                        "已选来源中存在未允许本次发送到模型服务的正文。",
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-                if (state.sensitiveConfirmationMissing) {
-                    Text(
-                        "敏感来源需要额外确认；敏感标记不会自动禁止使用。",
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-                state.errorMessage?.let {
-                    Text(it, color = MaterialTheme.colorScheme.error)
+                val hasValidationErrors = state.tooLarge ||
+                    state.networkPermissionMissing ||
+                    state.sensitiveConfirmationMissing ||
+                    state.errorMessage != null
+                if (hasValidationErrors) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag(JianyuAutomationTags.Context.VALIDATION_ERRORS),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        if (state.tooLarge) {
+                            Text(
+                                "上下文超出 24,000 字符。请主动缩短摘录或移除来源；系统不会静默截断。",
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                        if (state.networkPermissionMissing) {
+                            Text(
+                                "已选来源中存在未允许本次发送到模型服务的正文。",
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                        if (state.sensitiveConfirmationMissing) {
+                            Text(
+                                "敏感来源需要额外确认；敏感标记不会自动禁止使用。",
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                        state.errorMessage?.let {
+                            Text(it, color = MaterialTheme.colorScheme.error)
+                        }
+                    }
                 }
                 if (state.candidates.isEmpty()) {
                     Text("当前没有可选的活跃资料或个人背景。")
