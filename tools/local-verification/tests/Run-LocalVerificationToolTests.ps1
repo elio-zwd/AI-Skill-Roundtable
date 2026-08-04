@@ -2,6 +2,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $toolRoot = Split-Path -Parent $PSScriptRoot
+$repositoryRoot = Split-Path -Parent (Split-Path -Parent $toolRoot)
 $modulePath = Join-Path $toolRoot 'LocalVerification.psm1'
 $cliPath = Join-Path $toolRoot 'Invoke-LocalVerification.ps1'
 
@@ -142,6 +143,16 @@ try {
     Assert-True ($excerptText -notmatch [regex]::Escape($fakeGoogleKey)) 'Google API Key 特征不得进入展示摘录'
     Assert-True ((Get-Content -LiteralPath $logPath -Raw) -match 'super-secret-token') '展示脱敏不得修改原始日志'
 
+    $opaqueLogPath = Join-Path $tempRoot 'opaque-failure.log'
+    Write-Utf8File -Path $opaqueLogPath -Content (@(
+        'opaque line one',
+        'opaque line two',
+        'opaque final diagnostic'
+    ) -join [Environment]::NewLine)
+    $opaqueExcerpt = Get-BoundedFailureExcerpt -LogPath $opaqueLogPath -MaxLines 2 -MaxBytes 512
+    Assert-True ($opaqueExcerpt.Lines.Count -gt 0) '无常见关键字的失败日志仍应返回有界末尾摘录'
+    Assert-True (($opaqueExcerpt.Lines -join "`n") -match 'opaque final diagnostic') '末尾摘录应保留最后诊断行'
+
     $emitSuccess = Join-Path $tempRoot 'emit-success.ps1'
     Write-Utf8File -Path $emitSuccess -Content @'
 [Console]::Out.WriteLine('RAW_STDOUT_SHOULD_STAY_IN_LOG')
@@ -158,12 +169,25 @@ exit 2
     $pwsh = (Get-Process -Id $PID).Path
     $evidenceRoot = Join-Path $tempRoot 'evidence'
 
+    $insideStepRejected = $false
+    try {
+        $null = Invoke-VerificationStep `
+            -Name 'inside-repo-step' `
+            -OutputDirectory (Join-Path $repositoryRoot '.verification-should-be-rejected') `
+            -Command $pwsh `
+            -CommandArguments @('-NoProfile', '-File', $emitSuccess) `
+            -RepositoryRoot $repositoryRoot
+    } catch {
+        $insideStepRejected = $true
+    }
+    Assert-True $insideStepRejected '步骤执行器必须拒绝仓库内输出目录'
+
     $successStep = Invoke-VerificationStep `
         -Name 'success-step' `
         -OutputDirectory $evidenceRoot `
         -Command $pwsh `
         -CommandArguments @('-NoProfile', '-File', $emitSuccess) `
-        -RepositoryRoot (Split-Path -Parent (Split-Path -Parent $toolRoot))
+        -RepositoryRoot $repositoryRoot
 
     Assert-Equal 'PASS' $successStep.Status '退出码零且未声明 JUnit 的步骤应 PASS'
     Assert-Equal 0 $successStep.ExitCode '成功步骤退出码'
@@ -179,7 +203,7 @@ exit 2
         -OutputDirectory $evidenceRoot `
         -Command $pwsh `
         -CommandArguments @('-NoProfile', '-File', $emitFailure) `
-        -RepositoryRoot (Split-Path -Parent (Split-Path -Parent $toolRoot))
+        -RepositoryRoot $repositoryRoot
 
     Assert-Equal 'FAIL' $failureStep.Status '非零退出码应 FAIL'
     Assert-Equal 2 $failureStep.ExitCode '非零退出码不得被覆盖'
@@ -192,13 +216,28 @@ exit 2
         -Command $pwsh `
         -CommandArguments @('-NoProfile', '-File', $emitSuccess) `
         -JUnitPath @((Join-Path $tempRoot 'missing-results\TEST-*.xml')) `
-        -RepositoryRoot (Split-Path -Parent (Split-Path -Parent $toolRoot))
+        -RepositoryRoot $repositoryRoot
 
     Assert-Equal 'NOT_VERIFIED' $missingJUnitStep.Status '命令成功但测试证据缺失时应 NOT_VERIFIED'
+
+    $insideSummaryRejected = $false
+    try {
+        $null = Write-VerificationSummary `
+            -StepPath @($successStep.EvidencePath) `
+            -OutputDirectory (Join-Path $repositoryRoot '.summary-should-be-rejected') `
+            -RepositoryRoot $repositoryRoot `
+            -Repository 'elio-zwd/AI-Skill-Roundtable' `
+            -BaseSha 'base-test' `
+            -HeadSha 'head-test'
+    } catch {
+        $insideSummaryRejected = $true
+    }
+    Assert-True $insideSummaryRejected '摘要生成器必须拒绝仓库内输出目录'
 
     $summary = Write-VerificationSummary `
         -StepPath @($successStep.EvidencePath, $failureStep.EvidencePath, $missingJUnitStep.EvidencePath) `
         -OutputDirectory $evidenceRoot `
+        -RepositoryRoot $repositoryRoot `
         -Repository 'elio-zwd/AI-Skill-Roundtable' `
         -BaseSha 'base-test' `
         -HeadSha 'head-test'
@@ -219,7 +258,7 @@ exit 2
         '-OutputDirectory', $cliOutputRoot,
         '-Command', $pwsh,
         '-CommandArgumentsJson', $argumentJson,
-        '-RepositoryRoot', (Split-Path -Parent (Split-Path -Parent $toolRoot))
+        '-RepositoryRoot', $repositoryRoot
     )
     & $pwsh @cliArguments *> $cliCapture
     $cliExit = $LASTEXITCODE
