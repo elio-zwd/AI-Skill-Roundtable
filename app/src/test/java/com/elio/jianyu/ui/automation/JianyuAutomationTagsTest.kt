@@ -41,6 +41,19 @@ class JianyuAutomationTagsTest {
             AppTestTags.destination(AppDestination.HOME),
         )
         assertEquals(JianyuAutomationTags.Screen.HOME, HomeTestTags.SCREEN)
+        assertEquals(JianyuAutomationTags.Home.QUESTION_INPUT, HomeTestTags.QUESTION_INPUT)
+        assertEquals(
+            JianyuAutomationTags.Home.RECOMMENDATION_REQUEST_BUTTON,
+            HomeTestTags.RECOMMENDATION_REQUEST_BUTTON,
+        )
+        assertEquals(
+            JianyuAutomationTags.Home.RECOMMENDATION_RESULT,
+            HomeTestTags.RECOMMENDATION_RESULT,
+        )
+        assertEquals(
+            JianyuAutomationTags.Home.CONTEXT_CONFIRMATION_BUTTON,
+            HomeTestTags.CONTEXT_CONFIRMATION_BUTTON,
+        )
         assertEquals(
             JianyuAutomationTags.Shell.GLOBAL_SETTINGS_BUTTON,
             JianyuShellTestTags.GLOBAL_SETTINGS_BUTTON,
@@ -71,10 +84,23 @@ class JianyuAutomationTagsTest {
     }
 
     @Test
-    fun temporaryHomePlaceholder_isNotFrozen() {
-        assertFalse(
-            JianyuAutomationTags.frozenStaticTags.contains(HomeTestTags.QUESTION_PLACEHOLDER),
+    fun realHomeTags_areFrozenAndPlaceholderIsRemoved() {
+        val required = listOf(
+            JianyuAutomationTags.Home.QUESTION_INPUT,
+            JianyuAutomationTags.Home.DIRECTION_REALITY_SUPPORT,
+            JianyuAutomationTags.Home.DIRECTION_THINKING_EXPANSION,
+            JianyuAutomationTags.Home.SAVE_ISSUE_ONLY_BUTTON,
+            JianyuAutomationTags.Home.RECOMMENDATION_REQUEST_BUTTON,
+            JianyuAutomationTags.Home.RECOMMENDATION_RESULT,
+            JianyuAutomationTags.Home.RECOMMENDATION_CONFIRM_BUTTON,
+            JianyuAutomationTags.Home.CONTEXT_CONFIRMATION_BUTTON,
+            JianyuAutomationTags.Home.CONTEXT_CONFIRMED_SUMMARY,
+            JianyuAutomationTags.Home.FINAL_REVIEW,
+            JianyuAutomationTags.Home.START_ISSUE_BUTTON,
         )
+
+        assertTrue(JianyuAutomationTags.frozenStaticTags.containsAll(required))
+        assertFalse(JianyuAutomationTags.frozenStaticTags.contains("home_question_placeholder"))
     }
 
     @Test
@@ -82,6 +108,14 @@ class JianyuAutomationTagsTest {
         assertEquals(
             "issue_navigation_issue-42",
             JianyuAutomationTags.Issues.issue("issue-42"),
+        )
+        assertEquals(
+            "home_recommendation_skill_skill-42",
+            JianyuAutomationTags.Home.recommendationSkill("skill-42"),
+        )
+        assertEquals(
+            "home_example_question_career-transition",
+            JianyuAutomationTags.Home.exampleQuestion("career-transition"),
         )
         assertNotEquals(
             JianyuAutomationTags.Resources.material("same-id"),
@@ -92,6 +126,9 @@ class JianyuAutomationTagsTest {
         }
         assertThrows(IllegalArgumentException::class.java) {
             JianyuAutomationTags.normalizedStableId("用户输入")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            JianyuAutomationTags.Home.recommendationSkill("私人问题正文")
         }
         assertThrows(IllegalArgumentException::class.java) {
             JianyuAutomationTags.normalizedStableId("private title")
