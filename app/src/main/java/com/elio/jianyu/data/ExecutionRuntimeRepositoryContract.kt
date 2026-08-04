@@ -21,6 +21,7 @@ data class CreateExecutionRuntimeCommand(
     val participants: List<ExecutionParticipantSnapshotEntity>,
     val budgetRootRunId: String,
     val budget: ExecutionRuntimeBudgetConfig,
+    val contextUsage: ContextUsageWriteSet = ContextUsageWriteSet(),
 )
 
 data class ExecutionRuntimeSnapshot(

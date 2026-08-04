@@ -27,6 +27,7 @@ import androidx.room.PrimaryKey
         Index(value = ["issueId"]),
         Index(value = ["stageId", "issueId"]),
         Index(value = ["sourceLocator"]),
+        Index(value = ["lifecycleState"]),
         Index(value = ["deletedAt"])
     ]
 )
@@ -43,8 +44,15 @@ data class MaterialReferenceEntity(
     val sourceCapturedAt: Long? = null,
     val createdAt: Long,
     val updatedAt: Long,
+    @ColumnInfo(defaultValue = "'active'")
+    val lifecycleState: ContextSourceLifecycle = ContextSourceLifecycle.ACTIVE,
+    @ColumnInfo(defaultValue = "0")
+    val sensitive: Boolean = false,
+    val disabledAt: Long? = null,
+    val archivedAt: Long? = null,
     val deletedAt: Long? = null,
-    val purgeRequestedAt: Long? = null
+    val purgeRequestedAt: Long? = null,
+    val purgedAt: Long? = null
 )
 
 @Entity(
@@ -100,13 +108,18 @@ data class MaterialUsageSnapshotEntity(
     val sourcePublishedAtSnapshot: Long? = null,
     val sourceCapturedAtSnapshot: Long? = null,
     val userConfirmedAt: Long,
-    val createdAt: Long
+    val createdAt: Long,
+    @ColumnInfo(defaultValue = "0")
+    val networkAllowed: Boolean = false,
+    @ColumnInfo(defaultValue = "1")
+    val sensitive: Boolean = true
 )
 
 @Entity(
     tableName = "personal_context_entries",
     indices = [
         Index(value = ["contentHash"]),
+        Index(value = ["lifecycleState"]),
         Index(value = ["deletedAt"])
     ]
 )
@@ -119,8 +132,15 @@ data class PersonalContextEntryEntity(
     val isEnabled: Boolean = true,
     val createdAt: Long,
     val updatedAt: Long,
+    @ColumnInfo(defaultValue = "'active'")
+    val lifecycleState: ContextSourceLifecycle = ContextSourceLifecycle.ACTIVE,
+    @ColumnInfo(defaultValue = "0")
+    val sensitive: Boolean = false,
+    val disabledAt: Long? = null,
+    val archivedAt: Long? = null,
     val deletedAt: Long? = null,
-    val purgeRequestedAt: Long? = null
+    val purgeRequestedAt: Long? = null,
+    val purgedAt: Long? = null
 )
 
 @Entity(
@@ -172,7 +192,11 @@ data class PersonalContextUsageSnapshotEntity(
     @ColumnInfo(defaultValue = "'available'")
     val contentState: SnapshotContentState = SnapshotContentState.AVAILABLE,
     val userConfirmedAt: Long,
-    val createdAt: Long
+    val createdAt: Long,
+    @ColumnInfo(defaultValue = "0")
+    val networkAllowed: Boolean = false,
+    @ColumnInfo(defaultValue = "1")
+    val sensitive: Boolean = true
 )
 
 @Entity(

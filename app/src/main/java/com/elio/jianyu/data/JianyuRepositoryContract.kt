@@ -247,6 +247,62 @@ interface JianyuRepository {
         entity: PersonalContextUsageSnapshotEntity
     ): RepositoryResult<PersonalContextUsageSnapshotEntity>
 
+    suspend fun createMaterial(command: CreateMaterialCommand): RepositoryResult<Material>
+
+    suspend fun updateMaterial(command: UpdateMaterialCommand): RepositoryResult<Material>
+
+    suspend fun getMaterial(materialId: String): RepositoryResult<Material>
+
+    suspend fun listMaterials(
+        filter: MaterialFilter = MaterialFilter()
+    ): RepositoryResult<List<Material>>
+
+    suspend fun changeMaterialLifecycle(
+        command: ChangeMaterialLifecycleCommand
+    ): RepositoryResult<Material>
+
+    suspend fun getMaterialPurgeImpact(
+        materialId: String
+    ): RepositoryResult<ContextPurgeImpact>
+
+    suspend fun purgeMaterial(command: PurgeMaterialCommand): RepositoryResult<Material>
+
+    suspend fun createPersonalContext(
+        command: CreatePersonalContextCommand
+    ): RepositoryResult<PersonalContext>
+
+    suspend fun updatePersonalContext(
+        command: UpdatePersonalContextCommand
+    ): RepositoryResult<PersonalContext>
+
+    suspend fun getPersonalContext(
+        personalContextId: String
+    ): RepositoryResult<PersonalContext>
+
+    suspend fun listPersonalContexts(
+        filter: PersonalContextFilter = PersonalContextFilter()
+    ): RepositoryResult<List<PersonalContext>>
+
+    suspend fun changePersonalContextLifecycle(
+        command: ChangePersonalContextLifecycleCommand
+    ): RepositoryResult<PersonalContext>
+
+    suspend fun getPersonalContextPurgeImpact(
+        personalContextId: String
+    ): RepositoryResult<ContextPurgeImpact>
+
+    suspend fun purgePersonalContext(
+        command: PurgePersonalContextCommand
+    ): RepositoryResult<PersonalContext>
+
+    suspend fun prepareExecutionContext(
+        command: PrepareExecutionContextCommand
+    ): RepositoryResult<PreparedExecutionContext>
+
+    suspend fun listRunContextUsage(
+        runId: String
+    ): RepositoryResult<List<ContextUsageSnapshot>>
+
     suspend fun saveOfficialSkillCombination(
         command: SaveOfficialSkillCombinationCommand
     ): RepositoryResult<OfficialSkillCombinationSnapshot>

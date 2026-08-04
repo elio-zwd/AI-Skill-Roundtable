@@ -19,6 +19,7 @@ class RoomJianyuRepository(
         officialSkillIdValidator = officialSkillIdValidator
     )
     private val usages = UsageRepositoryComponent(transactions)
+    private val materialContext = MaterialContextRepositoryComponent(transactions)
     private val lifecycleRecovery = LifecycleRecoveryRepositoryComponent(transactions)
 
     override suspend fun saveIssue(command: SaveIssueCommand): RepositoryResult<SavedIssue> {
@@ -141,6 +142,70 @@ class RoomJianyuRepository(
     ): RepositoryResult<PersonalContextUsageSnapshotEntity> {
         return usages.recordPersonalContextUsage(entity)
     }
+
+    override suspend fun createMaterial(
+        command: CreateMaterialCommand,
+    ): RepositoryResult<Material> = materialContext.createMaterial(command)
+
+    override suspend fun updateMaterial(
+        command: UpdateMaterialCommand,
+    ): RepositoryResult<Material> = materialContext.updateMaterial(command)
+
+    override suspend fun getMaterial(materialId: String): RepositoryResult<Material> =
+        materialContext.getMaterial(materialId)
+
+    override suspend fun listMaterials(
+        filter: MaterialFilter,
+    ): RepositoryResult<List<Material>> = materialContext.listMaterials(filter)
+
+    override suspend fun changeMaterialLifecycle(
+        command: ChangeMaterialLifecycleCommand,
+    ): RepositoryResult<Material> = materialContext.changeMaterialLifecycle(command)
+
+    override suspend fun getMaterialPurgeImpact(
+        materialId: String,
+    ): RepositoryResult<ContextPurgeImpact> = materialContext.getMaterialPurgeImpact(materialId)
+
+    override suspend fun purgeMaterial(
+        command: PurgeMaterialCommand,
+    ): RepositoryResult<Material> = materialContext.purgeMaterial(command)
+
+    override suspend fun createPersonalContext(
+        command: CreatePersonalContextCommand,
+    ): RepositoryResult<PersonalContext> = materialContext.createPersonalContext(command)
+
+    override suspend fun updatePersonalContext(
+        command: UpdatePersonalContextCommand,
+    ): RepositoryResult<PersonalContext> = materialContext.updatePersonalContext(command)
+
+    override suspend fun getPersonalContext(
+        personalContextId: String,
+    ): RepositoryResult<PersonalContext> = materialContext.getPersonalContext(personalContextId)
+
+    override suspend fun listPersonalContexts(
+        filter: PersonalContextFilter,
+    ): RepositoryResult<List<PersonalContext>> = materialContext.listPersonalContexts(filter)
+
+    override suspend fun changePersonalContextLifecycle(
+        command: ChangePersonalContextLifecycleCommand,
+    ): RepositoryResult<PersonalContext> = materialContext.changePersonalContextLifecycle(command)
+
+    override suspend fun getPersonalContextPurgeImpact(
+        personalContextId: String,
+    ): RepositoryResult<ContextPurgeImpact> =
+        materialContext.getPersonalContextPurgeImpact(personalContextId)
+
+    override suspend fun purgePersonalContext(
+        command: PurgePersonalContextCommand,
+    ): RepositoryResult<PersonalContext> = materialContext.purgePersonalContext(command)
+
+    override suspend fun prepareExecutionContext(
+        command: PrepareExecutionContextCommand,
+    ): RepositoryResult<PreparedExecutionContext> = materialContext.prepareExecutionContext(command)
+
+    override suspend fun listRunContextUsage(
+        runId: String,
+    ): RepositoryResult<List<ContextUsageSnapshot>> = materialContext.listRunContextUsage(runId)
 
     override suspend fun saveOfficialSkillCombination(
         command: SaveOfficialSkillCombinationCommand

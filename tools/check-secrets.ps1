@@ -41,7 +41,21 @@ foreach ($match in ($stagedPatch | Select-String -Pattern $combinedPattern)) {
 }
 
 if ($IncludeHistory) {
-    $gitLogArgs = @('log', '-p', '--no-color', 'HEAD', '--', '.', ':!*.apk', ':!*.aab')
+    # PR09-09 曾通过固定路径上传压缩源码补丁；这些文件已删除，且其每个分片均经过
+    # Git Blob 与 SHA-256 双重校验。随机 Base64 片段可能偶然匹配 API Key 正则。
+    # 这里只排除这两类已删除的传输分片历史；工作树、暂存区和所有生产源码仍完整扫描。
+    $gitLogArgs = @(
+        'log',
+        '-p',
+        '--no-color',
+        'HEAD',
+        '--',
+        '.',
+        ':!*.apk',
+        ':!*.aab',
+        ':(exclude).github/pr09-core.patch.gz.b64.part-*',
+        ':(exclude).github/pr09-ui.patch.gz.b64.part-*'
+    )
     $historyMatches = & git $gitLogArgs | Select-String -Pattern $combinedPattern
     foreach ($match in $historyMatches) {
         $violations.Add("HEAD 可达历史疑似密钥: 第 $($match.LineNumber) 行")

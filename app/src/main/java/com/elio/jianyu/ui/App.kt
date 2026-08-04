@@ -166,6 +166,7 @@ internal fun MainAppContent(
                 },
                 resourcesContent = { tab ->
                     ResourcesRoute(
+                        repository = appRuntime.repository,
                         initialTab = tab,
                         onOpenSettings = {
                             navController.navigateToSecondary(AppDestination.SETTINGS)

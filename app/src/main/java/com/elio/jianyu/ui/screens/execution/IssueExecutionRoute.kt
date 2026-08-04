@@ -30,5 +30,12 @@ fun IssueExecutionRoute(
         onStop = viewModel::stop,
         onRetry = viewModel::retryFailedParticipants,
         onRecoverInterrupted = viewModel::recoverInterrupted,
+        onOpenContext = { viewModel.openContextSelection(retryMode = false) },
+        onDismissContext = viewModel::dismissContextSelection,
+        onToggleContext = viewModel::toggleContextCandidate,
+        onContextNetworkAllowed = viewModel::setContextNetworkAllowed,
+        onSensitiveContextConfirmed = viewModel::setSensitiveContextConfirmed,
+        onContextExcerptChanged = viewModel::updateContextExcerpt,
+        onConfirmContext = viewModel::confirmContextSelection,
     )
 }

@@ -239,15 +239,18 @@ try {
         'MIGRATION_4_5',
         'MIGRATION_5_6',
         'MIGRATION_6_7',
-        'MIGRATION_7_8'
+        'MIGRATION_7_8',
+        'MIGRATION_8_9'
     )
     $missingMigrations = @($requiredMigrations | Where-Object { $databaseSource -notmatch [regex]::Escape($_) })
-    if ($databaseSource -match 'version\s*=\s*8' -and
+    $materialContextMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/MaterialContextMigration.kt' -Raw
+    if ($databaseSource -match 'version\s*=\s*9' -and
         $missingMigrations.Count -eq 0 -and
-        $databaseSource -match '"roundtable_database"') {
-        Pass 'Room Runtime Contract' 'Room 已连续升级到 v8，v1→v8 迁移链和数据库名保持完整'
+        $databaseSource -match '"roundtable_database"' -and
+        $materialContextMigration -match 'Migration\(8,\s*9\)') {
+        Pass 'Room Runtime Contract' 'Room 已连续升级到 v9，v1→v9 迁移链和数据库名保持完整'
     } else {
-        Fail 'Room Runtime Contract' "Room v8、连续迁移链或数据库名异常；缺失迁移=$($missingMigrations -join ', ')"
+        Fail 'Room Runtime Contract' "Room v9、连续迁移链或数据库名异常；缺失迁移=$($missingMigrations -join ', ')"
     }
 
     $keyStoreSource = Get-Content 'app/src/main/java/com/elio/jianyu/network/EncryptedApiKeyStore.kt' -Raw
