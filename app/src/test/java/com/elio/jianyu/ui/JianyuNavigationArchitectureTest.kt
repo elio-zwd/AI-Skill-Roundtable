@@ -18,7 +18,7 @@ class JianyuNavigationArchitectureTest {
         listOf(
             "HomeRoute",
             "IssuesRoute",
-            "IssueRecoveryRoute",
+            "IssueExecutionRoute",
             "ResourcesRoute",
             "SettingsRoute",
             "OfficialSkillNavigationRoute",
