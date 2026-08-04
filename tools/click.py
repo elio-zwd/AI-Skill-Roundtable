@@ -18,7 +18,7 @@ def main() -> int:
 
     try:
         client = AdbClient()
-        device = client.bind(args.device)
+        client.bind(args.device)
 
         if args.coords:
             if len(args.coords) != 2:
@@ -34,10 +34,10 @@ def main() -> int:
                     str(y),
                     str(args.long_press),
                 )
-                print(f"OK: Long-pressed ({x}, {y}) for {args.long_press}ms on {device}")
+                print(f"OK: Long-pressed ({x}, {y}) for {args.long_press}ms")
             else:
                 client.tap(x, y)
-                print(f"OK: Tapped ({x}, {y}) on {device}")
+                print(f"OK: Tapped ({x}, {y})")
             return 0
 
         if args.swipe:
@@ -47,19 +47,19 @@ def main() -> int:
             duration = f" for {args.swipe[4]}ms" if len(args.swipe) == 5 else ""
             print(
                 f"OK: Swiped from ({args.swipe[0]}, {args.swipe[1]}) "
-                f"to ({args.swipe[2]}, {args.swipe[3]}){duration} on {device}"
+                f"to ({args.swipe[2]}, {args.swipe[3]}){duration}"
             )
             return 0
 
         if args.key is not None:
             client.shell("input", "keyevent", str(args.key))
-            print(f"OK: Keyevent {args.key} sent on {device}")
+            print(f"OK: Keyevent {args.key} sent")
             return 0
 
         if args.text is not None:
             safe_text = args.text.replace(" ", "%s")
             client.shell("input", "text", safe_text)
-            print(f"OK: Text input sent on {device}")
+            print("OK: Text input sent")
             return 0
 
         parser.error("No action specified. Must provide coords, --swipe, --key, or --text.")
