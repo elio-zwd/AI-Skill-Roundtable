@@ -39,6 +39,30 @@ object JianyuAutomationTags {
         const val SETTINGS = "settings_screen"
     }
 
+    object Home {
+        const val QUESTION_INPUT = "home_question_input"
+        const val QUESTION_CLEAR_BUTTON = "home_question_clear_button"
+        const val DIRECTION_REALITY_SUPPORT = "home_direction_reality_support"
+        const val DIRECTION_THINKING_EXPANSION = "home_direction_thinking_expansion"
+        const val SAVE_ISSUE_ONLY_BUTTON = "home_save_issue_only_button"
+        const val RECOMMENDATION_REQUEST_BUTTON = "home_recommendation_request_button"
+        const val RECOMMENDATION_RESULT = "home_recommendation_result"
+        const val RECOMMENDATION_LOADING = "home_recommendation_loading"
+        const val RECOMMENDATION_FAILURE = "home_recommendation_failure"
+        const val RECOMMENDATION_CONFIRM_BUTTON = "home_recommendation_confirm_button"
+        const val CONTEXT_CONFIRMATION_BUTTON = "home_context_confirmation_button"
+        const val CONTEXT_CONFIRMED_SUMMARY = "home_context_confirmed_summary"
+        const val FINAL_REVIEW = "home_final_review"
+        const val START_ISSUE_BUTTON = "home_start_issue_button"
+        const val DRAFT_RECOVERY = "home_draft_recovery"
+
+        fun recommendationSkill(skillId: String): String =
+            "home_recommendation_skill_${normalizedStableId(skillId)}"
+
+        fun exampleQuestion(exampleId: String): String =
+            "home_example_question_${normalizedStableId(exampleId)}"
+    }
+
     object Issues {
         const val LOADING = "issues_loading"
         const val EMPTY = "issues_empty"
@@ -106,7 +130,7 @@ object JianyuAutomationTags {
     }
 
     /**
-     * PR-B 冻结的静态标签清单。使用 List 而非 Set，测试才能发现重复项。
+     * 已冻结的静态标签清单。使用 List 而非 Set，测试才能发现重复项。
      */
     val frozenStaticTags: List<String> = listOf(
         App.CONTENT_ROOT,
@@ -123,6 +147,21 @@ object JianyuAutomationTags {
         Screen.SKILLS,
         Screen.RESOURCES,
         Screen.SETTINGS,
+        Home.QUESTION_INPUT,
+        Home.QUESTION_CLEAR_BUTTON,
+        Home.DIRECTION_REALITY_SUPPORT,
+        Home.DIRECTION_THINKING_EXPANSION,
+        Home.SAVE_ISSUE_ONLY_BUTTON,
+        Home.RECOMMENDATION_REQUEST_BUTTON,
+        Home.RECOMMENDATION_RESULT,
+        Home.RECOMMENDATION_LOADING,
+        Home.RECOMMENDATION_FAILURE,
+        Home.RECOMMENDATION_CONFIRM_BUTTON,
+        Home.CONTEXT_CONFIRMATION_BUTTON,
+        Home.CONTEXT_CONFIRMED_SUMMARY,
+        Home.FINAL_REVIEW,
+        Home.START_ISSUE_BUTTON,
+        Home.DRAFT_RECOVERY,
         Issues.LOADING,
         Issues.EMPTY,
         Issues.FAILURE,

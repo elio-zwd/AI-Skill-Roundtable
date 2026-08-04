@@ -126,8 +126,17 @@ internal fun MainAppContent(
                 modifier = Modifier.fillMaxSize(),
                 homeContent = {
                     HomeRoute(
+                        repository = appRuntime.repository,
+                        catalogRuntimeResult = appRuntime.officialSkillCatalogRuntimeResult,
+                        executionCoordinator = appRuntime.executionCoordinator,
                         onOpenSettings = {
                             navController.navigateToSecondary(AppDestination.SETTINGS)
+                        },
+                        onNavigateToIssue = { issueId, stageId ->
+                            navController.navigateToIssue(issueId, stageId)
+                        },
+                        onOpenSkillCatalog = {
+                            navController.navigateToTopLevel(AppDestination.SKILLS)
                         },
                     )
                 },
