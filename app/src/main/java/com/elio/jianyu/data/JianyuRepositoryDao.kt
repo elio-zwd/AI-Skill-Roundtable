@@ -101,6 +101,106 @@ internal interface JianyuRepositoryDao {
         issueId: String
     ): List<ExecutionParticipantSnapshotEntity>
 
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertParticipantStates(entities: List<ExecutionParticipantStateEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertRunBudget(entity: ExecutionRunBudgetEntity)
+
+    @Query(
+        "SELECT * FROM execution_participant_states " +
+            "WHERE runId = :runId ORDER BY participantSnapshotId ASC"
+    )
+    suspend fun getParticipantStates(runId: String): List<ExecutionParticipantStateEntity>
+
+    @Query(
+        "SELECT state.* FROM execution_participant_states state " +
+            "INNER JOIN execution_runs run ON run.id = state.runId " +
+            "WHERE run.issueId = :issueId ORDER BY state.runId ASC, state.participantSnapshotId ASC"
+    )
+    suspend fun getParticipantStatesForIssue(issueId: String): List<ExecutionParticipantStateEntity>
+
+    @Query(
+        "SELECT * FROM execution_participant_states " +
+            "WHERE participantSnapshotId = :participantSnapshotId LIMIT 1"
+    )
+    suspend fun getParticipantState(
+        participantSnapshotId: String
+    ): ExecutionParticipantStateEntity?
+
+    @Query("SELECT * FROM execution_run_budgets WHERE rootRunId = :rootRunId LIMIT 1")
+    suspend fun getRunBudget(rootRunId: String): ExecutionRunBudgetEntity?
+
+    @Query(
+        "UPDATE execution_participant_states SET status = :newStatus, " +
+            "attemptCount = attemptCount + :attemptIncrement, " +
+            "outputMessageId = :outputMessageId, startedAt = :startedAt, " +
+            "finishedAt = :finishedAt, lastErrorCode = :lastErrorCode, " +
+            "lastErrorMessage = :lastErrorMessage, " +
+            "hasIncompleteOutput = :hasIncompleteOutput, updatedAt = :updatedAt " +
+            "WHERE participantSnapshotId = :participantSnapshotId " +
+            "AND runId = :runId AND status IN (:expectedStatuses)"
+    )
+    suspend fun compareAndSetParticipantState(
+        participantSnapshotId: String,
+        runId: String,
+        expectedStatuses: List<String>,
+        newStatus: String,
+        attemptIncrement: Int,
+        outputMessageId: Long?,
+        startedAt: Long?,
+        finishedAt: Long?,
+        lastErrorCode: String?,
+        lastErrorMessage: String?,
+        hasIncompleteOutput: Boolean,
+        updatedAt: Long
+    ): Int
+
+    @Query(
+        "UPDATE execution_run_budgets SET " +
+            "usedApiCalls = usedApiCalls + :count, " +
+            "reservedRequiredCalls = MIN(reservedRequiredCalls, :reserveAfter), " +
+            "updatedAt = :updatedAt " +
+            "WHERE rootRunId = :rootRunId AND closed = 0 " +
+            "AND usedApiCalls + :count + :reserveAfter <= maxApiCalls"
+    )
+    suspend fun consumeRequiredBudget(
+        rootRunId: String,
+        count: Int,
+        reserveAfter: Int,
+        updatedAt: Long
+    ): Int
+
+    @Query(
+        "UPDATE execution_run_budgets SET " +
+            "usedApiCalls = usedApiCalls + :count, updatedAt = :updatedAt " +
+            "WHERE rootRunId = :rootRunId AND closed = 0 " +
+            "AND usedApiCalls + :count + MAX(reservedRequiredCalls, :reserveForRequired) " +
+            "<= maxApiCalls"
+    )
+    suspend fun consumeOptionalBudget(
+        rootRunId: String,
+        count: Int,
+        reserveForRequired: Int,
+        updatedAt: Long
+    ): Int
+
+    @Query(
+        "UPDATE execution_run_budgets SET reservedRequiredCalls = :count, " +
+            "updatedAt = :updatedAt WHERE rootRunId = :rootRunId AND closed = 0"
+    )
+    suspend fun setRequiredBudgetReserve(
+        rootRunId: String,
+        count: Int,
+        updatedAt: Long
+    ): Int
+
+    @Query(
+        "UPDATE execution_run_budgets SET closed = 1, updatedAt = :updatedAt " +
+            "WHERE rootRunId = :rootRunId AND closed = 0"
+    )
+    suspend fun closeRunBudget(rootRunId: String, updatedAt: Long): Int
+
     @Query(
         "UPDATE execution_runs SET status = :newStatus, updatedAt = :updatedAt, " +
             "startedAt = :startedAt, finishedAt = :finishedAt, stoppedAt = :stoppedAt, " +

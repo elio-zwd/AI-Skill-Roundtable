@@ -12,17 +12,20 @@ class JianyuRepositoryArchitectureTest {
     }
 
     @Test
-    fun roomRemainsVersionSevenWithoutNewSchema() {
+    fun roomUsesContinuousVersionEightExecutionRuntimeSchema() {
         val databaseSource = source("app/src/main/java/com/elio/jianyu/data/RoundtableDatabase.kt")
-
-        assertTrue(databaseSource.contains("version = 7"))
-        assertFalse(databaseSource.contains("version = 8"))
-        assertFalse(
-            File(
-                repositoryRoot,
-                "app/schemas/com.elio.jianyu.data.RoundtableDatabase/8.json"
-            ).exists()
+        val migrationSource = source(
+            "app/src/main/java/com/elio/jianyu/data/ExecutionRuntimeMigration.kt"
         )
+
+        assertTrue(databaseSource.contains("version = 8"))
+        assertFalse(databaseSource.contains("version = 9"))
+        assertTrue(databaseSource.contains("MIGRATION_7_8"))
+        assertTrue(databaseSource.contains("ExecutionParticipantStateEntity::class"))
+        assertTrue(databaseSource.contains("ExecutionRunBudgetEntity::class"))
+        assertTrue(migrationSource.contains("Migration(7, 8)"))
+        assertTrue(migrationSource.contains("execution_participant_states"))
+        assertTrue(migrationSource.contains("execution_run_budgets"))
     }
 
     @Test
@@ -56,6 +59,7 @@ class JianyuRepositoryArchitectureTest {
         val repositoryFiles = listOf(
             "app/src/main/java/com/elio/jianyu/data/RoomJianyuRepository.kt",
             "app/src/main/java/com/elio/jianyu/data/IssueExecutionRepositoryComponent.kt",
+            "app/src/main/java/com/elio/jianyu/data/ExecutionRuntimeRepositoryComponent.kt",
             "app/src/main/java/com/elio/jianyu/data/PendingMessageRepositoryComponent.kt",
             "app/src/main/java/com/elio/jianyu/data/ResourceRepositoryComponent.kt",
             "app/src/main/java/com/elio/jianyu/data/UsageRepositoryComponent.kt",
@@ -83,8 +87,9 @@ class JianyuRepositoryArchitectureTest {
         val facade = source("app/src/main/java/com/elio/jianyu/data/RoomJianyuRepository.kt")
         val lineCount = facade.lineSequence().count()
 
-        assertTrue("公共 Repository 门面不应重新膨胀，当前行数：$lineCount", lineCount < 240)
+        assertTrue("公共 Repository 门面不应重新膨胀，当前行数：$lineCount", lineCount < 260)
         assertTrue(facade.contains("IssueExecutionRepositoryComponent"))
+        assertTrue(facade.contains("ExecutionRuntimeRepositoryComponent"))
         assertTrue(facade.contains("PendingMessageRepositoryComponent"))
         assertTrue(facade.contains("ResourceRepositoryComponent"))
         assertTrue(facade.contains("UsageRepositoryComponent"))

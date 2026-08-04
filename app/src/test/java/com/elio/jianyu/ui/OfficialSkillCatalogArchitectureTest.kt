@@ -42,16 +42,19 @@ class OfficialSkillCatalogArchitectureTest {
     }
 
     @Test
-    fun pr0905KeepsRoomV7AndDoesNotCreateSchema8() {
-        val database = projectFile("src/main/java/com/elio/jianyu/data/RoundtableDatabase.kt")
-        assertNotNull(database)
-        assertTrue(requireNotNull(database).readText().contains("version = 7"))
+    fun skillCatalogRemainsIndependentFromRoomV8ExecutionRuntime() {
+        val source = featureSource()
+        val executionSchema = projectFile(
+            "src/main/java/com/elio/jianyu/data/ExecutionRuntimeEntities.kt"
+        )
 
-        val schemaRoot = projectFile("schemas")
-        val schema8 = schemaRoot
-            ?.walkTopDown()
-            ?.firstOrNull { it.isFile && it.name == "8.json" }
-        assertTrue("PR09-05 不得创建 Room v8 Schema", schema8 == null)
+        assertNotNull(executionSchema)
+        val schemaSource = requireNotNull(executionSchema).readText()
+        assertTrue(schemaSource.contains("execution_participant_states"))
+        assertTrue(schemaSource.contains("execution_run_budgets"))
+        assertFalse(source.contains("ExecutionParticipantStateEntity"))
+        assertFalse(source.contains("ExecutionRunBudgetEntity"))
+        assertFalse(source.contains("ExecutionRuntimeMigration"))
     }
 
     private fun featureSource(): String {

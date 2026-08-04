@@ -9,6 +9,7 @@ import kotlinx.coroutines.CancellationException
  * PR09-03 唯一数据库事务与异常映射协调器。
  *
  * 领域组件只能通过此类型开启跨表事务；协程取消必须原样向上传播，不能被误报为存储失败。
+ * 事务块返回 [RepositoryResult.Failure] 时必须先触发 Room 回滚，再在事务外恢复原错误。
  */
 internal class JianyuRepositoryTransactions(
     private val database: RoundtableDatabase
@@ -33,6 +34,8 @@ internal class JianyuRepositoryTransactions(
             block()
         } catch (error: CancellationException) {
             throw error
+        } catch (error: RepositoryTransactionFailureAbort) {
+            RepositoryResult.Failure(error.repositoryError)
         } catch (error: RepositoryCompatibilityAbort) {
             RepositoryResult.Failure(
                 RepositoryError.CompatibilityFailure(operation, error.code)
@@ -71,10 +74,17 @@ internal class JianyuRepositoryTransactions(
             throw RepositoryStorageUnavailableAbort()
         }
         return database.withTransaction {
-            dao.block()
+            when (val result = dao.block()) {
+                is RepositoryResult.Success -> result
+                is RepositoryResult.Failure -> throw RepositoryTransactionFailureAbort(result.error)
+            }
         }
     }
 }
+
+internal class RepositoryTransactionFailureAbort(
+    val repositoryError: RepositoryError
+) : RuntimeException()
 
 internal class RepositoryCompatibilityAbort(
     val code: String
