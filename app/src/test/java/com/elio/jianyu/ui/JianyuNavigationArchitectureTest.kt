@@ -126,12 +126,18 @@ class JianyuNavigationArchitectureTest {
     @Test
     fun navigationTestTags_areStableSemanticNames() {
         val appSource = uiRoot.resolve("App.kt").readText()
+        val automationTagsSource = uiRoot.resolve("automation/JianyuAutomationTags.kt").readText()
         val shellSource = uiRoot.resolve("components/JianyuPageShell.kt").readText()
         val resourcesSource = uiRoot.resolve("screens/resources/ResourcesRoute.kt").readText()
         val skillNavigationSource = uiRoot.resolve("screens/skills/OfficialSkillNavigationRoute.kt")
             .readText()
 
-        assertTrue(appSource.contains("app_bottom_navigation"))
+        assertTrue(appSource.contains("JianyuAutomationTags.App.BOTTOM_NAVIGATION"))
+        assertTrue(
+            automationTagsSource.contains(
+                "const val BOTTOM_NAVIGATION = \"app_bottom_navigation\"",
+            ),
+        )
         listOf("home", "issues", "skills", "resources").forEach { suffix ->
             assertTrue(
                 "缺少稳定一级目的地标签后缀：$suffix",
