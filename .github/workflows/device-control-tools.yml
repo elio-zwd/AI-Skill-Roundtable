@@ -1,0 +1,68 @@
+name: Device Control Tools
+
+on:
+  pull_request:
+    paths:
+      - 'tools/device/**'
+      - 'tools/click.py'
+      - 'tools/uidump.py'
+      - 'tools/screencap.py'
+      - 'tools/find_icon.py'
+      - 'tools/adb_verbose_diagnose.py'
+      - 'test/test_adb_tools.py'
+      - 'docs/testing/local-ai-device-control-acceptance.md'
+      - '.github/workflows/device-control-tools.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'tools/device/**'
+      - 'tools/click.py'
+      - 'tools/uidump.py'
+      - 'tools/screencap.py'
+      - 'tools/find_icon.py'
+      - 'tools/adb_verbose_diagnose.py'
+      - 'test/test_adb_tools.py'
+      - 'docs/testing/local-ai-device-control-acceptance.md'
+      - '.github/workflows/device-control-tools.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: device-control-tools-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    name: Python ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-latest
+          - ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Show Python version
+        run: python --version
+
+      - name: Compile device control modules
+        run: python -m compileall -q tools/device
+
+      - name: Run device control unit tests
+        run: python -m unittest discover -s tools/device/tests -p "test_*.py" -v
+
+      - name: Verify CLI help
+        run: python tools/device/cli.py --help
