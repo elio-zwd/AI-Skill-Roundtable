@@ -1,87 +1,65 @@
 #!/usr/bin/env python3
-import sys
-import subprocess
-import time
+import argparse
 import shutil
+import sys
+import time
 
-def run_cmd_verbose(args_list):
-    print(f"\n>> Executing command: {' '.join(args_list)}")
-    start = time.time()
-    try:
-        res = subprocess.run(args_list, text=True, capture_output=True, check=True)
-        elapsed = (time.time() - start) * 1000
-        print(f"Status: SUCCESS (took {elapsed:.2f}ms)")
-        if res.stdout:
-            print("--- Standard Output ---")
-            print(res.stdout.strip())
-        if res.stderr:
-            print("--- Standard Error ---")
-            print(res.stderr.strip())
-        return res.stdout.strip()
-    except subprocess.CalledProcessError as e:
-        elapsed = (time.time() - start) * 1000
-        print(f"Status: FAILED with exit code {e.returncode} (took {elapsed:.2f}ms)")
-        print("--- Standard Output ---")
-        print(e.stdout.strip() if e.stdout else "<empty>")
-        print("--- Standard Error ---")
-        print(e.stderr.strip() if e.stderr else "<empty>")
-        return None
+from device.adb_client import AdbClient
+from device.models import DeviceControlError
+from device.selectors import parse_ui_nodes
 
-def main():
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="ADB verbose diagnostics utility")
+    parser.add_argument("-d", "--device", help="Target ADB device ID")
+    args = parser.parse_args()
+
     print("==================================================")
     print("      ADB Verbose System Diagnostics Utility      ")
     print("==================================================")
 
-    # 1. 寻找本地 adb 可执行程序
-    adb_path = shutil.whoami = shutil.who_is = shutil.which("adb")
+    adb_path = shutil.which("adb")
     print(f"Local ADB Executable Path: {adb_path or 'NOT FOUND IN PATH'}")
     if not adb_path:
-        print("\nERROR: Please install ADB and add it to your system Environment Variables (PATH).")
-        sys.exit(1)
+        return 69
 
-    # 2. 获取 ADB 版本
-    run_cmd_verbose(["adb", "version"])
+    try:
+        client = AdbClient(adb_path=adb_path)
+        records = client.list_devices()
+        print("\nDetected devices:")
+        for record in records:
+            print(f"- {record.serial}: {record.state} {record.details}")
+        serial = client.bind(args.device)
+        print(f"\nSelected target device: {serial}")
 
-    # 3. 罗列设备
-    devices_out = run_cmd_verbose(["adb", "devices", "-l"])
-    if not devices_out:
-        print("\nERROR: Failed to run 'adb devices'.")
-        sys.exit(1)
-        
-    lines = devices_out.split("\n")[1:]
-    active_devices = [line.split()[0] for line in lines if line.strip() and "device" in line]
-    if not active_devices:
-        print("\nWARNING: No active Android devices/emulators online. Please start your emulator.")
-        sys.exit(0)
-        
-    target_device = active_devices[0]
-    print(f"\nAuto-selected target device: {target_device}")
+        started = time.monotonic()
+        screen = client.screen_info()
+        foreground = client.foreground_info()
+        xml_text = client.dump_ui_xml()
+        nodes = parse_ui_nodes(xml_text)
+        elapsed = (time.monotonic() - started) * 1000
 
-    # 4. 打印屏幕参数
-    run_cmd_verbose(["adb", "-s", target_device, "shell", "wm", "size"])
-    run_cmd_verbose(["adb", "-s", target_device, "shell", "wm", "density"])
+        print("\nScreen:")
+        print(f"- size: {screen.size}")
+        print(f"- density: {screen.density}")
+        print(f"- api: {screen.api}")
+        print(f"- orientation: {screen.orientation}")
+        print("\nForeground:")
+        print(f"- package: {foreground.package or '<unknown>'}")
+        print(f"- activity: {foreground.activity or '<unknown>'}")
+        print("\nUI Automator:")
+        print(f"- nodes: {len(nodes)}")
+        print(f"- elapsedMs: {elapsed:.2f}")
+        print("\n==================================================")
+        print("          Diagnostics Scan Complete               ")
+        print("==================================================")
+        return 0
+    except DeviceControlError as exc:
+        sys.stderr.write(f"ERROR: {exc}\n")
+        if exc.details:
+            sys.stderr.write(f"DETAILS: {exc.details}\n")
+        return exc.exit_code
 
-    # 5. 打印顶层 Activity
-    print("\nDetecting top screen activity...")
-    run_cmd_verbose(["adb", "-s", target_device, "shell", "dumpsys", "window", "displays", "|", "grep", "-E", "'mCurrentFocus|mFocusedApp'"])
-
-    # 6. 进行 UI Dump 测试，输出耗时
-    print("\nRunning test UI Automator hierarchy dump...")
-    run_cmd_verbose(["adb", "-s", target_device, "shell", "uiautomator", "dump", "/sdcard/diagnose_temp.xml"])
-    run_cmd_verbose(["adb", "-s", target_device, "pull", "/sdcard/diagnose_temp.xml", "diagnose_temp.xml"])
-    run_cmd_verbose(["adb", "-s", target_device, "shell", "rm", "/sdcard/diagnose_temp.xml"])
-    
-    import os
-    if os.path.exists("diagnose_temp.xml"):
-        size = os.path.getsize("diagnose_temp.xml")
-        print(f"SUCCESS: Temp XML size retrieved locally: {size} bytes")
-        os.remove("diagnose_temp.xml")
-    else:
-        print("FAILED: Local temp XML file was not found post pull.")
-
-    print("\n==================================================")
-    print("          Diagnostics Scan Complete               ")
-    print("==================================================")
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
