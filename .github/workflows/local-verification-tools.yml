@@ -1,0 +1,51 @@
+name: Local Verification Tools
+
+on:
+  pull_request:
+    paths:
+      - 'tools/local-verification/**'
+      - 'docs/testing/local-verification-evidence-protocol.md'
+      - 'docs/testing/local-read-only-acceptance-template.md'
+      - '.github/workflows/local-verification-tools.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'tools/local-verification/**'
+      - 'docs/testing/local-verification-evidence-protocol.md'
+      - 'docs/testing/local-read-only-acceptance-template.md'
+      - '.github/workflows/local-verification-tools.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: local-verification-tools-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  powershell-tests:
+    name: PowerShell ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-latest
+          - ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show PowerShell version
+        shell: pwsh
+        run: $PSVersionTable
+
+      - name: Run local verification tool tests
+        shell: pwsh
+        run: |
+          ./tools/local-verification/tests/Run-LocalVerificationToolTests.ps1
+          ./tools/local-verification/tests/Run-EmptyLineRegressionTest.ps1
