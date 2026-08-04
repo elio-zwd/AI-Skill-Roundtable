@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "batchId": "jianyu-official-skill-execution-batch-v1",
+  "generatedFrom": "PR09-05B 见域原创任务型 Skill 资产与执行资格门禁",
+  "skills": [
+    {
+      "id": "study-planner",
+      "expectedDefaultOrder": 23,
+      "assetPath": "skills/study-planner/SKILL.md",
+      "publicationStatus": "PUBLISHABLE",
+      "sourceStatus": "VERIFIED_IMPLEMENTATION_SOURCE",
+      "sourceSummary": "见域 PR09-05B 独立原创设计与实现；未复制第三方 Prompt、模板或受限内容。",
+      "boundaries": [
+        "不承诺成绩、录取或学习效果，计划必须按真实反馈调整。",
+        "只使用用户明确提供或授权的目标、时间、笔记和个人背景。",
+        "不伪造完成状态、考试规则、课程内容、来源或引用。",
+        "涉及当前考试政策或高后果选择时，必须说明未核验内容并建议现实复核。"
+      ]
+    },
+    {
+      "id": "meeting-to-action",
+      "expectedDefaultOrder": 29,
+      "assetPath": "skills/meeting-to-action/SKILL.md",
+      "publicationStatus": "PUBLISHABLE",
+      "sourceStatus": "VERIFIED_IMPLEMENTATION_SOURCE",
+      "sourceSummary": "见域 PR09-05B 独立原创设计与实现；未复制第三方 Prompt、模板或受限内容。",
+      "boundaries": [
+        "只处理用户明确提供或授权的会议内容，不推断未记录的发言、立场或承诺。",
+        "责任人、期限、决定和完成状态必须标记为已确认、待确认或未知。",
+        "不自动发送纪要、创建日历、分配任务、代表参会者确认或访问组织系统。",
+        "敏感会议内容遵循最小必要原则，不在输出中扩散无关个人或组织信息。"
+      ]
+    },
+    {
+      "id": "report-proposal-writer",
+      "expectedDefaultOrder": 30,
+      "assetPath": "skills/report-proposal-writer/SKILL.md",
+      "publicationStatus": "PUBLISHABLE",
+      "sourceStatus": "VERIFIED_IMPLEMENTATION_SOURCE",
+      "sourceSummary": "见域 PR09-05B 独立原创设计与实现；未复制第三方 Prompt、模板或受限内容。",
+      "boundaries": [
+        "只依据用户提供或明确授权的事实、数据和材料形成可编辑草稿。",
+        "不得虚构业绩、数字、引用、审批、预算、承诺或组织立场。",
+        "草稿不等于正式文件，不冒充签字人、审批人或组织最终意见。",
+        "需要当前事实或外部数据时，未联网不得声称已经核验。"
+      ]
+    },
+    {
+      "id": "research-fact-checker",
+      "expectedDefaultOrder": 33,
+      "assetPath": "skills/research-fact-checker/SKILL.md",
+      "publicationStatus": "PUBLISHABLE",
+      "sourceStatus": "VERIFIED_IMPLEMENTATION_SOURCE",
+      "sourceSummary": "见域 PR09-05B 独立原创设计与实现；未复制第三方 Prompt、模板或受限内容。",
+      "boundaries": [
+        "严格区分用户提供证据、来源主张、可验证事实、推断、观点和未知。",
+        "不伪造链接、引文、发布日期、检索过程或已经完成的实时核验。",
+        "离线或缺少来源时必须明确标记未核验，并给出需要补充的证据。",
+        "医疗、法律、金融等高后果结论只提供一般核查框架并建议现实专业复核。"
+      ]
+    }
+  ]
+}
