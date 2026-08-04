@@ -1,8 +1,7 @@
 package com.elio.jianyu.ui.screens.home
 
-import androidx.compose.ui.test.assertExists
-import androidx.compose.ui.test.assertIsDisabled
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -52,9 +51,9 @@ class HomeScreenTest {
         ).assertExists()
         composeRule.onNodeWithTag(
             JianyuAutomationTags.Home.SAVE_ISSUE_ONLY_BUTTON,
-        ).assertIsDisabled()
+        ).assertIsNotEnabled()
         composeRule.onNodeWithTag(HomeTestTags.RECOMMENDATION_REQUEST_BUTTON)
-            .assertIsDisabled()
+            .assertIsNotEnabled()
     }
 
     @Test
