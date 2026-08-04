@@ -1,0 +1,33 @@
+name: PR09 Working Copy
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+      - name: Upload working copy
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr09-working-copy
+          path: |
+            .github
+            app
+            docs
+            gradle
+            build.gradle.kts
+            settings.gradle.kts
+            gradle.properties
+            gradlew
+            gradlew.bat
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
