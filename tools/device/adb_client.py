@@ -85,11 +85,15 @@ class AdbClient:
         )
 
     def foreground_info(self) -> ForegroundInfo:
-        candidates = [
-            self.shell("dumpsys", "activity", "activities"),
-            self.shell("dumpsys", "window", "windows"),
-        ]
-        for text in candidates:
+        commands = (
+            ("dumpsys", "activity", "activities"),
+            ("dumpsys", "window", "windows"),
+        )
+        for command in commands:
+            try:
+                text = self.shell(*command)
+            except DeviceControlError:
+                continue
             parsed = parse_foreground_component(text)
             if parsed.package:
                 return parsed
