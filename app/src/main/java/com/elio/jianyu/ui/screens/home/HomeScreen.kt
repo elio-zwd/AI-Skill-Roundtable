@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.weight
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -15,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.dp
 import com.elio.jianyu.home.HomeWorkflowStep
 import com.elio.jianyu.home.RecommendationMode
 import com.elio.jianyu.home.ValueDirection
@@ -90,7 +92,7 @@ fun HomeScreen(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(androidx.compose.ui.unit.dp(8f)),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             OutlinedButton(
                 onClick = onSaveIssueOnly,
@@ -125,7 +127,7 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag(HomeTestTags.RECOMMENDATION_RESULT),
-                verticalArrangement = Arrangement.spacedBy(androidx.compose.ui.unit.dp(12f)),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 when (workflow.step) {
                     HomeWorkflowStep.RECOMMENDATION_LOADING -> Row(
@@ -133,7 +135,7 @@ fun HomeScreen(
                             JianyuAutomationTags.Home.RECOMMENDATION_LOADING,
                         ),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(androidx.compose.ui.unit.dp(12f)),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         CircularProgressIndicator()
                         Text("正在根据官方 Skill Catalog 生成本地建议…")
