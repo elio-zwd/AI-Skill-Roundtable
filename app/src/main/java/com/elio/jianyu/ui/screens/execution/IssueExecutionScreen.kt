@@ -86,7 +86,7 @@ fun IssueExecutionScreen(
                     if (state.canStop) {
                         OutlinedButton(
                             onClick = onStop,
-                            enabled = !state.operationInProgress,
+                            enabled = true,
                             modifier = Modifier
                                 .weight(1f)
                                 .testTag(IssueExecutionTestTags.STOP),
