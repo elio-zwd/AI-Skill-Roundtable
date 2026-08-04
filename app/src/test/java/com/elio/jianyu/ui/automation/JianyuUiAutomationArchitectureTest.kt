@@ -49,6 +49,15 @@ class JianyuUiAutomationArchitectureTest {
     @Test
     fun corePages_exposeStableAutomationRegions() {
         val expectations = mapOf(
+            "screens/home/HomeScreen.kt" to listOf(
+                "QUESTION_INPUT",
+                "SAVE_ISSUE_ONLY_BUTTON",
+                "RECOMMENDATION_REQUEST_BUTTON",
+                "RECOMMENDATION_RESULT",
+                "CONTEXT_CONFIRMED_SUMMARY",
+                "FINAL_REVIEW",
+                "START_ISSUE_BUTTON",
+            ),
             "screens/resources/ResourcesScreen.kt" to listOf(
                 "MATERIALS_CONTENT",
                 "PERSONAL_CONTEXT_CONTENT",
@@ -70,15 +79,25 @@ class JianyuUiAutomationArchitectureTest {
     }
 
     @Test
-    fun temporaryHomePlaceholder_isNotPromotedToFrozenContract() {
+    fun realHomeInputReplacesTemporaryPlaceholder() {
         val contractSource = uiRoot.resolve("automation/JianyuAutomationTags.kt")
             .takeIf(File::isFile)
             ?.readText()
             .orEmpty()
+        val homeRouteSource = uiRoot.resolve("screens/home/HomeRoute.kt").readText()
+        val homeScreenSource = uiRoot.resolve("screens/home/HomeScreen.kt").readText()
 
         assertFalse(
-            "PR09-06 前的首页占位标签不得升级为长期自动化契约",
+            "首页占位标签不得保留在中央契约",
             contractSource.contains("home_question_placeholder"),
+        )
+        assertFalse(
+            "首页占位标签不得保留在 Route",
+            homeRouteSource.contains("home_question_placeholder"),
+        )
+        assertTrue(
+            "正式首页必须落地真实问题输入标签",
+            homeScreenSource.contains("HomeTestTags.QUESTION_INPUT"),
         )
     }
 
