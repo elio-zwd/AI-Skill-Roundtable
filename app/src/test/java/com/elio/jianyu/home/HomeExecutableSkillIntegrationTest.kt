@@ -64,13 +64,13 @@ class HomeExecutableSkillIntegrationTest {
         val outcome = HomeRecommendationPolicy.recommend(
             catalog = catalog,
             request = HomeRecommendationRequest(
-                question = "请比较不同视角后形成学习计划",
+                question = "请用张雪峰视角比较教育选择，再由学习规划师形成学习计划",
                 directions = setOf(ValueDirection.REALITY_SUPPORT),
             ),
         )
         val recommendation = (outcome as HomeRecommendationOutcome.Ready).recommendation
-        val nonExecutable = recommendation.skills.firstOrNull { !it.executable }
-            ?: error("测试需要一个只可查看候选")
+        val nonExecutable = recommendation.skills.firstOrNull { it.skillId == "zhang_xuefeng" }
+            ?: error("张雪峰只可查看候选必须出现在推荐结果")
         val tampered = recommendation.copy(
             skills = recommendation.skills.map { item ->
                 item.copy(selected = item.skillId == nonExecutable.skillId)
