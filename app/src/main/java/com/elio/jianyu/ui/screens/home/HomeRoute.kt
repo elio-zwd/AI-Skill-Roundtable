@@ -6,7 +6,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.elio.jianyu.data.ContextSourceType
 import com.elio.jianyu.data.JianyuRepository
 import com.elio.jianyu.execution.ExecutionRunCoordinator
 import com.elio.jianyu.skill.catalog.OfficialSkillCatalogRuntimeResult
@@ -82,9 +81,9 @@ fun HomeRoute(
         ContextConfirmationDialog(
             state = confirmation,
             onDismiss = viewModel::dismissContextConfirmation,
-            onToggleCandidate = viewModel::toggleContextCandidate,
-            onNetworkAllowedChanged = viewModel::setContextNetworkAllowed,
-            onSensitiveConfirmedChanged = viewModel::setContextSensitiveConfirmed,
+            onToggleSelected = viewModel::toggleContextCandidate,
+            onNetworkAllowed = viewModel::setContextNetworkAllowed,
+            onSensitiveConfirmed = viewModel::setContextSensitiveConfirmed,
             onExcerptChanged = viewModel::updateContextExcerpt,
             onConfirm = viewModel::confirmContext,
         )
