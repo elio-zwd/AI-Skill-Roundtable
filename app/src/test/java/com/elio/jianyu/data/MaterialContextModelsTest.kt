@@ -66,6 +66,25 @@ class MaterialContextModelsTest {
         )
     }
 
+    @Test
+    fun sensitiveContextRequiresSeparateExplicitConfirmation() {
+        val result = ContextSelectionValidator.validate(
+            baseContextCharacters = 0,
+            items = listOf(
+                selection(content = "敏感正文").copy(
+                    sensitive = true,
+                    sensitiveConfirmed = false,
+                ),
+            ),
+        )
+
+        assertTrue(result is ContextPreparationResult.Invalid)
+        assertEquals(
+            ContextValidationError.SENSITIVE_CONFIRMATION_REQUIRED,
+            (result as ContextPreparationResult.Invalid).errors.single(),
+        )
+    }
+
     private fun selection(
         content: String,
         confirmationOrder: Int = 0,
