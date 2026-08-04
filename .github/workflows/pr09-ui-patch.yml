@@ -18,20 +18,22 @@ jobs:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
-      - name: Apply UI patch when ready
+      - name: Apply verified UI patch
         shell: bash
         run: |
           set -euo pipefail
-          shopt -s nullglob
-          parts=(.github/pr09-ui.patch.gz.b64.part-*)
-          if [[ ! -f .github/pr09-ui.patch.ready || ${#parts[@]} -ne 3 ]]; then
-            echo "UI patch is not complete."
-            exit 0
-          fi
-          cat "${parts[@]}" | base64 --decode | gzip --decompress > /tmp/pr09-ui.patch
+          subparts=(.github/pr09-ui.patch.gz.b64.part-00-00 .github/pr09-ui.patch.gz.b64.part-00-01 .github/pr09-ui.patch.gz.b64.part-00-02 .github/pr09-ui.patch.gz.b64.part-00-03 .github/pr09-ui.patch.gz.b64.part-00-04 .github/pr09-ui.patch.gz.b64.part-00-05)
+          required=("${subparts[@]}" .github/pr09-ui.patch.gz.b64.part-01 .github/pr09-ui.patch.gz.b64.part-02 .github/pr09-ui.patch.ready)
+          for file in "${required[@]}"; do
+            [[ -f "$file" ]] || { echo "Missing $file"; exit 1; }
+          done
+          cat "${subparts[@]}" .github/pr09-ui.patch.gz.b64.part-01 .github/pr09-ui.patch.gz.b64.part-02 > /tmp/pr09-ui.patch.gz.b64
+          echo "86750d1e430499ab8740ab563058b34ae4d53bb9637d58c8590ad0fdbe6c13b2  /tmp/pr09-ui.patch.gz.b64" | sha256sum --check
+          base64 --decode /tmp/pr09-ui.patch.gz.b64 | gzip --decompress > /tmp/pr09-ui.patch
+          echo "3988d006a5442dd652d7cc6cbbe850cf2b0e04682cd777a222804d751095ecf8  /tmp/pr09-ui.patch" | sha256sum --check
           git apply --check /tmp/pr09-ui.patch
           git apply /tmp/pr09-ui.patch
-          rm -f "${parts[@]}" .github/pr09-ui.patch.ready .github/workflows/pr09-ui-patch.yml
+          rm -f .github/pr09-ui.patch.gz.b64.part-00 .github/pr09-ui.patch.gz.b64.part-00-* .github/pr09-ui.patch.gz.b64.part-01 .github/pr09-ui.patch.gz.b64.part-02 .github/pr09-ui.patch.ready .github/workflows/pr09-ui-patch.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
