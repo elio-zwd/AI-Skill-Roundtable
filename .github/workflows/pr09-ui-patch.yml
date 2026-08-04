@@ -28,9 +28,9 @@ jobs:
             [[ -f "$file" ]] || { echo "Missing $file"; exit 1; }
           done
           cat "${subparts[@]}" .github/pr09-ui.patch.gz.b64.part-01 .github/pr09-ui.patch.gz.b64.part-02 > /tmp/pr09-ui.patch.gz.b64
-          echo "86750d1e430499ab8740ab563058b34ae4d53bb9637d58c8590ad0fdbe6c13b2  /tmp/pr09-ui.patch.gz.b64" | sha256sum --check
+          echo "034745a151ea87856ea18d1933a7e254faef4d6c27ac85cd3a386cd4c1449e1f  /tmp/pr09-ui.patch.gz.b64" | sha256sum --check
           base64 --decode /tmp/pr09-ui.patch.gz.b64 | gzip --decompress > /tmp/pr09-ui.patch
-          echo "3988d006a5442dd652d7cc6cbbe850cf2b0e04682cd777a222804d751095ecf8  /tmp/pr09-ui.patch" | sha256sum --check
+          echo "104dda9f25a9e5c4823fd8cac3d13825a3bc776bde9ab37b256ed01a250d777a  /tmp/pr09-ui.patch" | sha256sum --check
           git apply --check /tmp/pr09-ui.patch
           git apply /tmp/pr09-ui.patch
           rm -f .github/pr09-ui.patch.gz.b64.part-00 .github/pr09-ui.patch.gz.b64.part-00-* .github/pr09-ui.patch.gz.b64.part-01 .github/pr09-ui.patch.gz.b64.part-02 .github/pr09-ui.patch.ready .github/workflows/pr09-ui-patch.yml
