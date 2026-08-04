@@ -102,6 +102,10 @@ internal fun MainAppContent(
     }
 
     Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag(JianyuAutomationTags.App.CONTENT_ROOT)
+            .semantics { testTagsAsResourceId = true },
         contentWindowInsets = contentWindowInsets,
         bottomBar = {
             if (currentTopLevel != null) {
@@ -115,9 +119,7 @@ internal fun MainAppContent(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .testTag(JianyuAutomationTags.App.CONTENT_ROOT)
-                .semantics { testTagsAsResourceId = true },
+                .padding(paddingValues),
         ) {
             AppNavHost(
                 navController = navController,
