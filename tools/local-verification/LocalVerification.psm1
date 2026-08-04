@@ -184,6 +184,7 @@ function ConvertFrom-JUnitEvidence {
 function ConvertTo-BoundedDisplayLine {
     param(
         [Parameter(Mandatory)]
+        [AllowEmptyString()]
         [string]$Line,
         [Parameter(Mandatory)]
         [int]$MaxBytes,
