@@ -6,15 +6,38 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   snapshot:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout branch
+      - name: Checkout source branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Apply atomic patch when present
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -f .github/pr09-core.patch ]]; then
+            echo "Patch not present; snapshot only."
+            exit 0
+          fi
+          git apply --check .github/pr09-core.patch
+          git apply .github/pr09-core.patch
+          rm -f .github/pr09-core.patch .github/workflows/pr09-working-copy.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "feat: 建立资料与个人背景Repository"
+          git push origin "HEAD:${{ github.head_ref }}"
+
       - name: Upload working copy
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pr09-working-copy
