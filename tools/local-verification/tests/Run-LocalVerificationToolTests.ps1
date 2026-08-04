@@ -122,11 +122,12 @@ try {
     $zeroEvidence = ConvertFrom-JUnitEvidence -Path @((Join-Path $junitRoot 'TEST-zero.xml'))
     Assert-Equal 'NOT_VERIFIED' $zeroEvidence.Status '零测试 XML 不得误报 PASS'
 
+    $fakeGoogleKey = 'AI' + 'za123456789012345678901234567890'
     $logPath = Join-Path $tempRoot 'failure.log'
     $logLines = @()
     1..20 | ForEach-Object { $logLines += "normal-before-$_" }
     $logLines += 'Authorization: Bearer super-secret-token'
-    $logLines += 'apiKey=AIza123456789012345678901234567890'
+    $logLines += "apiKey=$fakeGoogleKey"
     $logLines += 'java.lang.AssertionError: expected true'
     $logLines += 'Caused by: java.lang.IllegalStateException: broken'
     1..200 | ForEach-Object { $logLines += "normal-after-$_" }
@@ -138,7 +139,7 @@ try {
     $excerptText = $excerpt.Lines -join "`n"
     Assert-True ($excerptText -match 'AssertionError') '失败摘录应包含断言错误'
     Assert-True ($excerptText -notmatch 'super-secret-token') 'Bearer Token 不得进入展示摘录'
-    Assert-True ($excerptText -notmatch 'AIza123456789012345678901234567890') 'AIza 特征不得进入展示摘录'
+    Assert-True ($excerptText -notmatch [regex]::Escape($fakeGoogleKey)) 'Google API Key 特征不得进入展示摘录'
     Assert-True ((Get-Content -LiteralPath $logPath -Raw) -match 'super-secret-token') '展示脱敏不得修改原始日志'
 
     $emitSuccess = Join-Path $tempRoot 'emit-success.ps1'
