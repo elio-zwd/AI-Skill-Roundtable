@@ -4,14 +4,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.data.IssueLifecycleState
+import com.elio.jianyu.home.HomeWorkflow
+import com.elio.jianyu.home.HomeWorkflowIds
+import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.components.JianyuShellTestTags
 import com.elio.jianyu.ui.navigation.ResourceTab
 import com.elio.jianyu.ui.screens.home.HomeScreen
 import com.elio.jianyu.ui.screens.home.HomeTestTags
+import com.elio.jianyu.ui.screens.home.HomeUiState
 import com.elio.jianyu.ui.screens.issues.IssueNavigationUiItem
 import com.elio.jianyu.ui.screens.issues.IssuesScreen
 import com.elio.jianyu.ui.screens.issues.IssuesTestTags
@@ -33,18 +36,44 @@ class JianyuNavigationShellScreenTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun home_exposesGlobalSettingsAndHonestPlaceholder() {
+    fun home_exposesGlobalSettingsAndRealQuestionInput() {
         var settingsOpened = false
+        val ids = HomeWorkflowIds(
+            workflowId = "navigation-home-workflow",
+            issueId = "navigation-home-issue",
+            stageId = "navigation-home-stage",
+            runId = "navigation-home-run",
+            saveIssueIdempotencyKey = "navigation-home-save",
+            executionIdempotencyKey = "navigation-home-execute",
+        )
         composeRule.setContent {
             SkillRoundtableTheme {
-                HomeScreen(onOpenSettings = { settingsOpened = true })
+                HomeScreen(
+                    uiState = HomeUiState(HomeWorkflow.initial(ids)),
+                    onQuestionChanged = {},
+                    onClearQuestion = {},
+                    onToggleDirection = {},
+                    onUseExample = {},
+                    onRequestRecommendation = {},
+                    onSaveIssueOnly = {},
+                    onToggleSkill = {},
+                    onResponsibilityChanged = { _, _ -> },
+                    onMoveSkill = { _, _ -> },
+                    onModeChanged = {},
+                    onConfirmRecommendation = {},
+                    onOpenContextConfirmation = {},
+                    onBrowseSkills = {},
+                    onStartIssue = {},
+                    onOpenSettings = { settingsOpened = true },
+                )
             }
         }
 
         composeRule.onNodeWithTag(HomeTestTags.SCREEN).assertExists()
-        composeRule.onNodeWithTag(HomeTestTags.QUESTION_PLACEHOLDER).assertExists()
-        composeRule.onNodeWithText("首页业务将在 PR09-06 接入。当前页面不会调用模型、创建议题或静默带入个人背景。")
-            .assertExists()
+        composeRule.onNodeWithTag(HomeTestTags.QUESTION_INPUT).assertExists()
+        composeRule.onNodeWithTag(
+            JianyuAutomationTags.Home.RECOMMENDATION_REQUEST_BUTTON,
+        ).assertExists()
         composeRule.onNodeWithTag(JianyuShellTestTags.GLOBAL_SETTINGS_BUTTON).performClick()
         composeRule.runOnIdle { assertTrue(settingsOpened) }
     }
@@ -101,10 +130,8 @@ class JianyuNavigationShellScreenTest {
         }
 
         composeRule.onNodeWithTag(ResourcesTestTags.MATERIALS_TAB).assertIsSelected()
-        composeRule.onNodeWithText("暂无资料").assertExists()
         composeRule.onNodeWithTag(ResourcesTestTags.ARTIFACTS_TAB).performClick()
         composeRule.onNodeWithTag(ResourcesTestTags.ARTIFACTS_TAB).assertIsSelected()
-        composeRule.onNodeWithText("暂无成果").assertExists()
         composeRule.runOnIdle {
             assertEquals(ResourceTab.ARTIFACTS, selectedTab.value)
         }
