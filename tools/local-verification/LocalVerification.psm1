@@ -97,8 +97,7 @@ function ConvertFrom-JUnitEvidence {
     foreach ($file in $files) {
         try {
             [xml]$document = Get-Content -LiteralPath $file.FullName -Raw -ErrorAction Stop
-            $nodes = @($document.SelectNodes('//testcase'))
-            foreach ($node in $nodes) {
+            foreach ($node in @($document.SelectNodes('//testcase'))) {
                 $className = [string]$node.GetAttribute('classname')
                 $testName = [string]$node.GetAttribute('name')
                 if ([string]::IsNullOrWhiteSpace($className)) {
@@ -134,9 +133,8 @@ function ConvertFrom-JUnitEvidence {
                     SourceFile = $file.FullName
                 }
 
-                if (-not $testCases.ContainsKey($identity)) {
-                    $testCases[$identity] = $candidateCase
-                } elseif ($severity[$status] -gt $severity[$testCases[$identity].Status]) {
+                if (-not $testCases.ContainsKey($identity) -or
+                    $severity[$status] -gt $severity[$testCases[$identity].Status]) {
                     $testCases[$identity] = $candidateCase
                 }
             }
@@ -183,6 +181,63 @@ function ConvertFrom-JUnitEvidence {
     }
 }
 
+function ConvertTo-BoundedDisplayLine {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Line,
+        [Parameter(Mandatory)]
+        [int]$MaxBytes,
+        [Parameter(Mandatory)]
+        [System.Text.Encoding]$Encoding
+    )
+
+    $displayLine = Protect-VerificationDisplayText -Text $Line
+    while ($displayLine.Length -gt 0 -and $Encoding.GetByteCount($displayLine + "`n") -gt $MaxBytes) {
+        $nextLength = [Math]::Max(0, [Math]::Floor($displayLine.Length * 0.8))
+        $displayLine = $displayLine.Substring(0, $nextLength)
+    }
+    return $displayLine
+}
+
+function Get-BoundedTailExcerpt {
+    param(
+        [Parameter(Mandatory)]
+        [string]$LogPath,
+        [Parameter(Mandatory)]
+        [int]$MaxLines,
+        [Parameter(Mandatory)]
+        [int]$MaxBytes
+    )
+
+    $encoding = [System.Text.UTF8Encoding]::new($false)
+    $queue = [System.Collections.Generic.Queue[string]]::new()
+    $byteQueue = [System.Collections.Generic.Queue[int]]::new()
+    $byteCount = 0
+    $totalLines = 0
+
+    foreach ($line in [System.IO.File]::ReadLines($LogPath)) {
+        $totalLines++
+        $displayLine = ConvertTo-BoundedDisplayLine -Line $line -MaxBytes $MaxBytes -Encoding $encoding
+        $lineBytes = $encoding.GetByteCount($displayLine + "`n")
+        $queue.Enqueue($displayLine)
+        $byteQueue.Enqueue($lineBytes)
+        $byteCount += $lineBytes
+
+        while ($queue.Count -gt $MaxLines -or $byteCount -gt $MaxBytes) {
+            $null = $queue.Dequeue()
+            $byteCount -= $byteQueue.Dequeue()
+        }
+    }
+
+    return [pscustomobject][ordered]@{
+        Lines = @($queue.ToArray())
+        ByteCount = $byteCount
+        Truncated = $totalLines -gt $queue.Count
+        MatchCount = 0
+        Warning = if ($totalLines -eq 0) { '日志为空。' } else { '未匹配常见失败关键字，返回日志末尾的有界摘录。' }
+    }
+}
+
 function Get-BoundedFailureExcerpt {
     [CmdletBinding()]
     param(
@@ -217,7 +272,12 @@ function Get-BoundedFailureExcerpt {
         }
     }
 
-    $compiledPatterns = @($Pattern | ForEach-Object { [regex]::new($_, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase) })
+    $compiledPatterns = @(
+        $Pattern |
+            ForEach-Object {
+                [regex]::new($_, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+            }
+    )
     $matchLines = [System.Collections.Generic.List[int]]::new()
     $lineNumber = 0
     foreach ($line in [System.IO.File]::ReadLines($LogPath)) {
@@ -231,13 +291,7 @@ function Get-BoundedFailureExcerpt {
     }
 
     if ($matchLines.Count -eq 0) {
-        return [pscustomobject][ordered]@{
-            Lines = @()
-            ByteCount = 0
-            Truncated = $false
-            MatchCount = 0
-            Warning = $null
-        }
+        return Get-BoundedTailExcerpt -LogPath $LogPath -MaxLines $MaxLines -MaxBytes $MaxBytes
     }
 
     $ranges = [System.Collections.Generic.List[object]]::new()
@@ -256,7 +310,7 @@ function Get-BoundedFailureExcerpt {
     $rangeIndex = 0
     $lineNumber = 0
     $truncated = $false
-    $utf8 = [System.Text.UTF8Encoding]::new($false)
+    $encoding = [System.Text.UTF8Encoding]::new($false)
 
     foreach ($line in [System.IO.File]::ReadLines($LogPath)) {
         $lineNumber++
@@ -270,9 +324,14 @@ function Get-BoundedFailureExcerpt {
             continue
         }
 
-        $displayLine = Protect-VerificationDisplayText -Text $line
-        $lineBytes = $utf8.GetByteCount($displayLine + "`n")
-        if ($selected.Count -ge $MaxLines -or ($byteCount + $lineBytes) -gt $MaxBytes) {
+        $remainingBytes = $MaxBytes - $byteCount
+        if ($selected.Count -ge $MaxLines -or $remainingBytes -le 0) {
+            $truncated = $true
+            break
+        }
+        $displayLine = ConvertTo-BoundedDisplayLine -Line $line -MaxBytes $remainingBytes -Encoding $encoding
+        $lineBytes = $encoding.GetByteCount($displayLine + "`n")
+        if (($byteCount + $lineBytes) -gt $MaxBytes) {
             $truncated = $true
             break
         }
@@ -298,8 +357,14 @@ function Assert-ExternalOutputDirectory {
         [string]$RepositoryRoot
     )
 
-    $outputFull = [System.IO.Path]::GetFullPath($OutputDirectory).TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
-    $repoFull = [System.IO.Path]::GetFullPath($RepositoryRoot).TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+    $outputFull = [System.IO.Path]::GetFullPath($OutputDirectory).TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar
+    )
+    $repoFull = [System.IO.Path]::GetFullPath($RepositoryRoot).TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar
+    )
     $repoPrefix = $repoFull + [System.IO.Path]::DirectorySeparatorChar
 
     if ($outputFull.Equals($repoFull, [System.StringComparison]::OrdinalIgnoreCase) -or
@@ -344,7 +409,12 @@ function Invoke-VerificationStep {
 
     if ([string]::IsNullOrWhiteSpace($DisplayCommand)) {
         $displayParts = @($Command) + @($CommandArguments)
-        $DisplayCommand = ($displayParts | ForEach-Object { Protect-VerificationDisplayText -Text ([string]$_) }) -join ' '
+        $DisplayCommand = (
+            $displayParts |
+                ForEach-Object {
+                    Protect-VerificationDisplayText -Text ([string]$_)
+                }
+        ) -join ' '
     } else {
         $DisplayCommand = Protect-VerificationDisplayText -Text $DisplayCommand
     }
@@ -358,7 +428,11 @@ function Invoke-VerificationStep {
         $exitCode = [int]$LASTEXITCODE
     } catch {
         $errorText = $_ | Out-String
-        [System.IO.File]::AppendAllText($logPath, $errorText, [System.Text.UTF8Encoding]::new($false))
+        [System.IO.File]::AppendAllText(
+            $logPath,
+            $errorText,
+            [System.Text.UTF8Encoding]::new($false)
+        )
         $exitCode = 127
     } finally {
         $stopwatch.Stop()
@@ -366,7 +440,11 @@ function Invoke-VerificationStep {
     $endedAt = [DateTimeOffset]::UtcNow
 
     if (-not (Test-Path -LiteralPath $logPath -PathType Leaf)) {
-        [System.IO.File]::WriteAllText($logPath, '', [System.Text.UTF8Encoding]::new($false))
+        [System.IO.File]::WriteAllText(
+            $logPath,
+            '',
+            [System.Text.UTF8Encoding]::new($false)
+        )
     }
     $logSha256 = (Get-FileHash -LiteralPath $logPath -Algorithm SHA256).Hash.ToLowerInvariant()
 
@@ -408,8 +486,11 @@ function Invoke-VerificationStep {
         EvidencePath = [System.IO.Path]::GetFullPath($evidencePath)
     }
 
-    $json = $evidence | ConvertTo-Json -Depth 12
-    [System.IO.File]::WriteAllText($evidencePath, $json, [System.Text.UTF8Encoding]::new($false))
+    [System.IO.File]::WriteAllText(
+        $evidencePath,
+        ($evidence | ConvertTo-Json -Depth 12),
+        [System.Text.UTF8Encoding]::new($false)
+    )
     return $evidence
 }
 
@@ -421,6 +502,8 @@ function Write-VerificationSummary {
         [Parameter(Mandatory)]
         [string]$OutputDirectory,
         [Parameter(Mandatory)]
+        [string]$RepositoryRoot,
+        [Parameter(Mandatory)]
         [string]$Repository,
         [Parameter(Mandatory)]
         [string]$BaseSha,
@@ -428,10 +511,12 @@ function Write-VerificationSummary {
         [string]$HeadSha
     )
 
+    $outputFull = Assert-ExternalOutputDirectory -OutputDirectory $OutputDirectory -RepositoryRoot $RepositoryRoot
     $steps = [System.Collections.Generic.List[object]]::new()
     foreach ($path in $StepPath) {
         try {
-            $step = Get-Content -LiteralPath $path -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+            $step = Get-Content -LiteralPath $path -Raw -ErrorAction Stop |
+                ConvertFrom-Json -ErrorAction Stop
             $steps.Add($step)
         } catch {
             $steps.Add([pscustomobject][ordered]@{
@@ -451,9 +536,9 @@ function Write-VerificationSummary {
         $status = 'NOT_VERIFIED'
     }
 
-    New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
-    $jsonPath = Join-Path $OutputDirectory 'verification-summary.json'
-    $markdownPath = Join-Path $OutputDirectory 'verification-summary.md'
+    New-Item -ItemType Directory -Path $outputFull -Force | Out-Null
+    $jsonPath = Join-Path $outputFull 'verification-summary.json'
+    $markdownPath = Join-Path $outputFull 'verification-summary.md'
     $summary = [pscustomobject][ordered]@{
         schemaVersion = 1
         repository = $Repository
@@ -485,12 +570,24 @@ function Write-VerificationSummary {
         if ($null -ne $step.PSObject.Properties['JUnit'] -and $null -ne $step.JUnit) {
             $tests = "$($step.JUnit.Passed)/$($step.JUnit.Total), fail=$($step.JUnit.Failed), error=$($step.JUnit.Errors), skip=$($step.JUnit.Skipped)"
         }
-        $hash = if ($null -ne $step.PSObject.Properties['LogSha256']) { [string]$step.LogSha256 } else { '-' }
-        $exit = if ($null -ne $step.PSObject.Properties['ExitCode'] -and $null -ne $step.ExitCode) { [string]$step.ExitCode } else { '-' }
+        $hash = if ($null -ne $step.PSObject.Properties['LogSha256']) {
+            [string]$step.LogSha256
+        } else {
+            '-'
+        }
+        $exit = if ($null -ne $step.PSObject.Properties['ExitCode'] -and $null -ne $step.ExitCode) {
+            [string]$step.ExitCode
+        } else {
+            '-'
+        }
         $safeName = ([string]$step.Name).Replace('|', '\|')
         $markdown.Add("| $safeName | $($step.Status) | $exit | $tests | $hash |")
     }
-    [System.IO.File]::WriteAllLines($markdownPath, $markdown, [System.Text.UTF8Encoding]::new($false))
+    [System.IO.File]::WriteAllLines(
+        $markdownPath,
+        $markdown,
+        [System.Text.UTF8Encoding]::new($false)
+    )
 
     return [pscustomobject][ordered]@{
         Status = $status
