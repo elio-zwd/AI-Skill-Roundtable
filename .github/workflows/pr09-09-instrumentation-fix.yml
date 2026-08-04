@@ -27,36 +27,13 @@ jobs:
 
           runtime_path = Path("app/src/main/java/com/elio/jianyu/data/ExecutionRuntimeRepositoryComponent.kt")
           runtime = runtime_path.read_text(encoding="utf-8")
-          old = '''        val currentSourcesMatch = command.contextUsage.sourceExpectations.all { expectation ->
-              when (expectation.sourceType) {
-                  ContextSourceType.MATERIAL -> getMaterialReference(expectation.sourceId)?.let { source ->
-                      source.lifecycleState == ContextSourceLifecycle.ACTIVE &&
-                          source.updatedAt == expectation.expectedUpdatedAt &&
-                          source.contentHash == expectation.expectedContentHash
-                  } ?: false
-                  ContextSourceType.PERSONAL_CONTEXT ->
-                      getPersonalContextEntry(expectation.sourceId)?.let { source ->
-                          source.lifecycleState == ContextSourceLifecycle.ACTIVE &&
-                              source.updatedAt == expectation.expectedUpdatedAt &&
-                              source.contentHash == expectation.expectedContentHash
-                      } ?: false
-              }
-          }
-          return if (
-              allMaterialValid && allPersonalValid &&
-              materialKeys.distinct().size == materialKeys.size &&
-              personalKeys.distinct().size == personalKeys.size &&
-              expectedUnique && expectedCountMatches && currentSourcesMatch
-          ) {
-              null
-          } else {
-              RepositoryError.ConstraintViolation(
-                  "create_execution_runtime",
-                  ContextValidationError.USAGE_SNAPSHOT_CONFLICT.code,
-              )
-          }
-          '''
-          new = '''        val snapshotPayloadValid =
+          start_marker = "        val currentSourcesMatch = command.contextUsage.sourceExpectations.all { expectation ->\n"
+          end_marker = "\n    private fun sameCreationPayload("
+          if runtime.count(start_marker) != 1 or runtime.count(end_marker) != 1:
+              raise SystemExit("ExecutionRuntimeRepositoryComponent.kt target boundaries are not unique")
+          start = runtime.index(start_marker)
+          end = runtime.index(end_marker, start)
+          replacement = '''        val snapshotPayloadValid =
               allMaterialValid && allPersonalValid &&
                   materialKeys.distinct().size == materialKeys.size &&
                   personalKeys.distinct().size == personalKeys.size &&
@@ -91,38 +68,26 @@ jobs:
                   ContextValidationError.SOURCE_STALE.code,
               )
           }
+      }
           '''
-          if old not in runtime:
-              raise SystemExit("ExecutionRuntimeRepositoryComponent.kt target block not found")
-          runtime_path.write_text(runtime.replace(old, new, 1), encoding="utf-8")
+          runtime_path.write_text(runtime[:start] + replacement + runtime[end:], encoding="utf-8")
 
           migration_path = Path("app/src/androidTest/java/com/elio/jianyu/data/ResourceLifecycleMigrationTest.kt")
           migration = migration_path.read_text(encoding="utf-8")
-          old_migration = '''    fun allMigrationsRemainContinuousFromVersion1ToVersion8() {
-              val migrationPairs = RoundtableDatabase.ALL_MIGRATIONS.map {
-                  it.startVersion to it.endVersion
-              }
-
-              assertEquals(
-                  listOf(1 to 2, 2 to 3, 3 to 4, 4 to 5, 5 to 6, 6 to 7, 7 to 8),
-                  migrationPairs
-              )
-          }
-          '''
-          new_migration = '''    fun allMigrationsRemainContinuousFromVersion1ToVersion9() {
-              val migrationPairs = RoundtableDatabase.ALL_MIGRATIONS.map {
-                  it.startVersion to it.endVersion
-              }
-
-              assertEquals(
-                  listOf(1 to 2, 2 to 3, 3 to 4, 4 to 5, 5 to 6, 6 to 7, 7 to 8, 8 to 9),
-                  migrationPairs
-              )
-          }
-          '''
-          if old_migration not in migration:
-              raise SystemExit("ResourceLifecycleMigrationTest.kt target block not found")
-          migration_path.write_text(migration.replace(old_migration, new_migration, 1), encoding="utf-8")
+          old_name = "fun allMigrationsRemainContinuousFromVersion1ToVersion8()"
+          old_pairs = "listOf(1 to 2, 2 to 3, 3 to 4, 4 to 5, 5 to 6, 6 to 7, 7 to 8)"
+          if migration.count(old_name) != 1 or migration.count(old_pairs) != 1:
+              raise SystemExit("ResourceLifecycleMigrationTest.kt target values are not unique")
+          migration = migration.replace(
+              old_name,
+              "fun allMigrationsRemainContinuousFromVersion1ToVersion9()",
+              1,
+          ).replace(
+              old_pairs,
+              "listOf(1 to 2, 2 to 3, 3 to 4, 4 to 5, 5 to 6, 6 to 7, 7 to 8, 8 to 9)",
+              1,
+          )
+          migration_path.write_text(migration, encoding="utf-8")
           PY
 
           git diff --check
