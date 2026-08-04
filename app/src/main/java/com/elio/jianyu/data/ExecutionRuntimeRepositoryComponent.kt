@@ -474,6 +474,18 @@ internal class ExecutionRuntimeRepositoryComponent(
         val expectedUnique = expectedKeys.distinct().size == expectedKeys.size
         val expectedCountMatches = command.contextUsage.sourceExpectations.size ==
             command.contextUsage.materials.size + command.contextUsage.personalContexts.size
+        val snapshotPayloadValid =
+            allMaterialValid && allPersonalValid &&
+                materialKeys.distinct().size == materialKeys.size &&
+                personalKeys.distinct().size == personalKeys.size &&
+                expectedUnique && expectedCountMatches
+        if (!snapshotPayloadValid) {
+            return RepositoryError.ConstraintViolation(
+                "create_execution_runtime",
+                ContextValidationError.USAGE_SNAPSHOT_CONFLICT.code,
+            )
+        }
+
         val currentSourcesMatch = command.contextUsage.sourceExpectations.all { expectation ->
             when (expectation.sourceType) {
                 ContextSourceType.MATERIAL -> getMaterialReference(expectation.sourceId)?.let { source ->
@@ -489,17 +501,12 @@ internal class ExecutionRuntimeRepositoryComponent(
                     } ?: false
             }
         }
-        return if (
-            allMaterialValid && allPersonalValid &&
-            materialKeys.distinct().size == materialKeys.size &&
-            personalKeys.distinct().size == personalKeys.size &&
-            expectedUnique && expectedCountMatches && currentSourcesMatch
-        ) {
+        return if (currentSourcesMatch) {
             null
         } else {
-            RepositoryError.ConstraintViolation(
+            RepositoryError.InvalidState(
                 "create_execution_runtime",
-                ContextValidationError.USAGE_SNAPSHOT_CONFLICT.code,
+                ContextValidationError.SOURCE_STALE.code,
             )
         }
     }
