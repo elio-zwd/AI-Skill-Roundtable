@@ -1,7 +1,6 @@
 package com.elio.jianyu.ui.screens.execution
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -128,7 +127,9 @@ class IssueExecutionScreenTest {
         }
 
         composeRule.onNodeWithText("官方 Skill 目录未能加载", substring = true)
-            .assertTextContains("不会调用模型")
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("不会调用模型", substring = true)
+            .assertIsDisplayed()
     }
 
     private fun contentState(
