@@ -28,6 +28,19 @@ FAIL = 1
 NOT_VERIFIED = 2
 
 
+def _configure_utf8_stdio() -> None:
+    """避免 Windows 非 UTF-8 控制台在输出中文帮助或错误时崩溃。"""
+
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if not callable(reconfigure):
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (OSError, ValueError):
+            pass
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="见域本地 AI Android 设备语义控制层")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -73,6 +86,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    _configure_utf8_stdio()
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
@@ -207,19 +221,35 @@ def _execute_tap(
     client.tap(*node.center)
     expected = _expected_selector_from_args(args)
     expected_node = None
+    wait_error: DeviceControlError | None = None
     status = "NOT_VERIFIED"
     exit_code = NOT_VERIFIED
-    if expected is not None:
-        expected_node = wait_for_selector(
-            client.dump_ui_xml,
-            expected,
-            timeout_seconds=args.timeout / 1000.0,
-            interval_seconds=args.interval / 1000.0,
-        )
-        status = "PASS"
-        exit_code = PASS
 
-    after = capture_observation(client, output, prefix="after")
+    if expected is not None:
+        try:
+            expected_node = wait_for_selector(
+                client.dump_ui_xml,
+                expected,
+                timeout_seconds=args.timeout / 1000.0,
+                interval_seconds=args.interval / 1000.0,
+            )
+            status = "PASS"
+            exit_code = PASS
+        except DeviceControlError as exc:
+            wait_error = exc
+            status = "FAIL"
+            exit_code = exc.exit_code
+
+    after = None
+    after_capture_error: DeviceControlError | None = None
+    try:
+        after = capture_observation(client, output, prefix="after")
+    except DeviceControlError as exc:
+        after_capture_error = exc
+        if status == "PASS":
+            status = "FAIL"
+            exit_code = exc.exit_code
+
     result = {
         "schemaVersion": 1,
         "status": status,
@@ -231,13 +261,29 @@ def _execute_tap(
         "expectedNode": expected_node.to_dict() if expected_node else None,
         "durationMilliseconds": int((time.monotonic() - started) * 1000),
         "beforeObservation": before.json_path,
-        "afterObservation": after.json_path,
+        "afterObservation": after.json_path if after else None,
         "beforeScreenshotSha256": before.screenshot_sha256,
-        "afterScreenshotSha256": after.screenshot_sha256,
+        "afterScreenshotSha256": after.screenshot_sha256 if after else None,
         "warning": None if expected else "未提供预期状态，动作不能判定为 UI PASS。",
+        "error": wait_error.to_dict() if wait_error else None,
+        "afterCaptureError": after_capture_error.to_dict() if after_capture_error else None,
     }
     evidence = write_json(output / "tap-result.json", result)
     result["evidence"] = str(evidence)
+
+    if wait_error is not None or after_capture_error is not None:
+        root_error = wait_error or after_capture_error
+        raise DeviceControlError(
+            str(root_error),
+            category=root_error.category,
+            exit_code=root_error.exit_code,
+            details={
+                **root_error.details,
+                "evidence": str(evidence),
+                "beforeObservation": before.json_path,
+                "afterObservation": after.json_path if after else None,
+            },
+        )
     return result, exit_code
 
 
@@ -298,16 +344,21 @@ def _wait_for_foreground_package(
 ) -> None:
     deadline = time.monotonic() + timeout_seconds
     last_package: str | None = None
+    last_error: str | None = None
     while True:
-        foreground = client.foreground_info()
-        last_package = foreground.package
+        try:
+            foreground = client.foreground_info()
+            last_package = foreground.package
+            last_error = None
+        except DeviceControlError as exc:
+            last_error = str(exc)
         if last_package == package:
             return
         if time.monotonic() >= deadline:
             raise DeviceControlError(
                 f"等待 App 前台超时：{package}",
                 category="FOREGROUND_TIMEOUT",
-                details={"lastPackage": last_package},
+                details={"lastPackage": last_package, "lastError": last_error},
             )
         time.sleep(interval_seconds)
 
