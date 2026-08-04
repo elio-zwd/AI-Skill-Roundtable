@@ -3,10 +3,19 @@ package com.elio.jianyu.ui.screens.execution
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.elio.jianyu.data.ConfirmedContextItem
+import com.elio.jianyu.data.ContextContentHasher
+import com.elio.jianyu.data.ContextSelectionDraft
+import com.elio.jianyu.data.ContextSourceLifecycle
+import com.elio.jianyu.data.ContextSourceType
 import com.elio.jianyu.data.ExecutionRunStatus
 import com.elio.jianyu.data.ExecutionRuntimeSnapshot
 import com.elio.jianyu.data.IssueRecoverySnapshot
 import com.elio.jianyu.data.JianyuRepository
+import com.elio.jianyu.data.MaterialFilter
+import com.elio.jianyu.data.PersonalContextFilter
+import com.elio.jianyu.data.PrepareExecutionContextCommand
+import com.elio.jianyu.data.PreparedExecutionContext
 import com.elio.jianyu.data.RepositoryError
 import com.elio.jianyu.data.RepositoryResult
 import com.elio.jianyu.data.getExecutionRuntime
@@ -16,6 +25,8 @@ import com.elio.jianyu.execution.ExecutionRetryCommand
 import com.elio.jianyu.execution.ExecutionRunCoordinator
 import com.elio.jianyu.execution.ExecutionStartCommand
 import com.elio.jianyu.execution.ExecutionStartException
+import com.elio.jianyu.ui.screens.context.ContextCandidateUi
+import com.elio.jianyu.ui.screens.context.ContextConfirmationUiState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +46,7 @@ class IssueExecutionViewModel internal constructor(
     private var requestedStageId: String? = null
     private var latestRecovery: IssueRecoverySnapshot? = null
     private var latestRuntime: ExecutionRuntimeSnapshot? = null
+    private var preparedContextForStart: PreparedExecutionContext? = null
 
     fun load(issueId: String?, stageId: String?) {
         viewModelScope.launch {
@@ -85,29 +97,305 @@ class IssueExecutionViewModel internal constructor(
     }
 
     fun retryFailedParticipants() {
+        openContextSelection(retryMode = true)
+    }
+
+    fun openContextSelection(retryMode: Boolean = false) {
+        val content = _state.value as? IssueExecutionUiState.Content ?: return
+        val recovery = latestRecovery ?: return
+        val stageId = content.stageId ?: return
+        val existing = content.contextConfirmation
+        if (existing != null && existing.retryMode == retryMode) {
+            _state.value = content.copy(
+                contextConfirmation = existing.copy(visible = true, errorMessage = null),
+            )
+            return
+        }
+        viewModelScope.launch {
+            _state.value = content.copy(operationInProgress = true)
+            val runtime = latestRuntime
+            val input = runtime?.run?.triggerMessageId
+                ?.let { triggerId -> recovery.core.messages.firstOrNull { it.id == triggerId } }
+                ?.text
+                ?.takeIf(String::isNotBlank)
+                ?: "请继续完成此前已确认的问题。"
+            val retryIdentity = runtime?.let { "${it.run.id}-${it.run.updatedAt}" }
+            val runId = if (retryMode && retryIdentity != null) {
+                "$retryIdentity-retry"
+            } else {
+                "context-${content.issueId}-$stageId-${System.currentTimeMillis()}"
+            }
+            val materialResult = repository.listMaterials(
+                MaterialFilter(
+                    issueId = content.issueId,
+                    lifecycles = setOf(ContextSourceLifecycle.ACTIVE),
+                ),
+            )
+            val personalResult = repository.listPersonalContexts(
+                PersonalContextFilter(lifecycles = setOf(ContextSourceLifecycle.ACTIVE)),
+            )
+            val previousUsage = runtime?.run?.id?.let { previousRunId ->
+                when (val usage = repository.listRunContextUsage(previousRunId)) {
+                    is RepositoryResult.Success -> usage.value
+                    is RepositoryResult.Failure -> emptyList()
+                }
+            }.orEmpty()
+            val materialCandidates = (materialResult as? RepositoryResult.Success)
+                ?.value.orEmpty()
+                .filter { it.stageId == null || it.stageId == stageId }
+                .map { material ->
+                    ContextCandidateUi(
+                        sourceType = ContextSourceType.MATERIAL,
+                        sourceId = material.id,
+                        title = material.title,
+                        sourceKind = material.sourceType,
+                        sourceLocator = material.sourceLocator,
+                        sourcePublishedAt = material.sourcePublishedAt,
+                        sourceCapturedAt = material.sourceCapturedAt,
+                        originalContent = material.content,
+                        selectedContent = material.content,
+                        sourceHash = material.contentHash,
+                        sourceUpdatedAt = material.updatedAt,
+                        sensitive = material.sensitive,
+                    )
+                }
+            val personalCandidates = (personalResult as? RepositoryResult.Success)
+                ?.value.orEmpty()
+                .map { personal ->
+                    ContextCandidateUi(
+                        sourceType = ContextSourceType.PERSONAL_CONTEXT,
+                        sourceId = personal.id,
+                        title = personal.title,
+                        sourceKind = "personal_context",
+                        sourceLocator = null,
+                        sourcePublishedAt = null,
+                        sourceCapturedAt = null,
+                        originalContent = personal.content,
+                        selectedContent = personal.content,
+                        sourceHash = personal.contentHash,
+                        sourceUpdatedAt = personal.updatedAt,
+                        sensitive = personal.sensitive,
+                    )
+                }
+            val errors = buildList {
+                if (materialResult is RepositoryResult.Failure) add("资料读取失败")
+                if (personalResult is RepositoryResult.Failure) add("个人背景读取失败")
+            }
+            val baseCharacters = estimateBaseContextCharacters(recovery, content.stageId, input)
+            _state.value = content.copy(
+                contextConfirmation = ContextConfirmationUiState(
+                    visible = true,
+                    retryMode = retryMode,
+                    runId = runId,
+                    issueId = content.issueId,
+                    stageId = stageId,
+                    currentUserInput = input,
+                    baseContextCharacters = baseCharacters,
+                    candidates = materialCandidates + personalCandidates,
+                    previousUsage = previousUsage,
+                    errorMessage = errors.takeIf { it.isNotEmpty() }?.joinToString("；"),
+                ),
+                operationInProgress = false,
+            )
+        }
+    }
+
+    fun dismissContextSelection() = updateContextConfirmation { copy(visible = false) }
+
+    fun toggleContextCandidate(sourceType: ContextSourceType, sourceId: String) {
+        updateCandidate(sourceType, sourceId) { candidate ->
+            candidate.copy(selected = !candidate.selected)
+        }
+    }
+
+    fun setContextNetworkAllowed(
+        sourceType: ContextSourceType,
+        sourceId: String,
+        allowed: Boolean,
+    ) {
+        updateCandidate(sourceType, sourceId) { it.copy(networkAllowed = allowed) }
+    }
+
+    fun setSensitiveContextConfirmed(
+        sourceType: ContextSourceType,
+        sourceId: String,
+        confirmed: Boolean,
+    ) {
+        updateCandidate(sourceType, sourceId) { it.copy(sensitiveConfirmed = confirmed) }
+    }
+
+    fun updateContextExcerpt(sourceType: ContextSourceType, sourceId: String, content: String) {
+        updateCandidate(sourceType, sourceId) { it.copy(selectedContent = content) }
+    }
+
+    fun confirmContextSelection() {
+        val content = _state.value as? IssueExecutionUiState.Content ?: return
+        val confirmation = content.contextConfirmation ?: return
+        if (!confirmation.visible || confirmation.tooLarge) return
+        viewModelScope.launch {
+            _state.value = content.copy(operationInProgress = true)
+            val now = System.currentTimeMillis()
+            val items = confirmation.selectedItems.mapIndexed { index, candidate ->
+                ConfirmedContextItem(
+                    sourceType = candidate.sourceType,
+                    sourceId = candidate.sourceId,
+                    title = candidate.title,
+                    sourceKind = candidate.sourceKind,
+                    sourceLocator = candidate.sourceLocator,
+                    sourcePublishedAt = candidate.sourcePublishedAt,
+                    sourceCapturedAt = candidate.sourceCapturedAt,
+                    content = candidate.selectedContent,
+                    contentHash = ContextContentHasher.hash(candidate.selectedContent),
+                    expectedSourceHash = candidate.sourceHash,
+                    expectedSourceUpdatedAt = candidate.sourceUpdatedAt,
+                    confirmationOrder = index,
+                    userConfirmedAt = now + index,
+                    networkAllowed = candidate.networkAllowed,
+                    sensitive = candidate.sensitive,
+                    sensitiveConfirmed = candidate.sensitiveConfirmed,
+                )
+            }
+            val prepared = repository.prepareExecutionContext(
+                PrepareExecutionContextCommand(
+                    draft = ContextSelectionDraft(
+                        issueId = confirmation.issueId,
+                        stageId = confirmation.stageId,
+                        runId = confirmation.runId,
+                        baseContextCharacters = confirmation.baseContextCharacters,
+                        items = items,
+                        confirmed = true,
+                    ),
+                    preparedAt = now,
+                ),
+            )
+            when (prepared) {
+                is RepositoryResult.Failure -> {
+                    _state.value = content.copy(
+                        contextConfirmation = confirmation.copy(
+                            errorMessage = repositoryErrorToContextMessage(prepared.error),
+                        ),
+                        operationInProgress = false,
+                    )
+                }
+                is RepositoryResult.Success -> {
+                    if (confirmation.retryMode) {
+                        retryWithPreparedContext(prepared.value, confirmation)
+                    } else {
+                        preparedContextForStart = prepared.value
+                        _state.value = content.copy(
+                            contextConfirmation = confirmation.copy(
+                                visible = false,
+                                confirmedForStart = true,
+                                errorMessage = null,
+                            ),
+                            operationInProgress = false,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /** PR09-06 可在同一 ViewModel 生命周期内读取用户已确认、尚未创建 Run 的上下文。 */
+    fun peekPreparedContextForStart(): PreparedExecutionContext? = preparedContextForStart
+
+    private suspend fun retryWithPreparedContext(
+        prepared: PreparedExecutionContext,
+        confirmation: ContextConfirmationUiState,
+    ) {
         val recovery = latestRecovery ?: return
         val runtime = latestRuntime ?: return
-        val input = runtime.run.triggerMessageId
-            ?.let { triggerId -> recovery.core.messages.firstOrNull { it.id == triggerId } }
-            ?.text
-            ?.takeIf(String::isNotBlank)
-            ?: "请继续完成此前已确认的问题。"
         val retryIdentity = "${runtime.run.id}-${runtime.run.updatedAt}"
         val nextRound = recovery.core.messages.maxOfOrNull { it.roundIndex }?.plus(1) ?: 0
-        val now = System.currentTimeMillis()
-
-        runOperation {
+        try {
             requireNotNull(coordinator).retry(
                 ExecutionRetryCommand(
                     previousRunId = runtime.run.id,
-                    newRunId = "$retryIdentity-retry",
+                    newRunId = confirmation.runId,
                     idempotencyKey = "retry:$retryIdentity",
-                    currentUserInput = input,
+                    currentUserInput = confirmation.currentUserInput,
                     roundIndex = nextRound,
-                    userConfirmedAt = now,
+                    userConfirmedAt = System.currentTimeMillis(),
+                    contributions = prepared.preparation.contributions,
+                    contextUsage = prepared.usage,
                 ),
             )
+            refreshInternal()
+        } catch (error: ExecutionStartException) {
+            val current = _state.value as? IssueExecutionUiState.Content ?: return
+            _state.value = current.copy(
+                contextConfirmation = confirmation.copy(
+                    visible = true,
+                    errorMessage = error.failure.safeMessage,
+                ),
+                operationInProgress = false,
+            )
+        } catch (error: ExecutionRepositoryException) {
+            val current = _state.value as? IssueExecutionUiState.Content ?: return
+            _state.value = current.copy(
+                contextConfirmation = confirmation.copy(
+                    visible = true,
+                    errorMessage = repositoryErrorToContextMessage(error.repositoryError),
+                ),
+                operationInProgress = false,
+            )
         }
+    }
+
+    private fun updateContextConfirmation(
+        transform: ContextConfirmationUiState.() -> ContextConfirmationUiState,
+    ) {
+        val current = _state.value as? IssueExecutionUiState.Content ?: return
+        val confirmation = current.contextConfirmation ?: return
+        _state.value = current.copy(contextConfirmation = confirmation.transform())
+    }
+
+    private fun updateCandidate(
+        sourceType: ContextSourceType,
+        sourceId: String,
+        transform: (ContextCandidateUi) -> ContextCandidateUi,
+    ) {
+        updateContextConfirmation {
+            copy(
+                candidates = candidates.map { candidate ->
+                    if (candidate.sourceType == sourceType && candidate.sourceId == sourceId) {
+                        transform(candidate)
+                    } else {
+                        candidate
+                    }
+                },
+                errorMessage = null,
+                confirmedForStart = false,
+            )
+        }
+        preparedContextForStart = null
+    }
+
+    private fun estimateBaseContextCharacters(
+        recovery: IssueRecoverySnapshot,
+        stageId: String?,
+        currentUserInput: String,
+    ): Int = recovery.core.issue.title.length +
+        recovery.core.stages.firstOrNull { it.id == stageId }?.let { it.title.length + it.objective.length }.orZero() +
+        recovery.core.messages.filter { it.stageId == stageId }.sumOf { it.text.length } +
+        currentUserInput.length +
+        CONTEXT_TEMPLATE_RESERVE_CHARACTERS
+
+    private fun Int?.orZero(): Int = this ?: 0
+
+    private fun repositoryErrorToContextMessage(error: RepositoryError): String = when (error) {
+        is RepositoryError.ConstraintViolation -> when (error.constraintCode) {
+            "network_not_allowed" -> "至少一个来源未允许本次发送给模型服务。"
+            "sensitive_confirmation_required" -> "敏感来源需要额外确认。"
+            "context_too_large" -> "上下文超过 24,000 字符，请缩短摘录或移除来源。"
+            "source_stale" -> "来源在确认后发生变化，请重新查看并确认。"
+            "source_deleted", "source_purged" -> "来源已删除或清除，不能用于本次执行。"
+            else -> "上下文确认未通过，请检查选中项。"
+        }
+        is RepositoryError.InvalidState -> "来源状态已变化，请重新查看并确认。"
+        is RepositoryError.NotFound -> "来源或阶段不存在。"
+        is RepositoryError.StorageFailure -> "本地存储暂时不可用。"
+        else -> "上下文暂时无法确认。"
     }
 
     private fun runOperation(operation: suspend () -> Unit) {
@@ -184,8 +472,13 @@ class IssueExecutionViewModel internal constructor(
                 }
                 latestRecovery = recovery
                 latestRuntime = runtime
+                val existingConfirmation =
+                    (_state.value as? IssueExecutionUiState.Content)?.contextConfirmation
                 _state.value = buildContent(recovery, runtime, selectedStage?.id)
-                    .copy(operationInProgress = operationInProgress)
+                    .copy(
+                        contextConfirmation = existingConfirmation,
+                        operationInProgress = operationInProgress,
+                    )
             }
         }
     }
@@ -305,6 +598,7 @@ class IssueExecutionViewModel internal constructor(
 
     companion object {
         private const val STATE_REFRESH_INTERVAL_MILLIS = 120L
+        private const val CONTEXT_TEMPLATE_RESERVE_CHARACTERS = 512
 
         private val ACTIVE_RUN_STATES = setOf(
             ExecutionRunStatus.NOT_STARTED,

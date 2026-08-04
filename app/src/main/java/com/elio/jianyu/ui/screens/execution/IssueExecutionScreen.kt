@@ -13,8 +13,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.elio.jianyu.data.ContextSourceType
 import com.elio.jianyu.ui.components.JianyuPageShell
 import com.elio.jianyu.ui.components.JianyuStateCard
+import com.elio.jianyu.ui.screens.context.ContextConfirmationDialog
 
 @Composable
 fun IssueExecutionScreen(
@@ -24,13 +26,20 @@ fun IssueExecutionScreen(
     onStop: () -> Unit,
     onRetry: () -> Unit,
     onRecoverInterrupted: () -> Unit,
+    onOpenContext: () -> Unit = {},
+    onDismissContext: () -> Unit = {},
+    onToggleContext: (ContextSourceType, String) -> Unit = { _, _ -> },
+    onContextNetworkAllowed: (ContextSourceType, String, Boolean) -> Unit = { _, _, _ -> },
+    onSensitiveContextConfirmed: (ContextSourceType, String, Boolean) -> Unit = { _, _, _ -> },
+    onContextExcerptChanged: (ContextSourceType, String, String) -> Unit = { _, _, _ -> },
+    onConfirmContext: () -> Unit = {},
 ) {
     JianyuPageShell(
         title = when (state) {
             is IssueExecutionUiState.Content -> state.issueTitle
             else -> "议题工作区"
         },
-        subtitle = "执行运行与恢复",
+        subtitle = "执行运行、上下文确认与恢复",
         onBack = onBack,
         contentScrollable = true,
         modifier = Modifier.testTag(IssueExecutionTestTags.SCREEN),
@@ -58,10 +67,20 @@ fun IssueExecutionScreen(
 
             is IssueExecutionUiState.Content -> {
                 ExecutionStatusCard(state)
+                ContextSelectionSummaryCard(
+                    state = state,
+                    onOpenContext = onOpenContext,
+                )
                 if (state.runId == null) {
                     JianyuStateCard(
                         title = "尚未开始执行",
-                        message = "打开工作区不会创建 Run。后续由已确认的 Skill 选择入口传入稳定启动命令。",
+                        message = "打开工作区不会创建 Run。可以先确认资料与个人背景，随后由 Skill 选择流程消费已确认上下文。",
+                    )
+                }
+                if (state.contextConfirmation?.confirmedForStart == true) {
+                    JianyuStateCard(
+                        title = "上下文已确认",
+                        message = "当前只生成不可变 Contribution 与 Usage 写入载荷；尚未选择 Skill 时不会创建 Run、Pending、预算或网络请求。",
                     )
                 }
                 if (state.canRecoverInterrupted) {
@@ -113,7 +132,7 @@ fun IssueExecutionScreen(
                                 .weight(1f)
                                 .testTag(IssueExecutionTestTags.RETRY),
                         ) {
-                            Text("重试失败成员")
+                            Text("确认上下文并重试")
                         }
                     }
                 }
@@ -128,5 +147,18 @@ fun IssueExecutionScreen(
                 }
             }
         }
+    }
+
+    val confirmation = (state as? IssueExecutionUiState.Content)?.contextConfirmation
+    if (confirmation != null) {
+        ContextConfirmationDialog(
+            state = confirmation,
+            onDismiss = onDismissContext,
+            onToggleSelected = onToggleContext,
+            onNetworkAllowed = onContextNetworkAllowed,
+            onSensitiveConfirmed = onSensitiveContextConfirmed,
+            onExcerptChanged = onContextExcerptChanged,
+            onConfirm = onConfirmContext,
+        )
     }
 }

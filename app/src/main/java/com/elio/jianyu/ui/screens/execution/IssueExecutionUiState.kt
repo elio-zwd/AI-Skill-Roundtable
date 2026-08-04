@@ -2,6 +2,7 @@ package com.elio.jianyu.ui.screens.execution
 
 import com.elio.jianyu.data.ExecutionParticipantStatus
 import com.elio.jianyu.data.ExecutionRunStatus
+import com.elio.jianyu.ui.screens.context.ContextConfirmationUiState
 
 enum class IssueExecutionPhase {
     IDLE,
@@ -67,6 +68,7 @@ sealed interface IssueExecutionUiState {
         val canStop: Boolean,
         val canRetry: Boolean,
         val canRecoverInterrupted: Boolean,
+        val contextConfirmation: ContextConfirmationUiState? = null,
         val operationInProgress: Boolean = false,
     ) : IssueExecutionUiState
 }

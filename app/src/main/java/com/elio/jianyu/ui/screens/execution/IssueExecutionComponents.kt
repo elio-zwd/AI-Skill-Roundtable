@@ -24,6 +24,7 @@ object IssueExecutionTestTags {
     const val STOP = "issue_execution_stop"
     const val RETRY = "issue_execution_retry"
     const val RECOVER = "issue_execution_recover"
+    const val CONTEXT = "issue_execution_context"
 
     fun participant(snapshotId: String): String = "issue_execution_participant_$snapshotId"
 }
@@ -69,6 +70,46 @@ internal fun ExecutionStatusCard(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error,
                 )
+            }
+        }
+    }
+}
+
+
+@Composable
+internal fun ContextSelectionSummaryCard(
+    state: IssueExecutionUiState.Content,
+    onOpenContext: () -> Unit,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(IssueExecutionTestTags.CONTEXT),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = "执行上下文",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = "资料和个人背景默认不发送。执行或重试前需查看精确摘录、字符占用、联网授权与敏感提示。",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            state.contextConfirmation?.let { confirmation ->
+                JianyuMetadataRow("已选来源", confirmation.selectedItems.size.toString())
+                JianyuMetadataRow(
+                    "预计字符",
+                    "${confirmation.totalCharacters} / 24000",
+                )
+            }
+            androidx.compose.material3.OutlinedButton(
+                onClick = onOpenContext,
+                enabled = !state.operationInProgress,
+            ) {
+                Text("添加或查看上下文")
             }
         }
     }
