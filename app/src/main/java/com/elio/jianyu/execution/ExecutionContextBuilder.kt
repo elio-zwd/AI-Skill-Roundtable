@@ -89,23 +89,21 @@ class ExecutionContextBuilder {
             if (input.participant.defaultResponsibility.isNotBlank()) {
                 add("本组合中的关注点：${input.participant.defaultResponsibility.trim()}")
             }
-            if (eligibleHistory.isNotEmpty()) {
-                add(
-                    historyHeading(input.promptMode) + "\n" +
-                        eligibleHistory.joinToString("\n") { entry ->
-                            "${entry.senderName}: ${entry.content}"
-                        },
-                )
+            when (input.promptMode) {
+                ExecutionPromptMode.INDEPENDENT_RESPONSE -> {
+                    addHistory(eligibleHistory, "阶段既有记录：")
+                    addContributions(input.contributions)
+                    add("用户当前问题：${input.currentUserInput.trim()}")
+                }
+                ExecutionPromptMode.CROSS_DISCUSSION_SYNTHESIS -> {
+                    add("本次交叉讨论焦点：${input.currentUserInput.trim()}")
+                    addContributions(input.contributions)
+                    addHistory(
+                        eligibleHistory,
+                        "用户明确选择的历史消息与本次实际成功成员原始回应：",
+                    )
+                }
             }
-            if (input.contributions.isNotEmpty()) {
-                add(
-                    "用户明确确认的上下文：\n" + input.contributions.joinToString("\n") {
-                        contribution -> "[${contribution.sourceType}:${contribution.sourceId}] " +
-                            contribution.content
-                    },
-                )
-            }
-            add(currentInputHeading(input.promptMode) + input.currentUserInput.trim())
             add(finalInstruction(input.promptMode))
         }
 
@@ -119,14 +117,28 @@ class ExecutionContextBuilder {
         )
     }
 
-    private fun historyHeading(mode: ExecutionPromptMode): String = when (mode) {
-        ExecutionPromptMode.INDEPENDENT_RESPONSE -> "阶段既有记录："
-        ExecutionPromptMode.CROSS_DISCUSSION_SYNTHESIS -> "本次交叉讨论中实际成功的成员原始回应："
+    private fun MutableList<String>.addHistory(
+        history: List<ExecutionHistoryEntry>,
+        heading: String,
+    ) {
+        if (history.isEmpty()) return
+        add(
+            heading + "\n" + history.joinToString("\n") { entry ->
+                "${entry.senderName}: ${entry.content}"
+            },
+        )
     }
 
-    private fun currentInputHeading(mode: ExecutionPromptMode): String = when (mode) {
-        ExecutionPromptMode.INDEPENDENT_RESPONSE -> "用户当前问题："
-        ExecutionPromptMode.CROSS_DISCUSSION_SYNTHESIS -> "本次交叉讨论焦点："
+    private fun MutableList<String>.addContributions(
+        contributions: List<ExecutionContextContribution>,
+    ) {
+        if (contributions.isEmpty()) return
+        add(
+            "用户明确确认的资料与个人背景：\n" + contributions.joinToString("\n") {
+                contribution -> "[${contribution.sourceType}:${contribution.sourceId}] " +
+                    contribution.content
+            },
+        )
     }
 
     private fun finalInstruction(mode: ExecutionPromptMode): String = when (mode) {
@@ -137,7 +149,8 @@ class ExecutionContextBuilder {
 
     private companion object {
         val SYNTHESIS_INSTRUCTION = """
-            请仅依据上方实际成功的成员原始回应进行透明整合，并严格按以下结构输出：
+            请仅依据上方明确允许的消息、已确认上下文与实际成功成员原始回应进行透明整合，
+            并严格按以下结构输出：
             1. 共识
             2. 分歧
             3. 适用条件
