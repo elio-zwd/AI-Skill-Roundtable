@@ -70,9 +70,13 @@ class ExecutionContextBuilder {
         val eligibleHistory = when (input.historyScope) {
             ExecutionHistoryScope.NO_HISTORY -> emptyList()
             ExecutionHistoryScope.FULL_STAGE,
-            ExecutionHistoryScope.EXPLICIT_MESSAGES -> input.history.sortedWith(
-                compareBy<ExecutionHistoryEntry>({ it.usageOrder }, { it.sourceMessageId }),
-            )
+            ExecutionHistoryScope.EXPLICIT_MESSAGES -> input.history
+                .asSequence()
+                .filter { it.sourceExecutionRunId != input.currentRunId }
+                .sortedWith(
+                    compareBy<ExecutionHistoryEntry>({ it.usageOrder }, { it.sourceMessageId }),
+                )
+                .toList()
         }
 
         val sections = buildList {
