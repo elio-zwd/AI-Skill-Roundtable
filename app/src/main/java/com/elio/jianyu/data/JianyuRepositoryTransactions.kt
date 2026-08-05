@@ -17,12 +17,33 @@ internal class JianyuRepositoryTransactions(
     private val dao: JianyuRepositoryDao
         get() = database.jianyuRepositoryDao()
 
+    private val collaborationDao: CollaborationDao
+        get() = database.collaborationDao()
+
     suspend fun <T> transaction(
         operation: String,
         block: suspend JianyuRepositoryDao.() -> RepositoryResult<T>
     ): RepositoryResult<T> {
         return execute(operation) {
             transactionRaw(block)
+        }
+    }
+
+    suspend fun <T> collaborationTransaction(
+        operation: String,
+        block: suspend CollaborationTransactionScope.() -> RepositoryResult<T>,
+    ): RepositoryResult<T> {
+        return execute(operation) {
+            if (database.isExplicitlyClosed) {
+                throw RepositoryStorageUnavailableAbort()
+            }
+            database.withTransaction {
+                val scope = CollaborationTransactionScope(dao, collaborationDao)
+                when (val result = scope.block()) {
+                    is RepositoryResult.Success -> result
+                    is RepositoryResult.Failure -> throw RepositoryTransactionFailureAbort(result.error)
+                }
+            }
         }
     }
 
@@ -81,6 +102,11 @@ internal class JianyuRepositoryTransactions(
         }
     }
 }
+
+internal class CollaborationTransactionScope(
+    val core: JianyuRepositoryDao,
+    val collaboration: CollaborationDao,
+)
 
 internal class RepositoryTransactionFailureAbort(
     val repositoryError: RepositoryError
