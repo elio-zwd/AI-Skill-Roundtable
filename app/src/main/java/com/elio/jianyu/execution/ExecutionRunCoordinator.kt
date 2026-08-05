@@ -3,9 +3,11 @@ package com.elio.jianyu.execution
 import com.elio.jianyu.data.AppendDomainMessageCommand
 import com.elio.jianyu.data.ConsumeExecutionBudgetCommand
 import com.elio.jianyu.data.CreateExecutionRuntimeCommand
+import com.elio.jianyu.data.ExecutionHistoryScope
 import com.elio.jianyu.data.ExecutionParticipantSnapshotEntity
 import com.elio.jianyu.data.ExecutionParticipantStateEntity
 import com.elio.jianyu.data.ExecutionRunEntity
+import com.elio.jianyu.data.ExecutionRunKind
 import com.elio.jianyu.data.ExecutionRunStatus
 import com.elio.jianyu.data.ExecutionRuntimeBudgetConfig
 import com.elio.jianyu.data.ExecutionRuntimeSnapshot
@@ -63,7 +65,6 @@ class ExecutionRunCoordinator(
             require(command.budget.maxApiCalls >= participants.size) {
                 "调用预算不足以覆盖每位参与者的一次必需调用"
             }
-
             val runtime = persistence.createRuntime(
                 CreateExecutionRuntimeCommand(
                     run = ExecutionRunEntity(
@@ -81,21 +82,10 @@ class ExecutionRunCoordinator(
                     contextUsage = command.contextUsage,
                 ),
             )
-
             if (runtime.run.status != ExecutionRunStatus.NOT_STARTED) {
-                // 同一稳定命令已启动或已结束时只返回数据库事实，绝不重复调用网络。
                 return@withRunRegistration ExecutionRunResult(runtime)
             }
-
-            persistence.transitionRun(
-                TransitionRunCommand(
-                    runId = runtime.run.id,
-                    expectedStatuses = setOf(ExecutionRunStatus.NOT_STARTED),
-                    newStatus = ExecutionRunStatus.RUNNING,
-                    updatedAt = clock.nowMillis(),
-                    startedAt = clock.nowMillis(),
-                ),
-            )
+            transitionRunToRunning(runtime.run.id)
             executeRuntime(
                 runtime = persistence.getRuntime(runtime.run.id),
                 issueRecovery = issueRecovery,
@@ -108,12 +98,54 @@ class ExecutionRunCoordinator(
         }
     }
 
+    /**
+     * 执行已经由协作 Repository 原子创建的 Runtime；不再创建任何 Message、Usage 或预算事实。
+     */
+    suspend fun startPrepared(command: ExecutionPreparedRunCommand): ExecutionRunResult {
+        return withRunRegistration(command.runId) {
+            val issueRecovery = persistence.recoverIssue(command.issueId)
+            val stage = requireStage(issueRecovery, command.stageId)
+            val runtime = persistence.getRuntime(command.runId)
+            require(runtime.run.issueId == command.issueId && runtime.run.stageId == command.stageId)
+            if (runtime.run.status != ExecutionRunStatus.NOT_STARTED) {
+                return@withRunRegistration ExecutionRunResult(runtime)
+            }
+            val requiredCalls = runtime.participants.size + command.additionalRequiredCalls
+            val remainingCalls = runtime.budget.maxApiCalls - runtime.budget.usedApiCalls
+            if (remainingCalls < requiredCalls) {
+                return@withRunRegistration markBudgetExhausted(runtime)
+            }
+            persistence.setBudgetReserve(
+                SetExecutionBudgetReserveCommand(
+                    rootRunId = runtime.budget.rootRunId,
+                    reservedRequiredCalls = requiredCalls,
+                    updatedAt = clock.nowMillis(),
+                ),
+            )
+            transitionRunToRunning(runtime.run.id)
+            executeRuntime(
+                runtime = persistence.getRuntime(runtime.run.id),
+                issueRecovery = issueRecovery,
+                stage = stage,
+                currentUserInput = command.currentUserInput,
+                roundIndex = command.roundIndex,
+                model = command.model,
+                contributions = command.contributions,
+                additionalRequiredCalls = command.additionalRequiredCalls,
+                keepBudgetOpenOnSuccess = command.keepBudgetOpenOnSuccess,
+            )
+        }
+    }
+
     suspend fun retry(command: ExecutionRetryCommand): ExecutionRunResult {
         ExecutionContextGate.validate(command.contributions, command.contextUsage)?.let { failure ->
             throw ExecutionStartException(failure)
         }
         return withRunRegistration(command.newRunId) {
             val previous = persistence.getRuntime(command.previousRunId)
+            require(previous.run.runKind == ExecutionRunKind.STANDARD) {
+                "协作 Run 必须通过协作协调器重试，以保留消息快照和 Discussion 关系"
+            }
             require(
                 previous.run.status == ExecutionRunStatus.RETRYABLE ||
                     previous.run.status == ExecutionRunStatus.STOPPED
@@ -156,6 +188,10 @@ class ExecutionRunCoordinator(
                         retryOfRunId = previous.run.id,
                         createdAt = command.userConfirmedAt,
                         updatedAt = command.userConfirmedAt,
+                        runKind = previous.run.runKind,
+                        parentRunId = previous.run.parentRunId,
+                        discussionId = previous.run.discussionId,
+                        historyScope = previous.run.historyScope,
                     ),
                     participants = retryParticipants,
                     budgetRootRunId = previous.budget.rootRunId,
@@ -166,7 +202,6 @@ class ExecutionRunCoordinator(
             if (child.run.status != ExecutionRunStatus.NOT_STARTED) {
                 return@withRunRegistration ExecutionRunResult(child)
             }
-
             val remaining = child.budget.maxApiCalls - child.budget.usedApiCalls
             if (remaining < retryParticipants.size) {
                 return@withRunRegistration markBudgetExhausted(child)
@@ -178,15 +213,7 @@ class ExecutionRunCoordinator(
                     updatedAt = clock.nowMillis(),
                 ),
             )
-            persistence.transitionRun(
-                TransitionRunCommand(
-                    runId = child.run.id,
-                    expectedStatuses = setOf(ExecutionRunStatus.NOT_STARTED),
-                    newStatus = ExecutionRunStatus.RUNNING,
-                    updatedAt = clock.nowMillis(),
-                    startedAt = clock.nowMillis(),
-                ),
-            )
+            transitionRunToRunning(child.run.id)
             executeRuntime(
                 runtime = persistence.getRuntime(child.run.id),
                 issueRecovery = issueRecovery,
@@ -199,13 +226,9 @@ class ExecutionRunCoordinator(
         }
     }
 
-    /**
-     * 用户停止先持久化 Run，再收敛成员和 Pending，最后取消进程内 Job。
-     */
     suspend fun stop(runId: String): ExecutionRuntimeSnapshot {
         val before = persistence.getRuntime(runId)
         if (before.run.status in TERMINAL_RUN_STATES) return before
-
         persistence.transitionRun(
             TransitionRunCommand(
                 runId = runId,
@@ -222,7 +245,6 @@ class ExecutionRunCoordinator(
                 failureMessage = "用户已停止本次执行。",
             ),
         )
-
         val issueRecovery = persistence.recoverIssue(before.run.issueId)
         before.participantStates
             .filter { it.status in ACTIVE_PARTICIPANT_STATES }
@@ -260,18 +282,28 @@ class ExecutionRunCoordinator(
                     ),
                 )
             }
-
         locallyStoppedRuns += runId
         activeJobs.remove(runId)?.cancel(CancellationException("execution_stopped_by_user"))
         return persistence.getRuntime(runId)
     }
 
-    /** 只收敛数据库中的中断状态，不自动创建 Run、Pending 或网络请求。 */
-    suspend fun recoverInterrupted(runId: String): ExecutionRuntimeSnapshot {
-        return persistence.recoverInterrupted(
+    suspend fun recoverInterrupted(runId: String): ExecutionRuntimeSnapshot =
+        persistence.recoverInterrupted(
             RecoverInterruptedExecutionCommand(
                 runId = runId,
                 updatedAt = clock.nowMillis(),
+            ),
+        )
+
+    private suspend fun transitionRunToRunning(runId: String) {
+        val now = clock.nowMillis()
+        persistence.transitionRun(
+            TransitionRunCommand(
+                runId = runId,
+                expectedStatuses = setOf(ExecutionRunStatus.NOT_STARTED),
+                newStatus = ExecutionRunStatus.RUNNING,
+                updatedAt = now,
+                startedAt = now,
             ),
         )
     }
@@ -284,15 +316,11 @@ class ExecutionRunCoordinator(
         roundIndex: Int,
         model: String,
         contributions: List<ExecutionContextContribution>,
+        additionalRequiredCalls: Int = 0,
+        keepBudgetOpenOnSuccess: Boolean = false,
     ): ExecutionRunResult {
         val failures = linkedMapOf<String, ExecutionFailure>()
-        val issue = issueRecovery.core.issue
-        val history = issueRecovery.core.messages.filter { message ->
-            message.stageId == stage.id &&
-                message.id != runtime.run.triggerMessageId &&
-                !message.isPending
-        }
-
+        val history = historyFor(runtime, issueRecovery, stage)
         runtime.participants.sortedBy { it.position }.forEachIndexed { index, participant ->
             val current = persistence.getRuntime(runtime.run.id)
             if (current.run.status == ExecutionRunStatus.STOPPED) return@forEachIndexed
@@ -302,7 +330,6 @@ class ExecutionRunCoordinator(
             if (currentState.status == ExecutionParticipantStatus.SUCCEEDED) {
                 return@forEachIndexed
             }
-
             val failure = executeParticipant(
                 runtime = current,
                 participant = participant,
@@ -313,18 +340,20 @@ class ExecutionRunCoordinator(
                 roundIndex = roundIndex,
                 model = model,
                 contributions = contributions,
-                remainingRequiredCalls = current.participants.size - index - 1,
+                remainingRequiredCalls = current.participants.size - index - 1 +
+                    additionalRequiredCalls,
             )
             if (failure != null) failures[participant.id] = failure
             aggregateRun(runtime.run.id, failures.values.firstOrNull())
         }
 
         val finalRuntime = aggregateRun(runtime.run.id, failures.values.firstOrNull())
-        if (finalRuntime.run.status in setOf(
-                ExecutionRunStatus.SUCCEEDED,
-                ExecutionRunStatus.FAILED,
-            )
-        ) {
+        val shouldClose = when (finalRuntime.run.status) {
+            ExecutionRunStatus.SUCCEEDED -> !keepBudgetOpenOnSuccess
+            ExecutionRunStatus.FAILED -> true
+            else -> false
+        }
+        if (shouldClose) {
             persistence.closeBudget(finalRuntime.budget.rootRunId, clock.nowMillis())
         }
         return ExecutionRunResult(
@@ -333,12 +362,57 @@ class ExecutionRunCoordinator(
         )
     }
 
+    private suspend fun historyFor(
+        runtime: ExecutionRuntimeSnapshot,
+        issueRecovery: IssueRecoverySnapshot,
+        stage: StageEntity,
+    ): List<ExecutionHistoryEntry> = when (runtime.run.historyScope) {
+        ExecutionHistoryScope.FULL_STAGE -> issueRecovery.core.messages
+            .asSequence()
+            .filter { message ->
+                message.stageId == stage.id &&
+                    message.id != runtime.run.triggerMessageId &&
+                    !message.isPending &&
+                    message.executionRunId != runtime.run.id
+            }
+            .sortedWith(compareBy({ it.timestamp }, { it.id }))
+            .mapIndexed { index, message ->
+                ExecutionHistoryEntry(
+                    sourceMessageId = message.id,
+                    senderName = message.senderName,
+                    content = message.text,
+                    usageOrder = index,
+                    sourceExecutionRunId = message.executionRunId,
+                    sourceParticipantSnapshotId = message.participantSnapshotId,
+                )
+            }
+            .toList()
+        ExecutionHistoryScope.EXPLICIT_MESSAGES -> persistence.listMessageUsage(runtime.run.id)
+            .sortedWith(compareBy({ it.usageOrder }, { it.sourceMessageId }))
+            .map { usage ->
+                ExecutionHistoryEntry(
+                    sourceMessageId = usage.sourceMessageId,
+                    senderName = usage.senderNameSnapshot,
+                    content = usage.contentSnapshot,
+                    usageOrder = usage.usageOrder,
+                    sourceExecutionRunId = usage.sourceExecutionRunId,
+                    sourceParticipantSnapshotId = usage.sourceParticipantSnapshotId,
+                )
+            }
+        ExecutionHistoryScope.NO_HISTORY -> {
+            check(persistence.listMessageUsage(runtime.run.id).isEmpty()) {
+                "NO_HISTORY Run 不得存在消息使用快照"
+            }
+            emptyList()
+        }
+    }
+
     private suspend fun executeParticipant(
         runtime: ExecutionRuntimeSnapshot,
         participant: ExecutionParticipantSnapshotEntity,
         issueRecovery: IssueRecoverySnapshot,
         stage: StageEntity,
-        history: List<com.elio.jianyu.data.Message>,
+        history: List<ExecutionHistoryEntry>,
         currentUserInput: String,
         roundIndex: Int,
         model: String,
@@ -357,7 +431,6 @@ class ExecutionRunCoordinator(
                 updatedAt = now,
             ),
         )
-
         var pendingMessageId: Long? = null
         var latestText = ""
         return try {
@@ -370,7 +443,13 @@ class ExecutionRunCoordinator(
                     currentUserInput = currentUserInput,
                     roundIndex = roundIndex,
                     history = history,
+                    historyScope = run.historyScope,
                     contributions = contributions,
+                    promptMode = if (run.runKind == ExecutionRunKind.CROSS_DISCUSSION_SYNTHESIS) {
+                        ExecutionPromptMode.CROSS_DISCUSSION_SYNTHESIS
+                    } else {
+                        ExecutionPromptMode.INDEPENDENT_RESPONSE
+                    },
                 ),
             )
             val preparedCall = networkGateway.prepare(
@@ -382,7 +461,6 @@ class ExecutionRunCoordinator(
                     maxOutputTokens = runtime.budget.maxOutputTokensPerAnswer,
                 ),
             )
-
             pendingMessageId = StableExecutionIds.messageId(run.id, participant.id)
             persistence.appendMessage(
                 AppendDomainMessageCommand(
@@ -412,7 +490,6 @@ class ExecutionRunCoordinator(
                     updatedAt = clock.nowMillis(),
                 ),
             )
-
             val networkResult = preparedCall.execute(
                 onAttemptStarted = {
                     ensureAcceptsWrites(run.id, participant.id)
@@ -570,17 +647,12 @@ class ExecutionRunCoordinator(
         )
         if (target == current.run.status) return current
         if (!ExecutionStateMachine.canTransition(current.run.status, target)) return current
-
         val terminalAt = if (target in setOf(
                 ExecutionRunStatus.SUCCEEDED,
                 ExecutionRunStatus.RETRYABLE,
                 ExecutionRunStatus.FAILED,
             )
-        ) {
-            clock.nowMillis()
-        } else {
-            null
-        }
+        ) clock.nowMillis() else null
         persistence.transitionRun(
             TransitionRunCommand(
                 runId = runId,

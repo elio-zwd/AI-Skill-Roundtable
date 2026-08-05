@@ -4,15 +4,19 @@ package com.elio.jianyu.data
  * 见域领域数据公共门面。
  *
  * 公共调用方只依赖 [JianyuRepository]；内部按议题执行、Pending 消息、资源、
- * 使用快照和生命周期恢复拆分组件，并共享唯一 [JianyuRepositoryTransactions] 事务协调器。
+ * 使用快照、协作和生命周期恢复拆分组件，并共享唯一 [JianyuRepositoryTransactions] 事务协调器。
  */
 class RoomJianyuRepository(
     database: RoundtableDatabase,
     officialSkillIdValidator: OfficialSkillIdValidator = RejectingOfficialSkillIdValidator
-) : JianyuRepository, JianyuExecutionRuntimeRepository {
+) : JianyuRepository, JianyuExecutionRuntimeRepository, JianyuCollaborationRepository {
     private val transactions = JianyuRepositoryTransactions(database)
     private val issueExecution = IssueExecutionRepositoryComponent(transactions)
     private val executionRuntime = ExecutionRuntimeRepositoryComponent(transactions)
+    private val collaborationRuntime = CollaborationRuntimeRepositoryComponent(transactions)
+    private val collaboration = CollaborationRepositoryComponent(transactions)
+    private val crossDiscussionSynthesis = CrossDiscussionSynthesisRepositoryComponent(transactions)
+    private val collaborationRetry = CollaborationRetryRepositoryComponent(transactions)
     private val pendingMessages = PendingMessageRepositoryComponent(transactions)
     private val resources = ResourceRepositoryComponent(
         transactions = transactions,
@@ -34,114 +38,116 @@ class RoomJianyuRepository(
         return issueExecution.saveIssue(command)
     }
 
-    override suspend fun createStage(command: CreateStageCommand): RepositoryResult<StageEntity> {
-        return issueExecution.createStage(command)
-    }
+    override suspend fun createStage(command: CreateStageCommand): RepositoryResult<StageEntity> =
+        issueExecution.createStage(command)
 
     override suspend fun undoLatestUnrunStage(
         issueId: String,
         stageId: String
-    ): RepositoryResult<Unit> {
-        return issueExecution.undoLatestUnrunStage(issueId, stageId)
-    }
+    ): RepositoryResult<Unit> = issueExecution.undoLatestUnrunStage(issueId, stageId)
 
     override suspend fun createExecutionRun(
         command: CreateExecutionRunCommand
-    ): RepositoryResult<ExecutionRunSnapshot> {
-        return issueExecution.createExecutionRun(command)
-    }
+    ): RepositoryResult<ExecutionRunSnapshot> = issueExecution.createExecutionRun(command)
 
     override suspend fun createExecutionRuntime(
         command: CreateExecutionRuntimeCommand,
-    ): RepositoryResult<ExecutionRuntimeSnapshot> {
-        return executionRuntime.createExecutionRuntime(command)
-    }
+    ): RepositoryResult<ExecutionRuntimeSnapshot> = executionRuntime.createExecutionRuntime(command)
 
     override suspend fun getExecutionRuntime(
         runId: String,
-    ): RepositoryResult<ExecutionRuntimeSnapshot> {
-        return executionRuntime.getExecutionRuntime(runId)
-    }
+    ): RepositoryResult<ExecutionRuntimeSnapshot> = collaborationRuntime.getExecutionRuntime(runId)
 
     override suspend fun transitionExecutionParticipant(
         command: TransitionExecutionParticipantCommand,
-    ): RepositoryResult<ExecutionParticipantStateEntity> {
-        return executionRuntime.transitionExecutionParticipant(command)
-    }
+    ): RepositoryResult<ExecutionParticipantStateEntity> =
+        executionRuntime.transitionExecutionParticipant(command)
 
     override suspend fun consumeExecutionBudget(
         command: ConsumeExecutionBudgetCommand,
-    ): RepositoryResult<ExecutionRunBudgetEntity> {
-        return executionRuntime.consumeExecutionBudget(command)
-    }
+    ): RepositoryResult<ExecutionRunBudgetEntity> = executionRuntime.consumeExecutionBudget(command)
 
     override suspend fun setExecutionBudgetReserve(
         command: SetExecutionBudgetReserveCommand,
-    ): RepositoryResult<ExecutionRunBudgetEntity> {
-        return executionRuntime.setExecutionBudgetReserve(command)
-    }
+    ): RepositoryResult<ExecutionRunBudgetEntity> = executionRuntime.setExecutionBudgetReserve(command)
 
     override suspend fun closeExecutionBudget(
         rootRunId: String,
         updatedAt: Long,
-    ): RepositoryResult<ExecutionRunBudgetEntity> {
-        return executionRuntime.closeExecutionBudget(rootRunId, updatedAt)
-    }
+    ): RepositoryResult<ExecutionRunBudgetEntity> =
+        executionRuntime.closeExecutionBudget(rootRunId, updatedAt)
 
     override suspend fun recoverInterruptedExecution(
         command: RecoverInterruptedExecutionCommand,
-    ): RepositoryResult<ExecutionRuntimeSnapshot> {
-        return executionRuntime.recoverInterruptedExecution(command)
-    }
+    ): RepositoryResult<ExecutionRuntimeSnapshot> =
+        collaborationRuntime.recoverInterruptedExecution(command)
+
+    override suspend fun createDirectedInteraction(
+        command: CreateDirectedInteractionCommand,
+    ): RepositoryResult<CollaborationStartResult> =
+        collaboration.createDirectedInteraction(command)
+
+    override suspend fun createCrossDiscussionResponse(
+        command: CreateCrossDiscussionResponseCommand,
+    ): RepositoryResult<CollaborationStartResult> =
+        collaboration.createCrossDiscussionResponse(command)
+
+    override suspend fun createCrossDiscussionSynthesis(
+        command: CreateCrossDiscussionSynthesisCommand,
+    ): RepositoryResult<CollaborationStartResult> =
+        crossDiscussionSynthesis.createCrossDiscussionSynthesis(command)
+
+    override suspend fun createCollaborationRetry(
+        command: CreateCollaborationRetryCommand,
+    ): RepositoryResult<CollaborationStartResult> =
+        collaborationRetry.createCollaborationRetry(command)
+
+    override suspend fun transitionCrossDiscussion(
+        command: TransitionCrossDiscussionCommand,
+    ): RepositoryResult<CrossDiscussionSessionEntity> =
+        collaboration.transitionCrossDiscussion(command)
+
+    override suspend fun getStageCollaboration(
+        stageId: String,
+    ): RepositoryResult<StageCollaborationSnapshot> = collaboration.getStageCollaboration(stageId)
+
+    override suspend fun listExecutionMessageUsage(
+        runId: String,
+    ): RepositoryResult<List<ExecutionMessageUsageSnapshotEntity>> =
+        collaboration.listExecutionMessageUsage(runId)
 
     override suspend fun appendDomainMessage(
         command: AppendDomainMessageCommand
-    ): RepositoryResult<Message> {
-        return issueExecution.appendDomainMessage(command)
-    }
+    ): RepositoryResult<Message> = issueExecution.appendDomainMessage(command)
 
     override suspend fun updatePendingDomainMessage(
         command: UpdatePendingDomainMessageCommand
-    ): RepositoryResult<Message> {
-        return pendingMessages.updatePendingDomainMessage(command)
-    }
+    ): RepositoryResult<Message> = pendingMessages.updatePendingDomainMessage(command)
 
     override suspend fun transitionRun(
         command: TransitionRunCommand
-    ): RepositoryResult<ExecutionRunEntity> {
-        return issueExecution.transitionRun(command)
-    }
+    ): RepositoryResult<ExecutionRunEntity> = issueExecution.transitionRun(command)
 
     override suspend fun saveStageDraft(
         command: SaveStageDraftCommand
-    ): RepositoryResult<StageSummaryDraftEntity> {
-        return resources.saveStageDraft(command)
-    }
+    ): RepositoryResult<StageSummaryDraftEntity> = resources.saveStageDraft(command)
 
     override suspend fun abandonStageDraft(
         issueId: String,
         stageId: String
-    ): RepositoryResult<Unit> {
-        return resources.abandonStageDraft(issueId, stageId)
-    }
+    ): RepositoryResult<Unit> = resources.abandonStageDraft(issueId, stageId)
 
     override suspend fun confirmArtifact(
         command: ConfirmArtifactCommand
-    ): RepositoryResult<ConfirmedArtifactEntity> {
-        return resources.confirmArtifact(command)
-    }
+    ): RepositoryResult<ConfirmedArtifactEntity> = resources.confirmArtifact(command)
 
     override suspend fun recordMaterialUsage(
         entity: MaterialUsageSnapshotEntity
-    ): RepositoryResult<MaterialUsageSnapshotEntity> {
-        return usages.recordMaterialUsage(entity)
-    }
+    ): RepositoryResult<MaterialUsageSnapshotEntity> = usages.recordMaterialUsage(entity)
 
     override suspend fun recordPersonalContextUsage(
         entity: PersonalContextUsageSnapshotEntity
-    ): RepositoryResult<PersonalContextUsageSnapshotEntity> {
-        return usages.recordPersonalContextUsage(entity)
-    }
+    ): RepositoryResult<PersonalContextUsageSnapshotEntity> = usages.recordPersonalContextUsage(entity)
 
     override suspend fun createMaterial(
         command: CreateMaterialCommand,
@@ -209,70 +215,50 @@ class RoomJianyuRepository(
 
     override suspend fun saveOfficialSkillCombination(
         command: SaveOfficialSkillCombinationCommand
-    ): RepositoryResult<OfficialSkillCombinationSnapshot> {
-        return resources.saveOfficialSkillCombination(command)
-    }
+    ): RepositoryResult<OfficialSkillCombinationSnapshot> = resources.saveOfficialSkillCombination(command)
 
     override suspend fun deleteOfficialSkillCombination(
         command: DeleteOfficialSkillCombinationCommand
-    ): RepositoryResult<OfficialSkillCombinationEntity> {
-        return resources.deleteOfficialSkillCombination(command)
-    }
+    ): RepositoryResult<OfficialSkillCombinationEntity> = resources.deleteOfficialSkillCombination(command)
 
     override suspend fun getOfficialSkillCombination(
         combinationId: String
-    ): RepositoryResult<OfficialSkillCombinationSnapshot> {
-        return resources.getOfficialSkillCombination(combinationId)
-    }
+    ): RepositoryResult<OfficialSkillCombinationSnapshot> = resources.getOfficialSkillCombination(combinationId)
 
-    override suspend fun listOfficialSkillCombinations(): RepositoryResult<List<OfficialSkillCombinationSnapshot>> {
-        return resources.listOfficialSkillCombinations()
-    }
+    override suspend fun listOfficialSkillCombinations(): RepositoryResult<List<OfficialSkillCombinationSnapshot>> =
+        resources.listOfficialSkillCombinations()
 
     override suspend fun archiveIssue(
         issueId: String,
         changedAt: Long
-    ): RepositoryResult<IssueLifecycleEntity> {
-        return lifecycleRecovery.archiveIssue(issueId, changedAt)
-    }
+    ): RepositoryResult<IssueLifecycleEntity> = lifecycleRecovery.archiveIssue(issueId, changedAt)
 
     override suspend fun restoreIssue(
         issueId: String,
         changedAt: Long
-    ): RepositoryResult<IssueLifecycleEntity> {
-        return lifecycleRecovery.restoreIssue(issueId, changedAt)
-    }
+    ): RepositoryResult<IssueLifecycleEntity> = lifecycleRecovery.restoreIssue(issueId, changedAt)
 
     override suspend fun moveIssueToTrash(
         issueId: String,
         changedAt: Long
-    ): RepositoryResult<IssueLifecycleEntity> {
-        return lifecycleRecovery.moveIssueToTrash(issueId, changedAt)
-    }
+    ): RepositoryResult<IssueLifecycleEntity> = lifecycleRecovery.moveIssueToTrash(issueId, changedAt)
 
     override suspend fun restoreIssueFromTrash(
         issueId: String,
         changedAt: Long
-    ): RepositoryResult<IssueLifecycleEntity> {
-        return lifecycleRecovery.restoreIssueFromTrash(issueId, changedAt)
-    }
+    ): RepositoryResult<IssueLifecycleEntity> = lifecycleRecovery.restoreIssueFromTrash(issueId, changedAt)
 
     override suspend fun requestIssuePurge(
         issueId: String,
         requestedAt: Long
-    ): RepositoryResult<IssueLifecycleEntity> {
-        return lifecycleRecovery.requestIssuePurge(issueId, requestedAt)
-    }
+    ): RepositoryResult<IssueLifecycleEntity> = lifecycleRecovery.requestIssuePurge(issueId, requestedAt)
 
-    override suspend fun recoverIssue(issueId: String): RepositoryResult<IssueRecoverySnapshot> {
-        return lifecycleRecovery.recoverIssue(issueId)
-    }
+    override suspend fun recoverIssue(issueId: String): RepositoryResult<IssueRecoverySnapshot> =
+        lifecycleRecovery.recoverIssue(issueId)
 
     override suspend fun listIssueNavigation(
         states: Set<IssueLifecycleState>
-    ): RepositoryResult<List<IssueNavigationItem>> {
-        return lifecycleRecovery.listIssueNavigation(states)
-    }
+    ): RepositoryResult<List<IssueNavigationItem>> = lifecycleRecovery.listIssueNavigation(states)
 
     private companion object {
         const val LEGACY_ISSUE_ID_PREFIX = "legacy-chat-"

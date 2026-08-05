@@ -1,6 +1,8 @@
 package com.elio.jianyu
 
 import android.content.Context
+import com.elio.jianyu.collaboration.IssueCollaborationCoordinator
+import com.elio.jianyu.collaboration.OfficialCollaborationSkillEligibility
 import com.elio.jianyu.data.JianyuRepository
 import com.elio.jianyu.data.RoomJianyuRepository
 import com.elio.jianyu.data.RoundtableDatabase
@@ -20,6 +22,7 @@ data class JianyuAppRuntime(
     val repository: JianyuRepository,
     val officialSkillCatalogRuntimeResult: OfficialSkillCatalogRuntimeResult,
     val executionCoordinator: ExecutionRunCoordinator?,
+    val collaborationCoordinator: IssueCollaborationCoordinator?,
 )
 
 object JianyuAppRuntimeProvider {
@@ -50,23 +53,38 @@ object JianyuAppRuntimeProvider {
                 database = database,
             )
         }
+        var collaborationCoordinator: IssueCollaborationCoordinator? = null
         val executionCoordinator = when (catalogRuntimeResult) {
-            is OfficialSkillCatalogRuntimeResult.Success -> ExecutionRunCoordinator(
-                persistence = JianyuExecutionPersistenceGateway(repository),
-                skillResolver = OfficialCatalogExecutionSkillResolver(
+            is OfficialSkillCatalogRuntimeResult.Success -> {
+                val skillResolver = OfficialCatalogExecutionSkillResolver(
                     context = context,
                     catalog = catalogRuntimeResult.runtime.catalog,
                     executionEligibility = catalogRuntimeResult.runtime.executionEligibility,
-                ),
-                networkGateway = InteractionExecutionNetworkGateway(context),
-                contextBuilder = ExecutionContextBuilder(),
-            )
+                )
+                ExecutionRunCoordinator(
+                    persistence = JianyuExecutionPersistenceGateway(repository),
+                    skillResolver = skillResolver,
+                    networkGateway = InteractionExecutionNetworkGateway(context),
+                    contextBuilder = ExecutionContextBuilder(),
+                ).also { coordinator ->
+                    collaborationCoordinator = IssueCollaborationCoordinator(
+                        repository = repository,
+                        executionCoordinator = coordinator,
+                        integratorResolver = skillResolver,
+                        eligibility = OfficialCollaborationSkillEligibility(
+                            catalog = catalogRuntimeResult.runtime.catalog,
+                            executionEligibility = catalogRuntimeResult.runtime.executionEligibility,
+                        ),
+                    )
+                }
+            }
             is OfficialSkillCatalogRuntimeResult.Failure -> null
         }
         return JianyuAppRuntime(
             repository = repository,
             officialSkillCatalogRuntimeResult = catalogRuntimeResult,
             executionCoordinator = executionCoordinator,
+            collaborationCoordinator = collaborationCoordinator,
         )
     }
 }
