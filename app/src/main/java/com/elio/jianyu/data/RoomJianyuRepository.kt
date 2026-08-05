@@ -13,6 +13,7 @@ class RoomJianyuRepository(
     private val transactions = JianyuRepositoryTransactions(database)
     private val issueExecution = IssueExecutionRepositoryComponent(transactions)
     private val executionRuntime = ExecutionRuntimeRepositoryComponent(transactions)
+    private val collaborationRuntime = CollaborationRuntimeRepositoryComponent(transactions)
     private val collaboration = CollaborationRepositoryComponent(transactions)
     private val pendingMessages = PendingMessageRepositoryComponent(transactions)
     private val resources = ResourceRepositoryComponent(
@@ -53,7 +54,7 @@ class RoomJianyuRepository(
 
     override suspend fun getExecutionRuntime(
         runId: String,
-    ): RepositoryResult<ExecutionRuntimeSnapshot> = executionRuntime.getExecutionRuntime(runId)
+    ): RepositoryResult<ExecutionRuntimeSnapshot> = collaborationRuntime.getExecutionRuntime(runId)
 
     override suspend fun transitionExecutionParticipant(
         command: TransitionExecutionParticipantCommand,
@@ -77,7 +78,7 @@ class RoomJianyuRepository(
     override suspend fun recoverInterruptedExecution(
         command: RecoverInterruptedExecutionCommand,
     ): RepositoryResult<ExecutionRuntimeSnapshot> =
-        executionRuntime.recoverInterruptedExecution(command)
+        collaborationRuntime.recoverInterruptedExecution(command)
 
     override suspend fun createDirectedInteraction(
         command: CreateDirectedInteractionCommand,
