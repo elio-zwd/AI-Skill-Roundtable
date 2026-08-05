@@ -60,6 +60,7 @@ fun IssueExecutionRoute(
         onConfirmCross = {
             collaborationViewModel.confirmCross(viewModel.peekPreparedContextForStart())
         },
+        onRetryDirected = collaborationViewModel::retryDirected,
         onRetryCrossFailed = collaborationViewModel::retryFailed,
         onSynthesizeCross = { sessionId ->
             collaborationViewModel.synthesize(
