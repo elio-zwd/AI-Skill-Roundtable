@@ -31,7 +31,7 @@ data class DirectedResponseRequest(
     val userConfirmedAt: Long,
     val context: CollaborationContextSelection = CollaborationContextSelection(),
     val model: String = DEFAULT_EXECUTION_MODEL,
-    val budget: ExecutionRuntimeBudgetConfig = ExecutionRuntimeBudgetConfig(maxApiCalls = 1),
+    val budget: ExecutionRuntimeBudgetConfig = CollaborationExecutionBudgetPolicy.directed(),
 ) {
     init {
         require(STABLE_OPERATION_ID.matches(operationId))
@@ -56,7 +56,9 @@ data class CrossDiscussionRequest(
     val userConfirmedAt: Long,
     val context: CollaborationContextSelection = CollaborationContextSelection(),
     val model: String = DEFAULT_EXECUTION_MODEL,
-    val budget: ExecutionRuntimeBudgetConfig = ExecutionRuntimeBudgetConfig(),
+    val budget: ExecutionRuntimeBudgetConfig = CollaborationExecutionBudgetPolicy.cross(
+        selectedSkillIds.size,
+    ),
     val autoStartSynthesisOnFullSuccess: Boolean = true,
 ) {
     init {
