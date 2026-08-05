@@ -18,7 +18,7 @@ class ArtifactLibraryComponentsTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun emptyAndFailureStatesExposeStableSemanticTags() {
+    fun emptyStateExposesStableSemanticTag() {
         composeRule.setContent {
             MaterialTheme {
                 ArtifactLibraryContent(
@@ -33,8 +33,12 @@ class ArtifactLibraryComponentsTest {
                 )
             }
         }
-        composeRule.onNodeWithTag(ArtifactLibraryTestTags.EMPTY).assertIsDisplayed()
 
+        composeRule.onNodeWithTag(ArtifactLibraryTestTags.EMPTY).assertIsDisplayed()
+    }
+
+    @Test
+    fun failureStateExposesStableSemanticTag() {
         composeRule.setContent {
             MaterialTheme {
                 ArtifactLibraryContent(
@@ -49,6 +53,7 @@ class ArtifactLibraryComponentsTest {
                 )
             }
         }
+
         composeRule.onNodeWithTag(ArtifactLibraryTestTags.FAILURE).assertIsDisplayed()
     }
 
