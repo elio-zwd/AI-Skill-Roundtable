@@ -114,6 +114,10 @@ data class ArtifactLibraryItem(
     val revisionNumber: Int,
     val latest: Boolean,
     val content: String = contentSummary,
+    val sourceMessageIds: List<Long> = emptyList(),
+    val sourceRunIds: List<String> = emptyList(),
+    val sourceDraftRevisionIds: List<String> = emptyList(),
+    val sourceMaterialUsageSnapshotIds: List<String> = emptyList(),
 )
 
 data class ArtifactLibrarySnapshot(
