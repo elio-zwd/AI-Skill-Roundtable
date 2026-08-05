@@ -225,20 +225,7 @@ class AudioAssetLifecycleService(
             return AudioAssetDeleteRequestResult.AlreadyRequested(asset.id)
         }
 
-        if (asset.fileState == AudioFileState.PENDING) {
-            val plan = AudioGenerationWorkPolicy.plan(
-                audioAssetId = asset.id,
-                generationKey = asset.generationKey,
-                requestKind = AudioWorkRequestKind.INITIAL,
-            )
-            if (!scheduler.cancel(plan.uniqueWorkName)) {
-                return AudioAssetDeleteRequestResult.Failure(
-                    AudioGenerationErrorCode.SCHEDULE_FAILED,
-                )
-            }
-        }
-
-        return when (val writeResult = repository.requestDelete(
+        val result = when (val writeResult = repository.requestDelete(
             PersistAudioDeleteRequestCommand(
                 audioAssetId = asset.id,
                 expectedState = asset.fileState,
@@ -252,11 +239,21 @@ class AudioAssetLifecycleService(
                 AudioAssetDeleteRequestResult.AlreadyRequested(writeResult.asset.id)
             }
             AudioDeleteWriteResult.Rejected -> {
-                AudioAssetDeleteRequestResult.Failure(
+                return AudioAssetDeleteRequestResult.Failure(
                     AudioGenerationErrorCode.REPOSITORY_REJECTED,
                 )
             }
         }
+
+        if (asset.fileState == AudioFileState.PENDING) {
+            val plan = AudioGenerationWorkPolicy.plan(
+                audioAssetId = asset.id,
+                generationKey = asset.generationKey,
+                requestKind = AudioWorkRequestKind.INITIAL,
+            )
+            scheduler.cancel(plan.uniqueWorkName)
+        }
+        return result
     }
 
     private fun safeAdd(
