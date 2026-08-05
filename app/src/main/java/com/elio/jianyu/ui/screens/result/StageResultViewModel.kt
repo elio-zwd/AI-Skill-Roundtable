@@ -35,6 +35,8 @@ class StageResultViewModel internal constructor(
     private val _state = MutableStateFlow<StageResultUiState>(StageResultUiState.Loading)
     val state: StateFlow<StageResultUiState> = _state.asStateFlow()
     private var autosaveJob: Job? = null
+    private val saveGate = StageDraftSaveGate()
+    private val artifactConfirmationGate = StageArtifactConfirmationGate()
 
     init {
         load()
@@ -195,44 +197,49 @@ class StageResultViewModel internal constructor(
             }
             return
         }
+        if (!artifactConfirmationGate.tryStart()) return
         val artifactId = idFactory("artifact")
+        updateContent {
+            it.copy(artifactStatus = StageArtifactConfirmationStatus.Confirming)
+        }
         viewModelScope.launch {
-            updateContent {
-                it.copy(artifactStatus = StageArtifactConfirmationStatus.Confirming)
-            }
-            when (
-                val result = service.confirmArtifact(
-                    ConfirmStageArtifactCommand(
-                        artifactId = artifactId,
-                        issueId = issueId,
-                        stageId = stageId,
-                        draftRevisionId = revision.id,
-                        title = content.artifactTitle,
-                        artifactType = content.artifactType,
-                        selectedMessageIds = content.selectedMessageIds.toList(),
-                        revisionOfArtifactId = content.revisionOfArtifactId,
-                        confirmedAt = nextTimestamp(clock()),
-                    ),
-                )
-            ) {
-                is StageArtifactConfirmationResult.Confirmed -> updateContent { current ->
-                    val artifacts = (current.workspace.artifacts + result.artifact)
-                        .distinctBy { it.id }
-                    current.copy(
-                        workspace = current.workspace.copy(
-                            artifacts = artifacts,
-                            artifactRevisionResolution = ArtifactRevisionResolver.resolve(artifacts),
+            try {
+                when (
+                    val result = service.confirmArtifact(
+                        ConfirmStageArtifactCommand(
+                            artifactId = artifactId,
+                            issueId = issueId,
+                            stageId = stageId,
+                            draftRevisionId = revision.id,
+                            title = content.artifactTitle,
+                            artifactType = content.artifactType,
+                            selectedMessageIds = content.selectedMessageIds.toList(),
+                            revisionOfArtifactId = content.revisionOfArtifactId,
+                            confirmedAt = nextTimestamp(clock()),
                         ),
-                        showArtifactConfirmation = false,
-                        artifactStatus = StageArtifactConfirmationStatus.Confirmed(result.artifact.id),
-                        revisionOfArtifactId = null,
                     )
+                ) {
+                    is StageArtifactConfirmationResult.Confirmed -> updateContent { current ->
+                        val artifacts = (current.workspace.artifacts + result.artifact)
+                            .distinctBy { it.id }
+                        current.copy(
+                            workspace = current.workspace.copy(
+                                artifacts = artifacts,
+                                artifactRevisionResolution = ArtifactRevisionResolver.resolve(artifacts),
+                            ),
+                            showArtifactConfirmation = false,
+                            artifactStatus = StageArtifactConfirmationStatus.Confirmed(result.artifact.id),
+                            revisionOfArtifactId = null,
+                        )
+                    }
+                    is StageArtifactConfirmationResult.Failure -> updateContent {
+                        it.copy(
+                            artifactStatus = StageArtifactConfirmationStatus.Failure(result.errorCode),
+                        )
+                    }
                 }
-                is StageArtifactConfirmationResult.Failure -> updateContent {
-                    it.copy(
-                        artifactStatus = StageArtifactConfirmationStatus.Failure(result.errorCode),
-                    )
-                }
+            } finally {
+                artifactConfirmationGate.finish()
             }
         }
     }
@@ -301,10 +308,9 @@ class StageResultViewModel internal constructor(
         }
     }
 
-    private suspend fun persistCurrentDraft(): Boolean {
-        val captured = currentContent() ?: return false
-        val draftId = captured.draftId ?: return false
-        if (captured.saveStatus is StageDraftSaveStatus.Saving) return false
+    private suspend fun persistCurrentDraft(): Boolean = saveGate.run {
+        val captured = currentContent() ?: return@run false
+        val draftId = captured.draftId ?: return@run false
         if (
             captured.editorContent == captured.persistedContent &&
             captured.currentRevision > 0
@@ -317,12 +323,12 @@ class StageResultViewModel internal constructor(
                     ),
                 )
             }
-            return true
+            return@run true
         }
         val savedAt = nextTimestamp(clock())
         val contentToSave = captured.editorContent
         updateContent { it.copy(saveStatus = StageDraftSaveStatus.Saving) }
-        return when (
+        when (
             val result = service.saveDraft(
                 SaveStageResultDraftCommand(
                     issueId = issueId,
