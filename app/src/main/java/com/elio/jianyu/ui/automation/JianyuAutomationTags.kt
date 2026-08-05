@@ -97,6 +97,21 @@ object JianyuAutomationTags {
             "resources_personal_context_${normalizedStableId(contextId)}"
     }
 
+    object Artifacts {
+        const val LIBRARY = "artifact_library"
+        const val EMPTY = "artifact_library_empty"
+        const val FAILURE = "artifact_library_failure"
+        const val SEARCH = "artifact_search"
+        const val TYPE_FILTER = "artifact_type_filter"
+        const val HISTORY_FILTER = "artifact_revision_history"
+        const val DETAIL = "artifact_detail"
+        const val SOURCES = "artifact_sources"
+        const val OPEN_ISSUE = "artifact_open_issue"
+
+        fun item(artifactId: String): String =
+            "artifact_item_${normalizedStableId(artifactId)}"
+    }
+
     object Execution {
         const val LOADING = "issue_execution_loading"
         const val FAILURE = "issue_execution_failure"
@@ -141,6 +156,31 @@ object JianyuAutomationTags {
 
         fun session(discussionId: String): String =
             "cross_discussion_session_${normalizedStableId(discussionId)}"
+    }
+
+    object StageResult {
+        const val PANEL = "stage_result_panel"
+        const val DRAFT_EMPTY = "stage_draft_empty"
+        const val DRAFT_CREATE = "stage_draft_create_button"
+        const val DRAFT_CREATE_FROM_MESSAGES = "stage_draft_create_from_messages"
+        const val DRAFT_EDITOR = "stage_draft_editor"
+        const val DRAFT_SAVE = "stage_draft_save_button"
+        const val DRAFT_SAVING = "stage_draft_saving"
+        const val DRAFT_SAVED = "stage_draft_saved"
+        const val DRAFT_SAVE_FAILURE = "stage_draft_save_failure"
+        const val DRAFT_CONFLICT = "stage_draft_conflict"
+        const val DRAFT_ABANDON = "stage_draft_abandon_button"
+        const val DRAFT_ABANDON_CONFIRMATION = "stage_draft_abandon_confirmation"
+        const val ARTIFACT_CONFIRM = "stage_artifact_confirm_button"
+        const val ARTIFACT_CONFIRMATION_DIALOG = "artifact_confirmation_dialog"
+        const val ARTIFACT_CONFIRMATION_CONFIRM = "artifact_confirmation_confirm"
+        const val ARTIFACT_CONFIRMATION_CANCEL = "artifact_confirmation_cancel"
+
+        fun message(messageId: Long): String =
+            "stage_source_message_${normalizedStableId(messageId.toString())}"
+
+        fun artifact(artifactId: String): String =
+            "stage_artifact_${normalizedStableId(artifactId)}"
     }
 
     object Context {
@@ -211,6 +251,15 @@ object JianyuAutomationTags {
         Resources.EMPTY_STATE,
         Resources.EDITOR,
         Resources.PURGE_CONFIRMATION,
+        Artifacts.LIBRARY,
+        Artifacts.EMPTY,
+        Artifacts.FAILURE,
+        Artifacts.SEARCH,
+        Artifacts.TYPE_FILTER,
+        Artifacts.HISTORY_FILTER,
+        Artifacts.DETAIL,
+        Artifacts.SOURCES,
+        Artifacts.OPEN_ISSUE,
         Execution.LOADING,
         Execution.FAILURE,
         Execution.STATUS,
@@ -236,6 +285,22 @@ object JianyuAutomationTags {
         Collaboration.CROSS_SYNTHESIZE_AVAILABLE,
         Collaboration.CROSS_RESUME_SYNTHESIS,
         Collaboration.CROSS_FAILURE,
+        StageResult.PANEL,
+        StageResult.DRAFT_EMPTY,
+        StageResult.DRAFT_CREATE,
+        StageResult.DRAFT_CREATE_FROM_MESSAGES,
+        StageResult.DRAFT_EDITOR,
+        StageResult.DRAFT_SAVE,
+        StageResult.DRAFT_SAVING,
+        StageResult.DRAFT_SAVED,
+        StageResult.DRAFT_SAVE_FAILURE,
+        StageResult.DRAFT_CONFLICT,
+        StageResult.DRAFT_ABANDON,
+        StageResult.DRAFT_ABANDON_CONFIRMATION,
+        StageResult.ARTIFACT_CONFIRM,
+        StageResult.ARTIFACT_CONFIRMATION_DIALOG,
+        StageResult.ARTIFACT_CONFIRMATION_CONFIRM,
+        StageResult.ARTIFACT_CONFIRMATION_CANCEL,
         Context.DIALOG,
         Context.TOTAL,
         Context.VALIDATION_ERRORS,
