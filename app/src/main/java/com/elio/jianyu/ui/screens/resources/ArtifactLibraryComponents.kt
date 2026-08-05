@@ -25,35 +25,22 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.result.ArtifactLibraryItem
 import com.elio.jianyu.result.ArtifactType
+import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.components.JianyuMetadataRow
 import com.elio.jianyu.ui.components.JianyuStateCard
 
 object ArtifactLibraryTestTags {
-    const val LIBRARY = "artifact_library"
-    const val EMPTY = "artifact_library_empty"
-    const val FAILURE = "artifact_library_failure"
-    const val SEARCH = "artifact_search"
-    const val TYPE_FILTER = "artifact_type_filter"
-    const val HISTORY_FILTER = "artifact_revision_history"
-    const val DETAIL = "artifact_detail"
-    const val SOURCES = "artifact_sources"
-    const val OPEN_ISSUE = "artifact_open_issue"
+    const val LIBRARY = JianyuAutomationTags.Artifacts.LIBRARY
+    const val EMPTY = JianyuAutomationTags.Artifacts.EMPTY
+    const val FAILURE = JianyuAutomationTags.Artifacts.FAILURE
+    const val SEARCH = JianyuAutomationTags.Artifacts.SEARCH
+    const val TYPE_FILTER = JianyuAutomationTags.Artifacts.TYPE_FILTER
+    const val HISTORY_FILTER = JianyuAutomationTags.Artifacts.HISTORY_FILTER
+    const val DETAIL = JianyuAutomationTags.Artifacts.DETAIL
+    const val SOURCES = JianyuAutomationTags.Artifacts.SOURCES
+    const val OPEN_ISSUE = JianyuAutomationTags.Artifacts.OPEN_ISSUE
 
-    fun item(artifactId: String): String = "artifact_item_${stableTagPart(artifactId)}"
-
-    private fun stableTagPart(value: String): String = value
-        .lowercase()
-        .map { character ->
-            if (character.isLetterOrDigit() || character == '_' || character == '-') {
-                character
-            } else {
-                '_'
-            }
-        }
-        .joinToString(separator = "")
-        .trim('_')
-        .ifBlank { "unknown" }
-        .take(80)
+    fun item(artifactId: String): String = JianyuAutomationTags.Artifacts.item(artifactId)
 }
 
 @Composable
@@ -134,7 +121,7 @@ private fun ArtifactLibraryBody(
         partialFailureCode?.let {
             JianyuStateCard(
                 title = "部分成果未能读取",
-                message = "已显示成功恢复的成果；其他议题可稍后重试。",
+                message = "已显示成功恢复的成果；其他议题或来源关系可稍后重试。",
                 actionLabel = null,
             )
         }
@@ -264,7 +251,7 @@ private fun ArtifactDetailDialog(
                 Text(item.content)
                 JianyuStateCard(
                     title = "来源追溯",
-                    message = "成果来源关系已在 Room 中保留；阶段 A 公共恢复接口尚未提供关联行详情，未在此猜测来源。",
+                    message = artifactSourceDescription(item),
                     modifier = Modifier.testTag(ArtifactLibraryTestTags.SOURCES),
                 )
             }
@@ -279,4 +266,29 @@ private fun ArtifactDetailDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("关闭") } },
     )
+}
+
+private fun artifactSourceDescription(item: ArtifactLibraryItem): String {
+    if (!item.sourcesAvailable) {
+        return "来源关系暂时无法读取；未根据成果正文或界面状态猜测来源。"
+    }
+    return buildString {
+        append("消息 ")
+        append(item.sourceMessageIds.size)
+        append(" 条；Run ")
+        append(item.sourceRunIds.size)
+        append(" 个；草稿 Revision ")
+        append(item.sourceDraftRevisionIds.size)
+        append(" 个；资料使用快照 ")
+        append(item.sourceMaterialUsageSnapshotIds.size)
+        append(" 个。")
+        if (item.sourceRunIds.isNotEmpty()) {
+            append("\nRun：")
+            append(item.sourceRunIds.joinToString())
+        }
+        if (item.sourceDraftRevisionIds.isNotEmpty()) {
+            append("\n草稿 Revision：")
+            append(item.sourceDraftRevisionIds.joinToString())
+        }
+    }
 }
