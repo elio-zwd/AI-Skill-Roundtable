@@ -1,0 +1,50 @@
+name: PR09-11 Room Schema Sync
+
+on:
+  push:
+    branches:
+      - feat/pr-09-11-advance-issue
+
+permissions:
+  contents: write
+
+jobs:
+  sync-room-schema:
+    if: github.event.head_commit.message != 'chore: 同步Room v11 Schema'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/pr-09-11-advance-issue
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Generate Room v11 schema with KSP
+        run: ./gradlew :app:kspDebugKotlin --stacktrace
+
+      - name: Commit only generated Room v11 schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          schema='app/schemas/com.elio.jianyu.data.RoundtableDatabase/11.json'
+          test -f "$schema"
+          git add -- "$schema"
+          if git diff --cached --quiet; then
+            echo 'Room v11 schema is already current.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore: 同步Room v11 Schema'
+          git push origin HEAD:feat/pr-09-11-advance-issue
