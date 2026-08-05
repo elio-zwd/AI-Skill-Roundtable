@@ -1,9 +1,12 @@
 package com.elio.jianyu.ui.screens.resources
 
+import com.elio.jianyu.data.ArtifactSourceRecoverySnapshot
 import com.elio.jianyu.data.IssueLifecycleState
 import com.elio.jianyu.data.IssueRecoverySnapshot
 import com.elio.jianyu.data.JianyuRepository
+import com.elio.jianyu.data.RepositoryError
 import com.elio.jianyu.data.RepositoryResult
+import com.elio.jianyu.data.listArtifactSourcesForIssue
 import com.elio.jianyu.result.ArtifactLibraryAggregator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -25,21 +28,38 @@ internal class ArtifactLibraryLoader(
         }
 
         val snapshots = mutableListOf<IssueRecoverySnapshot>()
-        var failureCount = 0
+        val sourcesByIssue = mutableMapOf<String, List<ArtifactSourceRecoverySnapshot>>()
+        var recoveryFailureCount = 0
+        var sourceFailureCount = 0
         navigation.value.forEach { item ->
             when (val recovered = repository.recoverIssue(item.issue.id)) {
-                is RepositoryResult.Success -> snapshots += recovered.value
-                is RepositoryResult.Failure -> failureCount += 1
+                is RepositoryResult.Success -> {
+                    snapshots += recovered.value
+                    if (recovered.value.resources.artifacts.isNotEmpty()) {
+                        when (val sources = repository.listArtifactSourcesForIssue(item.issue.id)) {
+                            is RepositoryResult.Success -> sourcesByIssue[item.issue.id] = sources.value
+                            is RepositoryResult.Failure -> {
+                                if (!sources.error.isUnsupportedSourceRecovery()) {
+                                    sourceFailureCount += 1
+                                }
+                            }
+                        }
+                    }
+                }
+                is RepositoryResult.Failure -> recoveryFailureCount += 1
             }
         }
 
-        if (snapshots.isEmpty() && failureCount > 0) {
+        if (snapshots.isEmpty() && recoveryFailureCount > 0) {
             return@withContext ArtifactLibraryUiState.Failure(ARTIFACT_LOAD_FAILED)
         }
 
-        val aggregated = ArtifactLibraryAggregator.aggregate(snapshots)
+        val aggregated = ArtifactLibraryAggregator.aggregate(
+            snapshots = snapshots,
+            sourcesByIssue = sourcesByIssue,
+        )
         if (aggregated.items.isEmpty()) {
-            return@withContext if (failureCount > 0) {
+            return@withContext if (recoveryFailureCount > 0) {
                 ArtifactLibraryUiState.Failure(ARTIFACT_LOAD_FAILED)
             } else {
                 ArtifactLibraryUiState.Empty
@@ -47,7 +67,7 @@ internal class ArtifactLibraryLoader(
         }
 
         val content = ArtifactLibraryUiState.Content(aggregated)
-        if (failureCount > 0) {
+        if (recoveryFailureCount > 0 || sourceFailureCount > 0) {
             ArtifactLibraryUiState.PartialFailure(
                 content = content,
                 errorCode = ARTIFACT_PARTIAL_LOAD_FAILED,
@@ -56,6 +76,10 @@ internal class ArtifactLibraryLoader(
             content
         }
     }
+
+    private fun RepositoryError.isUnsupportedSourceRecovery(): Boolean =
+        this is RepositoryError.CompatibilityFailure &&
+            compatibilityCode == "artifact_source_recovery_not_supported"
 
     companion object {
         const val ARTIFACT_LOAD_FAILED = "artifact_load_failed"
