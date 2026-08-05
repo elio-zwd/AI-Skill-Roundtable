@@ -276,7 +276,6 @@ internal class StageAdvancementRepositoryComponent(
                 if (
                     sourceRun == null ||
                     sourceRun.issueId != command.issueId ||
-                    sourceRun.stageId != command.sourceStageId ||
                     sourceRun.runKind != ExecutionRunKind.STANDARD ||
                     sourceRun.retryOfRunId != null ||
                     sourceRun.parentRunId != null ||
