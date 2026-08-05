@@ -74,7 +74,6 @@ class CollaborationRepositoryDatabaseTest {
             CreateStageCommand(
                 issueId = ISSUE_ID,
                 stageId = OTHER_STAGE_ID,
-                sequenceIndex = 1,
                 title = "Other",
                 objective = "Other",
                 createdAt = 120L,
