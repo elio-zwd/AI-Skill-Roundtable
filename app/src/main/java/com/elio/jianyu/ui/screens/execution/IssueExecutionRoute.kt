@@ -8,12 +8,17 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elio.jianyu.collaboration.IssueCollaborationCoordinator
 import com.elio.jianyu.data.JianyuRepository
 import com.elio.jianyu.execution.ExecutionRunCoordinator
+import com.elio.jianyu.result.StageResultService
+import com.elio.jianyu.ui.screens.result.StageResultCallbacks
+import com.elio.jianyu.ui.screens.result.StageResultViewModel
+import com.elio.jianyu.ui.screens.result.stageResultViewModelFactory
 
 @Composable
 fun IssueExecutionRoute(
     repository: JianyuRepository,
     coordinator: ExecutionRunCoordinator?,
     collaborationCoordinator: IssueCollaborationCoordinator?,
+    stageResultService: StageResultService,
     issueId: String?,
     stageId: String?,
     onBack: () -> Unit,
@@ -23,20 +28,52 @@ fun IssueExecutionRoute(
     collaborationViewModel: IssueCollaborationViewModel = viewModel(
         factory = IssueCollaborationViewModel.factory(collaborationCoordinator),
     ),
+    stageResultViewModel: StageResultViewModel? = if (issueId != null && stageId != null) {
+        viewModel(
+            key = "stage-result-$issueId-$stageId",
+            factory = stageResultViewModelFactory(stageResultService, issueId, stageId),
+        )
+    } else {
+        null
+    },
 ) {
     val state by viewModel.state.collectAsState()
     val collaborationState by collaborationViewModel.state.collectAsState()
+    val stageResultState = stageResultViewModel?.state?.collectAsState()?.value
     LaunchedEffect(issueId, stageId) {
         viewModel.load(issueId, stageId)
         collaborationViewModel.load(issueId, stageId)
+        stageResultViewModel?.load()
     }
     IssueExecutionScreen(
         state = state,
         collaborationState = collaborationState,
+        stageResultState = stageResultState,
+        stageResultCallbacks = stageResultViewModel?.let { resultViewModel ->
+            StageResultCallbacks(
+                onRetry = resultViewModel::load,
+                onToggleMessage = resultViewModel::toggleMessage,
+                onCreateGenericDraft = resultViewModel::createGenericDraft,
+                onCreateDraftFromMessages = resultViewModel::createDraftFromSelectedMessages,
+                onContentChange = resultViewModel::updateContentText,
+                onSave = resultViewModel::saveNow,
+                onReloadConflict = resultViewModel::reloadConflict,
+                onRequestAbandon = resultViewModel::requestAbandon,
+                onDismissAbandon = resultViewModel::dismissAbandon,
+                onConfirmAbandon = resultViewModel::confirmAbandon,
+                onRequestArtifactConfirmation = resultViewModel::requestArtifactConfirmation,
+                onDismissArtifactConfirmation = resultViewModel::dismissArtifactConfirmation,
+                onArtifactTitleChange = resultViewModel::updateArtifactTitle,
+                onArtifactTypeChange = resultViewModel::updateArtifactType,
+                onConfirmArtifact = resultViewModel::confirmArtifact,
+                onCreateRevision = resultViewModel::createRevision,
+            )
+        } ?: StageResultCallbacks.Empty,
         onBack = onBack,
         onReload = {
             viewModel.load(issueId, stageId)
             collaborationViewModel.load(issueId, stageId)
+            stageResultViewModel?.load()
         },
         onStop = viewModel::stop,
         onRetry = viewModel::retryFailedParticipants,
