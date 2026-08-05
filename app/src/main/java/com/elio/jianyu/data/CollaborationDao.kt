@@ -51,8 +51,7 @@ internal interface CollaborationDao {
 
     @Query(
         "UPDATE cross_discussion_sessions SET " +
-            "responseRunId = :responseRunId, synthesisRunId = :synthesisRunId, " +
-            "status = :newStatus, " +
+            "synthesisRunId = :synthesisRunId, status = :newStatus, " +
             "successfulParticipantIdsJson = :successfulParticipantIdsJson, " +
             "failedParticipantIdsJson = :failedParticipantIdsJson, " +
             "partialSynthesisConfirmedAt = :partialSynthesisConfirmedAt, " +
@@ -62,12 +61,30 @@ internal interface CollaborationDao {
     suspend fun compareAndSetCrossDiscussionSession(
         sessionId: String,
         expectedStatuses: List<String>,
-        responseRunId: String,
         synthesisRunId: String?,
         newStatus: String,
         successfulParticipantIdsJson: String,
         failedParticipantIdsJson: String,
         partialSynthesisConfirmedAt: Long?,
+        updatedAt: Long,
+        failureCode: String?,
+    ): Int
+
+    @Query(
+        "UPDATE cross_discussion_sessions SET " +
+            "responseRunId = :responseRunId, status = :newStatus, " +
+            "successfulParticipantIdsJson = :successfulParticipantIdsJson, " +
+            "failedParticipantIdsJson = :failedParticipantIdsJson, " +
+            "updatedAt = :updatedAt, failureCode = :failureCode " +
+            "WHERE id = :sessionId AND status IN (:expectedStatuses)",
+    )
+    suspend fun compareAndSetCrossDiscussionResponseRun(
+        sessionId: String,
+        expectedStatuses: List<String>,
+        responseRunId: String,
+        newStatus: String,
+        successfulParticipantIdsJson: String,
+        failedParticipantIdsJson: String,
         updatedAt: Long,
         failureCode: String?,
     ): Int
