@@ -16,10 +16,10 @@ object CollaborationExecutionBudgetPolicy {
         val initialResponsesAndSynthesis = participantCount + 1
         val failedResponseRetriesAndSynthesisRetry = participantCount + 1
         return ExecutionRuntimeBudgetConfig(
-  maxApiCalls = maxOf(
-      CROSS_MIN_API_CALLS,
-      initialResponsesAndSynthesis + failedResponseRetriesAndSynthesisRetry,
-  ),
+            maxApiCalls = maxOf(
+                CROSS_MIN_API_CALLS,
+                initialResponsesAndSynthesis + failedResponseRetriesAndSynthesisRetry,
+            ),
         )
     }
 }
