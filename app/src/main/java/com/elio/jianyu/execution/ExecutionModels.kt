@@ -1,9 +1,9 @@
 package com.elio.jianyu.execution
 
+import com.elio.jianyu.data.ContextUsageWriteSet
 import com.elio.jianyu.data.ExecutionRunStatus
 import com.elio.jianyu.data.ExecutionRuntimeBudgetConfig
 import com.elio.jianyu.data.ExecutionRuntimeSnapshot
-import com.elio.jianyu.data.ContextUsageWriteSet
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 
@@ -42,7 +42,6 @@ data class ExecutionFailure(
         get() = code.retryable
 }
 
-/** PR09-09 及后续调用方使用的稳定错误名称。 */
 typealias ExecutionError = ExecutionFailure
 
 class NoExecutionApiKeyException : IllegalStateException("No imported API key is available")
@@ -189,6 +188,34 @@ data class ExecutionRetryCommand(
     }
 }
 
+/**
+ * 执行已经由 Repository 原子创建的 Runtime。
+ * 该命令不再写用户 Message、Participant、Usage 或预算，只复用唯一执行状态机。
+ */
+data class ExecutionPreparedRunCommand(
+    val runId: String,
+    val issueId: String,
+    val stageId: String,
+    val currentUserInput: String,
+    val roundIndex: Int,
+    val userConfirmedAt: Long,
+    val model: String = DEFAULT_EXECUTION_MODEL,
+    val contributions: List<ExecutionContextContribution> = emptyList(),
+    val additionalRequiredCalls: Int = 0,
+    val keepBudgetOpenOnSuccess: Boolean = false,
+) {
+    init {
+        require(runId.isNotBlank())
+        require(issueId.isNotBlank())
+        require(stageId.isNotBlank())
+        require(currentUserInput.isNotBlank())
+        require(roundIndex >= 0)
+        require(userConfirmedAt > 0L)
+        require(model.isNotBlank())
+        require(additionalRequiredCalls >= 0)
+    }
+}
+
 data class ExecutionRunResult(
     val runtime: ExecutionRuntimeSnapshot,
     val participantFailures: Map<String, ExecutionFailure> = emptyMap(),
@@ -207,6 +234,8 @@ object StableExecutionIds {
         positiveLong("message:$runId:$participantSnapshotId")
 
     fun sessionId(issueId: String): Long = positiveLong("session:$issueId")
+
+    fun userMessageId(idempotencyKey: String): Long = positiveLong("user-message:$idempotencyKey")
 
     private fun positiveLong(value: String): Long {
         val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray())

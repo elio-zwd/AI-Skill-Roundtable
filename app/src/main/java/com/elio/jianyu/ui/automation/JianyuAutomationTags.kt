@@ -111,6 +111,38 @@ object JianyuAutomationTags {
             "issue_execution_participant_${normalizedStableId(snapshotId)}"
     }
 
+    object Collaboration {
+        const val INPUT = "issue_collaboration_input"
+        const val DIRECTED_RESPONSE_BUTTON = "issue_directed_response_button"
+        const val CROSS_DISCUSSION_BUTTON = "issue_cross_discussion_button"
+        const val ROSTER = "issue_collaboration_roster"
+        const val DIRECTED_DIALOG = "directed_response_dialog"
+        const val DIRECTED_CONFIRM = "directed_response_confirm"
+        const val DIRECTED_FAILURE = "directed_response_failure"
+        const val DIRECTED_RETRY = "directed_response_retry"
+        const val CROSS_DIALOG = "cross_discussion_dialog"
+        const val CROSS_FOCUS_INPUT = "cross_discussion_focus_input"
+        const val CROSS_INTEGRATOR = "cross_discussion_integrator"
+        const val CROSS_CONFIRM = "cross_discussion_confirm"
+        const val CROSS_STATUS = "cross_discussion_status"
+        const val CROSS_RETRY_FAILED = "cross_discussion_retry_failed"
+        const val CROSS_SYNTHESIZE_AVAILABLE = "cross_discussion_synthesize_available"
+        const val CROSS_RESUME_SYNTHESIS = "cross_discussion_resume_synthesis"
+        const val CROSS_FAILURE = "cross_discussion_failure"
+
+        fun directedParticipant(skillId: String): String =
+            "directed_participant_${normalizedStableId(skillId)}"
+
+        fun crossParticipant(skillId: String): String =
+            "cross_discussion_participant_${normalizedStableId(skillId)}"
+
+        fun message(messageId: Long): String =
+            "cross_discussion_message_${normalizedStableId(messageId.toString())}"
+
+        fun session(discussionId: String): String =
+            "cross_discussion_session_${normalizedStableId(discussionId)}"
+    }
+
     object Context {
         const val DIALOG = "context_confirmation_dialog"
         const val TOTAL = "context_confirmation_total"
@@ -129,9 +161,7 @@ object JianyuAutomationTags {
         const val TELEMETRY_ACTION = "settings_telemetry_action"
     }
 
-    /**
-     * 已冻结的静态标签清单。使用 List 而非 Set，测试才能发现重复项。
-     */
+    /** 已冻结的静态标签清单。使用 List 而非 Set，测试才能发现重复项。 */
     val frozenStaticTags: List<String> = listOf(
         App.CONTENT_ROOT,
         App.BOTTOM_NAVIGATION,
@@ -189,6 +219,23 @@ object JianyuAutomationTags {
         Execution.RETRY,
         Execution.RECOVER,
         Execution.CONTEXT,
+        Collaboration.INPUT,
+        Collaboration.DIRECTED_RESPONSE_BUTTON,
+        Collaboration.CROSS_DISCUSSION_BUTTON,
+        Collaboration.ROSTER,
+        Collaboration.DIRECTED_DIALOG,
+        Collaboration.DIRECTED_CONFIRM,
+        Collaboration.DIRECTED_FAILURE,
+        Collaboration.DIRECTED_RETRY,
+        Collaboration.CROSS_DIALOG,
+        Collaboration.CROSS_FOCUS_INPUT,
+        Collaboration.CROSS_INTEGRATOR,
+        Collaboration.CROSS_CONFIRM,
+        Collaboration.CROSS_STATUS,
+        Collaboration.CROSS_RETRY_FAILED,
+        Collaboration.CROSS_SYNTHESIZE_AVAILABLE,
+        Collaboration.CROSS_RESUME_SYNTHESIS,
+        Collaboration.CROSS_FAILURE,
         Context.DIALOG,
         Context.TOTAL,
         Context.VALIDATION_ERRORS,

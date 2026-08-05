@@ -2,7 +2,6 @@ package com.elio.jianyu.execution
 
 import com.elio.jianyu.data.ExecutionParticipantSnapshotEntity
 import com.elio.jianyu.data.IssueEntity
-import com.elio.jianyu.data.Message
 import com.elio.jianyu.data.StageEntity
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -50,8 +49,8 @@ class ExecutionContextBuilderTest {
                 currentUserInput = "请给出建议",
                 roundIndex = 3,
                 history = listOf(
-                    message(id = 1, text = "上一批已确认结论", executionRunId = "run-1"),
-                    message(id = 2, text = "同批成员刚输出", executionRunId = "run-2"),
+                    history(1, "上一批已确认结论", "run-1", 0),
+                    history(2, "同批成员刚输出", "run-2", 1),
                 ),
             ),
         )
@@ -137,23 +136,17 @@ class ExecutionContextBuilderTest {
         assertFalse(request.systemInstruction == participant.defaultResponsibility)
     }
 
-    private fun message(
+    private fun history(
         id: Long,
         text: String,
         executionRunId: String,
-    ) = Message(
-        id = id,
-        chatId = 1,
-        senderId = "skill",
+        order: Int,
+    ) = ExecutionHistoryEntry(
+        sourceMessageId = id,
         senderName = "Skill",
-        avatar = "S",
-        text = text,
-        timestamp = 100 + id,
-        isPending = false,
-        roundIndex = 1,
-        issueId = issue.id,
-        stageId = stage.id,
-        executionRunId = executionRunId,
-        participantSnapshotId = "p-$id",
+        content = text,
+        usageOrder = order,
+        sourceExecutionRunId = executionRunId,
+        sourceParticipantSnapshotId = "p-$id",
     )
 }
