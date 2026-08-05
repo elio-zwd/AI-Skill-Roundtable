@@ -153,6 +153,7 @@ internal fun MainAppContent(
                     IssueExecutionRoute(
                         repository = appRuntime.repository,
                         coordinator = appRuntime.executionCoordinator,
+                        collaborationCoordinator = appRuntime.collaborationCoordinator,
                         issueId = issueId,
                         stageId = stageId,
                         onBack = { navController.popBackStack() },
