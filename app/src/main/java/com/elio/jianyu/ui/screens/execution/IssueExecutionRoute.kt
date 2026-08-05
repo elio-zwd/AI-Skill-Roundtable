@@ -17,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel as composeViewModel
 import com.elio.jianyu.collaboration.IssueCollaborationCoordinator
+import com.elio.jianyu.data.CrossDiscussionStatus
 import com.elio.jianyu.data.ExecutionRunStatus
 import com.elio.jianyu.data.JianyuRepository
 import com.elio.jianyu.execution.ExecutionRunCoordinator
@@ -77,18 +78,32 @@ fun IssueExecutionRoute(
                 is AdvanceIssueEvent.NavigateToStage -> {
                     onOpenStage(event.issueId, event.stageId)
                 }
-                AdvanceIssueEvent.RequestStopCurrentRun -> viewModel.stop()
+                AdvanceIssueEvent.RequestStopCurrentRun -> {
+                    viewModel.stop()
+                    collaborationViewModel.stop()
+                }
             }
         }
     }
-    LaunchedEffect(advanceIssueState, state) {
+    LaunchedEffect(advanceIssueState, state, collaborationState) {
         val stopping = advanceIssueState is AdvanceIssueUiState.StoppingCurrentRun
         val execution = state as? IssueExecutionUiState.Content
-        val terminal = execution?.runStatus !in setOf(
-            ExecutionRunStatus.NOT_STARTED,
-            ExecutionRunStatus.RUNNING,
-        )
-        if (stopping && execution != null && terminal && !execution.operationInProgress) {
+        val collaboration = collaborationState as? IssueCollaborationUiState.Content
+        val executionTerminal = execution?.runStatus !in ACTIVE_RUN_STATUSES
+        val collaborationActive = collaboration?.directedRuns.orEmpty().any {
+            it.status in ACTIVE_RUN_STATUSES
+        } || collaboration?.sessions.orEmpty().any {
+            it.status in ACTIVE_DISCUSSION_STATUSES
+        }
+        val operationsFinished = execution?.operationInProgress == false &&
+            collaboration?.operationInProgress != true
+        if (
+            stopping &&
+            execution != null &&
+            executionTerminal &&
+            !collaborationActive &&
+            operationsFinished
+        ) {
             advanceIssueViewModel.onStopFinished()
         }
     }
@@ -255,3 +270,13 @@ private enum class PendingDraftAction {
     SAVE,
     DISCARD,
 }
+
+private val ACTIVE_RUN_STATUSES = setOf(
+    ExecutionRunStatus.NOT_STARTED,
+    ExecutionRunStatus.RUNNING,
+)
+
+private val ACTIVE_DISCUSSION_STATUSES = setOf(
+    CrossDiscussionStatus.RESPONDING,
+    CrossDiscussionStatus.SYNTHESIZING,
+)
