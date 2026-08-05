@@ -16,6 +16,7 @@ import com.elio.jianyu.collaboration.DirectedResponseRequest
 import com.elio.jianyu.collaboration.IssueCollaborationCoordinator
 import com.elio.jianyu.collaboration.IssueCollaborationSnapshot
 import com.elio.jianyu.data.CrossDiscussionStatus
+import com.elio.jianyu.data.ExecutionRunEntity
 import com.elio.jianyu.data.ExecutionRunKind
 import com.elio.jianyu.data.ExecutionRuntimeBudgetConfig
 import com.elio.jianyu.data.Message
@@ -172,6 +173,14 @@ class IssueCollaborationViewModel internal constructor(
         }
     }
 
+    fun retryDirected(runId: String) {
+        val current = contentOrNull() ?: return
+        val directed = current.directedRuns.singleOrNull { it.runId == runId } ?: return
+        if (directed.canRetry && !current.operationInProgress) {
+            retryRun(directed.runId, directed.question)
+        }
+    }
+
     fun synthesize(sessionId: String, preparedContext: PreparedExecutionContext?) {
         val current = contentOrNull() ?: return
         val session = current.sessions.singleOrNull { it.sessionId == sessionId } ?: return
@@ -298,7 +307,35 @@ class IssueCollaborationViewModel internal constructor(
         val selectedSkills = savedStateHandle.get<ArrayList<String>>(KEY_SKILL_IDS).orEmpty().toSet()
         val selectedMessages = savedStateHandle.get<ArrayList<Long>>(KEY_MESSAGE_IDS).orEmpty().toSet()
         val messagesById = recovered.issue.core.messages.associateBy(Message::id)
-        val runsByDiscussion = recovered.issue.core.runs
+        val allRuns = recovered.issue.core.runs.filter { it.stageId == stableStageId }
+        val runsById = allRuns.associateBy(ExecutionRunEntity::id)
+        val participantsByRun = recovered.issue.core.participants.groupBy { it.runId }
+        val messagesByRun = recovered.issue.core.messages
+            .filter { it.executionRunId != null }
+            .groupBy { it.executionRunId }
+
+        val latestDirectedRuns = allRuns
+            .filter { it.runKind == ExecutionRunKind.DIRECTED_RESPONSE }
+            .groupBy { rootRunId(it, runsById) }
+            .values
+            .mapNotNull { runs -> runs.maxWithOrNull(compareBy({ it.createdAt }, { it.id })) }
+            .sortedWith(compareByDescending<ExecutionRunEntity> { it.createdAt }.thenByDescending { it.id })
+        val directedRuns = latestDirectedRuns.mapNotNull { run ->
+            val participant = participantsByRun[run.id]?.singleOrNull() ?: return@mapNotNull null
+            val question = run.triggerMessageId?.let(messagesById::get)?.text.orEmpty()
+            DirectedResponseRunUi(
+                runId = run.id,
+                skillId = participant.sourceId,
+                displayName = participant.displayName,
+                question = question,
+                status = run.status,
+                hasIncompleteOutput = messagesByRun[run.id].orEmpty().any { message ->
+                    message.text.isNotBlank() && message.isPending.not()
+                },
+            )
+        }
+
+        val runsByDiscussion = allRuns
             .filter { it.discussionId != null }
             .groupBy { it.discussionId }
         val sessions = recovered.collaboration.discussions.map { session ->
@@ -352,8 +389,22 @@ class IssueCollaborationViewModel internal constructor(
             dialogMode = savedStateHandle.get<String>(KEY_DIALOG)?.let { stored ->
                 CollaborationDialogMode.entries.firstOrNull { it.name == stored }
             },
+            directedRuns = directedRuns,
             sessions = sessions,
         )
+    }
+
+    private fun rootRunId(
+        run: ExecutionRunEntity,
+        runsById: Map<String, ExecutionRunEntity>,
+    ): String {
+        var current = run
+        val visited = mutableSetOf<String>()
+        while (current.retryOfRunId != null) {
+            check(visited.add(current.id)) { "Directed retry chain contains a cycle" }
+            current = runsById[requireNotNull(current.retryOfRunId)] ?: return current.id
+        }
+        return current.id
     }
 
     private fun contextSelection(
