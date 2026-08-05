@@ -1,8 +1,8 @@
 package com.elio.jianyu.ui.screens.execution
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.weight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
@@ -60,6 +60,7 @@ fun IssueExecutionRoute(
     val state by viewModel.state.collectAsState()
     val collaborationState by collaborationViewModel.state.collectAsState()
     val advanceIssueState by advanceIssueViewModel.state.collectAsState()
+    val advanceWorkspace by advanceIssueViewModel.workspace.collectAsState()
     val stageResultState = stageResultViewModel?.state?.collectAsState()?.value
     var unsavedChoiceVisible by remember { mutableStateOf(false) }
     var pendingDraftAction by remember { mutableStateOf<PendingDraftAction?>(null) }
@@ -155,7 +156,7 @@ fun IssueExecutionRoute(
 
     Column(modifier = Modifier.fillMaxSize()) {
         StageTimeline(
-            candidates = advanceIssueState.candidatesOrNull(),
+            candidates = advanceWorkspace,
             onOpenStage = onOpenStage,
             onAdvanceIssue = {
                 val content = stageResultState as? StageResultUiState.Content
@@ -167,52 +168,53 @@ fun IssueExecutionRoute(
             },
             onUndoStage = advanceIssueViewModel::requestUndo,
         )
-        IssueExecutionScreen(
-            state = state,
-            collaborationState = collaborationState,
-            stageResultState = stageResultState,
-            stageResultCallbacks = stageResultCallbacks,
-            onBack = onBack,
-            onReload = {
-                viewModel.load(issueId, stageId)
-                collaborationViewModel.load(issueId, stageId)
-                advanceIssueViewModel.load(issueId, stageId)
-                stageResultViewModel?.load()
-            },
-            onStop = viewModel::stop,
-            onRetry = viewModel::retryFailedParticipants,
-            onRecoverInterrupted = viewModel::recoverInterrupted,
-            onOpenContext = { viewModel.openContextSelection(retryMode = false) },
-            onDismissContext = viewModel::dismissContextSelection,
-            onToggleContext = viewModel::toggleContextCandidate,
-            onContextNetworkAllowed = viewModel::setContextNetworkAllowed,
-            onSensitiveContextConfirmed = viewModel::setSensitiveContextConfirmed,
-            onContextExcerptChanged = viewModel::updateContextExcerpt,
-            onConfirmContext = viewModel::confirmContextSelection,
-            onCollaborationInputChanged = collaborationViewModel::updateInput,
-            onOpenDirected = collaborationViewModel::openDirected,
-            onOpenCross = collaborationViewModel::openCross,
-            onDismissCollaborationDialog = collaborationViewModel::dismissDialog,
-            onToggleCollaborationParticipant = collaborationViewModel::toggleParticipant,
-            onToggleCollaborationMessage = collaborationViewModel::toggleMessage,
-            onConfirmDirected = {
-                collaborationViewModel.confirmDirected(viewModel.peekPreparedContextForStart())
-            },
-            onConfirmCross = {
-                collaborationViewModel.confirmCross(viewModel.peekPreparedContextForStart())
-            },
-            onRetryDirected = collaborationViewModel::retryDirected,
-            onRetryCrossFailed = collaborationViewModel::retryFailed,
-            onSynthesizeCross = { sessionId ->
-                collaborationViewModel.synthesize(
-                    sessionId,
-                    viewModel.peekPreparedContextForStart(),
-                )
-            },
-            onRetryCrossSynthesis = collaborationViewModel::retrySynthesis,
-            onStopCross = collaborationViewModel::stop,
-            modifier = Modifier.weight(1f),
-        )
+        Box(modifier = Modifier.weight(1f)) {
+            IssueExecutionScreen(
+                state = state,
+                collaborationState = collaborationState,
+                stageResultState = stageResultState,
+                stageResultCallbacks = stageResultCallbacks,
+                onBack = onBack,
+                onReload = {
+                    viewModel.load(issueId, stageId)
+                    collaborationViewModel.load(issueId, stageId)
+                    advanceIssueViewModel.load(issueId, stageId)
+                    stageResultViewModel?.load()
+                },
+                onStop = viewModel::stop,
+                onRetry = viewModel::retryFailedParticipants,
+                onRecoverInterrupted = viewModel::recoverInterrupted,
+                onOpenContext = { viewModel.openContextSelection(retryMode = false) },
+                onDismissContext = viewModel::dismissContextSelection,
+                onToggleContext = viewModel::toggleContextCandidate,
+                onContextNetworkAllowed = viewModel::setContextNetworkAllowed,
+                onSensitiveContextConfirmed = viewModel::setSensitiveContextConfirmed,
+                onContextExcerptChanged = viewModel::updateContextExcerpt,
+                onConfirmContext = viewModel::confirmContextSelection,
+                onCollaborationInputChanged = collaborationViewModel::updateInput,
+                onOpenDirected = collaborationViewModel::openDirected,
+                onOpenCross = collaborationViewModel::openCross,
+                onDismissCollaborationDialog = collaborationViewModel::dismissDialog,
+                onToggleCollaborationParticipant = collaborationViewModel::toggleParticipant,
+                onToggleCollaborationMessage = collaborationViewModel::toggleMessage,
+                onConfirmDirected = {
+                    collaborationViewModel.confirmDirected(viewModel.peekPreparedContextForStart())
+                },
+                onConfirmCross = {
+                    collaborationViewModel.confirmCross(viewModel.peekPreparedContextForStart())
+                },
+                onRetryDirected = collaborationViewModel::retryDirected,
+                onRetryCrossFailed = collaborationViewModel::retryFailed,
+                onSynthesizeCross = { sessionId ->
+                    collaborationViewModel.synthesize(
+                        sessionId,
+                        viewModel.peekPreparedContextForStart(),
+                    )
+                },
+                onRetryCrossSynthesis = collaborationViewModel::retrySynthesis,
+                onStopCross = collaborationViewModel::stop,
+            )
+        }
     }
 
     AdvanceIssueFlow(advanceIssueState, callbacks)
@@ -252,20 +254,4 @@ fun IssueExecutionRoute(
 private enum class PendingDraftAction {
     SAVE,
     DISCARD,
-}
-
-private fun AdvanceIssueUiState.candidatesOrNull(): AdvanceIssueCandidates? = when (this) {
-    is AdvanceIssueUiState.DirectionStep -> candidates
-    is AdvanceIssueUiState.MeasureStep -> candidates
-    is AdvanceIssueUiState.SummaryStep -> candidates
-    is AdvanceIssueUiState.WaitingForRun -> candidates
-    is AdvanceIssueUiState.StoppingCurrentRun -> candidates
-    is AdvanceIssueUiState.CreatingStage -> candidates
-    is AdvanceIssueUiState.CreateFailure -> candidates
-    is AdvanceIssueUiState.IdempotencyConflict -> candidates
-    is AdvanceIssueUiState.UndoAvailable -> candidates
-    is AdvanceIssueUiState.Undoing -> candidates
-    is AdvanceIssueUiState.UndoFailure -> candidates
-    is AdvanceIssueUiState.RestoredDraft -> candidates
-    else -> null
 }
