@@ -75,6 +75,17 @@ class StageAdvancementPolicyTest {
     }
 
     @Test
+    fun confirmationTimestampIsMetadataInsteadOfPayload() {
+        val first = command().copy(confirmedAt = 1_000L)
+        val restoredRetry = first.copy(confirmedAt = 2_000L)
+
+        assertEquals(
+            StageAdvancementPayloadHasher.hash(first),
+            StageAdvancementPayloadHasher.hash(restoredRetry),
+        )
+    }
+
+    @Test
     fun editedObjectiveInvalidatesTheConfirmedPayload() {
         val confirmed = command(objective = "形成可以执行的两周计划")
         val edited = confirmed.copy(objective = "先验证最关键的执行阻碍")
