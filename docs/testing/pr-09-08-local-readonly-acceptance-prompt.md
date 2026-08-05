@@ -205,7 +205,16 @@ v9→v10
 
 ```text
 CollaborationMigrationTest
+ExecutionRuntimeMigrationTest
+ResourceLifecycleMigrationTest
 现有连续 Migration 测试套件
+```
+
+两个连续迁移断言的方法名与预期链必须已更新到 v10：
+
+```text
+allMigrationsRemainContinuousFromVersion1ToVersion10
+[(1,2), (2,3), (3,4), (4,5), (5,6), (6,7), (7,8), (8,9), (9,10)]
 ```
 
 v9→v10 至少验证：
@@ -294,6 +303,8 @@ Synthesis retry 复制原快照
 实际验证：
 
 ```text
+Directed 默认 maxApiCalls = 3
+Cross 默认 maxApiCalls = maxOf(8, participantCount * 2 + 2)
 Response 根预算 maxApiCalls >= N+1
 成员调用依次消费
 每次消费保留剩余成员 + 整合调用
