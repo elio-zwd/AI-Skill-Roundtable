@@ -8,8 +8,8 @@ class CollaborationExecutionBudgetPolicyTest {
     @Test
     fun directedBudgetAllowsInitialCallAndExplicitRetries() {
         assertEquals(
-  CollaborationExecutionBudgetPolicy.DIRECTED_MIN_API_CALLS,
-  CollaborationExecutionBudgetPolicy.directed().maxApiCalls,
+            CollaborationExecutionBudgetPolicy.DIRECTED_MIN_API_CALLS,
+            CollaborationExecutionBudgetPolicy.directed().maxApiCalls,
         )
     }
 
@@ -23,10 +23,10 @@ class CollaborationExecutionBudgetPolicyTest {
     @Test
     fun crossBudgetRejectsAnInvalidParticipantCount() {
         try {
-  CollaborationExecutionBudgetPolicy.cross(participantCount = 1)
-  fail("Expected participant count validation to fail")
+            CollaborationExecutionBudgetPolicy.cross(participantCount = 1)
+            fail("Expected participant count validation to fail")
         } catch (_: IllegalArgumentException) {
-  // 预期：交叉讨论至少需要两位成员。
+            // 预期：交叉讨论至少需要两位成员。
         }
     }
 }
