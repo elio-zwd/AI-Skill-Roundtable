@@ -54,7 +54,8 @@ class StageResultService(
         )
         val usageByRun = collaboration?.messageUsageByRun.orEmpty()
         val metadata = selectableMessages.associate { message ->
-            val run = requireNotNull(runsById[message.executionRunId])
+            val runId = requireNotNull(message.executionRunId)
+            val run = requireNotNull(runsById[runId])
             message.id to StageMessageSourceMetadata(
                 runKind = run.runKind,
                 runStatus = run.status,
@@ -328,7 +329,8 @@ class StageResultService(
                     message.participantSnapshotId != null
             }
             .filter { message ->
-                val run = runsById[message.executionRunId]
+                val runId = message.executionRunId ?: return@filter false
+                val run = runsById[runId]
                 run != null && run.issueId == issueId && run.stageId == stageId
             }
             .sortedWith(compareBy<Message> { it.timestamp }.thenBy { it.id })
