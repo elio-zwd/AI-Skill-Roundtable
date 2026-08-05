@@ -110,7 +110,7 @@ internal class CollaborationRetryRepositoryComponent(
         check(
             core.setRequiredBudgetReserve(
                 rootRunId = rootRunId,
-                reservedRequiredCalls = requiredReserve,
+                count = requiredReserve,
                 updatedAt = command.createdAt,
             ) == 1,
         )
