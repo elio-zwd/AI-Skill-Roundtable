@@ -51,6 +51,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          branch='${{ github.event.pull_request.head.ref }}'
           schema='app/schemas/com.elio.jianyu.data.RoundtableDatabase/10.json'
           test -s "$schema"
           python - <<'PY'
@@ -68,4 +69,6 @@ jobs:
             exit 0
           fi
           git commit -m 'feat: 提交Room编译生成的v10 Schema'
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          git fetch origin "$branch"
+          git rebase "origin/$branch"
+          git push origin HEAD:"$branch"
