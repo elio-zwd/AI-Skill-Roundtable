@@ -1,0 +1,58 @@
+name: PR09-08 Fix AndroidTest Stage Parameter
+
+on:
+  push:
+    branches:
+      - feat/pr-09-08-directed-cross-discussion
+    paths:
+      - .github/workflows/pr-09-08-fix-androidtest-stage.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout latest branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/pr-09-08-directed-cross-discussion
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Remove obsolete CreateStageCommand argument
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='feat/pr-09-08-directed-cross-discussion'
+          git pull --ff-only origin "$branch"
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/src/androidTest/java/com/elio/jianyu/data/CollaborationRepositoryDatabaseTest.kt')
+          text = path.read_text(encoding='utf-8')
+          old = '''            CreateStageCommand(
+                issueId = ISSUE_ID,
+                stageId = OTHER_STAGE_ID,
+                sequenceIndex = 1,
+                title = "Other",
+'''
+          new = '''            CreateStageCommand(
+                issueId = ISSUE_ID,
+                stageId = OTHER_STAGE_ID,
+                title = "Other",
+'''
+          if text.count(old) != 1:
+              raise SystemExit(f'Expected one obsolete CreateStageCommand block, found {text.count(old)}')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          Path('.github/workflows/pr-09-08-fix-androidtest-stage.yml').unlink()
+          PY
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'test: 修正协作数据库测试阶段参数'
+          git push origin HEAD:"$branch"
