@@ -56,8 +56,24 @@ data class CreateCrossDiscussionSynthesisCommand(
         require(run.historyScope == ExecutionHistoryScope.EXPLICIT_MESSAGES)
         require(run.discussionId == sessionId)
         require(run.parentRunId != null)
+        require(run.retryOfRunId == null)
         require(participant.runId == run.id)
         require(participant.position == 0)
+        require(createdAt > 0L)
+    }
+}
+
+data class CreateCollaborationRetryCommand(
+    val previousRunId: String,
+    val newRunId: String,
+    val idempotencyKey: String,
+    val createdAt: Long,
+) {
+    init {
+        require(previousRunId.isNotBlank())
+        require(newRunId.isNotBlank())
+        require(previousRunId != newRunId)
+        require(idempotencyKey.isNotBlank())
         require(createdAt > 0L)
     }
 }
@@ -107,6 +123,10 @@ internal interface JianyuCollaborationRepository {
         command: CreateCrossDiscussionSynthesisCommand,
     ): RepositoryResult<CollaborationStartResult>
 
+    suspend fun createCollaborationRetry(
+        command: CreateCollaborationRetryCommand,
+    ): RepositoryResult<CollaborationStartResult>
+
     suspend fun transitionCrossDiscussion(
         command: TransitionCrossDiscussionCommand,
     ): RepositoryResult<CrossDiscussionSessionEntity>
@@ -139,6 +159,12 @@ suspend fun JianyuRepository.createCrossDiscussionSynthesis(
     "create_cross_discussion_synthesis",
 )?.createCrossDiscussionSynthesis(command)
     ?: missingCollaborationCapability("create_cross_discussion_synthesis")
+
+suspend fun JianyuRepository.createCollaborationRetry(
+    command: CreateCollaborationRetryCommand,
+): RepositoryResult<CollaborationStartResult> = collaborationCapability(
+    "create_collaboration_retry",
+)?.createCollaborationRetry(command) ?: missingCollaborationCapability("create_collaboration_retry")
 
 suspend fun JianyuRepository.transitionCrossDiscussion(
     command: TransitionCrossDiscussionCommand,
