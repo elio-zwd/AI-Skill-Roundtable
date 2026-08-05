@@ -12,7 +12,7 @@ class JianyuRepositoryArchitectureTest {
     }
 
     @Test
-    fun roomUsesContinuousVersionTenCollaborationSchema() {
+    fun roomUsesContinuousVersionElevenStageAdvancementSchema() {
         val databaseSource = source("app/src/main/java/com/elio/jianyu/data/RoundtableDatabase.kt")
         val executionMigrationSource = source(
             "app/src/main/java/com/elio/jianyu/data/ExecutionRuntimeMigration.kt",
@@ -23,16 +23,22 @@ class JianyuRepositoryArchitectureTest {
         val collaborationMigrationSource = source(
             "app/src/main/java/com/elio/jianyu/data/CollaborationMigration.kt",
         )
+        val advancementMigrationSource = source(
+            "app/src/main/java/com/elio/jianyu/data/StageAdvancementMigration.kt",
+        )
 
-        assertTrue(databaseSource.contains("version = 10"))
-        assertFalse(databaseSource.contains("version = 11"))
+        assertTrue(databaseSource.contains("version = 11"))
+        assertFalse(databaseSource.contains("version = 12"))
         assertTrue(databaseSource.contains("MIGRATION_7_8"))
         assertTrue(databaseSource.contains("MIGRATION_8_9"))
         assertTrue(databaseSource.contains("MIGRATION_9_10"))
+        assertTrue(databaseSource.contains("MIGRATION_10_11"))
         assertTrue(databaseSource.contains("ExecutionParticipantStateEntity::class"))
         assertTrue(databaseSource.contains("ExecutionRunBudgetEntity::class"))
         assertTrue(databaseSource.contains("CrossDiscussionSessionEntity::class"))
         assertTrue(databaseSource.contains("ExecutionMessageUsageSnapshotEntity::class"))
+        assertTrue(databaseSource.contains("StageAdvancementEntity::class"))
+        assertTrue(databaseSource.contains("StageAdvancementSkillMemberEntity::class"))
         assertTrue(executionMigrationSource.contains("Migration(7, 8)"))
         assertTrue(executionMigrationSource.contains("execution_participant_states"))
         assertTrue(executionMigrationSource.contains("execution_run_budgets"))
@@ -42,6 +48,9 @@ class JianyuRepositoryArchitectureTest {
         assertTrue(collaborationMigrationSource.contains("Migration(9, 10)"))
         assertTrue(collaborationMigrationSource.contains("cross_discussion_sessions"))
         assertTrue(collaborationMigrationSource.contains("execution_message_usage_snapshots"))
+        assertTrue(advancementMigrationSource.contains("Migration(10, 11)"))
+        assertTrue(advancementMigrationSource.contains("stage_advancements"))
+        assertTrue(advancementMigrationSource.contains("stage_advancement_skill_members"))
     }
 
     @Test
@@ -59,7 +68,8 @@ class JianyuRepositoryArchitectureTest {
                 text.contains("coreDomainDao()") ||
                     text.contains("resourceLifecycleDao()") ||
                     text.contains("jianyuRepositoryDao()") ||
-                    text.contains("collaborationDao()")
+                    text.contains("collaborationDao()") ||
+                    text.contains("stageAdvancementDao()")
             }
 
         assertTrue(
@@ -76,6 +86,7 @@ class JianyuRepositoryArchitectureTest {
         val repositoryFiles = listOf(
             "app/src/main/java/com/elio/jianyu/data/RoomJianyuRepository.kt",
             "app/src/main/java/com/elio/jianyu/data/IssueExecutionRepositoryComponent.kt",
+            "app/src/main/java/com/elio/jianyu/data/StageAdvancementRepositoryComponent.kt",
             "app/src/main/java/com/elio/jianyu/data/ExecutionRuntimeRepositoryComponent.kt",
             "app/src/main/java/com/elio/jianyu/data/CollaborationRepositoryComponent.kt",
             "app/src/main/java/com/elio/jianyu/data/CollaborationRetryRepositoryComponent.kt",
@@ -109,8 +120,9 @@ class JianyuRepositoryArchitectureTest {
         val facade = source("app/src/main/java/com/elio/jianyu/data/RoomJianyuRepository.kt")
         val lineCount = facade.lineSequence().count()
 
-        assertTrue("公共 Repository 门面不应重新膨胀，当前行数：$lineCount", lineCount < 340)
+        assertTrue("公共 Repository 门面不应重新膨胀，当前行数：$lineCount", lineCount < 360)
         assertTrue(facade.contains("IssueExecutionRepositoryComponent"))
+        assertTrue(facade.contains("StageAdvancementRepositoryComponent"))
         assertTrue(facade.contains("ExecutionRuntimeRepositoryComponent"))
         assertTrue(facade.contains("CollaborationRepositoryComponent"))
         assertTrue(facade.contains("CrossDiscussionSynthesisRepositoryComponent"))
