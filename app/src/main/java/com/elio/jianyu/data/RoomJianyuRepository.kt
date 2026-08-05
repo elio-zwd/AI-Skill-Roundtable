@@ -15,6 +15,7 @@ class RoomJianyuRepository(
     private val executionRuntime = ExecutionRuntimeRepositoryComponent(transactions)
     private val collaborationRuntime = CollaborationRuntimeRepositoryComponent(transactions)
     private val collaboration = CollaborationRepositoryComponent(transactions)
+    private val collaborationRetry = CollaborationRetryRepositoryComponent(transactions)
     private val pendingMessages = PendingMessageRepositoryComponent(transactions)
     private val resources = ResourceRepositoryComponent(
         transactions = transactions,
@@ -94,6 +95,11 @@ class RoomJianyuRepository(
         command: CreateCrossDiscussionSynthesisCommand,
     ): RepositoryResult<CollaborationStartResult> =
         collaboration.createCrossDiscussionSynthesis(command)
+
+    override suspend fun createCollaborationRetry(
+        command: CreateCollaborationRetryCommand,
+    ): RepositoryResult<CollaborationStartResult> =
+        collaborationRetry.createCollaborationRetry(command)
 
     override suspend fun transitionCrossDiscussion(
         command: TransitionCrossDiscussionCommand,
