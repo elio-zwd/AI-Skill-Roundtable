@@ -10,6 +10,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.elio.jianyu.collaboration.CurrentStageRosterPolicy
 import com.elio.jianyu.collaboration.CurrentStageRosterSource
 import com.elio.jianyu.data.AdvanceIssueCommand
+import com.elio.jianyu.data.ConfirmedArtifactEntity
 import com.elio.jianyu.data.CrossDiscussionStatus
 import com.elio.jianyu.data.ExecutionRunStatus
 import com.elio.jianyu.data.JianyuRepository
@@ -18,6 +19,7 @@ import com.elio.jianyu.data.RepositoryError
 import com.elio.jianyu.data.RepositoryResult
 import com.elio.jianyu.data.StageAdvancementMeasure
 import com.elio.jianyu.data.StageAdvancementSkillPlan
+import com.elio.jianyu.data.StageAdvancementSnapshot
 import com.elio.jianyu.data.advanceIssue
 import com.elio.jianyu.data.getStageCollaboration
 import com.elio.jianyu.data.listStageAdvancements
@@ -40,6 +42,9 @@ class AdvanceIssueViewModel internal constructor(
     private val _state = MutableStateFlow<AdvanceIssueUiState>(AdvanceIssueUiState.Idle)
     val state: StateFlow<AdvanceIssueUiState> = _state.asStateFlow()
 
+    private val _workspace = MutableStateFlow<AdvanceIssueCandidates?>(null)
+    val workspace: StateFlow<AdvanceIssueCandidates?> = _workspace.asStateFlow()
+
     private val _events = MutableSharedFlow<AdvanceIssueEvent>(extraBufferCapacity = 1)
     val events: SharedFlow<AdvanceIssueEvent> = _events.asSharedFlow()
 
@@ -55,16 +60,17 @@ class AdvanceIssueViewModel internal constructor(
         loadedIssueId = issueId
         viewedStageId = stageId
         viewModelScope.launch {
-            val loaded = loadCandidates(issueId, stageId)
-            when (loaded) {
+            when (val loaded = loadCandidates(issueId, stageId)) {
                 is RepositoryResult.Success -> {
                     candidates = loaded.value
+                    _workspace.value = loaded.value
                     if (_state.value is AdvanceIssueUiState.LoadingCandidates) {
                         openWithCandidates(loaded.value)
                     }
                 }
                 is RepositoryResult.Failure -> {
                     candidates = null
+                    _workspace.value = null
                     _state.value = AdvanceIssueUiState.StorageFailure(
                         repositoryErrorMessage(loaded.error),
                     )
@@ -95,7 +101,9 @@ class AdvanceIssueViewModel internal constructor(
                     val enabled = !draft.realitySupport
                     draft.copy(
                         realitySupport = enabled,
-                        measures = if (enabled) draft.measures else {
+                        measures = if (enabled) {
+                            draft.measures
+                        } else {
                             draft.measures - REALITY_MEASURES
                         },
                     )
@@ -104,7 +112,9 @@ class AdvanceIssueViewModel internal constructor(
                     val enabled = !draft.thinkingExpansion
                     draft.copy(
                         thinkingExpansion = enabled,
-                        measures = if (enabled) draft.measures else {
+                        measures = if (enabled) {
+                            draft.measures
+                        } else {
                             draft.measures - THINKING_MEASURES
                         },
                     )
@@ -143,7 +153,9 @@ class AdvanceIssueViewModel internal constructor(
     fun toggleMeasure(measure: StageAdvancementMeasure) {
         updateDraft { draft ->
             val selected = measure in draft.measures
-            draft.copy(measures = if (selected) draft.measures - measure else draft.measures + measure)
+            draft.copy(
+                measures = if (selected) draft.measures - measure else draft.measures + measure,
+            )
         }
     }
 
@@ -157,17 +169,13 @@ class AdvanceIssueViewModel internal constructor(
 
     fun toggleMaterial(materialId: String) {
         updateDraft { draft ->
-            draft.copy(
-                selectedMaterialIds = draft.selectedMaterialIds.toggle(materialId),
-            )
+            draft.copy(selectedMaterialIds = draft.selectedMaterialIds.toggle(materialId))
         }
     }
 
     fun toggleArtifact(artifactId: String) {
         updateDraft { draft ->
-            draft.copy(
-                selectedArtifactIds = draft.selectedArtifactIds.toggle(artifactId),
-            )
+            draft.copy(selectedArtifactIds = draft.selectedArtifactIds.toggle(artifactId))
         }
     }
 
@@ -189,7 +197,8 @@ class AdvanceIssueViewModel internal constructor(
     fun confirm() {
         val current = _state.value as? AdvanceIssueUiState.SummaryStep ?: return
         if (!current.draft.canEnterSummary || !current.draft.summaryIsCurrent) return
-        if (current.candidates.viewedStageId != null &&
+        if (
+            current.candidates.viewedStageId != null &&
             current.candidates.viewedStageId != current.candidates.currentStage.id
         ) {
             _state.value = AdvanceIssueUiState.CreateFailure(
@@ -227,6 +236,7 @@ class AdvanceIssueViewModel internal constructor(
             when (val loaded = loadCandidates(issueId, viewedStageId)) {
                 is RepositoryResult.Success -> {
                     candidates = loaded.value
+                    _workspace.value = loaded.value
                     val invalidated = current.draft.edited { it }
                     persist(invalidated)
                     _state.value = AdvanceIssueUiState.SummaryStep(loaded.value, invalidated)
@@ -256,23 +266,24 @@ class AdvanceIssueViewModel internal constructor(
         val current = (_state.value as? AdvanceIssueUiState.UndoAvailable)?.candidates ?: return
         _state.value = AdvanceIssueUiState.Undoing(current)
         viewModelScope.launch {
-            when (val result = repository.undoLatestUnrunStage(
-                issueId = current.issueId,
-                stageId = current.currentStage.id,
-            )) {
+            when (
+                val result = repository.undoLatestUnrunStage(
+                    issueId = current.issueId,
+                    stageId = current.currentStage.id,
+                )
+            ) {
                 is RepositoryResult.Success -> {
                     clearPersistedDraft()
                     candidates = null
+                    _workspace.value = null
                     _state.value = AdvanceIssueUiState.Idle
+                    val previousStageId = current.stages
+                        .filter { it.sequenceIndex < current.currentStage.sequenceIndex }
+                        .maxByOrNull { it.sequenceIndex }
+                        ?.id
+                        ?: return@launch
                     _events.emit(
-                        AdvanceIssueEvent.NavigateToStage(
-                            current.issueId,
-                            current.stages
-                                .filter { it.sequenceIndex < current.currentStage.sequenceIndex }
-                                .maxByOrNull { it.sequenceIndex }
-                                ?.id
-                                ?: return@launch,
-                        ),
+                        AdvanceIssueEvent.NavigateToStage(current.issueId, previousStageId),
                     )
                 }
                 is RepositoryResult.Failure -> {
@@ -292,7 +303,6 @@ class AdvanceIssueViewModel internal constructor(
         if (_state.value is AdvanceIssueUiState.CreatingStage) return
         _state.value = AdvanceIssueUiState.CreatingStage(candidates, draft)
         viewModelScope.launch {
-            val now = clock()
             val command = AdvanceIssueCommand(
                 operationId = draft.operationId,
                 issueId = candidates.issueId,
@@ -307,7 +317,7 @@ class AdvanceIssueViewModel internal constructor(
                 roster = draft.roster,
                 inheritedMaterialIds = draft.selectedMaterialIds.sorted(),
                 inheritedArtifactIds = draft.selectedArtifactIds.sorted(),
-                confirmedAt = now,
+                confirmedAt = clock(),
             )
             try {
                 when (val result = repository.advanceIssue(command)) {
@@ -315,9 +325,9 @@ class AdvanceIssueViewModel internal constructor(
                         clearPersistedDraft()
                         val stage = result.value.snapshot.stage
                         _state.value = AdvanceIssueUiState.Created(
-                            stage.issueId,
-                            stage.id,
-                            result.idempotent,
+                            issueId = stage.issueId,
+                            stageId = stage.id,
+                            idempotent = result.idempotent,
                         )
                         _events.emit(AdvanceIssueEvent.NavigateToStage(stage.issueId, stage.id))
                     }
@@ -362,39 +372,15 @@ class AdvanceIssueViewModel internal constructor(
             is RepositoryResult.Success -> result.value
             is RepositoryResult.Failure -> return result
         }
-        val currentPlan = advancements.firstOrNull { it.stage.id == currentStage.id }
+        val currentPlan = advancements
+            .firstOrNull { it.stage.id == currentStage.id }
             ?.roster
             .orEmpty()
-        val rosterSource = CurrentStageRosterPolicy.resolveSource(
-            stageId = currentStage.id,
-            runs = recovery.core.runs,
-            participants = recovery.core.participants,
-            plannedMembers = currentPlan,
+        val roster = resolveRoster(
+            currentStageId = currentStage.id,
+            recovery = recovery,
+            currentPlan = currentPlan,
         )
-        val roster = when (rosterSource) {
-            is CurrentStageRosterSource.StandardRun -> rosterSource.members.map { member ->
-                StageAdvancementSkillPlan(
-                    officialSkillId = member.officialSkillId,
-                    position = member.position,
-                    responsibility = member.responsibility,
-                    sourceRunId = member.sourceRunId,
-                    sourceParticipantSnapshotId = member.sourceParticipantSnapshotId,
-                )
-            }
-            is CurrentStageRosterSource.AdvancementPlan -> rosterSource.members.map { member ->
-                StageAdvancementSkillPlan(
-                    officialSkillId = member.officialSkillId,
-                    position = member.position,
-                    responsibility = member.responsibility,
-                    sourceRunId = member.sourceRunId,
-                    sourceParticipantSnapshotId = member.sourceParticipantSnapshotId,
-                    catalogVersionBasis = currentPlan.firstOrNull {
-                        it.officialSkillId == member.officialSkillId
-                    }?.catalogVersionBasis,
-                )
-            }
-            CurrentStageRosterSource.NoRoster -> emptyList()
-        }
         val materials = when (val result = repository.listMaterials(MaterialFilter(issueId = issueId))) {
             is RepositoryResult.Success -> result.value
             is RepositoryResult.Failure -> return result
@@ -403,16 +389,9 @@ class AdvanceIssueViewModel internal constructor(
             is RepositoryResult.Success -> result.value
             is RepositoryResult.Failure -> return result
         }
-        val activeStatuses = setOf(ExecutionRunStatus.NOT_STARTED, ExecutionRunStatus.RUNNING)
-        val blockingRun = recovery.core.runs.any {
-            it.stageId == currentStage.id && it.status in activeStatuses
+        val blockingRun = recovery.core.runs.any { run ->
+            run.stageId == currentStage.id && run.status in ACTIVE_RUN_STATUSES
         }
-        val unfinishedDiscussionStatuses = setOf(
-            CrossDiscussionStatus.RESPONDING,
-            CrossDiscussionStatus.SYNTHESIZING,
-            CrossDiscussionStatus.AWAITING_SYNTHESIS,
-            CrossDiscussionStatus.PARTIAL_SUCCESS,
-        )
         val currentDrafts = recovery.resources.drafts.filter { it.stageId == currentStage.id }
         val defaultMaterialIds = recovery.resources.materialUsages
             .asSequence()
@@ -448,19 +427,57 @@ class AdvanceIssueViewModel internal constructor(
                 roster = roster,
                 materials = materials.sortedWith(compareBy({ it.title }, { it.id })),
                 artifacts = recovery.resources.artifacts.sortedWith(
-                    compareByDescending<com.elio.jianyu.data.ConfirmedArtifactEntity> { it.confirmedAt }
+                    compareByDescending<ConfirmedArtifactEntity> { it.confirmedAt }
                         .thenBy { it.id },
                 ),
                 defaultMaterialIds = defaultMaterialIds,
                 defaultArtifactIds = defaultArtifactIds,
                 hasBlockingRun = blockingRun,
                 hasUnfinishedDiscussion = collaboration.discussions.any {
-                    it.status in unfinishedDiscussionStatuses
+                    it.status in UNFINISHED_DISCUSSION_STATUSES
                 },
                 currentStageHasDraft = currentDrafts.isNotEmpty(),
                 undoAvailable = currentStage.sequenceIndex > 0 && dependencyFree,
             ),
         )
+    }
+
+    private fun resolveRoster(
+        currentStageId: String,
+        recovery: com.elio.jianyu.data.IssueRecoverySnapshot,
+        currentPlan: List<com.elio.jianyu.data.StageAdvancementSkillMemberEntity>,
+    ): List<StageAdvancementSkillPlan> {
+        return when (
+            val source = CurrentStageRosterPolicy.resolveSource(
+                stageId = currentStageId,
+                runs = recovery.core.runs,
+                participants = recovery.core.participants,
+                plannedMembers = currentPlan,
+            )
+        ) {
+            is CurrentStageRosterSource.StandardRun -> source.members.map { member ->
+                StageAdvancementSkillPlan(
+                    officialSkillId = member.officialSkillId,
+                    position = member.position,
+                    responsibility = member.responsibility,
+                    sourceRunId = member.sourceRunId,
+                    sourceParticipantSnapshotId = member.sourceParticipantSnapshotId,
+                )
+            }
+            is CurrentStageRosterSource.AdvancementPlan -> source.members.map { member ->
+                StageAdvancementSkillPlan(
+                    officialSkillId = member.officialSkillId,
+                    position = member.position,
+                    responsibility = member.responsibility,
+                    sourceRunId = member.sourceRunId,
+                    sourceParticipantSnapshotId = member.sourceParticipantSnapshotId,
+                    catalogVersionBasis = currentPlan.firstOrNull {
+                        it.officialSkillId == member.officialSkillId
+                    }?.catalogVersionBasis,
+                )
+            }
+            CurrentStageRosterSource.NoRoster -> emptyList()
+        }
     }
 
     private fun openWithCandidates(candidates: AdvanceIssueCandidates) {
@@ -485,11 +502,17 @@ class AdvanceIssueViewModel internal constructor(
         val updated = pair.second.edited(transform)
         persist(updated)
         _state.value = when (_state.value) {
-            is AdvanceIssueUiState.DirectionStep -> AdvanceIssueUiState.DirectionStep(pair.first, updated)
-            is AdvanceIssueUiState.MeasureStep -> AdvanceIssueUiState.MeasureStep(pair.first, updated)
-            is AdvanceIssueUiState.SummaryStep -> AdvanceIssueUiState.MeasureStep(pair.first, updated)
-            is AdvanceIssueUiState.CreateFailure -> AdvanceIssueUiState.MeasureStep(pair.first, updated)
-            is AdvanceIssueUiState.IdempotencyConflict -> AdvanceIssueUiState.MeasureStep(pair.first, updated)
+            is AdvanceIssueUiState.DirectionStep -> {
+                AdvanceIssueUiState.DirectionStep(pair.first, updated)
+            }
+            is AdvanceIssueUiState.MeasureStep -> {
+                AdvanceIssueUiState.MeasureStep(pair.first, updated)
+            }
+            is AdvanceIssueUiState.SummaryStep,
+            is AdvanceIssueUiState.CreateFailure,
+            is AdvanceIssueUiState.IdempotencyConflict -> {
+                AdvanceIssueUiState.MeasureStep(pair.first, updated)
+            }
             else -> _state.value
         }
     }
@@ -561,11 +584,12 @@ class AdvanceIssueViewModel internal constructor(
             KEY_MATERIALS,
             KEY_ARTIFACTS,
             KEY_SUMMARY_REVISION,
-        ).forEach(savedStateHandle::remove)
+        ).forEach { key -> savedStateHandle.remove<Any?>(key) }
     }
 
     private fun clearFlow() {
         candidates = null
+        _workspace.value = null
         loadedIssueId = null
         viewedStageId = null
         _state.value = AdvanceIssueUiState.Idle
@@ -582,18 +606,20 @@ class AdvanceIssueViewModel internal constructor(
     }
 
     private fun currentPlanMaterials(
-        advancements: List<com.elio.jianyu.data.StageAdvancementSnapshot>,
+        advancements: List<StageAdvancementSnapshot>,
         stageId: String,
-    ): Set<String> = advancements.firstOrNull { it.stage.id == stageId }
+    ): Set<String> = advancements
+        .firstOrNull { it.stage.id == stageId }
         ?.materials
         .orEmpty()
         .map { it.materialReferenceId }
         .toSet()
 
     private fun currentPlanArtifacts(
-        advancements: List<com.elio.jianyu.data.StageAdvancementSnapshot>,
+        advancements: List<StageAdvancementSnapshot>,
         stageId: String,
-    ): Set<String> = advancements.firstOrNull { it.stage.id == stageId }
+    ): Set<String> = advancements
+        .firstOrNull { it.stage.id == stageId }
         ?.artifacts
         .orEmpty()
         .map { it.artifactId }
@@ -613,6 +639,16 @@ class AdvanceIssueViewModel internal constructor(
             StageAdvancementMeasure.CHECK_KEY_ASSUMPTIONS,
             StageAdvancementMeasure.COMPARE_POSITIONS,
             StageAdvancementMeasure.DEEPEN_QUESTION,
+        )
+        private val ACTIVE_RUN_STATUSES = setOf(
+            ExecutionRunStatus.NOT_STARTED,
+            ExecutionRunStatus.RUNNING,
+        )
+        private val UNFINISHED_DISCUSSION_STATUSES = setOf(
+            CrossDiscussionStatus.RESPONDING,
+            CrossDiscussionStatus.SYNTHESIZING,
+            CrossDiscussionStatus.AWAITING_SYNTHESIS,
+            CrossDiscussionStatus.PARTIAL_SUCCESS,
         )
 
         private const val KEY_ISSUE_ID = "advance_issue.issue_id"
