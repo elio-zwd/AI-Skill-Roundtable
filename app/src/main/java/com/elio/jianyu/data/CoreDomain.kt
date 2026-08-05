@@ -14,16 +14,14 @@ import androidx.room.TypeConverter
 
 @Entity(
     tableName = "issues",
-    indices = [
-        Index(value = ["legacyChatSessionId"], unique = true)
-    ]
+    indices = [Index(value = ["legacyChatSessionId"], unique = true)],
 )
 data class IssueEntity(
     @PrimaryKey val id: String,
     val title: String,
     val createdAt: Long,
     val updatedAt: Long,
-    val legacyChatSessionId: Long? = null
+    val legacyChatSessionId: Long? = null,
 )
 
 @Entity(
@@ -33,14 +31,14 @@ data class IssueEntity(
             entity = IssueEntity::class,
             parentColumns = ["id"],
             childColumns = ["issueId"],
-            onDelete = ForeignKey.RESTRICT
-        )
+            onDelete = ForeignKey.RESTRICT,
+        ),
     ],
     indices = [
         Index(value = ["issueId"]),
         Index(value = ["issueId", "sequenceIndex"], unique = true),
-        Index(value = ["id", "issueId"], unique = true)
-    ]
+        Index(value = ["id", "issueId"], unique = true),
+    ],
 )
 data class StageEntity(
     @PrimaryKey val id: String,
@@ -49,7 +47,7 @@ data class StageEntity(
     val title: String,
     val objective: String,
     val createdAt: Long,
-    val updatedAt: Long
+    val updatedAt: Long,
 )
 
 enum class ExecutionRunStatus(val storageValue: String) {
@@ -60,7 +58,7 @@ enum class ExecutionRunStatus(val storageValue: String) {
     STOPPED("stopped"),
     FAILED("failed"),
     RETRYABLE("retryable"),
-    COMPLETED("completed")
+    COMPLETED("completed"),
 }
 
 enum class ExecutionRunKind(val storageValue: String) {
@@ -94,8 +92,7 @@ class CoreDomainConverters {
             ?: throw IllegalArgumentException("Unknown execution run kind: $value")
 
     @TypeConverter
-    fun executionHistoryScopeToStorageValue(scope: ExecutionHistoryScope): String =
-        scope.storageValue
+    fun executionHistoryScopeToStorageValue(scope: ExecutionHistoryScope): String = scope.storageValue
 
     @TypeConverter
     fun storageValueToExecutionHistoryScope(value: String): ExecutionHistoryScope =
@@ -110,20 +107,14 @@ class CoreDomainConverters {
             entity = StageEntity::class,
             parentColumns = ["id", "issueId"],
             childColumns = ["stageId", "issueId"],
-            onDelete = ForeignKey.RESTRICT
+            onDelete = ForeignKey.RESTRICT,
         ),
         ForeignKey(
             entity = ExecutionRunEntity::class,
             parentColumns = ["id"],
             childColumns = ["retryOfRunId"],
-            onDelete = ForeignKey.RESTRICT
+            onDelete = ForeignKey.RESTRICT,
         ),
-        ForeignKey(
-            entity = ExecutionRunEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["parentRunId"],
-            onDelete = ForeignKey.RESTRICT
-        )
     ],
     indices = [
         Index(value = ["stageId", "issueId"]),
@@ -134,8 +125,8 @@ class CoreDomainConverters {
         Index(value = ["retryOfRunId"]),
         Index(value = ["parentRunId"]),
         Index(value = ["discussionId"]),
-        Index(value = ["stageId", "runKind"])
-    ]
+        Index(value = ["stageId", "runKind"]),
+    ],
 )
 data class ExecutionRunEntity(
     @PrimaryKey val id: String,
@@ -168,15 +159,15 @@ data class ExecutionRunEntity(
             entity = ExecutionRunEntity::class,
             parentColumns = ["id"],
             childColumns = ["runId"],
-            onDelete = ForeignKey.RESTRICT
-        )
+            onDelete = ForeignKey.RESTRICT,
+        ),
     ],
     indices = [
         Index(value = ["runId"]),
         Index(value = ["runId", "position"], unique = true),
         Index(value = ["runId", "sourceType", "sourceId"], unique = true),
-        Index(value = ["id", "runId"], unique = true)
-    ]
+        Index(value = ["id", "runId"], unique = true),
+    ],
 )
 data class ExecutionParticipantSnapshotEntity(
     @PrimaryKey val id: String,
@@ -190,7 +181,7 @@ data class ExecutionParticipantSnapshotEntity(
     val configurationJson: String,
     val defaultResponsibility: String,
     val position: Int,
-    val createdAt: Long
+    val createdAt: Long,
 )
 
 @Dao
@@ -206,14 +197,11 @@ abstract class CoreDomainDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     abstract suspend fun insertParticipantSnapshots(
-        snapshots: List<ExecutionParticipantSnapshotEntity>
+        snapshots: List<ExecutionParticipantSnapshotEntity>,
     )
 
     @Transaction
-    open suspend fun createIssueWithInitialStage(
-        issue: IssueEntity,
-        stage: StageEntity
-    ) {
+    open suspend fun createIssueWithInitialStage(issue: IssueEntity, stage: StageEntity) {
         insertIssue(issue)
         insertStage(stage)
     }
@@ -221,7 +209,7 @@ abstract class CoreDomainDao {
     @Transaction
     open suspend fun createRunWithParticipants(
         run: ExecutionRunEntity,
-        participants: List<ExecutionParticipantSnapshotEntity>
+        participants: List<ExecutionParticipantSnapshotEntity>,
     ) {
         insertExecutionRun(run)
         insertParticipantSnapshots(participants)
@@ -238,41 +226,31 @@ abstract class CoreDomainDao {
 
     @Query(
         "SELECT * FROM execution_participant_snapshots " +
-            "WHERE runId = :runId ORDER BY position ASC"
+            "WHERE runId = :runId ORDER BY position ASC",
     )
-    abstract suspend fun getParticipantSnapshots(
-        runId: String
-    ): List<ExecutionParticipantSnapshotEntity>
+    abstract suspend fun getParticipantSnapshots(runId: String): List<ExecutionParticipantSnapshotEntity>
 
     @Query(
-        "SELECT * FROM execution_runs " +
-            "WHERE stageId = :stageId " +
+        "SELECT * FROM execution_runs WHERE stageId = :stageId " +
             "AND status IN ('not_started', 'running', 'partial_success', 'retryable') " +
-            "ORDER BY createdAt ASC"
+            "ORDER BY createdAt ASC",
     )
     abstract suspend fun getActiveRunsForStage(stageId: String): List<ExecutionRunEntity>
 
-    @Query(
-        "SELECT * FROM messages " +
-            "WHERE stageId = :stageId " +
-            "ORDER BY timestamp ASC, id ASC"
-    )
+    @Query("SELECT * FROM messages WHERE stageId = :stageId ORDER BY timestamp ASC, id ASC")
     abstract suspend fun getMessagesForStage(stageId: String): List<Message>
 
     @Query(
-        "UPDATE messages SET " +
-            "issueId = :issueId, " +
-            "stageId = :stageId, " +
-            "executionRunId = :executionRunId, " +
-            "participantSnapshotId = :participantSnapshotId " +
-            "WHERE id = :messageId"
+        "UPDATE messages SET issueId = :issueId, stageId = :stageId, " +
+            "executionRunId = :executionRunId, participantSnapshotId = :participantSnapshotId " +
+            "WHERE id = :messageId",
     )
     abstract suspend fun bindMessageToDomain(
         messageId: Long,
         issueId: String,
         stageId: String,
         executionRunId: String?,
-        participantSnapshotId: String?
+        participantSnapshotId: String?,
     ): Int
 
     @Query("DELETE FROM issues WHERE id = :issueId")
