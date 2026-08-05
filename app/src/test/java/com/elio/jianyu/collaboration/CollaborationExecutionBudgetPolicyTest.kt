@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.fail
 import org.junit.Test
 
+/** 冻结点名、成员重试和整合重试共享预算的最小回归契约。 */
 class CollaborationExecutionBudgetPolicyTest {
     @Test
     fun directedBudgetAllowsInitialCallAndExplicitRetries() {
