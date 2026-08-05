@@ -47,6 +47,7 @@ data class CreateCrossDiscussionSynthesisCommand(
     val run: ExecutionRunEntity,
     val participant: ExecutionParticipantSnapshotEntity,
     val contextUsage: ContextUsageWriteSet = ContextUsageWriteSet(),
+    val additionalSelectedMessageIds: List<Long> = emptyList(),
     val userAcceptedPartial: Boolean,
     val createdAt: Long,
 ) {
@@ -59,6 +60,8 @@ data class CreateCrossDiscussionSynthesisCommand(
         require(run.retryOfRunId == null)
         require(participant.runId == run.id)
         require(participant.position == 0)
+        require(additionalSelectedMessageIds.all { it > 0L })
+        require(additionalSelectedMessageIds.distinct().size == additionalSelectedMessageIds.size)
         require(createdAt > 0L)
     }
 }
@@ -111,86 +114,45 @@ data class StageCollaborationSnapshot(
 )
 
 internal interface JianyuCollaborationRepository {
-    suspend fun createDirectedInteraction(
-        command: CreateDirectedInteractionCommand,
-    ): RepositoryResult<CollaborationStartResult>
-
-    suspend fun createCrossDiscussionResponse(
-        command: CreateCrossDiscussionResponseCommand,
-    ): RepositoryResult<CollaborationStartResult>
-
-    suspend fun createCrossDiscussionSynthesis(
-        command: CreateCrossDiscussionSynthesisCommand,
-    ): RepositoryResult<CollaborationStartResult>
-
-    suspend fun createCollaborationRetry(
-        command: CreateCollaborationRetryCommand,
-    ): RepositoryResult<CollaborationStartResult>
-
-    suspend fun transitionCrossDiscussion(
-        command: TransitionCrossDiscussionCommand,
-    ): RepositoryResult<CrossDiscussionSessionEntity>
-
-    suspend fun getStageCollaboration(
-        stageId: String,
-    ): RepositoryResult<StageCollaborationSnapshot>
-
-    suspend fun listExecutionMessageUsage(
-        runId: String,
-    ): RepositoryResult<List<ExecutionMessageUsageSnapshotEntity>>
+    suspend fun createDirectedInteraction(command: CreateDirectedInteractionCommand): RepositoryResult<CollaborationStartResult>
+    suspend fun createCrossDiscussionResponse(command: CreateCrossDiscussionResponseCommand): RepositoryResult<CollaborationStartResult>
+    suspend fun createCrossDiscussionSynthesis(command: CreateCrossDiscussionSynthesisCommand): RepositoryResult<CollaborationStartResult>
+    suspend fun createCollaborationRetry(command: CreateCollaborationRetryCommand): RepositoryResult<CollaborationStartResult>
+    suspend fun transitionCrossDiscussion(command: TransitionCrossDiscussionCommand): RepositoryResult<CrossDiscussionSessionEntity>
+    suspend fun getStageCollaboration(stageId: String): RepositoryResult<StageCollaborationSnapshot>
+    suspend fun listExecutionMessageUsage(runId: String): RepositoryResult<List<ExecutionMessageUsageSnapshotEntity>>
 }
 
-suspend fun JianyuRepository.createDirectedInteraction(
-    command: CreateDirectedInteractionCommand,
-): RepositoryResult<CollaborationStartResult> = collaborationCapability(
-    "create_directed_interaction",
-)?.createDirectedInteraction(command) ?: missingCollaborationCapability("create_directed_interaction")
+suspend fun JianyuRepository.createDirectedInteraction(command: CreateDirectedInteractionCommand): RepositoryResult<CollaborationStartResult> =
+    collaborationCapability()?.createDirectedInteraction(command)
+        ?: missingCollaborationCapability("create_directed_interaction")
 
-suspend fun JianyuRepository.createCrossDiscussionResponse(
-    command: CreateCrossDiscussionResponseCommand,
-): RepositoryResult<CollaborationStartResult> = collaborationCapability(
-    "create_cross_discussion_response",
-)?.createCrossDiscussionResponse(command)
-    ?: missingCollaborationCapability("create_cross_discussion_response")
+suspend fun JianyuRepository.createCrossDiscussionResponse(command: CreateCrossDiscussionResponseCommand): RepositoryResult<CollaborationStartResult> =
+    collaborationCapability()?.createCrossDiscussionResponse(command)
+        ?: missingCollaborationCapability("create_cross_discussion_response")
 
-suspend fun JianyuRepository.createCrossDiscussionSynthesis(
-    command: CreateCrossDiscussionSynthesisCommand,
-): RepositoryResult<CollaborationStartResult> = collaborationCapability(
-    "create_cross_discussion_synthesis",
-)?.createCrossDiscussionSynthesis(command)
-    ?: missingCollaborationCapability("create_cross_discussion_synthesis")
+suspend fun JianyuRepository.createCrossDiscussionSynthesis(command: CreateCrossDiscussionSynthesisCommand): RepositoryResult<CollaborationStartResult> =
+    collaborationCapability()?.createCrossDiscussionSynthesis(command)
+        ?: missingCollaborationCapability("create_cross_discussion_synthesis")
 
-suspend fun JianyuRepository.createCollaborationRetry(
-    command: CreateCollaborationRetryCommand,
-): RepositoryResult<CollaborationStartResult> = collaborationCapability(
-    "create_collaboration_retry",
-)?.createCollaborationRetry(command) ?: missingCollaborationCapability("create_collaboration_retry")
+suspend fun JianyuRepository.createCollaborationRetry(command: CreateCollaborationRetryCommand): RepositoryResult<CollaborationStartResult> =
+    collaborationCapability()?.createCollaborationRetry(command)
+        ?: missingCollaborationCapability("create_collaboration_retry")
 
-suspend fun JianyuRepository.transitionCrossDiscussion(
-    command: TransitionCrossDiscussionCommand,
-): RepositoryResult<CrossDiscussionSessionEntity> = collaborationCapability(
-    "transition_cross_discussion",
-)?.transitionCrossDiscussion(command) ?: missingCollaborationCapability("transition_cross_discussion")
+suspend fun JianyuRepository.transitionCrossDiscussion(command: TransitionCrossDiscussionCommand): RepositoryResult<CrossDiscussionSessionEntity> =
+    collaborationCapability()?.transitionCrossDiscussion(command)
+        ?: missingCollaborationCapability("transition_cross_discussion")
 
-suspend fun JianyuRepository.getStageCollaboration(
-    stageId: String,
-): RepositoryResult<StageCollaborationSnapshot> = collaborationCapability(
-    "get_stage_collaboration",
-)?.getStageCollaboration(stageId) ?: missingCollaborationCapability("get_stage_collaboration")
+suspend fun JianyuRepository.getStageCollaboration(stageId: String): RepositoryResult<StageCollaborationSnapshot> =
+    collaborationCapability()?.getStageCollaboration(stageId)
+        ?: missingCollaborationCapability("get_stage_collaboration")
 
-suspend fun JianyuRepository.listExecutionMessageUsage(
-    runId: String,
-): RepositoryResult<List<ExecutionMessageUsageSnapshotEntity>> = collaborationCapability(
-    "list_execution_message_usage",
-)?.listExecutionMessageUsage(runId) ?: missingCollaborationCapability("list_execution_message_usage")
+suspend fun JianyuRepository.listExecutionMessageUsage(runId: String): RepositoryResult<List<ExecutionMessageUsageSnapshotEntity>> =
+    collaborationCapability()?.listExecutionMessageUsage(runId)
+        ?: missingCollaborationCapability("list_execution_message_usage")
 
-private fun JianyuRepository.collaborationCapability(
-    operation: String,
-): JianyuCollaborationRepository? {
-    @Suppress("UNUSED_VARIABLE")
-    val operationName = operation
-    return this as? JianyuCollaborationRepository
-}
+private fun JianyuRepository.collaborationCapability(): JianyuCollaborationRepository? =
+    this as? JianyuCollaborationRepository
 
 private fun <T> missingCollaborationCapability(operation: String): RepositoryResult<T> =
     RepositoryResult.Failure(
