@@ -97,6 +97,24 @@ sealed interface AudioAssetCreateResult {
     data object Conflict : AudioAssetCreateResult
 }
 
+data class ResetAudioForRetryCommand(
+    val audioAssetId: String,
+    val expectedState: AudioFileState,
+    val source: AudioAssetSource,
+    val config: AudioGenerationConfig,
+    val generationKey: String,
+)
+
+sealed interface AudioAssetRetryResetResult {
+    data class Reset(
+        val asset: AudioAssetRecord,
+    ) : AudioAssetRetryResetResult
+
+    data object Rejected : AudioAssetRetryResetResult
+
+    data object Conflict : AudioAssetRetryResetResult
+}
+
 data class MarkAudioAvailableCommand(
     val audioAssetId: String,
     val relativePath: String,
@@ -127,6 +145,15 @@ interface AudioAssetRepositoryPort {
         audioAssetId: String,
         expectedState: AudioFileState,
     ): Boolean
+
+    /**
+     * 将失败、缺失或已取消资产以比较并交换方式恢复为 PENDING。
+     *
+     * 阶段 A 使用拒绝作为安全默认值；阶段 B 的 Room 适配器必须提供原子实现。
+     */
+    suspend fun resetForRetry(
+        command: ResetAudioForRetryCommand,
+    ): AudioAssetRetryResetResult = AudioAssetRetryResetResult.Rejected
 }
 
 interface AudioGenerationSchedulerPort {
@@ -169,6 +196,35 @@ sealed interface AudioGenerationRequestResult {
     data class Failure(
         val errorCode: AudioGenerationErrorCode,
     ) : AudioGenerationRequestResult
+}
+
+data class RetryAudioGenerationCommand(
+    val audioAssetId: String,
+    val userConfirmed: Boolean,
+    val estimatedOutputBytes: Long,
+    val minimumReservationBytes: Long,
+    val safetyMarginBytes: Long,
+)
+
+sealed interface AudioGenerationRetryResult {
+    data object ConfirmationRequired : AudioGenerationRetryResult
+
+    data class Queued(
+        val asset: AudioAssetRecord,
+        val workPlan: AudioGenerationWorkPlan,
+    ) : AudioGenerationRetryResult
+
+    data class ReusedAvailable(
+        val asset: AudioAssetRecord,
+    ) : AudioGenerationRetryResult
+
+    data class ReusedPending(
+        val asset: AudioAssetRecord,
+    ) : AudioGenerationRetryResult
+
+    data class Failure(
+        val errorCode: AudioGenerationErrorCode,
+    ) : AudioGenerationRetryResult
 }
 
 sealed interface AudioGenerationExecutionResult {
@@ -282,6 +338,150 @@ class AudioGenerationCoordinator(
         }
         return AudioGenerationRequestResult.Queued(
             asset = asset,
+            workPlan = plan,
+        )
+    }
+
+    suspend fun retryGeneration(
+        command: RetryAudioGenerationCommand,
+    ): AudioGenerationRetryResult {
+        if (!command.userConfirmed) {
+            return AudioGenerationRetryResult.ConfirmationRequired
+        }
+
+        val original = repository.loadAsset(command.audioAssetId)
+            ?: return AudioGenerationRetryResult.Failure(
+                AudioGenerationErrorCode.ASSET_NOT_FOUND,
+            )
+        if (original.deletedAt != null) {
+            return AudioGenerationRetryResult.Failure(AudioGenerationErrorCode.DELETED)
+        }
+        if (original.purgeRequestedAt != null) {
+            return AudioGenerationRetryResult.Failure(AudioGenerationErrorCode.PURGE_REQUESTED)
+        }
+        if (!isSupportedConfig(original.config)) {
+            return AudioGenerationRetryResult.Failure(
+                AudioGenerationErrorCode.UNSUPPORTED_CONFIG,
+            )
+        }
+
+        when (original.fileState) {
+            AudioFileState.AVAILABLE -> {
+                return AudioGenerationRetryResult.ReusedAvailable(original)
+            }
+            AudioFileState.PENDING -> {
+                val plan = AudioGenerationWorkPolicy.plan(
+                    audioAssetId = original.id,
+                    generationKey = original.generationKey,
+                    requestKind = AudioWorkRequestKind.INITIAL,
+                )
+                return if (scheduler.isActive(plan.uniqueWorkName)) {
+                    AudioGenerationRetryResult.ReusedPending(original)
+                } else {
+                    AudioGenerationRetryResult.Failure(
+                        AudioGenerationErrorCode.PENDING_WITHOUT_ACTIVE_WORK,
+                    )
+                }
+            }
+            AudioFileState.FAILED,
+            AudioFileState.MISSING,
+            AudioFileState.CANCELED,
+            -> Unit
+        }
+
+        val reference = original.source.toReference()
+        val snapshot = when (val sourceResult = repository.loadSource(reference)) {
+            is AudioSourceLoadResult.Ready -> sourceResult.snapshot
+            is AudioSourceLoadResult.Rejected -> {
+                return AudioGenerationRetryResult.Failure(sourceResult.errorCode)
+            }
+        }
+        sourceRelationshipError(reference, snapshot.source)?.let { errorCode ->
+            return AudioGenerationRetryResult.Failure(errorCode)
+        }
+
+        val generationKey = AudioGenerationKeyFactory.create(snapshot.source, original.config)
+        val existingForKey = repository.findByGenerationKey(generationKey)
+        if (existingForKey != null && existingForKey.id != original.id) {
+            return classifyExistingForRetry(existingForKey)
+        }
+
+        if (fileStore.preflight(
+                estimatedOutputBytes = command.estimatedOutputBytes,
+                minimumReservationBytes = command.minimumReservationBytes,
+                safetyMarginBytes = command.safetyMarginBytes,
+            ) is AudioStoragePreflight.Insufficient
+        ) {
+            return AudioGenerationRetryResult.Failure(
+                AudioGenerationErrorCode.INSUFFICIENT_STORAGE,
+            )
+        }
+
+        val pendingAsset = if (generationKey == original.generationKey) {
+            when (val resetResult = repository.resetForRetry(
+                ResetAudioForRetryCommand(
+                    audioAssetId = original.id,
+                    expectedState = original.fileState,
+                    source = snapshot.source,
+                    config = original.config,
+                    generationKey = generationKey,
+                ),
+            )) {
+                is AudioAssetRetryResetResult.Reset -> resetResult.asset
+                AudioAssetRetryResetResult.Conflict -> {
+                    return AudioGenerationRetryResult.Failure(
+                        AudioGenerationErrorCode.DUPLICATE_CONFLICT,
+                    )
+                }
+                AudioAssetRetryResetResult.Rejected -> {
+                    return AudioGenerationRetryResult.Failure(
+                        AudioGenerationErrorCode.REPOSITORY_REJECTED,
+                    )
+                }
+            }
+        } else {
+            val newAudioAssetId = audioAssetIdFactory()
+            if (newAudioAssetId.isBlank()) {
+                return AudioGenerationRetryResult.Failure(
+                    AudioGenerationErrorCode.REPOSITORY_REJECTED,
+                )
+            }
+            when (val createResult = repository.createPending(
+                CreatePendingAudioCommand(
+                    audioAssetId = newAudioAssetId,
+                    source = snapshot.source,
+                    config = original.config,
+                    generationKey = generationKey,
+                ),
+            )) {
+                is AudioAssetCreateResult.Created -> createResult.asset
+                is AudioAssetCreateResult.Existing -> {
+                    return classifyExistingForRetry(createResult.asset)
+                }
+                AudioAssetCreateResult.Conflict -> {
+                    return AudioGenerationRetryResult.Failure(
+                        AudioGenerationErrorCode.DUPLICATE_CONFLICT,
+                    )
+                }
+            }
+        }
+
+        val plan = AudioGenerationWorkPolicy.plan(
+            audioAssetId = pendingAsset.id,
+            generationKey = pendingAsset.generationKey,
+            requestKind = AudioWorkRequestKind.EXPLICIT_RETRY,
+        )
+        if (!scheduler.schedule(plan)) {
+            repository.markFailed(
+                audioAssetId = pendingAsset.id,
+                expectedState = AudioFileState.PENDING,
+            )
+            return AudioGenerationRetryResult.Failure(
+                AudioGenerationErrorCode.SCHEDULE_FAILED,
+            )
+        }
+        return AudioGenerationRetryResult.Queued(
+            asset = pendingAsset,
             workPlan = plan,
         )
     }
@@ -487,6 +687,34 @@ class AudioGenerationCoordinator(
             AudioFileState.MISSING,
             AudioFileState.CANCELED,
             -> AudioGenerationRequestResult.ExplicitRetryRequired(asset)
+        }
+    }
+
+    private suspend fun classifyExistingForRetry(
+        asset: AudioAssetRecord,
+    ): AudioGenerationRetryResult {
+        return when (asset.fileState) {
+            AudioFileState.AVAILABLE -> AudioGenerationRetryResult.ReusedAvailable(asset)
+            AudioFileState.PENDING -> {
+                val plan = AudioGenerationWorkPolicy.plan(
+                    audioAssetId = asset.id,
+                    generationKey = asset.generationKey,
+                    requestKind = AudioWorkRequestKind.INITIAL,
+                )
+                if (scheduler.isActive(plan.uniqueWorkName)) {
+                    AudioGenerationRetryResult.ReusedPending(asset)
+                } else {
+                    AudioGenerationRetryResult.Failure(
+                        AudioGenerationErrorCode.PENDING_WITHOUT_ACTIVE_WORK,
+                    )
+                }
+            }
+            AudioFileState.FAILED,
+            AudioFileState.MISSING,
+            AudioFileState.CANCELED,
+            -> AudioGenerationRetryResult.Failure(
+                AudioGenerationErrorCode.DUPLICATE_CONFLICT,
+            )
         }
     }
 
