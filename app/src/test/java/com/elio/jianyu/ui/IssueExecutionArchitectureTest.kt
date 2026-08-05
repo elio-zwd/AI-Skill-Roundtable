@@ -23,6 +23,22 @@ class IssueExecutionArchitectureTest {
     }
 
     @Test
+    fun stageResultLayerDoesNotOwnNetworkCoordinatorDaoOrBudgetState() {
+        val service = sourceTree("app/src/main/java/com/elio/jianyu/result")
+        val ui = sourceTree("app/src/main/java/com/elio/jianyu/ui/screens/result")
+        val combined = "$service\n$ui"
+
+        assertFalse(combined.contains("JianyuRepositoryDao"))
+        assertFalse(combined.contains("Retrofit"))
+        assertFalse(combined.contains("InteractionStreamingClient"))
+        assertFalse(combined.contains("InteractionExecutionNetworkGateway"))
+        assertFalse(combined.contains("ExecutionRunCoordinator"))
+        assertFalse(combined.contains("IssueCollaborationCoordinator"))
+        assertFalse(combined.contains("RequestBudgetTracker"))
+        assertFalse(combined.contains("consumeExecutionBudget"))
+    }
+
+    @Test
     fun screenAndComponentsOnlyRenderState() {
         val screen = source("app/src/main/java/com/elio/jianyu/ui/screens/execution/IssueExecutionScreen.kt")
         val components = source(
@@ -51,14 +67,17 @@ class IssueExecutionArchitectureTest {
     }
 
     @Test
-    fun issueDeepLinkUsesSingleCoordinatorAndNewExecutionRoute() {
+    fun issueDeepLinkUsesSingleCoordinatorAndSharedStageResultService() {
         val app = source("app/src/main/java/com/elio/jianyu/ui/App.kt")
         val runtime = source("app/src/main/java/com/elio/jianyu/JianyuAppRuntime.kt")
 
         assertTrue(app.contains("IssueExecutionRoute("))
         assertFalse(app.contains("IssueRecoveryRoute("))
+        assertTrue(app.contains("stageResultService = appRuntime.stageResultService"))
         assertTrue(runtime.contains("val executionCoordinator: ExecutionRunCoordinator?"))
+        assertTrue(runtime.contains("val stageResultService: StageResultService"))
         assertEqualsOnce(runtime, "ExecutionRunCoordinator(")
+        assertEqualsOnce(runtime, "StageResultService(repository)")
     }
 
     @Test

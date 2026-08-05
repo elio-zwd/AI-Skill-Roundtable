@@ -17,15 +17,21 @@ fun ResourcesRoute(
     repository: JianyuRepository,
     initialTab: ResourceTab,
     onOpenSettings: () -> Unit,
+    onOpenIssue: (String, String) -> Unit = { _, _ -> },
     viewModel: ResourcesViewModel = viewModel(factory = ResourcesViewModel.factory(repository)),
+    artifactViewModel: ArtifactLibraryViewModel = viewModel(
+        factory = ArtifactLibraryViewModel.factory(repository),
+    ),
 ) {
     var selectedRouteValue by rememberSaveable(initialTab.routeValue) {
         mutableStateOf(initialTab.routeValue)
     }
     val state by viewModel.state.collectAsState()
+    val artifactState by artifactViewModel.state.collectAsState()
     ResourcesScreen(
         selectedTab = ResourceTab.fromRouteValue(selectedRouteValue),
         state = state,
+        artifactState = artifactState,
         onSelectTab = { tab -> selectedRouteValue = tab.routeValue },
         onOpenSettings = onOpenSettings,
         onRetry = viewModel::refresh,
@@ -51,5 +57,12 @@ fun ResourcesRoute(
         onSaveEditor = viewModel::saveEditor,
         onDismissPurge = viewModel::cancelPurge,
         onConfirmPurge = viewModel::confirmPurge,
+        onArtifactRetry = artifactViewModel::refresh,
+        onArtifactQueryChange = artifactViewModel::updateQuery,
+        onArtifactTypesChange = artifactViewModel::selectTypes,
+        onArtifactHistoryChange = artifactViewModel::setIncludeHistory,
+        onOpenArtifact = artifactViewModel::openArtifact,
+        onDismissArtifact = artifactViewModel::dismissArtifact,
+        onOpenArtifactIssue = onOpenIssue,
     )
 }

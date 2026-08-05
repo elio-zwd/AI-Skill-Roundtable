@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.data.ContextSourceLifecycle
+import com.elio.jianyu.result.ArtifactType
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.components.JianyuPageShell
 import com.elio.jianyu.ui.components.JianyuStateCard
@@ -27,6 +28,8 @@ fun ResourcesScreen(
     onSelectTab: (ResourceTab) -> Unit,
     onOpenSettings: () -> Unit,
     state: ResourcesUiState = ResourcesUiState.Content(),
+    artifactState: ArtifactLibraryUiState =
+        (state as? ResourcesUiState.Content)?.artifactLibrary ?: ArtifactLibraryUiState.Loading,
     onRetry: () -> Unit = {},
     onSelectSection: (ResourceLibrarySection) -> Unit = {},
     onQueryChange: (String) -> Unit = {},
@@ -43,6 +46,13 @@ fun ResourcesScreen(
     onSaveEditor: () -> Unit = {},
     onDismissPurge: () -> Unit = {},
     onConfirmPurge: () -> Unit = {},
+    onArtifactRetry: () -> Unit = {},
+    onArtifactQueryChange: (String) -> Unit = {},
+    onArtifactTypesChange: (Set<ArtifactType>) -> Unit = {},
+    onArtifactHistoryChange: (Boolean) -> Unit = {},
+    onOpenArtifact: (String) -> Unit = {},
+    onDismissArtifact: () -> Unit = {},
+    onOpenArtifactIssue: (String, String) -> Unit = { _, _ -> },
 ) {
     JianyuPageShell(
         title = "资料与成果",
@@ -67,10 +77,15 @@ fun ResourcesScreen(
         }
 
         when (selectedTab) {
-            ResourceTab.ARTIFACTS -> JianyuStateCard(
-                title = "暂无成果",
-                message = "成果业务将在 PR09-10A 接入。只有用户明确确认的内容才会成为正式成果。",
-                modifier = Modifier.testTag(ResourcesTestTags.EMPTY_STATE),
+            ResourceTab.ARTIFACTS -> ArtifactLibraryContent(
+                state = artifactState,
+                onRetry = onArtifactRetry,
+                onQueryChange = onArtifactQueryChange,
+                onTypesChange = onArtifactTypesChange,
+                onIncludeHistoryChange = onArtifactHistoryChange,
+                onOpenArtifact = onOpenArtifact,
+                onDismissArtifact = onDismissArtifact,
+                onOpenIssue = onOpenArtifactIssue,
             )
             ResourceTab.MATERIALS -> ResourceLibraryContent(
                 state = state,
