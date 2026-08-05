@@ -8,7 +8,9 @@ import com.elio.jianyu.ui.screens.context.ContextConfirmationTestTags
 import com.elio.jianyu.ui.screens.execution.IssueExecutionTestTags
 import com.elio.jianyu.ui.screens.home.HomeTestTags
 import com.elio.jianyu.ui.screens.issues.IssuesTestTags
+import com.elio.jianyu.ui.screens.resources.ArtifactLibraryTestTags
 import com.elio.jianyu.ui.screens.resources.ResourcesTestTags
+import com.elio.jianyu.ui.screens.result.StageResultTestTags
 import com.elio.jianyu.ui.screens.settings.SettingsShellTestTags
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -69,6 +71,22 @@ class JianyuAutomationTagsTest {
             ResourcesTestTags.material("material-42"),
         )
         assertEquals(
+            JianyuAutomationTags.Artifacts.LIBRARY,
+            ArtifactLibraryTestTags.LIBRARY,
+        )
+        assertEquals(
+            JianyuAutomationTags.Artifacts.item("artifact-42"),
+            ArtifactLibraryTestTags.item("artifact-42"),
+        )
+        assertEquals(
+            JianyuAutomationTags.StageResult.PANEL,
+            StageResultTestTags.PANEL,
+        )
+        assertEquals(
+            JianyuAutomationTags.StageResult.message(42),
+            StageResultTestTags.message(42),
+        )
+        assertEquals(
             JianyuAutomationTags.Screen.ISSUE_EXECUTION,
             IssueExecutionTestTags.SCREEN,
         )
@@ -117,6 +135,14 @@ class JianyuAutomationTagsTest {
             "home_example_question_career-transition",
             JianyuAutomationTags.Home.exampleQuestion("career-transition"),
         )
+        assertEquals(
+            "artifact_item_artifact-42",
+            JianyuAutomationTags.Artifacts.item("artifact-42"),
+        )
+        assertEquals(
+            "stage_artifact_artifact-42",
+            JianyuAutomationTags.StageResult.artifact("artifact-42"),
+        )
         assertNotEquals(
             JianyuAutomationTags.Resources.material("same-id"),
             JianyuAutomationTags.Resources.personalContext("same-id"),
@@ -129,6 +155,12 @@ class JianyuAutomationTagsTest {
         }
         assertThrows(IllegalArgumentException::class.java) {
             JianyuAutomationTags.Home.recommendationSkill("私人问题正文")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            JianyuAutomationTags.Artifacts.item("成果正文")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            JianyuAutomationTags.StageResult.artifact("private title")
         }
         assertThrows(IllegalArgumentException::class.java) {
             JianyuAutomationTags.normalizedStableId("private title")
