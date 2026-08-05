@@ -9,7 +9,10 @@ package com.elio.jianyu.data
 class RoomJianyuRepository(
     database: RoundtableDatabase,
     officialSkillIdValidator: OfficialSkillIdValidator = RejectingOfficialSkillIdValidator
-) : JianyuRepository, JianyuExecutionRuntimeRepository, JianyuCollaborationRepository {
+) : JianyuRepository,
+    JianyuExecutionRuntimeRepository,
+    JianyuCollaborationRepository,
+    JianyuArtifactSourceRecoveryRepository {
     private val transactions = JianyuRepositoryTransactions(database)
     private val issueExecution = IssueExecutionRepositoryComponent(transactions)
     private val executionRuntime = ExecutionRuntimeRepositoryComponent(transactions)
@@ -22,6 +25,7 @@ class RoomJianyuRepository(
         transactions = transactions,
         officialSkillIdValidator = officialSkillIdValidator
     )
+    private val artifactSourceRecovery = ArtifactSourceRecoveryRepositoryComponent(transactions)
     private val usages = UsageRepositoryComponent(transactions)
     private val materialContext = MaterialContextRepositoryComponent(transactions)
     private val lifecycleRecovery = LifecycleRecoveryRepositoryComponent(transactions)
@@ -115,6 +119,11 @@ class RoomJianyuRepository(
         runId: String,
     ): RepositoryResult<List<ExecutionMessageUsageSnapshotEntity>> =
         collaboration.listExecutionMessageUsage(runId)
+
+    override suspend fun listArtifactSourcesForIssue(
+        issueId: String,
+    ): RepositoryResult<List<ArtifactSourceRecoverySnapshot>> =
+        artifactSourceRecovery.listArtifactSourcesForIssue(issueId)
 
     override suspend fun appendDomainMessage(
         command: AppendDomainMessageCommand
