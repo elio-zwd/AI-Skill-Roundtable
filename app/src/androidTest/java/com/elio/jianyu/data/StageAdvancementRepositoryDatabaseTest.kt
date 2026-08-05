@@ -28,7 +28,9 @@ class StageAdvancementRepositoryDatabaseTest {
             .build()
         repository = RoomJianyuRepository(
             database = database,
-            officialSkillIdValidator = OfficialSkillIdValidator { it in setOf("skill-a", "skill-b") },
+            officialSkillIdValidator = OfficialSkillIdValidator {
+                it in setOf("skill-a", "skill-b")
+            },
         )
     }
 
@@ -43,7 +45,7 @@ class StageAdvancementRepositoryDatabaseTest {
         val command = advanceCommand()
 
         val first = repository.advanceIssue(command).successValue()
-        val repeated = repository.advanceIssue(command)
+        val repeated = repository.advanceIssue(command.copy(confirmedAt = 50L))
         val recovery = repository.recoverIssue(ISSUE_ID).successValue()
 
         assertEquals(NEW_STAGE_ID, first.snapshot.stage.id)
@@ -56,7 +58,34 @@ class StageAdvancementRepositoryDatabaseTest {
         assertTrue(recovery.core.messages.none { it.stageId == NEW_STAGE_ID })
         assertTrue(recovery.resources.drafts.none { it.stageId == NEW_STAGE_ID })
         assertTrue(recovery.resources.artifacts.none { it.stageId == NEW_STAGE_ID })
-        assertEquals(0, database.openHelper.writableDatabase.query("PRAGMA foreign_key_check").use { it.count })
+        assertEquals(
+            0,
+            database.openHelper.writableDatabase.query("PRAGMA foreign_key_check").use { it.count },
+        )
+    }
+
+    @Test
+    fun plannedRosterCanAdvanceAgainBeforeTheNewStageCreatesAnyRun() = runBlocking {
+        prepareCompletedStandardRun()
+        repository.advanceIssue(advanceCommand()).successValue()
+
+        val second = repository.advanceIssue(
+            advanceCommand(
+                operationId = SECOND_OPERATION_ID,
+                sourceStageId = NEW_STAGE_ID,
+                newStageId = SECOND_STAGE_ID,
+                objective = "继续验证计划",
+                confirmedAt = 50L,
+            ),
+        ).successValue()
+
+        assertEquals(SECOND_STAGE_ID, second.snapshot.stage.id)
+        assertEquals(NEW_STAGE_ID, second.snapshot.advancement.sourceStageId)
+        assertEquals(SOURCE_RUN_ID, second.snapshot.roster.first().sourceRunId)
+        assertEquals(
+            listOf(SOURCE_STAGE_ID, NEW_STAGE_ID, SECOND_STAGE_ID),
+            repository.recoverIssue(ISSUE_ID).successValue().core.stages.map { it.id },
+        )
     }
 
     @Test
@@ -71,7 +100,10 @@ class StageAdvancementRepositoryDatabaseTest {
 
         assertTrue(conflict.failureError() is RepositoryError.IdempotencyConflict)
         assertEquals(listOf(SOURCE_STAGE_ID, NEW_STAGE_ID), recovery.core.stages.map { it.id })
-        assertTrue(repository.getStageAdvancement("stage-conflict").failureError() is RepositoryError.NotFound)
+        assertTrue(
+            repository.getStageAdvancement("stage-conflict").failureError()
+                is RepositoryError.NotFound,
+        )
     }
 
     @Test
@@ -128,7 +160,7 @@ class StageAdvancementRepositoryDatabaseTest {
                 expectedStatuses = setOf(ExecutionRunStatus.RUNNING),
                 newStatus = ExecutionRunStatus.STOPPED,
                 updatedAt = 70L,
-                finishedAt = 70L,
+                stoppedAt = 70L,
                 failureCode = "user_stopped",
             ),
         ).successValue()
@@ -136,7 +168,10 @@ class StageAdvancementRepositoryDatabaseTest {
         val result = repository.undoLatestUnrunStage(ISSUE_ID, NEW_STAGE_ID)
 
         assertTrue(result.failureError() is RepositoryError.InvalidState)
-        assertEquals(NEW_STAGE_ID, repository.recoverIssue(ISSUE_ID).successValue().core.currentStage?.id)
+        assertEquals(
+            NEW_STAGE_ID,
+            repository.recoverIssue(ISSUE_ID).successValue().core.currentStage?.id,
+        )
     }
 
     @Test
@@ -226,15 +261,18 @@ class StageAdvancementRepositoryDatabaseTest {
     )
 
     private fun advanceCommand(
+        operationId: String = OPERATION_ID,
+        sourceStageId: String = SOURCE_STAGE_ID,
         newStageId: String = NEW_STAGE_ID,
         objective: String = "形成下一阶段计划",
         inheritedMaterialIds: List<String> = emptyList(),
+        confirmedAt: Long = 40L,
     ) = AdvanceIssueCommand(
-        operationId = OPERATION_ID,
+        operationId = operationId,
         issueId = ISSUE_ID,
-        sourceStageId = SOURCE_STAGE_ID,
+        sourceStageId = sourceStageId,
         newStageId = newStageId,
-        newStageTitle = "阶段 2",
+        newStageTitle = "阶段推进",
         objective = objective,
         realitySupport = true,
         thinkingExpansion = true,
@@ -261,7 +299,7 @@ class StageAdvancementRepositoryDatabaseTest {
         ),
         inheritedMaterialIds = inheritedMaterialIds,
         inheritedArtifactIds = emptyList(),
-        confirmedAt = 40L,
+        confirmedAt = confirmedAt,
     )
 
     private fun <T> RepositoryResult<T>.successValue(): T =
@@ -277,8 +315,10 @@ class StageAdvancementRepositoryDatabaseTest {
         private const val ISSUE_ID = "issue-advance"
         private const val SOURCE_STAGE_ID = "stage-source"
         private const val NEW_STAGE_ID = "stage-new"
+        private const val SECOND_STAGE_ID = "stage-second"
         private const val SOURCE_RUN_ID = "run-source"
         private const val NEW_STAGE_RUN_ID = "run-new-stage"
         private const val OPERATION_ID = "advance-operation"
+        private const val SECOND_OPERATION_ID = "advance-operation-second"
     }
 }
