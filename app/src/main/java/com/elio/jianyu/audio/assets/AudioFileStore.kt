@@ -9,6 +9,7 @@ import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
+import java.util.UUID
 
 /** 受控音频文件操作的稳定错误码。 */
 enum class AudioFileStoreErrorCode {
@@ -135,6 +136,11 @@ data class AudioOrphanReport(
     val files: List<AudioOrphanFile>,
 )
 
+data class AudioTemporaryCleanupResult(
+    val removedCount: Int,
+    val failedRelativePaths: List<String>,
+)
+
 fun interface AudioAtomicMover {
     @Throws(IOException::class)
     fun move(
@@ -158,6 +164,7 @@ class AudioFileStore(
             StandardCopyOption.ATOMIC_MOVE,
         )
     },
+    private val temporaryAttemptIdProvider: () -> String = { UUID.randomUUID().toString() },
 ) {
     fun preflight(
         estimatedOutputBytes: Long,
@@ -196,8 +203,11 @@ class AudioFileStore(
         ensureRootDirectory()
 
         val opaqueName = sha256(audioAssetId)
+        val attemptId = temporaryAttemptIdProvider()
+        require(attemptId.isNotBlank()) { "临时文件尝试 ID 不能为空" }
+        val attemptDigest = sha256(attemptId).take(TEMPORARY_ATTEMPT_DIGEST_LENGTH)
         val finalRelativePath = "$opaqueName.${format.extension}"
-        val temporaryRelativePath = "$finalRelativePath.part"
+        val temporaryRelativePath = "$opaqueName.$attemptDigest.${format.extension}.part"
         val finalFile = controlledFile(finalRelativePath)
             ?: throw IllegalArgumentException("最终音频路径不在受控目录内")
         val temporaryFile = controlledFile(temporaryRelativePath)
@@ -297,6 +307,47 @@ class AudioFileStore(
     fun removeTemporary(target: PendingAudioTarget): Boolean {
         if (!isControlled(target.temporaryFile)) return false
         return !target.temporaryFile.exists() || target.temporaryFile.delete()
+    }
+
+    fun removeTemporaryFilesForAsset(
+        audioAssetId: String,
+        format: AudioTargetFormat,
+    ): AudioTemporaryCleanupResult {
+        require(audioAssetId.isNotBlank()) { "音频资产 ID 不能为空" }
+        if (!rootDirectory.isDirectory) {
+            return AudioTemporaryCleanupResult(
+                removedCount = 0,
+                failedRelativePaths = emptyList(),
+            )
+        }
+
+        val opaqueName = sha256(audioAssetId)
+        val prefix = "$opaqueName."
+        val suffix = ".${format.extension}.part"
+        var removedCount = 0
+        val failedRelativePaths = mutableListOf<String>()
+
+        rootDirectory.listFiles().orEmpty()
+            .asSequence()
+            .filter { file ->
+                file.isFile &&
+                    file.name.startsWith(prefix) &&
+                    file.name.endsWith(suffix) &&
+                    isControlled(file)
+            }
+            .sortedBy { it.name }
+            .forEach { file ->
+                if (file.delete()) {
+                    removedCount += 1
+                } else {
+                    failedRelativePaths += file.name
+                }
+            }
+
+        return AudioTemporaryCleanupResult(
+            removedCount = removedCount,
+            failedRelativePaths = failedRelativePaths,
+        )
     }
 
     fun removeCommitted(relativePath: String): Boolean {
@@ -410,5 +461,6 @@ class AudioFileStore(
     private companion object {
         const val WAV_HEADER_BYTES = 44
         const val ADTS_MINIMUM_HEADER_BYTES = 7
+        const val TEMPORARY_ATTEMPT_DIGEST_LENGTH = 16
     }
 }
