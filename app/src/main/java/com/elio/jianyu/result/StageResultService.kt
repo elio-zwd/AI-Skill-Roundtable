@@ -7,12 +7,16 @@ import com.elio.jianyu.data.ArtifactRunSourceEntity
 import com.elio.jianyu.data.ArtifactSources
 import com.elio.jianyu.data.ConfirmArtifactCommand
 import com.elio.jianyu.data.ConfirmedArtifactEntity
+import com.elio.jianyu.data.ExecutionRunEntity
 import com.elio.jianyu.data.JianyuRepository
+import com.elio.jianyu.data.Message
 import com.elio.jianyu.data.RepositoryError
 import com.elio.jianyu.data.RepositoryResult
 import com.elio.jianyu.data.SaveStageDraftCommand
 import com.elio.jianyu.data.StageSummaryDraftEntity
 import com.elio.jianyu.data.StageSummaryDraftRevisionEntity
+import com.elio.jianyu.data.getStageCollaboration
+import com.elio.jianyu.data.listArtifactSourcesForIssue
 
 class StageResultService(
     private val repository: JianyuRepository,
@@ -33,6 +37,32 @@ class StageResultService(
         val artifacts = snapshot.resources.artifacts.filter {
             it.issueId == issueId && it.stageId == stageId
         }
+        val collaboration = when (val loaded = repository.getStageCollaboration(stageId)) {
+            is RepositoryResult.Success -> loaded.value
+            is RepositoryResult.Failure -> null
+        }
+        val artifactSources = when (val loaded = repository.listArtifactSourcesForIssue(issueId)) {
+            is RepositoryResult.Success -> loaded.value.associateBy { it.artifactId }
+            is RepositoryResult.Failure -> emptyMap()
+        }
+        val runsById = snapshot.core.runs.associateBy { it.id }
+        val selectableMessages = selectableStageOutputs(
+            issueId = issueId,
+            stageId = stageId,
+            messages = snapshot.core.messages,
+            runsById = runsById,
+        )
+        val usageByRun = collaboration?.messageUsageByRun.orEmpty()
+        val metadata = selectableMessages.associate { message ->
+            val run = requireNotNull(runsById[message.executionRunId])
+            message.id to StageMessageSourceMetadata(
+                runKind = run.runKind,
+                runStatus = run.status,
+                historyScope = run.historyScope,
+                participantSnapshotId = message.participantSnapshotId,
+                actualMessageUsageCount = usageByRun[run.id].orEmpty().size,
+            )
+        }
         return StageResultLoadResult.Ready(
             StageResultWorkspace(
                 issueId = issueId,
@@ -46,15 +76,16 @@ class StageResultService(
                 artifacts = artifacts.sortedWith(
                     compareBy<ConfirmedArtifactEntity> { it.confirmedAt }.thenBy { it.id },
                 ),
-                selectableMessages = snapshot.core.messages
-                    .filter {
-                        it.issueId == issueId && it.stageId == stageId && !it.isPending
-                    }
-                    .sortedWith(compareBy({ it.timestamp }, { it.id })),
+                selectableMessages = selectableMessages,
                 materialUsages = snapshot.resources.materialUsages
                     .filter { it.issueId == issueId && it.stageId == stageId }
                     .sortedWith(compareBy({ it.createdAt }, { it.id })),
                 artifactRevisionResolution = ArtifactRevisionResolver.resolve(artifacts),
+                messageSourceMetadata = metadata,
+                messageUsageByRun = usageByRun,
+                artifactSourcesById = artifactSources.filterKeys { artifactId ->
+                    artifacts.any { it.id == artifactId }
+                },
             ),
         )
     }
@@ -184,6 +215,17 @@ class StageResultService(
             return StageArtifactConfirmationResult.Failure(revisionFailure)
         }
 
+        val runsById = snapshot.core.runs.associateBy { it.id }
+        val selectableMessageIds = selectableStageOutputs(
+            issueId = command.issueId,
+            stageId = command.stageId,
+            messages = snapshot.core.messages,
+            runsById = runsById,
+        ).mapTo(mutableSetOf()) { it.id }
+        if (command.selectedMessageIds.any { it !in selectableMessageIds }) {
+            return StageArtifactConfirmationResult.Failure(ARTIFACT_SOURCE_MISMATCH)
+        }
+
         val selected = StageMessageSelectionPolicy.select(
             issueId = command.issueId,
             stageId = command.stageId,
@@ -269,6 +311,28 @@ class StageResultService(
                 confirmationErrorCode(confirmed.error),
             )
         }
+    }
+
+    private fun selectableStageOutputs(
+        issueId: String,
+        stageId: String,
+        messages: List<Message>,
+        runsById: Map<String, ExecutionRunEntity>,
+    ): List<Message> {
+        return messages.asSequence()
+            .filter { message ->
+                message.issueId == issueId &&
+                    message.stageId == stageId &&
+                    !message.isPending &&
+                    message.executionRunId != null &&
+                    message.participantSnapshotId != null
+            }
+            .filter { message ->
+                val run = runsById[message.executionRunId]
+                run != null && run.issueId == issueId && run.stageId == stageId
+            }
+            .sortedWith(compareBy<Message> { it.timestamp }.thenBy { it.id })
+            .toList()
     }
 
     private fun validateRevisionTarget(
