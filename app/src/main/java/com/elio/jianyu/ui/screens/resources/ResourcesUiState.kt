@@ -3,6 +3,10 @@ package com.elio.jianyu.ui.screens.resources
 import com.elio.jianyu.data.ContextPurgeImpact
 import com.elio.jianyu.data.ContextSourceLifecycle
 import com.elio.jianyu.data.ContextSourceType
+import com.elio.jianyu.result.ArtifactLibraryAggregator
+import com.elio.jianyu.result.ArtifactLibraryItem
+import com.elio.jianyu.result.ArtifactLibrarySnapshot
+import com.elio.jianyu.result.ArtifactType
 
 enum class ResourceLibrarySection {
     MATERIALS,
@@ -67,6 +71,40 @@ data class ResourcePurgeConfirmation(
     val impact: ContextPurgeImpact,
 )
 
+sealed interface ArtifactLibraryUiState {
+    data object Loading : ArtifactLibraryUiState
+
+    data object Empty : ArtifactLibraryUiState
+
+    data class Content(
+        val snapshot: ArtifactLibrarySnapshot,
+        val query: String = "",
+        val selectedTypes: Set<ArtifactType> = emptySet(),
+        val includeHistory: Boolean = false,
+        val selectedArtifactId: String? = null,
+    ) : ArtifactLibraryUiState {
+        val visibleItems: List<ArtifactLibraryItem>
+            get() = ArtifactLibraryAggregator.visibleItems(
+                snapshot = snapshot,
+                query = query,
+                types = selectedTypes,
+                includeHistory = includeHistory,
+            )
+
+        val selectedItem: ArtifactLibraryItem?
+            get() = snapshot.items.firstOrNull { it.artifactId == selectedArtifactId }
+    }
+
+    data class PartialFailure(
+        val content: Content,
+        val errorCode: String,
+    ) : ArtifactLibraryUiState
+
+    data class Failure(
+        val errorCode: String,
+    ) : ArtifactLibraryUiState
+}
+
 sealed interface ResourcesUiState {
     data object Loading : ResourcesUiState
 
@@ -81,6 +119,7 @@ sealed interface ResourcesUiState {
         val issues: List<ResourceIssueOption> = emptyList(),
         val materials: List<MaterialUiItem> = emptyList(),
         val personalContexts: List<PersonalContextUiItem> = emptyList(),
+        val artifactLibrary: ArtifactLibraryUiState = ArtifactLibraryUiState.Loading,
         val editor: ResourceEditorDraft? = null,
         val purgeConfirmation: ResourcePurgeConfirmation? = null,
         val partialFailure: String? = null,
