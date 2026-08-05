@@ -113,6 +113,7 @@ data class ArtifactLibraryItem(
     val revisionOfArtifactId: String?,
     val revisionNumber: Int,
     val latest: Boolean,
+    val content: String = contentSummary,
 )
 
 data class ArtifactLibrarySnapshot(

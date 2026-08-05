@@ -35,6 +35,7 @@ object ArtifactLibraryAggregator {
                     revisionOfArtifactId = artifact.revisionOfArtifactId,
                     revisionNumber = revisionNumber(artifact, byId),
                     latest = artifact.id in resolution.latestArtifactIds,
+                    content = artifact.content,
                 )
             }
         }
