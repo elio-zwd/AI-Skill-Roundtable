@@ -4,6 +4,8 @@
 
 目标：验证 PR09-08 的临时点名、显式一轮交叉讨论、透明整合、最小消息上下文、实际消息使用快照、Room v10、共享预算、Stop、重试、进程恢复、Compose 和外部设备语义契约。
 
+> 当前正式复验 Head 由 PR #46 描述提供。开始前必须读取 PR，确保本地与远端 Head 字符级一致；不得沿用旧验收报告中的 Head。
+
 ## 一、绝对只读纪律
 
 全过程不得：
@@ -216,6 +218,15 @@ ResourceLifecycleMigrationTest
 allMigrationsRemainContinuousFromVersion1ToVersion10
 [(1,2), (2,3), (3,4), (4,5), (5,6), (6,7), (7,8), (8,9), (9,10)]
 ```
+
+先定向复跑原失败类：
+
+```powershell
+.\gradlew.bat :app:connectedDebugAndroidTest `
+  -Pandroid.testInstrumentationRunnerArguments.class=com.elio.jianyu.data.ExecutionRuntimeMigrationTest,com.elio.jianyu.data.ResourceLifecycleMigrationTest
+```
+
+定向通过后仍必须执行全量 `:app:connectedDebugAndroidTest`；不得用定向结果替代全量设备回归。
 
 v9→v10 至少验证：
 
@@ -541,20 +552,21 @@ Head 精确不变
 4. 只读纪律；
 5. 低 Token 工具命令、退出码、JUnit 数量；
 6. JVM、Lint、Debug、Release、AndroidTest APK；
-7. 全量 Instrumentation 数量与零失败证据；
-8. v1→v10 和 v9→v10；
-9. Directed 原子性/幂等；
-10. Cross 独立回应；
-11. 部分失败与仅整合成功内容；
-12. Synthesis 与独立 retry；
-13. Message Usage；
-14. 共享预算；
-15. Stop 与迟到回调；
-16. 强停恢复零自动联网；
-17. Compose、360dp、200% 字号、TalkBack；
-18. 外部 UIAutomator；
-19. 隐私扫描；
-20. 工作区收尾；
-21. 未验证项、风险和复现步骤。
+7. 原失败两个迁移类的定向复验结果；
+8. 全量 Instrumentation 数量与零失败证据；
+9. v1→v10 和 v9→v10；
+10. Directed 原子性/幂等；
+11. Cross 独立回应；
+12. 部分失败与仅整合成功内容；
+13. Synthesis 与独立 retry；
+14. Message Usage；
+15. 共享预算；
+16. Stop 与迟到回调；
+17. 强停恢复零自动联网；
+18. Compose、360dp、200% 字号、TalkBack；
+19. 外部 UIAutomator；
+20. 隐私扫描；
+21. 工作区收尾；
+22. 未验证项、风险和复现步骤。
 
 本地 AI 发现失败时只报告，不得自行修改、提交或推送。
