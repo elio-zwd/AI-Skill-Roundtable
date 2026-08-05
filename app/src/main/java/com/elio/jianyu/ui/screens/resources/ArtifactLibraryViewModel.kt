@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-internal class ArtifactLibraryViewModel(
+class ArtifactLibraryViewModel internal constructor(
     private val loader: ArtifactLibraryLoader,
 ) : ViewModel() {
     private val _state = MutableStateFlow<ArtifactLibraryUiState>(ArtifactLibraryUiState.Loading)
