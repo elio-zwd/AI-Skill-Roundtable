@@ -1,8 +1,6 @@
 package com.elio.jianyu.collaboration
 
 import com.elio.jianyu.data.AppendDomainMessageCommand
-import com.elio.jianyu.data.CollaborationStartResult
-import com.elio.jianyu.data.ContextSourceType
 import com.elio.jianyu.data.ContextUsageSnapshot
 import com.elio.jianyu.data.ContextUsageWriteSet
 import com.elio.jianyu.data.CreateCollaborationRetryCommand
@@ -12,15 +10,13 @@ import com.elio.jianyu.data.CreateDirectedInteractionCommand
 import com.elio.jianyu.data.CrossDiscussionSessionEntity
 import com.elio.jianyu.data.CrossDiscussionStatus
 import com.elio.jianyu.data.ExecutionHistoryScope
-import com.elio.jianyu.data.ExecutionParticipantSnapshotEntity
 import com.elio.jianyu.data.ExecutionParticipantStatus
 import com.elio.jianyu.data.ExecutionRunEntity
 import com.elio.jianyu.data.ExecutionRunKind
 import com.elio.jianyu.data.ExecutionRunStatus
+import com.elio.jianyu.data.ExecutionRuntimeSnapshot
 import com.elio.jianyu.data.IssueRecoverySnapshot
 import com.elio.jianyu.data.JianyuRepository
-import com.elio.jianyu.data.MaterialUsageSnapshotEntity
-import com.elio.jianyu.data.PersonalContextUsageSnapshotEntity
 import com.elio.jianyu.data.RepositoryError
 import com.elio.jianyu.data.RepositoryResult
 import com.elio.jianyu.data.StageCollaborationSnapshot
@@ -31,7 +27,6 @@ import com.elio.jianyu.data.createCrossDiscussionResponse
 import com.elio.jianyu.data.createCrossDiscussionSynthesis
 import com.elio.jianyu.data.createDirectedInteraction
 import com.elio.jianyu.data.getStageCollaboration
-import com.elio.jianyu.data.listRunContextUsage
 import com.elio.jianyu.data.transitionCrossDiscussion
 import com.elio.jianyu.execution.ExecutionContextContribution
 import com.elio.jianyu.execution.ExecutionContextGate
@@ -43,6 +38,8 @@ import com.elio.jianyu.skill.catalog.OfficialSkillCatalog
 import com.elio.jianyu.skill.catalog.OfficialSkillExecutionEligibility
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 
 fun interface CollaborationClock {
     fun nowMillis(): Long
@@ -181,8 +178,7 @@ class IssueCollaborationCoordinator(
         request: CrossDiscussionRequest,
     ): CollaborationExecutionResult {
         val snapshot = recover(request.issueId, request.stageId)
-        val executable = request.selectedSkillIds
-            .filterTo(mutableSetOf(), eligibility::isExecutable)
+        val executable = request.selectedSkillIds.filterTo(mutableSetOf(), eligibility::isExecutable)
         val integratorValidation = eligibility.validateIntegrator()
         val validation = CrossDiscussionPolicy.validate(
             roster = snapshot.roster,
@@ -447,31 +443,32 @@ class IssueCollaborationCoordinator(
 
     private suspend fun updateResponseDiscussion(
         discussion: CrossDiscussionSessionEntity,
-        runtime: com.elio.jianyu.data.ExecutionRuntimeSnapshot,
+        runtime: ExecutionRuntimeSnapshot,
     ): CrossDiscussionSessionEntity {
-        if (runtime.run.status == ExecutionRunStatus.STOPPED) {
-            return repository.transitionCrossDiscussion(
-                TransitionCrossDiscussionCommand(
-                    sessionId = discussion.id,
-                    expectedStatuses = setOf(discussion.status, CrossDiscussionStatus.STOPPED),
-                    newStatus = CrossDiscussionStatus.STOPPED,
-                    successfulParticipantIds = successfulParticipantIds(runtime),
-                    failedParticipantIds = failedParticipantIds(runtime),
-                    updatedAt = clock.nowMillis(),
-                    failureCode = runtime.run.failureCode,
-                ),
-            ).valueOrThrow()
+        val participantsById = runtime.participants.associateBy { it.id }
+        val currentSuccess = runtime.participantStates
+            .filter { it.status == ExecutionParticipantStatus.SUCCEEDED }
+            .mapNotNull { participantsById[it.participantSnapshotId]?.sourceId }
+        val currentFailed = runtime.participantStates
+            .filter { it.status != ExecutionParticipantStatus.SUCCEEDED }
+            .mapNotNull { participantsById[it.participantSnapshotId]?.sourceId }
+        val successful = (
+            parseIds(discussion.successfulParticipantIdsJson) + currentSuccess
+            ).distinct().filterNot { it in currentFailed }
+        val failed = currentFailed.distinct().filterNot { it in successful }
+        val target = when {
+            runtime.run.status == ExecutionRunStatus.STOPPED -> CrossDiscussionStatus.STOPPED
+            successful.isEmpty() -> CrossDiscussionStatus.FAILED
+            failed.isEmpty() -> CrossDiscussionStatus.AWAITING_SYNTHESIS
+            else -> CrossDiscussionStatus.PARTIAL_SUCCESS
         }
-        val target = CrossDiscussionProgressPolicy.afterResponse(
-            runtime.participantStates.map { it.status },
-        )
         return repository.transitionCrossDiscussion(
             TransitionCrossDiscussionCommand(
                 sessionId = discussion.id,
                 expectedStatuses = setOf(discussion.status, target),
                 newStatus = target,
-                successfulParticipantIds = successfulParticipantIds(runtime),
-                failedParticipantIds = failedParticipantIds(runtime),
+                successfulParticipantIds = successful,
+                failedParticipantIds = failed,
                 updatedAt = clock.nowMillis(),
                 failureCode = runtime.run.failureCode,
             ),
@@ -480,7 +477,7 @@ class IssueCollaborationCoordinator(
 
     private suspend fun updateSynthesisDiscussion(
         discussion: CrossDiscussionSessionEntity,
-        runtime: com.elio.jianyu.data.ExecutionRuntimeSnapshot,
+        runtime: ExecutionRuntimeSnapshot,
     ): CrossDiscussionSessionEntity {
         val target = when (runtime.run.status) {
             ExecutionRunStatus.SUCCEEDED -> CrossDiscussionStatus.SUCCEEDED
@@ -505,18 +502,6 @@ class IssueCollaborationCoordinator(
             ),
         ).valueOrThrow()
     }
-
-    private fun successfulParticipantIds(
-        runtime: com.elio.jianyu.data.ExecutionRuntimeSnapshot,
-    ): List<String> = runtime.participantStates
-        .filter { it.status == ExecutionParticipantStatus.SUCCEEDED }
-        .map { it.participantSnapshotId }
-
-    private fun failedParticipantIds(
-        runtime: com.elio.jianyu.data.ExecutionRuntimeSnapshot,
-    ): List<String> = runtime.participantStates
-        .filter { it.status != ExecutionParticipantStatus.SUCCEEDED }
-        .map { it.participantSnapshotId }
 
     private fun userMessage(
         messageId: Long,
@@ -601,12 +586,9 @@ class IssueCollaborationCoordinator(
         )
     }
 
-    private fun parseIds(json: String): List<String> = json
-        .removePrefix("[")
-        .removeSuffix("]")
-        .split(',')
-        .map { it.trim().removeSurrounding("\"") }
-        .filter(String::isNotBlank)
+    private fun parseIds(value: String): List<String> = runCatching {
+        Json.decodeFromString<List<String>>(value)
+    }.getOrDefault(emptyList())
 
     private fun derivedOperationId(prefix: String, source: String): String {
         val digest = MessageDigest.getInstance("SHA-256")
