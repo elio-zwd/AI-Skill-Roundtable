@@ -35,7 +35,9 @@ interface ExecutionPersistenceGateway {
 
     suspend fun getRuntime(runId: String): ExecutionRuntimeSnapshot
 
-    suspend fun listMessageUsage(runId: String): List<ExecutionMessageUsageSnapshotEntity>
+    suspend fun listMessageUsage(
+        runId: String,
+    ): List<ExecutionMessageUsageSnapshotEntity> = emptyList()
 
     suspend fun transitionParticipant(
         command: TransitionExecutionParticipantCommand,
