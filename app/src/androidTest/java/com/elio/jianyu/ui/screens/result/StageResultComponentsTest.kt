@@ -54,7 +54,7 @@ class StageResultComponentsTest {
     }
 
     @Test
-    fun saveFailureAndConflictRemainVisibleInStableState() {
+    fun saveFailureRemainsVisibleInStableState() {
         composeRule.setContent {
             MaterialTheme {
                 StageDraftResultPanel(
@@ -69,8 +69,12 @@ class StageResultComponentsTest {
                 )
             }
         }
-        composeRule.onNodeWithTag(StageResultTestTags.DRAFT_SAVE_FAILURE).assertIsDisplayed()
 
+        composeRule.onNodeWithTag(StageResultTestTags.DRAFT_SAVE_FAILURE).assertIsDisplayed()
+    }
+
+    @Test
+    fun saveConflictRemainsVisibleInStableState() {
         composeRule.setContent {
             MaterialTheme {
                 StageDraftResultPanel(
@@ -85,6 +89,7 @@ class StageResultComponentsTest {
                 )
             }
         }
+
         composeRule.onNodeWithTag(StageResultTestTags.DRAFT_CONFLICT).assertIsDisplayed()
     }
 
