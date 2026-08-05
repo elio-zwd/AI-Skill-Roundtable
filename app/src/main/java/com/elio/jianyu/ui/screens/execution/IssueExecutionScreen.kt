@@ -43,6 +43,7 @@ fun IssueExecutionScreen(
     onToggleCollaborationMessage: (Long) -> Unit = {},
     onConfirmDirected: () -> Unit = {},
     onConfirmCross: () -> Unit = {},
+    onRetryDirected: (String) -> Unit = {},
     onRetryCrossFailed: (String) -> Unit = {},
     onSynthesizeCross: (String) -> Unit = {},
     onRetryCrossSynthesis: (String) -> Unit = {},
@@ -80,7 +81,8 @@ fun IssueExecutionScreen(
             )
 
             is IssueExecutionUiState.Content -> {
-                IssueCollaborationSection(
+                val currentRunIsCollaboration = collaborationState.isCollaborationRun(state.runId)
+                IssueCollaborationWorkspaceSection(
                     state = collaborationState,
                     contextConfirmed = state.contextConfirmation?.confirmedForStart == true,
                     onInputChanged = onCollaborationInputChanged,
@@ -92,6 +94,7 @@ fun IssueExecutionScreen(
                     onOpenContext = onOpenContext,
                     onConfirmDirected = onConfirmDirected,
                     onConfirmCross = onConfirmCross,
+                    onRetryDirected = onRetryDirected,
                     onRetryFailed = onRetryCrossFailed,
                     onSynthesize = onSynthesizeCross,
                     onRetrySynthesis = onRetryCrossSynthesis,
@@ -114,7 +117,7 @@ fun IssueExecutionScreen(
                         message = "已生成不可变 Contribution 与 Usage 写入载荷；只有最终确认协作后才会创建 Run 和调用网络。",
                     )
                 }
-                if (state.canRecoverInterrupted) {
+                if (state.canRecoverInterrupted && !currentRunIsCollaboration) {
                     JianyuStateCard(
                         title = "运行可能被中断",
                         message = "仅在确认原网络调用已经停止后执行恢复。恢复只收敛数据库状态，不会自动重发请求。",
@@ -136,41 +139,43 @@ fun IssueExecutionScreen(
                         )
                     }
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    if (state.canStop) {
-                        OutlinedButton(
-                            onClick = onStop,
-                            enabled = true,
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag(IssueExecutionTestTags.STOP),
-                        ) {
-                            Text("停止")
+                if (!currentRunIsCollaboration) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        if (state.canStop) {
+                            OutlinedButton(
+                                onClick = onStop,
+                                enabled = true,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag(IssueExecutionTestTags.STOP),
+                            ) {
+                                Text("停止")
+                            }
                         }
-                    }
-                    if (state.canRecoverInterrupted) {
-                        OutlinedButton(
-                            onClick = onRecoverInterrupted,
-                            enabled = !state.operationInProgress,
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag(IssueExecutionTestTags.RECOVER),
-                        ) {
-                            Text("收敛中断状态")
+                        if (state.canRecoverInterrupted) {
+                            OutlinedButton(
+                                onClick = onRecoverInterrupted,
+                                enabled = !state.operationInProgress,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag(IssueExecutionTestTags.RECOVER),
+                            ) {
+                                Text("收敛中断状态")
+                            }
                         }
-                    }
-                    if (state.canRetry) {
-                        Button(
-                            onClick = onRetry,
-                            enabled = !state.operationInProgress,
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag(IssueExecutionTestTags.RETRY),
-                        ) {
-                            Text("确认上下文并重试")
+                        if (state.canRetry) {
+                            Button(
+                                onClick = onRetry,
+                                enabled = !state.operationInProgress,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag(IssueExecutionTestTags.RETRY),
+                            ) {
+                                Text("确认上下文并重试")
+                            }
                         }
                     }
                 }
@@ -199,4 +204,13 @@ fun IssueExecutionScreen(
             onConfirm = onConfirmContext,
         )
     }
+}
+
+private fun IssueCollaborationUiState.isCollaborationRun(runId: String?): Boolean {
+    if (runId == null) return false
+    val content = this as? IssueCollaborationUiState.Content ?: return false
+    return content.directedRuns.any { it.runId == runId } ||
+        content.sessions.any { session ->
+            session.responseRunId == runId || session.synthesisRunId == runId
+        }
 }
