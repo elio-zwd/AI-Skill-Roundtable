@@ -38,7 +38,9 @@ class StageResultServiceTest {
             RepositoryResult.Success(recovery()),
         )
         whenever(repository.saveStageDraft(any())).thenAnswer { invocation ->
-            RepositoryResult.Success(invocation.getArgument<com.elio.jianyu.data.SaveStageDraftCommand>(0).draft)
+            RepositoryResult.Success(
+                invocation.getArgument<com.elio.jianyu.data.SaveStageDraftCommand>(0).draft,
+            )
         }
 
         val result = StageResultService(repository).saveDraft(
@@ -83,6 +85,7 @@ class StageResultServiceTest {
 
         assertEquals(StageDraftWriteResult.Unchanged(current), result)
         verify(repository, never()).saveStageDraft(any())
+        Unit
     }
 
     @Test
@@ -106,6 +109,7 @@ class StageResultServiceTest {
 
         assertEquals(StageDraftWriteResult.Conflict, result)
         verify(repository, never()).saveStageDraft(any())
+        Unit
     }
 
     @Test
@@ -192,6 +196,7 @@ class StageResultServiceTest {
             result,
         )
         verify(repository, never()).confirmArtifact(any())
+        Unit
     }
 
     @Test
@@ -230,6 +235,7 @@ class StageResultServiceTest {
             result,
         )
         verify(repository, never()).confirmArtifact(any())
+        Unit
     }
 
     private fun recovery(
