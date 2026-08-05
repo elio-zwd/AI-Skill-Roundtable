@@ -245,7 +245,12 @@ class AudioGenerationCoordinator(
 
         val original = repository.loadAsset(command.audioAssetId)
             ?: return AudioGenerationRetryResult.Failure(AudioGenerationErrorCode.ASSET_NOT_FOUND)
-        suppressionError(original)?.let { return AudioGenerationRetryResult.Failure(it) }
+        if (original.deletedAt != null) {
+            return AudioGenerationRetryResult.Failure(AudioGenerationErrorCode.DELETED)
+        }
+        if (original.purgeRequestedAt != null) {
+            return AudioGenerationRetryResult.Failure(AudioGenerationErrorCode.PURGE_REQUESTED)
+        }
         if (!isSupportedConfig(original.config)) {
             return AudioGenerationRetryResult.Failure(AudioGenerationErrorCode.UNSUPPORTED_CONFIG)
         }
