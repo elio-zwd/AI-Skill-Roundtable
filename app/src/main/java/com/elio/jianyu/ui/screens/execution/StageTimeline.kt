@@ -49,23 +49,24 @@ fun StageTimeline(
                     onClick = { onOpenStage(stage.issueId, stage.id) },
                     label = {
                         Text(
-                            if (current) "${stage.title} · 当前" else stage.title,
+                            text = if (current) "${stage.title} · 当前" else stage.title,
                             style = MaterialTheme.typography.labelLarge,
+                            modifier = if (current) {
+                                Modifier.testTag(JianyuAutomationTags.StageTimeline.CURRENT)
+                            } else {
+                                Modifier
+                            },
                         )
                     },
                     modifier = Modifier
                         .testTag(JianyuAutomationTags.StageTimeline.item(stage.id))
-                        .then(
-                            if (current) {
-                                Modifier
-                                    .testTag(JianyuAutomationTags.StageTimeline.CURRENT)
-                                    .semantics { contentDescription = "当前阶段：${stage.sequenceIndex + 1}" }
+                        .semantics {
+                            contentDescription = if (current) {
+                                "当前阶段：${stage.sequenceIndex + 1}"
                             } else {
-                                Modifier.semantics {
-                                    contentDescription = "历史阶段：${stage.sequenceIndex + 1}"
-                                }
-                            },
-                        ),
+                                "历史阶段：${stage.sequenceIndex + 1}"
+                            }
+                        },
                 )
             }
             Button(
