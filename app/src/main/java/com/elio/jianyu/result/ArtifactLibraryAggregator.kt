@@ -42,6 +42,7 @@ object ArtifactLibraryAggregator {
                     revisionNumber = revisionNumber(artifact, byId),
                     latest = artifact.id in resolution.latestArtifactIds,
                     content = artifact.content,
+                    sourcesAvailable = sources != null,
                     sourceMessageIds = sources?.messages.orEmpty().map { it.messageId },
                     sourceRunIds = sources?.runs.orEmpty().map { it.runId },
                     sourceDraftRevisionIds = sources?.draftRevisions.orEmpty()
