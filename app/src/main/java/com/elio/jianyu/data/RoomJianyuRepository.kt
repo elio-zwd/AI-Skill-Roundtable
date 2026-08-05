@@ -185,7 +185,7 @@ class RoomJianyuRepository(
     ): RepositoryResult<List<PersonalContext>> = materialContext.listPersonalContexts(filter)
 
     override suspend fun changePersonalContextLifecycle(
-        command: ChangePersonalContextCommand,
+        command: ChangePersonalContextLifecycleCommand,
     ): RepositoryResult<PersonalContext> = materialContext.changePersonalContextLifecycle(command)
 
     override suspend fun getPersonalContextPurgeImpact(
