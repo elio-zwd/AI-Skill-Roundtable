@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.compose.viewModel as composeViewModel
 import com.elio.jianyu.collaboration.IssueCollaborationCoordinator
 import com.elio.jianyu.data.JianyuRepository
 import com.elio.jianyu.execution.ExecutionRunCoordinator
@@ -22,14 +22,14 @@ fun IssueExecutionRoute(
     issueId: String?,
     stageId: String?,
     onBack: () -> Unit,
-    viewModel: IssueExecutionViewModel = viewModel(
+    viewModel: IssueExecutionViewModel = composeViewModel(
         factory = IssueExecutionViewModel.factory(repository, coordinator),
     ),
-    collaborationViewModel: IssueCollaborationViewModel = viewModel(
+    collaborationViewModel: IssueCollaborationViewModel = composeViewModel(
         factory = IssueCollaborationViewModel.factory(collaborationCoordinator),
     ),
     stageResultViewModel: StageResultViewModel? = if (issueId != null && stageId != null) {
-        viewModel(
+        composeViewModel(
             key = "stage-result-$issueId-$stageId",
             factory = stageResultViewModelFactory(stageResultService, issueId, stageId),
         )
