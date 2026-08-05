@@ -1,0 +1,142 @@
+name: PR09-08 Apply Retry Budget Fix
+
+on:
+  push:
+    branches:
+      - feat/pr-09-08-directed-cross-discussion
+    paths:
+      - .github/workflows/pr-09-08-apply-retry-budget-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout latest branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/pr-09-08-directed-cross-discussion
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Apply deterministic patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='feat/pr-09-08-directed-cross-discussion'
+          git pull --ff-only origin "$branch"
+          python - <<'PY'
+          from pathlib import Path
+
+          view_model = Path('app/src/main/java/com/elio/jianyu/ui/screens/execution/IssueCollaborationViewModel.kt')
+          text = view_model.read_text(encoding='utf-8')
+
+          def replace_once(old: str, new: str) -> None:
+              global text
+              if old in text:
+                  if text.count(old) != 1:
+                      raise SystemExit(f'Expected one old occurrence: {old!r}')
+                  text = text.replace(old, new)
+              elif text.count(new) != 1:
+                  raise SystemExit(f'Neither old nor new form is unique: {old!r}')
+
+          replace_once(
+              'import com.elio.jianyu.data.ExecutionRuntimeBudgetConfig\n',
+              'import com.elio.jianyu.collaboration.CollaborationExecutionBudgetPolicy\n',
+          )
+          replace_once(
+              'budget = ExecutionRuntimeBudgetConfig(maxApiCalls = 1),',
+              'budget = CollaborationExecutionBudgetPolicy.directed(),',
+          )
+          replace_once(
+              'budget = ExecutionRuntimeBudgetConfig(maxApiCalls = selected.size + 1),',
+              'budget = CollaborationExecutionBudgetPolicy.cross(selected.size),',
+          )
+          view_model.write_text(text, encoding='utf-8')
+
+          Path('app/src/main/java/com/elio/jianyu/collaboration/CollaborationExecutionBudgetPolicy.kt').write_text(
+          '''package com.elio.jianyu.collaboration
+
+          import com.elio.jianyu.data.ExecutionRuntimeBudgetConfig
+
+          /** 为首次执行、失败成员重试与整合重试预留共享调用预算。 */
+          object CollaborationExecutionBudgetPolicy {
+              const val DIRECTED_MIN_API_CALLS: Int = 3
+              const val CROSS_MIN_API_CALLS: Int = 8
+
+              fun directed(): ExecutionRuntimeBudgetConfig = ExecutionRuntimeBudgetConfig(
+                  maxApiCalls = DIRECTED_MIN_API_CALLS,
+              )
+
+              fun cross(participantCount: Int): ExecutionRuntimeBudgetConfig {
+                  require(participantCount >= 2)
+                  val initialResponsesAndSynthesis = participantCount + 1
+                  val failedResponseRetriesAndSynthesisRetry = participantCount + 1
+                  return ExecutionRuntimeBudgetConfig(
+                      maxApiCalls = maxOf(
+                          CROSS_MIN_API_CALLS,
+                          initialResponsesAndSynthesis + failedResponseRetriesAndSynthesisRetry,
+                      ),
+                  )
+              }
+          }
+          '''.replace('          ', ''),
+          encoding='utf-8',
+          )
+
+          Path('app/src/test/java/com/elio/jianyu/collaboration/CollaborationExecutionBudgetPolicyTest.kt').write_text(
+          '''package com.elio.jianyu.collaboration
+
+          import org.junit.Assert.assertEquals
+          import org.junit.Assert.fail
+          import org.junit.Test
+
+          class CollaborationExecutionBudgetPolicyTest {
+              @Test
+              fun directedBudgetAllowsInitialCallAndExplicitRetries() {
+                  assertEquals(
+                      CollaborationExecutionBudgetPolicy.DIRECTED_MIN_API_CALLS,
+                      CollaborationExecutionBudgetPolicy.directed().maxApiCalls,
+                  )
+              }
+
+              @Test
+              fun crossBudgetCoversResponsesFailedMemberRetriesAndSynthesisRetry() {
+                  assertEquals(8, CollaborationExecutionBudgetPolicy.cross(participantCount = 2).maxApiCalls)
+                  assertEquals(10, CollaborationExecutionBudgetPolicy.cross(participantCount = 4).maxApiCalls)
+                  assertEquals(14, CollaborationExecutionBudgetPolicy.cross(participantCount = 6).maxApiCalls)
+              }
+
+              @Test
+              fun crossBudgetRejectsAnInvalidParticipantCount() {
+                  try {
+                      CollaborationExecutionBudgetPolicy.cross(participantCount = 1)
+                      fail("Expected participant count validation to fail")
+                  } catch (_: IllegalArgumentException) {
+                      // 预期：交叉讨论至少需要两位成员。
+                  }
+              }
+          }
+          '''.replace('          ', ''),
+          encoding='utf-8',
+          )
+
+          for path in (
+              '.github/workflows/pr-09-08-retry-budget-fix.yml',
+              '.github/workflows/pr-09-08-apply-retry-budget-fix.yml',
+              '.github/workflows/pr-09-08-room-schema-sync.yml',
+          ):
+              target = Path(path)
+              if target.exists():
+                  target.unlink()
+          PY
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'fix: 为协作重试预留执行预算'
+          git push origin HEAD:"$branch"
