@@ -5,6 +5,10 @@ import com.elio.jianyu.data.ArtifactMaterialSourceEntity
 import com.elio.jianyu.data.ArtifactMessageSourceEntity
 import com.elio.jianyu.data.ArtifactRunSourceEntity
 import com.elio.jianyu.data.ConfirmedArtifactEntity
+import com.elio.jianyu.data.ExecutionHistoryScope
+import com.elio.jianyu.data.ExecutionRunEntity
+import com.elio.jianyu.data.ExecutionRunKind
+import com.elio.jianyu.data.ExecutionRunStatus
 import com.elio.jianyu.data.IssueEntity
 import com.elio.jianyu.data.IssueLifecycleEntity
 import com.elio.jianyu.data.IssueLifecycleState
@@ -113,17 +117,64 @@ class StageResultServiceTest {
     }
 
     @Test
+    fun loadExposesAllRoomV10RunKindsAndRejectsTriggerOrPendingMessages() = runBlocking {
+        val repository = mock<JianyuRepository>()
+        val runs = ExecutionRunKind.entries.mapIndexed { index, kind ->
+            run(id = "run-$index", kind = kind)
+        }
+        val outputs = runs.mapIndexed { index, run ->
+            message(id = (index + 1).toLong(), runId = run.id)
+        }
+        val trigger = Message(
+            id = 20,
+            chatId = 1,
+            senderId = "user",
+            senderName = "用户",
+            avatar = "U",
+            text = "触发消息",
+            timestamp = 20,
+            isPending = false,
+            issueId = "issue-1",
+            stageId = "stage-1",
+            executionRunId = runs.first().id,
+            participantSnapshotId = null,
+        )
+        val pending = outputs.first().copy(id = 21, isPending = true)
+        whenever(repository.recoverIssue("issue-1")).thenReturn(
+            RepositoryResult.Success(
+                recovery(
+                    runs = runs,
+                    messages = outputs + trigger + pending,
+                ),
+            ),
+        )
+
+        val result = StageResultService(repository).load("issue-1", "stage-1")
+
+        assertTrue(result is StageResultLoadResult.Ready)
+        result as StageResultLoadResult.Ready
+        assertEquals(outputs.map { it.id }, result.workspace.selectableMessages.map { it.id })
+        assertEquals(
+            ExecutionRunKind.entries.toSet(),
+            result.workspace.messageSourceMetadata.values.map { it.runKind }.toSet(),
+        )
+        assertTrue(result.workspace.messageSourceMetadata.values.all { it.completeRun })
+    }
+
+    @Test
     fun confirmationUsesExactSavedDraftAndActualSelectedSources() = runBlocking {
         val repository = mock<JianyuRepository>()
         val draft = draft(content = "正式成果正文", revision = 2)
         val revision = revision(id = "revision-2", revision = 2, content = draft.content)
-        val message = message(id = 11, runId = "run-1")
-        val usage = materialUsage(id = "usage-1", runId = "run-1")
+        val run = run(id = "run-1")
+        val message = message(id = 11, runId = run.id)
+        val usage = materialUsage(id = "usage-1", runId = run.id)
         whenever(repository.recoverIssue("issue-1")).thenReturn(
             RepositoryResult.Success(
                 recovery(
                     drafts = listOf(draft),
                     revisions = listOf(revision),
+                    runs = listOf(run),
                     messages = listOf(message),
                     materialUsages = listOf(usage),
                 ),
@@ -169,6 +220,58 @@ class StageResultServiceTest {
             command.firstValue.sources.materials,
         )
         assertFalse((result as StageArtifactConfirmationResult.Confirmed).artifact.content.isBlank())
+    }
+
+    @Test
+    fun confirmationRejectsTriggerMessageWithoutParticipantSnapshot() = runBlocking {
+        val repository = mock<JianyuRepository>()
+        val draft = draft()
+        val revision = revision()
+        val run = run(id = "run-1", kind = ExecutionRunKind.DIRECTED_RESPONSE)
+        val trigger = Message(
+            id = 30,
+            chatId = 1,
+            senderId = "user",
+            senderName = "用户",
+            avatar = "U",
+            text = "点名问题",
+            timestamp = 10,
+            isPending = false,
+            issueId = "issue-1",
+            stageId = "stage-1",
+            executionRunId = run.id,
+            participantSnapshotId = null,
+        )
+        whenever(repository.recoverIssue("issue-1")).thenReturn(
+            RepositoryResult.Success(
+                recovery(
+                    drafts = listOf(draft),
+                    revisions = listOf(revision),
+                    runs = listOf(run),
+                    messages = listOf(trigger),
+                ),
+            ),
+        )
+
+        val result = StageResultService(repository).confirmArtifact(
+            ConfirmStageArtifactCommand(
+                artifactId = "artifact-1",
+                issueId = "issue-1",
+                stageId = "stage-1",
+                draftRevisionId = revision.id,
+                title = "阶段总结",
+                artifactType = ArtifactType.GENERAL_SUMMARY,
+                selectedMessageIds = listOf(trigger.id),
+                confirmedAt = 200,
+            ),
+        )
+
+        assertEquals(
+            StageArtifactConfirmationResult.Failure("artifact_source_mismatch"),
+            result,
+        )
+        verify(repository, never()).confirmArtifact(any())
+        Unit
     }
 
     @Test
@@ -242,6 +345,7 @@ class StageResultServiceTest {
         drafts: List<StageSummaryDraftEntity> = emptyList(),
         revisions: List<StageSummaryDraftRevisionEntity> = emptyList(),
         artifacts: List<ConfirmedArtifactEntity> = emptyList(),
+        runs: List<ExecutionRunEntity> = emptyList(),
         messages: List<Message> = emptyList(),
         materialUsages: List<MaterialUsageSnapshotEntity> = emptyList(),
     ): IssueRecoverySnapshot {
@@ -258,7 +362,7 @@ class StageResultServiceTest {
                 ),
                 stages = listOf(stage),
                 currentStage = stage,
-                runs = emptyList(),
+                runs = runs,
                 activeOrRecoverableRuns = emptyList(),
                 participants = emptyList(),
                 messages = messages,
@@ -302,6 +406,25 @@ class StageResultServiceTest {
         createdAt = revision.toLong(),
     )
 
+    private fun run(
+        id: String,
+        kind: ExecutionRunKind = ExecutionRunKind.STANDARD,
+    ) = ExecutionRunEntity(
+        id = id,
+        issueId = "issue-1",
+        stageId = "stage-1",
+        idempotencyKey = "key-$id",
+        status = ExecutionRunStatus.SUCCEEDED,
+        createdAt = 1,
+        updatedAt = 2,
+        runKind = kind,
+        historyScope = if (kind == ExecutionRunKind.STANDARD) {
+            ExecutionHistoryScope.FULL_STAGE
+        } else {
+            ExecutionHistoryScope.EXPLICIT_MESSAGES
+        },
+    )
+
     private fun message(id: Long, runId: String) = Message(
         id = id,
         chatId = 1,
@@ -309,11 +432,12 @@ class StageResultServiceTest {
         senderName = "成员",
         avatar = "A",
         text = "消息正文",
-        timestamp = 10,
+        timestamp = 10 + id,
         isPending = false,
         issueId = "issue-1",
         stageId = "stage-1",
         executionRunId = runId,
+        participantSnapshotId = "participant-$id",
     )
 
     private fun materialUsage(id: String, runId: String) = MaterialUsageSnapshotEntity(
