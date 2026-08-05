@@ -436,17 +436,18 @@ class AudioGenerationCoordinator(
             return AudioGenerationCancelResult.Failure(AudioGenerationErrorCode.INVALID_STATE)
         }
 
-        scheduler.cancel(workPlan(asset, AudioWorkRequestKind.INITIAL).uniqueWorkName)
         val canceled = repository.markCanceled(asset.id, AudioFileState.PENDING)
-        fileStore.removeTemporaryFilesForAsset(asset.id, asset.config.targetFormat)
-
         if (!canceled) {
             val latest = repository.loadAsset(asset.id)
-            if (latest?.fileState == AudioFileState.CANCELED) {
-                return AudioGenerationCancelResult.Canceled(asset.id)
+            if (latest?.fileState != AudioFileState.CANCELED) {
+                return AudioGenerationCancelResult.Failure(
+                    AudioGenerationErrorCode.REPOSITORY_REJECTED,
+                )
             }
-            return AudioGenerationCancelResult.Failure(AudioGenerationErrorCode.REPOSITORY_REJECTED)
         }
+
+        scheduler.cancel(workPlan(asset, AudioWorkRequestKind.INITIAL).uniqueWorkName)
+        fileStore.removeTemporaryFilesForAsset(asset.id, asset.config.targetFormat)
         return AudioGenerationCancelResult.Canceled(asset.id)
     }
 
