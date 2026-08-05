@@ -18,7 +18,7 @@ import com.elio.jianyu.collaboration.IssueCollaborationSnapshot
 import com.elio.jianyu.data.CrossDiscussionStatus
 import com.elio.jianyu.data.ExecutionRunEntity
 import com.elio.jianyu.data.ExecutionRunKind
-import com.elio.jianyu.data.ExecutionRuntimeBudgetConfig
+import com.elio.jianyu.collaboration.CollaborationExecutionBudgetPolicy
 import com.elio.jianyu.data.Message
 import com.elio.jianyu.data.PreparedExecutionContext
 import java.util.UUID
@@ -145,7 +145,7 @@ class IssueCollaborationViewModel internal constructor(
                     roundIndex = nextRoundIndex(),
                     userConfirmedAt = System.currentTimeMillis(),
                     context = contextSelection(current, preparedContext),
-                    budget = ExecutionRuntimeBudgetConfig(maxApiCalls = 1),
+                    budget = CollaborationExecutionBudgetPolicy.directed(),
                 ),
             )
         }
@@ -166,7 +166,7 @@ class IssueCollaborationViewModel internal constructor(
                     roundIndex = nextRoundIndex(),
                     userConfirmedAt = System.currentTimeMillis(),
                     context = contextSelection(current, preparedContext),
-                    budget = ExecutionRuntimeBudgetConfig(maxApiCalls = selected.size + 1),
+                    budget = CollaborationExecutionBudgetPolicy.cross(selected.size),
                     autoStartSynthesisOnFullSuccess = true,
                 ),
             )
