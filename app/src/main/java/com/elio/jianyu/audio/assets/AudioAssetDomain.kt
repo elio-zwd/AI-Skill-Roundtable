@@ -27,9 +27,8 @@ sealed interface AudioAssetSource {
     val issueId: String
     val stageId: String
     val contentHash: String
-
-    internal val sourceType: String
-    internal val stableSourceId: String
+    val sourceType: String
+    val stableSourceId: String
 
     data class CompletedMessage(
         override val issueId: String,
