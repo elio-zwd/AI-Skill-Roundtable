@@ -119,6 +119,29 @@ data class OfficialSkillCatalogManifest(
     val skills: List<OfficialSkillDefinition>,
 )
 
+/**
+ * 对稳定 44 项目录的执行发布覆写。只允许发布已存在的官方 ID，不能扩展目录身份。
+ */
+@Serializable
+data class OfficialSkillExecutionPublication(
+    val id: String,
+    val expectedDefaultOrder: Int,
+    val assetPath: String,
+    val publicationStatus: OfficialSkillPublicationStatus,
+    val sourceStatus: OfficialSkillSourceStatus,
+    val sourceSummary: String,
+    val boundaries: List<String>,
+    val integrityBoundaries: List<String> = emptyList(),
+)
+
+@Serializable
+data class OfficialSkillExecutionPublicationManifest(
+    val schemaVersion: Int,
+    val batchId: String,
+    val generatedFrom: String,
+    val skills: List<OfficialSkillExecutionPublication>,
+)
+
 sealed interface OfficialSkillCatalogLoadResult {
     data class Success(
         val catalog: OfficialSkillCatalog,

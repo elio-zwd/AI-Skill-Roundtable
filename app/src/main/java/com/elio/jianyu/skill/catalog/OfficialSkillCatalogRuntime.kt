@@ -6,6 +6,7 @@ data class OfficialSkillCatalogRuntime(
     val catalog: OfficialSkillCatalog,
     val preferences: OfficialSkillPreferences,
     val validator: CatalogOfficialSkillIdValidator,
+    val executionEligibility: OfficialSkillExecutionEligibility,
 )
 
 sealed interface OfficialSkillCatalogRuntimeResult {
@@ -29,16 +30,34 @@ fun createOfficialSkillCatalogRuntime(
         )
         is OfficialSkillCatalogLoadResult.Success -> {
             val catalog = loaded.catalog
-            OfficialSkillCatalogRuntimeResult.Success(
-                OfficialSkillCatalogRuntime(
-                    catalog = catalog,
-                    preferences = SharedPreferencesOfficialSkillPreferences(
-                        context = context.applicationContext,
-                        catalog = catalog,
-                    ),
-                    validator = CatalogOfficialSkillIdValidator(catalog),
-                ),
+            val eligibility = OfficialSkillExecutionEligibility(
+                catalog = catalog,
+                assetReader = AndroidOfficialSkillAssetReader(context.applicationContext),
             )
+            val failures = catalog.skills
+                .filter { it.availability.executable }
+                .map(eligibility::audit)
+                .filterNot(OfficialSkillExecutionEligibilityResult::eligible)
+            if (failures.isNotEmpty()) {
+                OfficialSkillCatalogRuntimeResult.Failure(
+                    message = failures.joinToString(separator = "; ") { result ->
+                        val issue = result.issues.first()
+                        "${result.skillId}:${issue.code.reasonCode}"
+                    },
+                )
+            } else {
+                OfficialSkillCatalogRuntimeResult.Success(
+                    OfficialSkillCatalogRuntime(
+                        catalog = catalog,
+                        preferences = SharedPreferencesOfficialSkillPreferences(
+                            context = context.applicationContext,
+                            catalog = catalog,
+                        ),
+                        validator = CatalogOfficialSkillIdValidator(catalog),
+                        executionEligibility = eligibility,
+                    ),
+                )
+            }
         }
     }
 }
