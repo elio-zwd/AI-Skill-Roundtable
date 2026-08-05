@@ -11,6 +11,7 @@ import com.elio.jianyu.execution.ExecutionRunCoordinator
 import com.elio.jianyu.execution.InteractionExecutionNetworkGateway
 import com.elio.jianyu.execution.JianyuExecutionPersistenceGateway
 import com.elio.jianyu.execution.OfficialCatalogExecutionSkillResolver
+import com.elio.jianyu.result.StageResultService
 import com.elio.jianyu.skill.catalog.OfficialSkillCatalogRuntimeResult
 import com.elio.jianyu.skill.catalog.createOfficialSkillCatalogRuntime
 import kotlinx.coroutines.CoroutineScope
@@ -23,6 +24,7 @@ data class JianyuAppRuntime(
     val officialSkillCatalogRuntimeResult: OfficialSkillCatalogRuntimeResult,
     val executionCoordinator: ExecutionRunCoordinator?,
     val collaborationCoordinator: IssueCollaborationCoordinator?,
+    val stageResultService: StageResultService,
 )
 
 object JianyuAppRuntimeProvider {
@@ -85,6 +87,7 @@ object JianyuAppRuntimeProvider {
             officialSkillCatalogRuntimeResult = catalogRuntimeResult,
             executionCoordinator = executionCoordinator,
             collaborationCoordinator = collaborationCoordinator,
+            stageResultService = StageResultService(repository),
         )
     }
 }
