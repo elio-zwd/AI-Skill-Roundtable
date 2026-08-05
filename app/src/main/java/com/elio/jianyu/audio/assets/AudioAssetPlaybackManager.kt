@@ -87,6 +87,7 @@ class AudioAssetPlaybackManager(
             return fail(audioAssetId, AudioAssetPlaybackErrorCode.PATH_REJECTED)
         }
 
+        clearActivePlayer(stopFirst = true)
         val availableFile = when (val resolution = fileStore.resolve(relativePath)) {
             is AudioFileResolution.Available -> resolution.file
             is AudioFileResolution.Missing -> {
@@ -97,7 +98,6 @@ class AudioAssetPlaybackManager(
             }
         }
 
-        clearActivePlayer(stopFirst = true)
         val token = Any()
         activeToken = token
         activeAudioAssetId = audioAssetId
