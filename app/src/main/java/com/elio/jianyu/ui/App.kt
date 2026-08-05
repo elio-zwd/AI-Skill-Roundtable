@@ -154,6 +154,7 @@ internal fun MainAppContent(
                         repository = appRuntime.repository,
                         coordinator = appRuntime.executionCoordinator,
                         collaborationCoordinator = appRuntime.collaborationCoordinator,
+                        stageResultService = appRuntime.stageResultService,
                         issueId = issueId,
                         stageId = stageId,
                         onBack = { navController.popBackStack() },
