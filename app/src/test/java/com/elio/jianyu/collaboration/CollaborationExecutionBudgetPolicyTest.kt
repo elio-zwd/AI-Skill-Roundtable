@@ -21,6 +21,31 @@ class CollaborationExecutionBudgetPolicyTest {
     }
 
     @Test
+    fun requestDefaultsUseRetryCapableBudgetPolicy() {
+        val directed = DirectedResponseRequest(
+            operationId = "directed-default-1",
+            issueId = "issue-1",
+            stageId = "stage-1",
+            selectedSkillId = "study-planner",
+            question = "问题",
+            roundIndex = 0,
+            userConfirmedAt = 1L,
+        )
+        val cross = CrossDiscussionRequest(
+            operationId = "cross-default-1",
+            issueId = "issue-1",
+            stageId = "stage-1",
+            selectedSkillIds = listOf("study-planner", "research-fact-checker"),
+            focus = "焦点",
+            roundIndex = 0,
+            userConfirmedAt = 1L,
+        )
+
+        assertEquals(3, directed.budget.maxApiCalls)
+        assertEquals(8, cross.budget.maxApiCalls)
+    }
+
+    @Test
     fun crossBudgetRejectsAnInvalidParticipantCount() {
         try {
             CollaborationExecutionBudgetPolicy.cross(participantCount = 1)
