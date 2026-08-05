@@ -18,11 +18,16 @@ import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.components.JianyuPageShell
 import com.elio.jianyu.ui.components.JianyuStateCard
 import com.elio.jianyu.ui.screens.context.ContextConfirmationDialog
+import com.elio.jianyu.ui.screens.result.StageDraftResultPanel
+import com.elio.jianyu.ui.screens.result.StageResultCallbacks
+import com.elio.jianyu.ui.screens.result.StageResultUiState
 
 @Composable
 fun IssueExecutionScreen(
     state: IssueExecutionUiState,
     collaborationState: IssueCollaborationUiState = IssueCollaborationUiState.Loading,
+    stageResultState: StageResultUiState? = null,
+    stageResultCallbacks: StageResultCallbacks = StageResultCallbacks.Empty,
     onBack: () -> Unit,
     onReload: () -> Unit,
     onStop: () -> Unit,
@@ -54,7 +59,7 @@ fun IssueExecutionScreen(
             is IssueExecutionUiState.Content -> state.issueTitle
             else -> "议题工作区"
         },
-        subtitle = "执行运行、协作输入、上下文确认与恢复",
+        subtitle = "执行运行、协作输入、上下文确认、阶段草稿与成果",
         onBack = onBack,
         contentScrollable = true,
         modifier = Modifier.testTag(IssueExecutionTestTags.SCREEN),
@@ -105,6 +110,12 @@ fun IssueExecutionScreen(
                     state = state,
                     onOpenContext = onOpenContext,
                 )
+                stageResultState?.let { resultState ->
+                    StageDraftResultPanel(
+                        state = resultState,
+                        callbacks = stageResultCallbacks,
+                    )
+                }
                 if (state.runId == null) {
                     JianyuStateCard(
                         title = "尚未开始执行",
