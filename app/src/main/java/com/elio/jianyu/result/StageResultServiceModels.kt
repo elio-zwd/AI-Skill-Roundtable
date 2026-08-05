@@ -1,6 +1,11 @@
 package com.elio.jianyu.result
 
+import com.elio.jianyu.data.ArtifactSourceRecoverySnapshot
 import com.elio.jianyu.data.ConfirmedArtifactEntity
+import com.elio.jianyu.data.ExecutionHistoryScope
+import com.elio.jianyu.data.ExecutionMessageUsageSnapshotEntity
+import com.elio.jianyu.data.ExecutionRunKind
+import com.elio.jianyu.data.ExecutionRunStatus
 import com.elio.jianyu.data.MaterialUsageSnapshotEntity
 import com.elio.jianyu.data.Message
 import com.elio.jianyu.data.StageSummaryDraftEntity
@@ -63,6 +68,18 @@ sealed interface StageArtifactConfirmationResult {
     ) : StageArtifactConfirmationResult
 }
 
+data class StageMessageSourceMetadata(
+    val runKind: ExecutionRunKind,
+    val runStatus: ExecutionRunStatus,
+    val historyScope: ExecutionHistoryScope,
+    val participantSnapshotId: String?,
+    val actualMessageUsageCount: Int,
+) {
+    val completeRun: Boolean
+        get() = runStatus == ExecutionRunStatus.SUCCEEDED ||
+            runStatus == ExecutionRunStatus.COMPLETED
+}
+
 data class StageResultWorkspace(
     val issueId: String,
     val stageId: String,
@@ -72,6 +89,9 @@ data class StageResultWorkspace(
     val selectableMessages: List<Message>,
     val materialUsages: List<MaterialUsageSnapshotEntity>,
     val artifactRevisionResolution: ArtifactRevisionResolution,
+    val messageSourceMetadata: Map<Long, StageMessageSourceMetadata> = emptyMap(),
+    val messageUsageByRun: Map<String, List<ExecutionMessageUsageSnapshotEntity>> = emptyMap(),
+    val artifactSourcesById: Map<String, ArtifactSourceRecoverySnapshot> = emptyMap(),
 )
 
 sealed interface StageResultLoadResult {
