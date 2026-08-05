@@ -28,15 +28,10 @@ fun ResourcesRoute(
     }
     val state by viewModel.state.collectAsState()
     val artifactState by artifactViewModel.state.collectAsState()
-    val combinedState = when (val current = state) {
-        is ResourcesUiState.Content -> current.copy(artifactLibrary = artifactState)
-        ResourcesUiState.Loading,
-        is ResourcesUiState.Failure,
-        -> current
-    }
     ResourcesScreen(
         selectedTab = ResourceTab.fromRouteValue(selectedRouteValue),
-        state = combinedState,
+        state = state,
+        artifactState = artifactState,
         onSelectTab = { tab -> selectedRouteValue = tab.routeValue },
         onOpenSettings = onOpenSettings,
         onRetry = viewModel::refresh,

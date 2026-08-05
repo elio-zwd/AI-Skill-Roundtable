@@ -28,6 +28,8 @@ fun ResourcesScreen(
     onSelectTab: (ResourceTab) -> Unit,
     onOpenSettings: () -> Unit,
     state: ResourcesUiState = ResourcesUiState.Content(),
+    artifactState: ArtifactLibraryUiState =
+        (state as? ResourcesUiState.Content)?.artifactLibrary ?: ArtifactLibraryUiState.Loading,
     onRetry: () -> Unit = {},
     onSelectSection: (ResourceLibrarySection) -> Unit = {},
     onQueryChange: (String) -> Unit = {},
@@ -76,8 +78,7 @@ fun ResourcesScreen(
 
         when (selectedTab) {
             ResourceTab.ARTIFACTS -> ArtifactLibraryContent(
-                state = (state as? ResourcesUiState.Content)?.artifactLibrary
-                    ?: ArtifactLibraryUiState.Loading,
+                state = artifactState,
                 onRetry = onArtifactRetry,
                 onQueryChange = onArtifactQueryChange,
                 onTypesChange = onArtifactTypesChange,

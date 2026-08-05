@@ -8,6 +8,7 @@ import androidx.compose.ui.test.performClick
 import com.elio.jianyu.result.ArtifactLibraryItem
 import com.elio.jianyu.result.ArtifactLibrarySnapshot
 import com.elio.jianyu.result.ArtifactType
+import com.elio.jianyu.ui.navigation.ResourceTab
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -49,6 +50,23 @@ class ArtifactLibraryComponentsTest {
             }
         }
         composeRule.onNodeWithTag(ArtifactLibraryTestTags.FAILURE).assertIsDisplayed()
+    }
+
+    @Test
+    fun artifactStateRemainsVisibleWhenMaterialLibraryFails() {
+        composeRule.setContent {
+            MaterialTheme {
+                ResourcesScreen(
+                    selectedTab = ResourceTab.ARTIFACTS,
+                    onSelectTab = {},
+                    onOpenSettings = {},
+                    state = ResourcesUiState.Failure("material_load_failed"),
+                    artifactState = ArtifactLibraryUiState.Empty,
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(ArtifactLibraryTestTags.EMPTY).assertIsDisplayed()
     }
 
     @Test

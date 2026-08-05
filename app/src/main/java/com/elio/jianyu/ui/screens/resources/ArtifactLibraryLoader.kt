@@ -5,21 +5,23 @@ import com.elio.jianyu.data.IssueRecoverySnapshot
 import com.elio.jianyu.data.JianyuRepository
 import com.elio.jianyu.data.RepositoryResult
 import com.elio.jianyu.result.ArtifactLibraryAggregator
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 internal class ArtifactLibraryLoader(
     private val repository: JianyuRepository,
 ) {
-    suspend fun load(): ArtifactLibraryUiState {
+    suspend fun load(): ArtifactLibraryUiState = withContext(Dispatchers.IO) {
         val navigation = repository.listIssueNavigation(
             setOf(IssueLifecycleState.ACTIVE, IssueLifecycleState.ARCHIVED),
         )
         if (navigation is RepositoryResult.Failure) {
-            return ArtifactLibraryUiState.Failure(ARTIFACT_LOAD_FAILED)
+            return@withContext ArtifactLibraryUiState.Failure(ARTIFACT_LOAD_FAILED)
         }
 
         navigation as RepositoryResult.Success
         if (navigation.value.isEmpty()) {
-            return ArtifactLibraryUiState.Empty
+            return@withContext ArtifactLibraryUiState.Empty
         }
 
         val snapshots = mutableListOf<IssueRecoverySnapshot>()
@@ -32,12 +34,12 @@ internal class ArtifactLibraryLoader(
         }
 
         if (snapshots.isEmpty() && failureCount > 0) {
-            return ArtifactLibraryUiState.Failure(ARTIFACT_LOAD_FAILED)
+            return@withContext ArtifactLibraryUiState.Failure(ARTIFACT_LOAD_FAILED)
         }
 
         val aggregated = ArtifactLibraryAggregator.aggregate(snapshots)
         if (aggregated.items.isEmpty()) {
-            return if (failureCount > 0) {
+            return@withContext if (failureCount > 0) {
                 ArtifactLibraryUiState.Failure(ARTIFACT_LOAD_FAILED)
             } else {
                 ArtifactLibraryUiState.Empty
@@ -45,7 +47,7 @@ internal class ArtifactLibraryLoader(
         }
 
         val content = ArtifactLibraryUiState.Content(aggregated)
-        return if (failureCount > 0) {
+        if (failureCount > 0) {
             ArtifactLibraryUiState.PartialFailure(
                 content = content,
                 errorCode = ARTIFACT_PARTIAL_LOAD_FAILED,
