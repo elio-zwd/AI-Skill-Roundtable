@@ -76,6 +76,8 @@ data class CrossDiscussionRequest(
 
 data class CrossDiscussionSynthesisRequest(
     val operationId: String,
+    val issueId: String,
+    val stageId: String,
     val sessionId: String,
     val focus: String,
     val roundIndex: Int,
@@ -86,8 +88,28 @@ data class CrossDiscussionSynthesisRequest(
 ) {
     init {
         require(STABLE_OPERATION_ID.matches(operationId))
+        require(issueId.isNotBlank())
+        require(stageId.isNotBlank())
         require(sessionId.isNotBlank())
         require(focus.isNotBlank())
+        require(roundIndex >= 0)
+        require(userConfirmedAt > 0L)
+        require(model.isNotBlank())
+    }
+}
+
+data class CollaborationRetryRequest(
+    val operationId: String,
+    val previousRunId: String,
+    val currentUserInput: String,
+    val roundIndex: Int,
+    val userConfirmedAt: Long,
+    val model: String = DEFAULT_EXECUTION_MODEL,
+) {
+    init {
+        require(STABLE_OPERATION_ID.matches(operationId))
+        require(previousRunId.isNotBlank())
+        require(currentUserInput.isNotBlank())
         require(roundIndex >= 0)
         require(userConfirmedAt > 0L)
         require(model.isNotBlank())
@@ -118,6 +140,11 @@ data class CrossSynthesisOperationIds(
     val idempotencyKey: String,
 )
 
+data class CollaborationRetryOperationIds(
+    val runId: String,
+    val idempotencyKey: String,
+)
+
 object CollaborationOperationIds {
     fun directed(operationId: String): DirectedOperationIds {
         validate(operationId)
@@ -144,6 +171,14 @@ object CollaborationOperationIds {
         return CrossSynthesisOperationIds(
             runId = "cross-synthesis-$operationId",
             idempotencyKey = "cross-synthesis-$operationId",
+        )
+    }
+
+    fun retry(operationId: String): CollaborationRetryOperationIds {
+        validate(operationId)
+        return CollaborationRetryOperationIds(
+            runId = "collaboration-retry-$operationId",
+            idempotencyKey = "collaboration-retry-$operationId",
         )
     }
 
