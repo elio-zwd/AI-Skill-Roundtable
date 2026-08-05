@@ -1,6 +1,7 @@
 package com.elio.jianyu.ui.screens.execution
 
 import com.elio.jianyu.data.CrossDiscussionStatus
+import com.elio.jianyu.data.ExecutionRunStatus
 
 enum class CollaborationDialogMode {
     DIRECTED,
@@ -22,6 +23,19 @@ data class CollaborationMessageUi(
     val preview: String,
     val selected: Boolean,
 )
+
+data class DirectedResponseRunUi(
+    val runId: String,
+    val skillId: String,
+    val displayName: String,
+    val question: String,
+    val status: ExecutionRunStatus,
+    val hasIncompleteOutput: Boolean,
+) {
+    val canRetry: Boolean
+        get() = status == ExecutionRunStatus.RETRYABLE ||
+            status == ExecutionRunStatus.STOPPED
+}
 
 data class CrossDiscussionSessionUi(
     val sessionId: String,
@@ -64,6 +78,7 @@ sealed interface IssueCollaborationUiState {
         val roster: List<CollaborationParticipantUi> = emptyList(),
         val messages: List<CollaborationMessageUi> = emptyList(),
         val dialogMode: CollaborationDialogMode? = null,
+        val directedRuns: List<DirectedResponseRunUi> = emptyList(),
         val sessions: List<CrossDiscussionSessionUi> = emptyList(),
         val integratorDisplayName: String = "会议行动助手（meeting-to-action）",
         val operationInProgress: Boolean = false,
