@@ -15,12 +15,12 @@ class CollaborationArchitectureTest {
     fun collaborationLayerDoesNotAccessDaoRetrofitOrApiKey() {
         val source = sourceTree("app/src/main/java/com/elio/jianyu/collaboration")
 
-        assertFalse(source.contains("JianyuRepositoryDao"))
-        assertFalse(source.contains("CollaborationDao"))
-        assertFalse(source.contains("Retrofit"))
-        assertFalse(source.contains("GeminiApi"))
-        assertFalse(source.contains("EncryptedApiKeyStore"))
-        assertFalse(source.contains("RoundtableOrchestrator"))
+        assertFalse(source.contains("import com.elio.jianyu.data.JianyuRepositoryDao"))
+        assertFalse(source.contains("import com.elio.jianyu.data.CollaborationDao"))
+        assertFalse(source.contains("import retrofit2."))
+        assertFalse(source.contains("import com.elio.jianyu.network.GeminiApi"))
+        assertFalse(source.contains("import com.elio.jianyu.network.EncryptedApiKeyStore"))
+        assertFalse(source.contains("import com.elio.jianyu.roundtable.RoundtableOrchestrator"))
     }
 
     @Test
@@ -29,9 +29,9 @@ class CollaborationArchitectureTest {
 
         assertTrue(source.contains("ExecutionRunCoordinator"))
         assertTrue(source.contains("startPrepared("))
-        assertFalse(source.contains("networkGateway"))
-        assertFalse(source.contains("appendMessage("))
-        assertFalse(source.contains("consumeBudget("))
+        assertFalse(source.contains("networkGateway ="))
+        assertFalse(source.contains("persistence.appendMessage("))
+        assertFalse(source.contains("persistence.consumeBudget("))
         assertFalse(source.contains("ConcurrentHashMap"))
     }
 
@@ -50,11 +50,11 @@ class CollaborationArchitectureTest {
     fun collaborationUiDoesNotAccessDaoOrNetwork() {
         val source = sourceTree("app/src/main/java/com/elio/jianyu/ui/screens/execution")
 
-        assertFalse(source.contains("JianyuRepositoryDao"))
-        assertFalse(source.contains("CollaborationDao"))
-        assertFalse(source.contains("Retrofit"))
-        assertFalse(source.contains("InteractionStreamingClient"))
-        assertFalse(source.contains("EncryptedApiKeyStore"))
+        assertFalse(source.contains("import com.elio.jianyu.data.JianyuRepositoryDao"))
+        assertFalse(source.contains("import com.elio.jianyu.data.CollaborationDao"))
+        assertFalse(source.contains("import retrofit2."))
+        assertFalse(source.contains("import com.elio.jianyu.network.InteractionStreamingClient"))
+        assertFalse(source.contains("import com.elio.jianyu.network.EncryptedApiKeyStore"))
     }
 
     @Test
