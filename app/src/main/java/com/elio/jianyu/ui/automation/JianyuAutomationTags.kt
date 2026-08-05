@@ -119,6 +119,7 @@ object JianyuAutomationTags {
         const val DIRECTED_DIALOG = "directed_response_dialog"
         const val DIRECTED_CONFIRM = "directed_response_confirm"
         const val DIRECTED_FAILURE = "directed_response_failure"
+        const val DIRECTED_RETRY = "directed_response_retry"
         const val CROSS_DIALOG = "cross_discussion_dialog"
         const val CROSS_FOCUS_INPUT = "cross_discussion_focus_input"
         const val CROSS_INTEGRATOR = "cross_discussion_integrator"
@@ -225,6 +226,7 @@ object JianyuAutomationTags {
         Collaboration.DIRECTED_DIALOG,
         Collaboration.DIRECTED_CONFIRM,
         Collaboration.DIRECTED_FAILURE,
+        Collaboration.DIRECTED_RETRY,
         Collaboration.CROSS_DIALOG,
         Collaboration.CROSS_FOCUS_INPUT,
         Collaboration.CROSS_INTEGRATOR,
