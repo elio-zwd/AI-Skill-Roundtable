@@ -20,7 +20,8 @@ enum class AudioFileState(val storageValue: String) {
     PENDING("pending"),
     AVAILABLE("available"),
     MISSING("missing"),
-    FAILED("failed")
+    FAILED("failed"),
+    CANCELED("canceled")
 }
 
 enum class IssueLifecycleState(val storageValue: String) {
