@@ -52,9 +52,9 @@ class ArtifactSourceRecoveryDatabaseTest {
                     issueId = ISSUE_ID,
                     stageId = STAGE_ID,
                     idempotencyKey = "run-key",
-                    status = ExecutionRunStatus.SUCCEEDED,
+                    status = ExecutionRunStatus.NOT_STARTED,
                     createdAt = 20,
-                    updatedAt = 30,
+                    updatedAt = 20,
                     runKind = ExecutionRunKind.CROSS_DISCUSSION_SYNTHESIS,
                     discussionId = "discussion-1",
                     historyScope = ExecutionHistoryScope.EXPLICIT_MESSAGES,
@@ -75,6 +75,16 @@ class ArtifactSourceRecoveryDatabaseTest {
                         createdAt = 20,
                     ),
                 ),
+            ),
+        ).successValue()
+        repository.transitionRun(
+            TransitionRunCommand(
+                runId = RUN_ID,
+                expectedStatuses = setOf(ExecutionRunStatus.NOT_STARTED),
+                newStatus = ExecutionRunStatus.SUCCEEDED,
+                updatedAt = 30,
+                startedAt = 25,
+                finishedAt = 30,
             ),
         ).successValue()
         repository.appendDomainMessage(
