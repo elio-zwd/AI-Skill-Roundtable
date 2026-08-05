@@ -1,11 +1,13 @@
 package com.elio.jianyu.result
 
+import com.elio.jianyu.data.ArtifactSourceRecoverySnapshot
 import com.elio.jianyu.data.ConfirmedArtifactEntity
 import com.elio.jianyu.data.IssueRecoverySnapshot
 
 object ArtifactLibraryAggregator {
     fun aggregate(
         snapshots: List<IssueRecoverySnapshot>,
+        sourcesByIssue: Map<String, List<ArtifactSourceRecoverySnapshot>> = emptyMap(),
     ): ArtifactLibrarySnapshot {
         val items = mutableListOf<ArtifactLibraryItem>()
         val problems = mutableListOf<ArtifactRevisionProblem>()
@@ -16,7 +18,11 @@ object ArtifactLibraryAggregator {
             problems += resolution.problems
             val byId = artifacts.associateBy { it.id }
             val stagesById = snapshot.core.stages.associateBy { it.id }
+            val sourceByArtifact = sourcesByIssue[snapshot.core.issue.id]
+                .orEmpty()
+                .associateBy { it.artifactId }
             artifacts.forEach { artifact ->
+                val sources = sourceByArtifact[artifact.id]
                 items += ArtifactLibraryItem(
                     artifactId = artifact.id,
                     issueId = artifact.issueId,
@@ -36,6 +42,12 @@ object ArtifactLibraryAggregator {
                     revisionNumber = revisionNumber(artifact, byId),
                     latest = artifact.id in resolution.latestArtifactIds,
                     content = artifact.content,
+                    sourceMessageIds = sources?.messages.orEmpty().map { it.messageId },
+                    sourceRunIds = sources?.runs.orEmpty().map { it.runId },
+                    sourceDraftRevisionIds = sources?.draftRevisions.orEmpty()
+                        .map { it.draftRevisionId },
+                    sourceMaterialUsageSnapshotIds = sources?.materials.orEmpty()
+                        .map { it.materialUsageSnapshotId },
                 )
             }
         }
