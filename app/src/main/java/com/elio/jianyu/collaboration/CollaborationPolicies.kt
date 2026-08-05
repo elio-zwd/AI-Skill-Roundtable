@@ -5,6 +5,10 @@ import com.elio.jianyu.data.ExecutionParticipantSnapshotEntity
 import com.elio.jianyu.data.ExecutionParticipantStatus
 import com.elio.jianyu.data.ExecutionRunEntity
 import com.elio.jianyu.data.ExecutionRunKind
+import com.elio.jianyu.skill.catalog.OfficialSkillDefinition
+import com.elio.jianyu.skill.catalog.OfficialSkillExecutionEligibilityResult
+import com.elio.jianyu.skill.catalog.OfficialSkillPrimaryType
+import com.elio.jianyu.skill.catalog.OfficialSkillUseMode
 
 data class CollaborationRoster(
     val sourceRunId: String,
@@ -58,6 +62,7 @@ enum class CollaborationValidationCode {
     NOT_IN_CURRENT_ROSTER,
     SKILL_NOT_EXECUTABLE,
     INTEGRATOR_NOT_EXECUTABLE,
+    INTEGRATOR_NOT_ELIGIBLE_FOR_SYNTHESIS,
 }
 
 data class CollaborationValidationResult(
@@ -118,6 +123,42 @@ object CrossDiscussionPolicy {
             return invalid(CollaborationValidationCode.INTEGRATOR_NOT_EXECUTABLE)
         }
         return CollaborationValidationResult.Valid
+    }
+}
+
+object SynthesisSkillEligibilityPolicy {
+    const val DEFAULT_INTEGRATOR_SKILL_ID = "meeting-to-action"
+
+    fun validate(
+        definition: OfficialSkillDefinition?,
+        audit: OfficialSkillExecutionEligibilityResult?,
+    ): CollaborationValidationResult {
+        if (
+            definition == null ||
+            audit == null ||
+            definition.id != DEFAULT_INTEGRATOR_SKILL_ID ||
+            !audit.eligible
+        ) {
+            return invalid(CollaborationValidationCode.INTEGRATOR_NOT_EXECUTABLE)
+        }
+        val workflowType = definition.primaryType in setOf(
+            OfficialSkillPrimaryType.WORKFLOW_CAPABILITY,
+            OfficialSkillPrimaryType.TASK_ASSISTANT,
+        )
+        val multiInputMode = definition.useMode in setOf(
+            OfficialSkillUseMode.BOTH,
+            OfficialSkillUseMode.MULTI_PREFERRED,
+        )
+        val forbidsMultipleViews = definition.integrityBoundaries.any { boundary ->
+            val normalized = boundary.lowercase()
+            ("不得" in normalized || "禁止" in normalized) &&
+                ("多成员" in normalized || "其他成员" in normalized || "多方" in normalized)
+        }
+        return if (workflowType && multiInputMode && !forbidsMultipleViews) {
+            CollaborationValidationResult.Valid
+        } else {
+            invalid(CollaborationValidationCode.INTEGRATOR_NOT_ELIGIBLE_FOR_SYNTHESIS)
+        }
     }
 }
 
