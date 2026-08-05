@@ -13,7 +13,7 @@ class ResourceLifecycleModelTest {
             SnapshotContentState.entries.map { it.storageValue }.toSet()
         )
         assertEquals(
-            setOf("pending", "available", "missing", "failed"),
+            setOf("pending", "available", "missing", "failed", "canceled"),
             AudioFileState.entries.map { it.storageValue }.toSet()
         )
         assertEquals(
