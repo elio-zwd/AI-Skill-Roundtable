@@ -63,17 +63,44 @@ enum class ExecutionRunStatus(val storageValue: String) {
     COMPLETED("completed")
 }
 
+enum class ExecutionRunKind(val storageValue: String) {
+    STANDARD("standard"),
+    DIRECTED_RESPONSE("directed_response"),
+    CROSS_DISCUSSION_RESPONSE("cross_discussion_response"),
+    CROSS_DISCUSSION_SYNTHESIS("cross_discussion_synthesis"),
+}
+
+enum class ExecutionHistoryScope(val storageValue: String) {
+    FULL_STAGE("full_stage"),
+    EXPLICIT_MESSAGES("explicit_messages"),
+    NO_HISTORY("no_history"),
+}
+
 class CoreDomainConverters {
     @TypeConverter
-    fun executionRunStatusToStorageValue(status: ExecutionRunStatus): String {
-        return status.storageValue
-    }
+    fun executionRunStatusToStorageValue(status: ExecutionRunStatus): String = status.storageValue
 
     @TypeConverter
-    fun storageValueToExecutionRunStatus(value: String): ExecutionRunStatus {
-        return ExecutionRunStatus.entries.firstOrNull { it.storageValue == value }
+    fun storageValueToExecutionRunStatus(value: String): ExecutionRunStatus =
+        ExecutionRunStatus.entries.firstOrNull { it.storageValue == value }
             ?: throw IllegalArgumentException("Unknown execution run status: $value")
-    }
+
+    @TypeConverter
+    fun executionRunKindToStorageValue(kind: ExecutionRunKind): String = kind.storageValue
+
+    @TypeConverter
+    fun storageValueToExecutionRunKind(value: String): ExecutionRunKind =
+        ExecutionRunKind.entries.firstOrNull { it.storageValue == value }
+            ?: throw IllegalArgumentException("Unknown execution run kind: $value")
+
+    @TypeConverter
+    fun executionHistoryScopeToStorageValue(scope: ExecutionHistoryScope): String =
+        scope.storageValue
+
+    @TypeConverter
+    fun storageValueToExecutionHistoryScope(value: String): ExecutionHistoryScope =
+        ExecutionHistoryScope.entries.firstOrNull { it.storageValue == value }
+            ?: throw IllegalArgumentException("Unknown execution history scope: $value")
 }
 
 @Entity(
@@ -90,6 +117,12 @@ class CoreDomainConverters {
             parentColumns = ["id"],
             childColumns = ["retryOfRunId"],
             onDelete = ForeignKey.RESTRICT
+        ),
+        ForeignKey(
+            entity = ExecutionRunEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["parentRunId"],
+            onDelete = ForeignKey.RESTRICT
         )
     ],
     indices = [
@@ -98,7 +131,10 @@ class CoreDomainConverters {
         Index(value = ["id", "issueId"], unique = true),
         Index(value = ["id", "issueId", "stageId"], unique = true),
         Index(value = ["triggerMessageId"]),
-        Index(value = ["retryOfRunId"])
+        Index(value = ["retryOfRunId"]),
+        Index(value = ["parentRunId"]),
+        Index(value = ["discussionId"]),
+        Index(value = ["stageId", "runKind"])
     ]
 )
 data class ExecutionRunEntity(
@@ -116,7 +152,13 @@ data class ExecutionRunEntity(
     val finishedAt: Long? = null,
     val stoppedAt: Long? = null,
     val failureCode: String? = null,
-    val failureMessage: String? = null
+    val failureMessage: String? = null,
+    @ColumnInfo(defaultValue = "'standard'")
+    val runKind: ExecutionRunKind = ExecutionRunKind.STANDARD,
+    val parentRunId: String? = null,
+    val discussionId: String? = null,
+    @ColumnInfo(defaultValue = "'full_stage'")
+    val historyScope: ExecutionHistoryScope = ExecutionHistoryScope.FULL_STAGE,
 )
 
 @Entity(
