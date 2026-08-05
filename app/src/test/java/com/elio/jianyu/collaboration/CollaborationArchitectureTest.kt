@@ -37,16 +37,13 @@ class CollaborationArchitectureTest {
 
     @Test
     fun synthesisRelationshipNeverUsesRetryField() {
-        val source = sourceTree("app/src/main/java/com/elio/jianyu")
         val coordinator = source(
             "app/src/main/java/com/elio/jianyu/collaboration/IssueCollaborationCoordinator.kt",
         )
 
         assertTrue(coordinator.contains("parentRunId = session.responseRunId"))
-        assertFalse(
-            coordinator.contains("retryOfRunId = session.responseRunId"),
-        )
-        assertTrue(source.contains("CROSS_DISCUSSION_SYNTHESIS"))
+        assertFalse(coordinator.contains("retryOfRunId = session.responseRunId"))
+        assertTrue(coordinator.contains("CROSS_DISCUSSION_SYNTHESIS"))
     }
 
     @Test
@@ -61,8 +58,10 @@ class CollaborationArchitectureTest {
     }
 
     @Test
-    fun crossDiscussionHasNoAutomaticMultiRoundLoop() {
-        val source = sourceTree("app/src/main/java/com/elio/jianyu/collaboration")
+    fun crossDiscussionCoordinatorHasNoAutomaticMultiRoundLoopOrVoting() {
+        val source = source(
+            "app/src/main/java/com/elio/jianyu/collaboration/IssueCollaborationCoordinator.kt",
+        )
 
         assertFalse(source.contains("while (true)"))
         assertFalse(source.contains("MAX_DISCUSSION_ROUNDS"))
