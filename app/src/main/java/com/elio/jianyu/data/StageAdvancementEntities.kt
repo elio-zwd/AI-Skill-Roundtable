@@ -309,7 +309,6 @@ object StageAdvancementPayloadHasher {
             }
             normalized.inheritedMaterialIds.forEach(::add)
             normalized.inheritedArtifactIds.forEach(::add)
-            add(normalized.confirmedAt.toString())
         }
         val digest = MessageDigest.getInstance("SHA-256")
         fields.forEach { field ->
