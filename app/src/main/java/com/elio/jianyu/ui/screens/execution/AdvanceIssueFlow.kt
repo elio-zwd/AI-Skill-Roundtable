@@ -3,9 +3,7 @@ package com.elio.jianyu.ui.screens.execution
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -16,7 +14,6 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -41,10 +38,10 @@ fun AdvanceIssueFlow(
         is AdvanceIssueUiState.DirectionStep -> DirectionDialog(state, callbacks)
         is AdvanceIssueUiState.MeasureStep -> MeasureDialog(state, callbacks)
         is AdvanceIssueUiState.SummaryStep -> SummaryDialog(state, callbacks)
-        is AdvanceIssueUiState.WaitingForRun -> WaitingForRunDialog(state, callbacks)
+        is AdvanceIssueUiState.WaitingForRun -> WaitingForRunDialog(callbacks)
         is AdvanceIssueUiState.StoppingCurrentRun -> ProgressDialog(
             title = "正在停止当前运行",
-            message = "等待运行终态持久化后，需要再次确认下一阶段摘要。",
+            message = "等待所有运行终态持久化后，需要再次确认下一阶段摘要。",
         )
         is AdvanceIssueUiState.CreatingStage -> ProgressDialog(
             title = "正在创建新阶段",
@@ -92,7 +89,10 @@ private fun LoadingDialog(onCancel: () -> Unit) {
         text = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator()
-                Text("正在读取当前阶段、阵容、资料与成果。", Modifier.padding(start = 16.dp))
+                Text(
+                    "正在读取当前阶段、阵容、资料与成果。",
+                    Modifier.padding(start = 16.dp),
+                )
             }
         },
         confirmButton = {},
@@ -129,13 +129,17 @@ private fun DirectionDialog(
                     checked = state.draft.realitySupport,
                     text = "现实支持",
                     tag = JianyuAutomationTags.AdvanceIssue.DIRECTION_REALITY_SUPPORT,
-                    onClick = { callbacks.onToggleDirection(AdvanceIssueDirection.REALITY_SUPPORT) },
+                    onClick = {
+                        callbacks.onToggleDirection(AdvanceIssueDirection.REALITY_SUPPORT)
+                    },
                 )
                 ChoiceRow(
                     checked = state.draft.thinkingExpansion,
                     text = "思维拓展",
                     tag = JianyuAutomationTags.AdvanceIssue.DIRECTION_THINKING_EXPANSION,
-                    onClick = { callbacks.onToggleDirection(AdvanceIssueDirection.THINKING_EXPANSION) },
+                    onClick = {
+                        callbacks.onToggleDirection(AdvanceIssueDirection.THINKING_EXPANSION)
+                    },
                 )
                 if (!state.draft.hasDirection) {
                     Text("至少选择一个方向。", color = MaterialTheme.colorScheme.error)
@@ -162,11 +166,7 @@ private fun MeasureDialog(
     state: AdvanceIssueUiState.MeasureStep,
     callbacks: AdvanceIssueCallbacks,
 ) {
-    val visibleMeasures = buildList {
-        if (state.draft.realitySupport) addAll(REALITY_MEASURES)
-        if (state.draft.thinkingExpansion) addAll(THINKING_MEASURES)
-        add(StageAdvancementMeasure.CUSTOM_OBJECTIVE)
-    }
+    val visibleMeasures = orderedAvailableMeasures(state.draft)
     AlertDialog(
         onDismissRequest = callbacks.onCancel,
         modifier = Modifier.testTag(JianyuAutomationTags.AdvanceIssue.DIALOG),
@@ -184,11 +184,7 @@ private fun MeasureDialog(
                     ChoiceRow(
                         checked = measure in state.draft.measures,
                         text = measure.label,
-                        tag = if (measure == StageAdvancementMeasure.CUSTOM_OBJECTIVE) {
-                            JianyuAutomationTags.AdvanceIssue.CUSTOM_OBJECTIVE
-                        } else {
-                            null
-                        },
+                        tag = null,
                         onClick = { callbacks.onToggleMeasure(measure) },
                     )
                 }
@@ -210,6 +206,7 @@ private fun MeasureDialog(
                         .testTag(JianyuAutomationTags.AdvanceIssue.EXPECTED_OUTPUT),
                     label = { Text("预期输出") },
                 )
+                RosterSelection(state, callbacks)
                 InheritanceSelection(state, callbacks)
             }
         },
@@ -229,6 +226,38 @@ private fun MeasureDialog(
             }
         },
     )
+}
+
+@Composable
+private fun RosterSelection(
+    state: AdvanceIssueUiState.MeasureStep,
+    callbacks: AdvanceIssueCallbacks,
+) {
+    HorizontalDivider()
+    Text("调整本阶段 Skill 阵容", style = MaterialTheme.typography.titleSmall)
+    Column(modifier = Modifier.testTag(JianyuAutomationTags.AdvanceIssue.ROSTER)) {
+        if (state.candidates.roster.isEmpty()) {
+            Text(
+                "当前阶段没有可继承阵容，需先完成一个 STANDARD 根运行。",
+                color = MaterialTheme.colorScheme.error,
+            )
+        } else {
+            state.candidates.roster.forEach { member ->
+                ChoiceRow(
+                    checked = state.draft.roster.any {
+                        it.officialSkillId == member.officialSkillId
+                    },
+                    text = "${member.officialSkillId}：${member.responsibility}",
+                    tag = JianyuAutomationTags.AdvanceIssue.rosterMember(member.officialSkillId),
+                    onClick = { callbacks.onToggleRosterMember(member.officialSkillId) },
+                )
+            }
+            if (state.draft.roster.isEmpty()) {
+                Text("至少保留一个 Skill。", color = MaterialTheme.colorScheme.error)
+            }
+            Text("执行前仍会重新检查官方 Skill 的当前执行资格。")
+        }
+    }
 }
 
 @Composable
@@ -294,15 +323,23 @@ private fun SummaryDialog(
                         "思维拓展".takeIf { state.draft.thinkingExpansion },
                     ).joinToString("、"),
                 )
-                SummaryItem("具体措施", state.draft.measures.joinToString("、") { it.label })
-                SummaryItem("默认继承内容", "议题背景、已确认资料、正式成果与计划阵容；不继承网络授权、敏感确认或个人背景选择。")
+                SummaryItem(
+                    "具体措施",
+                    orderedSelectedMeasures(state.draft).joinToString("、") { it.label },
+                )
+                SummaryItem(
+                    "默认继承内容",
+                    "议题背景、已确认资料、正式成果与计划阵容；不继承网络授权、敏感确认或个人背景选择。",
+                )
                 Column(modifier = Modifier.testTag(JianyuAutomationTags.AdvanceIssue.ROSTER)) {
                     Text("调整后的 Skill 阵容", style = MaterialTheme.typography.titleSmall)
-                    state.draft.roster.forEach { member ->
+                    state.draft.roster.sortedBy { it.position }.forEachIndexed { index, member ->
                         Text(
-                            "${member.position + 1}. ${member.officialSkillId}：${member.responsibility}",
+                            "${index + 1}. ${member.officialSkillId}：${member.responsibility}",
                             modifier = Modifier.testTag(
-                                JianyuAutomationTags.AdvanceIssue.rosterMember(member.officialSkillId),
+                                JianyuAutomationTags.AdvanceIssue.rosterMember(
+                                    member.officialSkillId,
+                                ),
                             ),
                         )
                     }
@@ -341,15 +378,14 @@ private fun SummaryDialog(
 }
 
 @Composable
-private fun WaitingForRunDialog(
-    state: AdvanceIssueUiState.WaitingForRun,
-    callbacks: AdvanceIssueCallbacks,
-) {
+private fun WaitingForRunDialog(callbacks: AdvanceIssueCallbacks) {
     AlertDialog(
         onDismissRequest = callbacks.onCancel,
         modifier = Modifier.testTag(JianyuAutomationTags.AdvanceIssue.DIALOG),
         title = { Text("当前阶段仍在运行") },
-        text = { Text("不会自动停止任何运行。停止成功并持久化终态后，需要重新检查并再次确认摘要。") },
+        text = {
+            Text("不会自动停止任何运行。停止成功并持久化终态后，需要重新检查并再次确认摘要。")
+        },
         confirmButton = {
             Button(
                 onClick = callbacks.onStopCurrentRun,
@@ -374,7 +410,9 @@ private fun UndoDialog(callbacks: AdvanceIssueCallbacks) {
         onDismissRequest = callbacks.onDismissUndo,
         modifier = Modifier.testTag(JianyuAutomationTags.StageTimeline.UNDO_CONFIRMATION),
         title = { Text("撤销新阶段") },
-        text = { Text("仅当这是最新阶段且从未产生 Run、消息、草稿、成果、使用快照、音频或讨论时才会删除。") },
+        text = {
+            Text("仅当这是最新阶段且从未产生 Run、消息、草稿、成果、使用快照、音频或讨论时才会删除。")
+        },
         confirmButton = {
             Button(onClick = callbacks.onConfirmUndo) { Text("确认撤销") }
         },
@@ -396,7 +434,12 @@ private fun FailureDialog(
             .testTag(JianyuAutomationTags.AdvanceIssue.DIALOG)
             .semantics { contentDescription = "推进议题失败：$message" },
         title = { Text("无法完成推进") },
-        text = { Text(message, modifier = Modifier.testTag(JianyuAutomationTags.AdvanceIssue.FAILURE)) },
+        text = {
+            Text(
+                message,
+                modifier = Modifier.testTag(JianyuAutomationTags.AdvanceIssue.FAILURE),
+            )
+        },
         confirmButton = {
             Button(onClick = onBack) { Text("返回检查") }
         },
@@ -459,6 +502,7 @@ data class AdvanceIssueCallbacks(
     val onToggleMeasure: (StageAdvancementMeasure) -> Unit,
     val onObjectiveChanged: (String) -> Unit,
     val onExpectedOutputChanged: (String) -> Unit,
+    val onToggleRosterMember: (String) -> Unit,
     val onToggleMaterial: (String) -> Unit,
     val onToggleArtifact: (String) -> Unit,
     val onContinueToSummary: () -> Unit,
@@ -484,6 +528,16 @@ private val THINKING_MEASURES = listOf(
     StageAdvancementMeasure.COMPARE_POSITIONS,
     StageAdvancementMeasure.DEEPEN_QUESTION,
 )
+
+private fun orderedAvailableMeasures(draft: AdvanceIssueDraft): List<StageAdvancementMeasure> =
+    buildList {
+        if (draft.realitySupport) addAll(REALITY_MEASURES)
+        if (draft.thinkingExpansion) addAll(THINKING_MEASURES)
+        add(StageAdvancementMeasure.CUSTOM_OBJECTIVE)
+    }
+
+private fun orderedSelectedMeasures(draft: AdvanceIssueDraft): List<StageAdvancementMeasure> =
+    orderedAvailableMeasures(draft).filter(draft.measures::contains)
 
 private val StageAdvancementMeasure.label: String
     get() = when (this) {
