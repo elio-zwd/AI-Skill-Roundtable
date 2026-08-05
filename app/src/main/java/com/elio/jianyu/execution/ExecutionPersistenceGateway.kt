@@ -3,6 +3,7 @@ package com.elio.jianyu.execution
 import com.elio.jianyu.data.AppendDomainMessageCommand
 import com.elio.jianyu.data.ConsumeExecutionBudgetCommand
 import com.elio.jianyu.data.CreateExecutionRuntimeCommand
+import com.elio.jianyu.data.ExecutionMessageUsageSnapshotEntity
 import com.elio.jianyu.data.ExecutionParticipantStateEntity
 import com.elio.jianyu.data.ExecutionRunBudgetEntity
 import com.elio.jianyu.data.ExecutionRunEntity
@@ -22,6 +23,7 @@ import com.elio.jianyu.data.closeExecutionBudget
 import com.elio.jianyu.data.consumeExecutionBudget
 import com.elio.jianyu.data.createExecutionRuntime
 import com.elio.jianyu.data.getExecutionRuntime
+import com.elio.jianyu.data.listExecutionMessageUsage
 import com.elio.jianyu.data.recoverInterruptedExecution
 import com.elio.jianyu.data.setExecutionBudgetReserve
 import com.elio.jianyu.data.transitionExecutionParticipant
@@ -32,6 +34,8 @@ interface ExecutionPersistenceGateway {
     suspend fun createRuntime(command: CreateExecutionRuntimeCommand): ExecutionRuntimeSnapshot
 
     suspend fun getRuntime(runId: String): ExecutionRuntimeSnapshot
+
+    suspend fun listMessageUsage(runId: String): List<ExecutionMessageUsageSnapshotEntity>
 
     suspend fun transitionParticipant(
         command: TransitionExecutionParticipantCommand,
@@ -70,6 +74,11 @@ class JianyuExecutionPersistenceGateway(
 
     override suspend fun getRuntime(runId: String): ExecutionRuntimeSnapshot =
         repository.getExecutionRuntime(runId).valueOrThrow()
+
+    override suspend fun listMessageUsage(
+        runId: String,
+    ): List<ExecutionMessageUsageSnapshotEntity> =
+        repository.listExecutionMessageUsage(runId).valueOrThrow()
 
     override suspend fun transitionParticipant(
         command: TransitionExecutionParticipantCommand,
