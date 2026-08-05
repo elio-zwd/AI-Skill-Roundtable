@@ -22,6 +22,7 @@ import com.elio.jianyu.ui.screens.context.ContextConfirmationDialog
 @Composable
 fun IssueExecutionScreen(
     state: IssueExecutionUiState,
+    collaborationState: IssueCollaborationUiState = IssueCollaborationUiState.Loading,
     onBack: () -> Unit,
     onReload: () -> Unit,
     onStop: () -> Unit,
@@ -34,13 +35,25 @@ fun IssueExecutionScreen(
     onSensitiveContextConfirmed: (ContextSourceType, String, Boolean) -> Unit = { _, _, _ -> },
     onContextExcerptChanged: (ContextSourceType, String, String) -> Unit = { _, _, _ -> },
     onConfirmContext: () -> Unit = {},
+    onCollaborationInputChanged: (String) -> Unit = {},
+    onOpenDirected: () -> Unit = {},
+    onOpenCross: () -> Unit = {},
+    onDismissCollaborationDialog: () -> Unit = {},
+    onToggleCollaborationParticipant: (String) -> Unit = {},
+    onToggleCollaborationMessage: (Long) -> Unit = {},
+    onConfirmDirected: () -> Unit = {},
+    onConfirmCross: () -> Unit = {},
+    onRetryCrossFailed: (String) -> Unit = {},
+    onSynthesizeCross: (String) -> Unit = {},
+    onRetryCrossSynthesis: (String) -> Unit = {},
+    onStopCross: (String) -> Unit = {},
 ) {
     JianyuPageShell(
         title = when (state) {
             is IssueExecutionUiState.Content -> state.issueTitle
             else -> "议题工作区"
         },
-        subtitle = "执行运行、上下文确认与恢复",
+        subtitle = "执行运行、协作输入、上下文确认与恢复",
         onBack = onBack,
         contentScrollable = true,
         modifier = Modifier.testTag(IssueExecutionTestTags.SCREEN),
@@ -67,6 +80,23 @@ fun IssueExecutionScreen(
             )
 
             is IssueExecutionUiState.Content -> {
+                IssueCollaborationSection(
+                    state = collaborationState,
+                    contextConfirmed = state.contextConfirmation?.confirmedForStart == true,
+                    onInputChanged = onCollaborationInputChanged,
+                    onOpenDirected = onOpenDirected,
+                    onOpenCross = onOpenCross,
+                    onDismissDialog = onDismissCollaborationDialog,
+                    onToggleParticipant = onToggleCollaborationParticipant,
+                    onToggleMessage = onToggleCollaborationMessage,
+                    onOpenContext = onOpenContext,
+                    onConfirmDirected = onConfirmDirected,
+                    onConfirmCross = onConfirmCross,
+                    onRetryFailed = onRetryCrossFailed,
+                    onSynthesize = onSynthesizeCross,
+                    onRetrySynthesis = onRetryCrossSynthesis,
+                    onStop = onStopCross,
+                )
                 ExecutionStatusCard(state)
                 ContextSelectionSummaryCard(
                     state = state,
@@ -75,13 +105,13 @@ fun IssueExecutionScreen(
                 if (state.runId == null) {
                     JianyuStateCard(
                         title = "尚未开始执行",
-                        message = "打开工作区不会创建 Run。可以先确认资料与个人背景，随后由 Skill 选择流程消费已确认上下文。",
+                        message = "打开工作区不会创建 Run。可以先确认资料与个人背景，再选择点名回应或交叉讨论。",
                     )
                 }
                 if (state.contextConfirmation?.confirmedForStart == true) {
                     JianyuStateCard(
                         title = "上下文已确认",
-                        message = "当前只生成不可变 Contribution 与 Usage 写入载荷；尚未选择 Skill 时不会创建 Run、Pending、预算或网络请求。",
+                        message = "已生成不可变 Contribution 与 Usage 写入载荷；只有最终确认协作后才会创建 Run 和调用网络。",
                     )
                 }
                 if (state.canRecoverInterrupted) {
