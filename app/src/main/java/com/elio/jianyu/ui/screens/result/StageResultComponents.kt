@@ -23,46 +23,41 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.data.ConfirmedArtifactEntity
+import com.elio.jianyu.data.ExecutionHistoryScope
+import com.elio.jianyu.data.ExecutionRunKind
 import com.elio.jianyu.data.Message
 import com.elio.jianyu.result.ArtifactType
+import com.elio.jianyu.result.StageMessageSourceMetadata
+import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.components.JianyuMetadataRow
 import com.elio.jianyu.ui.components.JianyuStateCard
 
 object StageResultTestTags {
-    const val PANEL = "stage_result_panel"
-    const val DRAFT_EMPTY = "stage_draft_empty"
-    const val DRAFT_CREATE = "stage_draft_create_button"
-    const val DRAFT_CREATE_FROM_MESSAGES = "stage_draft_create_from_messages"
-    const val DRAFT_EDITOR = "stage_draft_editor"
-    const val DRAFT_SAVE = "stage_draft_save_button"
-    const val DRAFT_SAVING = "stage_draft_saving"
-    const val DRAFT_SAVED = "stage_draft_saved"
-    const val DRAFT_SAVE_FAILURE = "stage_draft_save_failure"
-    const val DRAFT_CONFLICT = "stage_draft_conflict"
-    const val DRAFT_ABANDON = "stage_draft_abandon_button"
-    const val DRAFT_ABANDON_CONFIRMATION = "stage_draft_abandon_confirmation"
-    const val ARTIFACT_CONFIRM = "stage_artifact_confirm_button"
-    const val ARTIFACT_CONFIRMATION_DIALOG = "artifact_confirmation_dialog"
-    const val ARTIFACT_CONFIRMATION_CONFIRM = "artifact_confirmation_confirm"
-    const val ARTIFACT_CONFIRMATION_CANCEL = "artifact_confirmation_cancel"
+    const val PANEL = JianyuAutomationTags.StageResult.PANEL
+    const val DRAFT_EMPTY = JianyuAutomationTags.StageResult.DRAFT_EMPTY
+    const val DRAFT_CREATE = JianyuAutomationTags.StageResult.DRAFT_CREATE
+    const val DRAFT_CREATE_FROM_MESSAGES =
+        JianyuAutomationTags.StageResult.DRAFT_CREATE_FROM_MESSAGES
+    const val DRAFT_EDITOR = JianyuAutomationTags.StageResult.DRAFT_EDITOR
+    const val DRAFT_SAVE = JianyuAutomationTags.StageResult.DRAFT_SAVE
+    const val DRAFT_SAVING = JianyuAutomationTags.StageResult.DRAFT_SAVING
+    const val DRAFT_SAVED = JianyuAutomationTags.StageResult.DRAFT_SAVED
+    const val DRAFT_SAVE_FAILURE = JianyuAutomationTags.StageResult.DRAFT_SAVE_FAILURE
+    const val DRAFT_CONFLICT = JianyuAutomationTags.StageResult.DRAFT_CONFLICT
+    const val DRAFT_ABANDON = JianyuAutomationTags.StageResult.DRAFT_ABANDON
+    const val DRAFT_ABANDON_CONFIRMATION =
+        JianyuAutomationTags.StageResult.DRAFT_ABANDON_CONFIRMATION
+    const val ARTIFACT_CONFIRM = JianyuAutomationTags.StageResult.ARTIFACT_CONFIRM
+    const val ARTIFACT_CONFIRMATION_DIALOG =
+        JianyuAutomationTags.StageResult.ARTIFACT_CONFIRMATION_DIALOG
+    const val ARTIFACT_CONFIRMATION_CONFIRM =
+        JianyuAutomationTags.StageResult.ARTIFACT_CONFIRMATION_CONFIRM
+    const val ARTIFACT_CONFIRMATION_CANCEL =
+        JianyuAutomationTags.StageResult.ARTIFACT_CONFIRMATION_CANCEL
 
-    fun message(messageId: Long): String = "stage_source_message_$messageId"
+    fun message(messageId: Long): String = JianyuAutomationTags.StageResult.message(messageId)
 
-    fun artifact(artifactId: String): String = "stage_artifact_${stableTagPart(artifactId)}"
-
-    private fun stableTagPart(value: String): String = value
-        .lowercase()
-        .map { character ->
-            if (character.isLetterOrDigit() || character == '_' || character == '-') {
-                character
-            } else {
-                '_'
-            }
-        }
-        .joinToString("")
-        .trim('_')
-        .ifBlank { "unknown" }
-        .take(80)
+    fun artifact(artifactId: String): String = JianyuAutomationTags.StageResult.artifact(artifactId)
 }
 
 @Composable
@@ -113,6 +108,7 @@ private fun StageResultContent(
         )
         MessageSourceSelector(
             messages = state.workspace.selectableMessages,
+            metadataByMessage = state.workspace.messageSourceMetadata,
             selectedIds = state.selectedMessageIds,
             onToggle = callbacks.onToggleMessage,
         )
@@ -215,16 +211,18 @@ private fun StageResultContent(
 @Composable
 private fun MessageSourceSelector(
     messages: List<Message>,
+    metadataByMessage: Map<Long, StageMessageSourceMetadata>,
     selectedIds: Set<Long>,
     onToggle: (Long) -> Unit,
 ) {
     if (messages.isEmpty()) return
     Text("可选消息来源", style = MaterialTheme.typography.labelLarge)
     Text(
-        "默认不选择任何消息；Pending 或其他阶段消息不会出现在这里。",
+        "默认不选择任何消息；这里只显示当前阶段绑定真实 Run 的非 Pending 参与者输出。",
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     messages.forEach { message ->
+        val metadata = metadataByMessage[message.id]
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -237,6 +235,25 @@ private fun MessageSourceSelector(
             )
             Column {
                 Text(message.senderName, style = MaterialTheme.typography.labelLarge)
+                metadata?.let {
+                    Text(
+                        buildString {
+                            append(it.runKind.displayName())
+                            append(" · ")
+                            append(it.historyScope.displayName())
+                            append(" · 实际消息上下文 ")
+                            append(it.actualMessageUsageCount)
+                            append(" 条")
+                        },
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (!it.completeRun) {
+                        Text(
+                            "该 Run 未完整成功；仅作为原始输出候选，不代表完整结论。",
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
                 Text(
                     message.text.lineSequence().firstOrNull().orEmpty().take(120),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -356,13 +373,20 @@ private fun ArtifactConfirmationDialog(
                         label = { Text(type.displayName) },
                     )
                 }
+                val selectedUsageCount = state.selectedMessageIds.sumOf { messageId ->
+                    state.workspace.messageSourceMetadata[messageId]
+                        ?.actualMessageUsageCount
+                        ?: 0
+                }
                 JianyuStateCard(
                     title = "来源预览",
                     message = buildString {
                         append("草稿 Revision ")
                         append(state.currentRevision)
-                        append("；选定消息 ")
+                        append("；选定参与者输出 ")
                         append(state.selectedMessageIds.size)
+                        append(" 条；其 Run 实际使用消息上下文共 ")
+                        append(selectedUsageCount)
                         append(" 条。对应 Run 与真实资料使用快照将在原子确认时加入。")
                     },
                 )
@@ -396,4 +420,17 @@ private fun ArtifactConfirmationDialog(
             }
         },
     )
+}
+
+private fun ExecutionRunKind.displayName(): String = when (this) {
+    ExecutionRunKind.STANDARD -> "标准执行"
+    ExecutionRunKind.DIRECTED_RESPONSE -> "点名回应"
+    ExecutionRunKind.CROSS_DISCUSSION_RESPONSE -> "交叉讨论回应"
+    ExecutionRunKind.CROSS_DISCUSSION_SYNTHESIS -> "交叉讨论整合"
+}
+
+private fun ExecutionHistoryScope.displayName(): String = when (this) {
+    ExecutionHistoryScope.FULL_STAGE -> "完整阶段历史"
+    ExecutionHistoryScope.EXPLICIT_MESSAGES -> "显式选定消息"
+    ExecutionHistoryScope.NO_HISTORY -> "不使用历史消息"
 }
