@@ -1,5 +1,9 @@
 package com.elio.jianyu.data
 
+fun interface IssuePurgeDatabaseCleanup {
+    suspend fun purge(operationId: String, purgedAt: Long): RepositoryResult<Unit>
+}
+
 /**
  * 彻底清除数据库阶段。
  *
@@ -8,10 +12,10 @@ package com.elio.jianyu.data
  */
 class IssuePurgeDatabaseCleaner(
     database: RoundtableDatabase,
-) {
+) : IssuePurgeDatabaseCleanup {
     private val transactions = JianyuRepositoryTransactions(database)
 
-    suspend fun purge(
+    override suspend fun purge(
         operationId: String,
         purgedAt: Long,
     ): RepositoryResult<Unit> {
