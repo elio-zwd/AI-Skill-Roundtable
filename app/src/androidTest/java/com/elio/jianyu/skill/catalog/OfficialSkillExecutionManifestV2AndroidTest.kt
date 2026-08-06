@@ -47,6 +47,29 @@ class OfficialSkillExecutionManifestV2AndroidTest {
     }
 
     @Test
+    fun packagedRuntimeCanExplicitlyRollBackToHistoricalV1Publication() {
+        val result = OfficialSkillCatalogParser.loadFromAssets(
+            context = context,
+            executionPublicationAssetPath =
+                OfficialSkillCatalogParser.V1_EXECUTION_PUBLICATION_ASSET_PATH,
+        )
+        assertTrue(result is OfficialSkillCatalogLoadResult.Success)
+        val catalog = (result as OfficialSkillCatalogLoadResult.Success).catalog
+
+        assertEquals(
+            listOf(
+                "study-planner",
+                "meeting-to-action",
+                "report-proposal-writer",
+                "research-fact-checker",
+            ),
+            catalog.skills.filter { it.availability.executable }
+                .sortedBy { it.defaultOrder }
+                .map { it.id },
+        )
+    }
+
+    @Test
     fun requiredConsentFailureStopsBeforeParticipantSnapshotCreation() = runBlocking {
         val runtime = createOfficialSkillCatalogRuntime(context)
             as OfficialSkillCatalogRuntimeResult.Success
