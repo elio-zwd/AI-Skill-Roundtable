@@ -7,7 +7,9 @@ import org.junit.Test
 
 /**
  * 从唯一官方 Catalog 和 v2 Manifest 生成审计矩阵，避免在文档中复制第二套类型、风险和联网元数据。
- * 测试输出可直接粘贴到本地验收报告。
+ *
+ * 本测试只对 JVM 内实际执行的 Asset、静态资格和上下文资格输出 PASS；Resolver、运行、协作和 UI
+ * 列输出负责验证它们的测试契约名称，必须等对应 Android/设备用例真实执行后才能在验收报告改为 PASS。
  */
 class OfficialSkillExecutionAuditMatrixTest {
     @Test
@@ -25,26 +27,26 @@ class OfficialSkillExecutionAuditMatrixTest {
             val contextResult = contextGate.audit(skill, confirmedContext(skill))
             assertTrue("${skill.id} 静态资格失败：${staticResult.issues}", staticResult.eligible)
             assertTrue("${skill.id} 上下文资格失败：${contextResult.issues}", contextResult.eligible)
+            assertTrue("${skill.id} 正式资产不存在", assetFile(requireNotNull(skill.assetPath)).isFile)
             AuditRow(
                 skillId = skill.id,
                 primaryType = skill.primaryType.name,
                 riskLevel = skill.riskLevel.name,
                 networkRequirement = skill.networkRequirement.name,
-                assetExists = assetFile(requireNotNull(skill.assetPath)).isFile,
-                staticEligibility = staticResult.eligible,
-                contextGate = contextResult.eligible,
-                resolverContract = true,
-                singleRunContract = true,
-                multiRunContract = true,
-                directedContract = true,
-                crossContract = true,
-                uiDisclosureContract = true,
+                assetExists = "PASS_JVM",
+                staticEligibility = "PASS_JVM",
+                contextGate = "PASS_JVM",
+                resolver = "OfficialSkillExecutionManifestV2AndroidTest",
+                singleRun = "ExecutionRunCoordinatorTest",
+                multiRun = "ExecutionRunCoordinatorTest",
+                directed = "IssueCollaborationCoordinatorTest",
+                cross = "IssueCollaborationCoordinatorTest",
+                uiDisclosure = "HomeScreenTest",
             )
         }
 
         assertEquals(44, rows.size)
         assertEquals(44, rows.map(AuditRow::skillId).distinct().size)
-        assertTrue(rows.all(AuditRow::assetExists))
         println(MATRIX_HEADER)
         rows.forEach { println(it.toTsv()) }
     }
@@ -87,15 +89,15 @@ class OfficialSkillExecutionAuditMatrixTest {
         val primaryType: String,
         val riskLevel: String,
         val networkRequirement: String,
-        val assetExists: Boolean,
-        val staticEligibility: Boolean,
-        val contextGate: Boolean,
-        val resolverContract: Boolean,
-        val singleRunContract: Boolean,
-        val multiRunContract: Boolean,
-        val directedContract: Boolean,
-        val crossContract: Boolean,
-        val uiDisclosureContract: Boolean,
+        val assetExists: String,
+        val staticEligibility: String,
+        val contextGate: String,
+        val resolver: String,
+        val singleRun: String,
+        val multiRun: String,
+        val directed: String,
+        val cross: String,
+        val uiDisclosure: String,
     ) {
         fun toTsv(): String = listOf(
             skillId,
@@ -105,12 +107,12 @@ class OfficialSkillExecutionAuditMatrixTest {
             assetExists,
             staticEligibility,
             contextGate,
-            resolverContract,
-            singleRunContract,
-            multiRunContract,
-            directedContract,
-            crossContract,
-            uiDisclosureContract,
+            resolver,
+            singleRun,
+            multiRun,
+            directed,
+            cross,
+            uiDisclosure,
         ).joinToString("\t")
     }
 
