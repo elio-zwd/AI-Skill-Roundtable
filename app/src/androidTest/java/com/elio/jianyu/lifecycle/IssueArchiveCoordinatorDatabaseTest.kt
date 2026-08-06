@@ -31,28 +31,30 @@ class IssueArchiveCoordinatorDatabaseTest {
     private lateinit var coordinator: IssueArchiveCoordinator
 
     @Before
-    fun setUp() = runBlocking {
-        database = Room.inMemoryDatabaseBuilder(context, RoundtableDatabase::class.java)
-            .allowMainThreadQueries()
-            .build()
-        repository = RoomJianyuRepository(database)
-        lifecycleRepository = RoomIssueLifecycleV12Repository(database)
-        tasks = MutableTaskController(emptyTasks())
-        coordinator = IssueArchiveCoordinator(
-            repository = repository,
-            lifecycleRepository = lifecycleRepository,
-            taskController = tasks,
-        )
-        repository.saveIssue(
-            SaveIssueCommand(
-                issueId = ISSUE_ID,
-                title = "归档测试议题",
-                initialStageId = STAGE_ID,
-                initialStageTitle = "初始阶段",
-                initialObjective = "验证用户主动归档",
-                createdAt = 100L,
-            ),
-        ).successValue()
+    fun setUp() {
+        runBlocking {
+            database = Room.inMemoryDatabaseBuilder(context, RoundtableDatabase::class.java)
+                .allowMainThreadQueries()
+                .build()
+            repository = RoomJianyuRepository(database)
+            lifecycleRepository = RoomIssueLifecycleV12Repository(database)
+            tasks = MutableTaskController(emptyTasks())
+            coordinator = IssueArchiveCoordinator(
+                repository = repository,
+                lifecycleRepository = lifecycleRepository,
+                taskController = tasks,
+            )
+            repository.saveIssue(
+                SaveIssueCommand(
+                    issueId = ISSUE_ID,
+                    title = "归档测试议题",
+                    initialStageId = STAGE_ID,
+                    initialStageTitle = "初始阶段",
+                    initialObjective = "验证用户主动归档",
+                    createdAt = 100L,
+                ),
+            ).successValue()
+        }
     }
 
     @After
