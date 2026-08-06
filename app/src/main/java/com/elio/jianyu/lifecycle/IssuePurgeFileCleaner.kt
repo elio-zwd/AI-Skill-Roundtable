@@ -25,6 +25,10 @@ sealed interface IssuePurgeFileCleanupResult {
     ) : IssuePurgeFileCleanupResult
 }
 
+fun interface IssuePurgeFileCleanup {
+    suspend fun clean(issueId: String, requestedAt: Long): IssuePurgeFileCleanupResult
+}
+
 /**
  * 只清理正式 AudioAsset 指向的受控文件及该资产的 `.part` 文件。
  *
@@ -33,8 +37,8 @@ sealed interface IssuePurgeFileCleanupResult {
 class IssuePurgeFileCleaner(
     private val lifecycleService: AudioAssetLifecycleService,
     private val fileStore: AudioFileStore,
-) {
-    suspend fun clean(
+) : IssuePurgeFileCleanup {
+    override suspend fun clean(
         issueId: String,
         requestedAt: Long,
     ): IssuePurgeFileCleanupResult {
@@ -45,6 +49,8 @@ class IssuePurgeFileCleaner(
             )
         }
         return try {
+            // 用户已完成双确认后，先用正式服务对账缺失文件，但不删除 Orphan。
+            lifecycleService.reconcileFilesForIssue(issueId)
             val assets = lifecycleService.listAudioAssetsForIssue(issueId).sortedBy { it.id }
             for (asset in assets) {
                 when (
