@@ -301,7 +301,7 @@ class RoomJianyuRepositoryDatabaseTest {
     }
 
     @Test
-    fun lifecycleAndPurgeRequestNeverDeleteIssueOrStopRun() = runBlocking {
+    fun legacyLifecycleShortcutsAndActiveWorkNeverDeleteIssueOrStopRun() = runBlocking {
         repository.saveIssue(issueCommand()).successValue()
         repository.createExecutionRun(runCommand()).successValue()
         repository.transitionRun(
@@ -314,13 +314,25 @@ class RoomJianyuRepositoryDatabaseTest {
             )
         ).successValue()
 
-        repository.archiveIssue(ISSUE_ID, 30L).successValue()
-        repository.moveIssueToTrash(ISSUE_ID, 40L).successValue()
-        repository.requestIssuePurge(ISSUE_ID, 50L).successValue()
+        val archive = repository.archiveIssue(ISSUE_ID, 30L)
+        val trash = repository.moveIssueToTrash(ISSUE_ID, 40L)
+        val purge = repository.requestIssuePurge(ISSUE_ID, 50L)
 
+        assertEquals(
+            "archive_event_required",
+            (archive.failureError() as RepositoryError.InvalidState).stateCode,
+        )
+        assertEquals(
+            "trash_active_work",
+            (trash.failureError() as RepositoryError.InvalidState).stateCode,
+        )
+        assertEquals(
+            "purge_operation_required",
+            (purge.failureError() as RepositoryError.InvalidState).stateCode,
+        )
         val recovery = repository.recoverIssue(ISSUE_ID).successValue()
-        assertEquals(IssueLifecycleState.TRASHED, recovery.core.lifecycle.state)
-        assertEquals(50L, recovery.core.lifecycle.purgeRequestedAt)
+        assertEquals(IssueLifecycleState.ACTIVE, recovery.core.lifecycle.state)
+        assertNull(recovery.core.lifecycle.purgeRequestedAt)
         assertEquals(ExecutionRunStatus.RUNNING, recovery.core.runs.single().status)
         assertNotNull(database.coreDomainDao().getIssue(ISSUE_ID))
     }
