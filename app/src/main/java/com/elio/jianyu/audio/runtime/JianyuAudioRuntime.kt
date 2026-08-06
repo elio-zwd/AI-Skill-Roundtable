@@ -7,6 +7,7 @@ import com.elio.jianyu.audio.assets.AudioFileStore
 import com.elio.jianyu.audio.assets.AudioGenerationCoordinator
 import com.elio.jianyu.audio.playback.AndroidAudioAssetPlayerFactory
 import com.elio.jianyu.audio.work.WorkManagerAudioGenerationScheduler
+import com.elio.jianyu.data.LifecycleAwareAudioAssetRepository
 import com.elio.jianyu.data.RoomAudioAssetLifecycleRepository
 import com.elio.jianyu.data.RoomAudioAssetRepository
 import com.elio.jianyu.data.RoundtableDatabase
@@ -19,18 +20,23 @@ data class JianyuAudioRuntime(
     val generationCoordinator: AudioGenerationCoordinator,
     val lifecycleService: AudioAssetLifecycleService,
     val playbackManager: AudioAssetPlaybackManager,
+    val fileStore: AudioFileStore,
 )
 
 fun createJianyuAudioRuntime(
     context: Context,
     database: RoundtableDatabase,
 ): JianyuAudioRuntime {
-    val repository = RoomAudioAssetRepository(database)
-    val lifecycleRepository = RoomAudioAssetLifecycleRepository(database, repository)
+    val roomRepository = RoomAudioAssetRepository(database)
+    val generationRepository = LifecycleAwareAudioAssetRepository(
+        delegate = roomRepository,
+        database = database,
+    )
+    val lifecycleRepository = RoomAudioAssetLifecycleRepository(database, roomRepository)
     val fileStore = AudioFileStore(File(context.filesDir, "jianyu-audio"))
     val scheduler = WorkManagerAudioGenerationScheduler(context)
     val generationCoordinator = AudioGenerationCoordinator(
-        repository = repository,
+        repository = generationRepository,
         scheduler = scheduler,
         gateway = ByokAudioGenerationGateway(context),
         fileStore = fileStore,
@@ -47,5 +53,6 @@ fun createJianyuAudioRuntime(
             fileStore = fileStore,
             playerFactory = AndroidAudioAssetPlayerFactory(),
         ),
+        fileStore = fileStore,
     )
 }

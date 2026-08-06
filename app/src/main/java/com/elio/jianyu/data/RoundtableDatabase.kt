@@ -40,6 +40,10 @@ import kotlinx.coroutines.launch
         OfficialSkillCombinationEntity::class,
         OfficialSkillCombinationMemberEntity::class,
         IssueLifecycleEntity::class,
+        IssueArchiveEventEntity::class,
+        IssueResumeEventEntity::class,
+        IssueRelationEntity::class,
+        IssuePurgeOperationEntity::class,
         CrossDiscussionSessionEntity::class,
         ExecutionMessageUsageSnapshotEntity::class,
         StageAdvancementEntity::class,
@@ -48,7 +52,7 @@ import kotlinx.coroutines.launch
         StageAdvancementMaterialEntity::class,
         StageAdvancementArtifactEntity::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = true,
 )
 @TypeConverters(
@@ -57,6 +61,7 @@ import kotlinx.coroutines.launch
     ExecutionRuntimeConverters::class,
     CollaborationConverters::class,
     StageAdvancementConverters::class,
+    IssueLifecycleV12Converters::class,
 )
 abstract class RoundtableDatabase : RoomDatabase() {
     private val explicitlyClosed = AtomicBoolean(false)
@@ -77,6 +82,7 @@ abstract class RoundtableDatabase : RoomDatabase() {
     internal abstract fun jianyuRepositoryDao(): JianyuRepositoryDao
     internal abstract fun collaborationDao(): CollaborationDao
     internal abstract fun stageAdvancementDao(): StageAdvancementDao
+    internal abstract fun issueLifecycleV12Dao(): IssueLifecycleV12Dao
 
     companion object {
         @Volatile
@@ -164,6 +170,7 @@ abstract class RoundtableDatabase : RoomDatabase() {
         val MIGRATION_8_9: Migration = MaterialContextMigration.MIGRATION_8_9
         val MIGRATION_9_10: Migration = CollaborationMigration.MIGRATION_9_10
         val MIGRATION_10_11: Migration = StageAdvancementMigration.MIGRATION_10_11
+        val MIGRATION_11_12: Migration = IssueLifecycleV12Migration.MIGRATION_11_12
 
         val ALL_MIGRATIONS: Array<Migration> = arrayOf(
             MIGRATION_1_2,
@@ -176,6 +183,7 @@ abstract class RoundtableDatabase : RoomDatabase() {
             MIGRATION_8_9,
             MIGRATION_9_10,
             MIGRATION_10_11,
+            MIGRATION_11_12,
         )
 
         fun getDatabase(context: Context, scope: CoroutineScope): RoundtableDatabase {

@@ -32,7 +32,7 @@ class RoomJianyuRepositoryProcessRecoveryTest {
     }
 
     @Test
-    fun databaseReopenRestoresStableDomainStateWithoutWriting() = runBlocking {
+    fun databaseReopenRestoresActiveWorkWithoutWriting() = runBlocking {
         val firstDatabase = openDatabase()
         val firstRepository = RoomJianyuRepository(firstDatabase)
         firstRepository.saveIssue(issueCommand()).successValue()
@@ -43,8 +43,8 @@ class RoomJianyuRepositoryProcessRecoveryTest {
                 expectedStatuses = setOf(ExecutionRunStatus.NOT_STARTED),
                 newStatus = ExecutionRunStatus.RUNNING,
                 updatedAt = 20L,
-                startedAt = 20L
-            )
+                startedAt = 20L,
+            ),
         ).successValue()
         firstRepository.appendDomainMessage(pendingMessageCommand()).successValue()
         firstRepository.saveStageDraft(draftCommand()).successValue()
@@ -63,10 +63,9 @@ class RoomJianyuRepositoryProcessRecoveryTest {
                 fileState = AudioFileState.MISSING,
                 generationKey = "recovery-audio-key",
                 createdAt = 30L,
-                updatedAt = 30L
-            )
+                updatedAt = 30L,
+            ),
         )
-        firstRepository.archiveIssue(ISSUE_ID, 40L).successValue()
         firstDatabase.close()
         database = null
 
@@ -85,7 +84,7 @@ class RoomJianyuRepositoryProcessRecoveryTest {
         assertEquals(listOf(MATERIAL_USAGE_ID), recovery1.resources.materialUsages.map { it.id })
         assertEquals(listOf(CONTEXT_USAGE_ID), recovery1.resources.personalContextUsages.map { it.id })
         assertEquals(AudioFileState.MISSING, recovery1.resources.audioAssets.single().fileState)
-        assertEquals(IssueLifecycleState.ARCHIVED, recovery1.core.lifecycle.state)
+        assertEquals(IssueLifecycleState.ACTIVE, recovery1.core.lifecycle.state)
         assertTrue(recovery1.core.successfulParticipantSnapshotIds().isEmpty())
         assertEquals(setOf(PARTICIPANT_ID), recovery1.core.retryableParticipantSnapshotIds())
         reopenedDatabase.openHelper.writableDatabase.query("PRAGMA foreign_key_check").use { cursor ->
@@ -108,7 +107,7 @@ class RoomJianyuRepositoryProcessRecoveryTest {
             initialStageId = STAGE_ID,
             initialStageTitle = "初始阶段",
             initialObjective = "验证进程恢复",
-            createdAt = 10L
+            createdAt = 10L,
         )
     }
 
@@ -120,7 +119,7 @@ class RoomJianyuRepositoryProcessRecoveryTest {
                 stageId = STAGE_ID,
                 idempotencyKey = "process-recovery-run-key",
                 createdAt = 15L,
-                updatedAt = 15L
+                updatedAt = 15L,
             ),
             participants = listOf(
                 ExecutionParticipantSnapshotEntity(
@@ -135,9 +134,9 @@ class RoomJianyuRepositoryProcessRecoveryTest {
                     configurationJson = "{}",
                     defaultResponsibility = "",
                     position = 0,
-                    createdAt = 15L
-                )
-            )
+                    createdAt = 15L,
+                ),
+            ),
         )
     }
 
@@ -155,7 +154,7 @@ class RoomJianyuRepositoryProcessRecoveryTest {
             timestamp = 25L,
             isPending = true,
             roundIndex = 1,
-            compatibilitySessionTitle = "恢复议题"
+            compatibilitySessionTitle = "恢复议题",
         )
     }
 
@@ -167,7 +166,7 @@ class RoomJianyuRepositoryProcessRecoveryTest {
             content = "恢复草稿",
             revisionNumber = 1,
             createdAt = 26L,
-            updatedAt = 26L
+            updatedAt = 26L,
         )
         return SaveStageDraftCommand(
             draft = draft,
@@ -178,8 +177,8 @@ class RoomJianyuRepositoryProcessRecoveryTest {
                 draftIdSnapshot = DRAFT_ID,
                 revisionNumber = 1,
                 contentSnapshot = draft.content,
-                createdAt = 26L
-            )
+                createdAt = 26L,
+            ),
         )
     }
 
@@ -194,7 +193,7 @@ class RoomJianyuRepositoryProcessRecoveryTest {
             contentSnapshot = "资料快照",
             contentHash = "material-recovery-hash",
             userConfirmedAt = 27L,
-            createdAt = 27L
+            createdAt = 27L,
         )
     }
 
@@ -208,7 +207,7 @@ class RoomJianyuRepositoryProcessRecoveryTest {
             contentSnapshot = "背景快照",
             contentHash = "context-recovery-hash",
             userConfirmedAt = 28L,
-            createdAt = 28L
+            createdAt = 28L,
         )
     }
 

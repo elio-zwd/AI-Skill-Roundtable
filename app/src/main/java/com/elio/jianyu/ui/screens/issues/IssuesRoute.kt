@@ -3,6 +3,7 @@ package com.elio.jianyu.ui.screens.issues
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
@@ -10,6 +11,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -21,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elio.jianyu.data.IssueLifecycleState
 import com.elio.jianyu.data.JianyuRepository
+import com.elio.jianyu.lifecycle.JianyuLifecycleRuntime
+import com.elio.jianyu.ui.automation.JianyuLifecycleAutomationTags
 import com.elio.jianyu.ui.components.JianyuMetadataRow
 import com.elio.jianyu.ui.components.JianyuPageShell
 import com.elio.jianyu.ui.components.JianyuStateCard
@@ -42,18 +46,73 @@ object IssuesTestTags {
 @Composable
 fun IssuesRoute(
     repository: JianyuRepository,
+    lifecycleRuntime: JianyuLifecycleRuntime,
     onOpenIssue: (issueId: String, stageId: String?) -> Unit,
     onOpenSettings: () -> Unit,
     viewModel: IssuesViewModel = viewModel(
         factory = IssuesViewModel.factory(repository),
     ),
+    lifecycleViewModel: IssueLifecycleViewModel = viewModel(
+        factory = IssueLifecycleViewModel.factory(lifecycleRuntime),
+    ),
 ) {
     val state by viewModel.issuesState.collectAsState()
+    val lifecycleState by lifecycleViewModel.state.collectAsState()
+
+    LaunchedEffect(lifecycleViewModel, onOpenIssue) {
+        lifecycleViewModel.events.collect { event ->
+            when (event) {
+                is IssueLifecycleUiEvent.NavigateToIssue -> onOpenIssue(event.issueId, null)
+                is IssueLifecycleUiEvent.NavigateToRelatedIssue -> onOpenIssue(event.issueId, null)
+                is IssueLifecycleUiEvent.ShowStableError -> Unit
+            }
+            viewModel.refresh()
+        }
+    }
+    LaunchedEffect(lifecycleState) {
+        when (lifecycleState) {
+            is IssueLifecycleUiState.Archived,
+            is IssueLifecycleUiState.RelatedIssueCreated,
+            is IssueLifecycleUiState.Resumed,
+            is IssueLifecycleUiState.Trashed,
+            is IssueLifecycleUiState.TrashRestored,
+            is IssueLifecycleUiState.PurgeCompleted,
+            -> viewModel.refresh()
+            else -> Unit
+        }
+    }
+
     IssuesScreen(
         state = state,
         onRetry = viewModel::refresh,
         onOpenIssue = onOpenIssue,
         onOpenSettings = onOpenSettings,
+        onArchive = lifecycleViewModel::beginArchive,
+        onResume = lifecycleViewModel::beginResume,
+        onRelatedIssue = lifecycleViewModel::beginRelatedIssue,
+        onMoveToTrash = lifecycleViewModel::beginMoveToTrash,
+        onRestoreFromTrash = lifecycleViewModel::restoreFromTrash,
+        onPurge = lifecycleViewModel::beginPurge,
+    )
+    IssueLifecycleDialogs(
+        state = lifecycleState,
+        onDismiss = lifecycleViewModel::dismiss,
+        onWait = lifecycleViewModel::waitForTasks,
+        onRefreshWaiting = lifecycleViewModel::refreshWaiting,
+        onStop = lifecycleViewModel::stopTasks,
+        onSummaryChange = lifecycleViewModel::updateArchiveSummary,
+        onArchiveConfirm = lifecycleViewModel::confirmArchive,
+        onTrashConfirm = lifecycleViewModel::confirmMoveToTrash,
+        onResumeChange = lifecycleViewModel::updateResumeChangeNote,
+        onResumeNoChange = lifecycleViewModel::selectNoChange,
+        onResumeConfirm = lifecycleViewModel::confirmResume,
+        onRelatedTitleChange = lifecycleViewModel::updateRelatedTitle,
+        onRelatedObjectiveChange = lifecycleViewModel::updateRelatedObjective,
+        onRelatedConfirm = lifecycleViewModel::confirmRelatedIssue,
+        onPurgeFirstConfirm = lifecycleViewModel::confirmPurgeImpact,
+        onPurgeFinalConfirm = lifecycleViewModel::confirmPurgeFinal,
+        onPurgeRetry = lifecycleViewModel::retryPurge,
+        onPurgeCancel = lifecycleViewModel::cancelPurge,
     )
 }
 
@@ -63,6 +122,12 @@ fun IssuesScreen(
     onRetry: () -> Unit,
     onOpenIssue: (issueId: String, stageId: String?) -> Unit,
     onOpenSettings: () -> Unit,
+    onArchive: (String) -> Unit = {},
+    onResume: (String) -> Unit = {},
+    onRelatedIssue: (String) -> Unit = {},
+    onMoveToTrash: (String) -> Unit = {},
+    onRestoreFromTrash: (String) -> Unit = {},
+    onPurge: (String) -> Unit = {},
 ) {
     JianyuPageShell(
         title = "议题",
@@ -107,6 +172,12 @@ fun IssuesScreen(
                     emptyMessage = "暂无活跃议题",
                     testTag = IssuesTestTags.ACTIVE_SECTION,
                     onOpenIssue = onOpenIssue,
+                    onArchive = onArchive,
+                    onResume = onResume,
+                    onRelatedIssue = onRelatedIssue,
+                    onMoveToTrash = onMoveToTrash,
+                    onRestoreFromTrash = onRestoreFromTrash,
+                    onPurge = onPurge,
                 )
                 IssueSection(
                     title = "已归档",
@@ -114,13 +185,25 @@ fun IssuesScreen(
                     emptyMessage = "暂无归档议题",
                     testTag = IssuesTestTags.ARCHIVED_SECTION,
                     onOpenIssue = onOpenIssue,
+                    onArchive = onArchive,
+                    onResume = onResume,
+                    onRelatedIssue = onRelatedIssue,
+                    onMoveToTrash = onMoveToTrash,
+                    onRestoreFromTrash = onRestoreFromTrash,
+                    onPurge = onPurge,
                 )
                 IssueSection(
                     title = "回收站",
                     items = state.trashed,
-                    emptyMessage = "回收站为空",
+                    emptyMessage = "回收站为空，不会自动过期或自动清空",
                     testTag = IssuesTestTags.TRASHED_SECTION,
                     onOpenIssue = onOpenIssue,
+                    onArchive = onArchive,
+                    onResume = onResume,
+                    onRelatedIssue = onRelatedIssue,
+                    onMoveToTrash = onMoveToTrash,
+                    onRestoreFromTrash = onRestoreFromTrash,
+                    onPurge = onPurge,
                 )
             }
         }
@@ -134,6 +217,12 @@ private fun IssueSection(
     emptyMessage: String,
     testTag: String,
     onOpenIssue: (issueId: String, stageId: String?) -> Unit,
+    onArchive: (String) -> Unit,
+    onResume: (String) -> Unit,
+    onRelatedIssue: (String) -> Unit,
+    onMoveToTrash: (String) -> Unit,
+    onRestoreFromTrash: (String) -> Unit,
+    onPurge: (String) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -155,9 +244,13 @@ private fun IssueSection(
             items.forEach { item ->
                 IssueNavigationCard(
                     item = item,
-                    onClick = {
-                        onOpenIssue(item.issueId, item.currentStageId)
-                    },
+                    onClick = { onOpenIssue(item.issueId, item.currentStageId) },
+                    onArchive = { onArchive(item.issueId) },
+                    onResume = { onResume(item.issueId) },
+                    onRelatedIssue = { onRelatedIssue(item.issueId) },
+                    onMoveToTrash = { onMoveToTrash(item.issueId) },
+                    onRestoreFromTrash = { onRestoreFromTrash(item.issueId) },
+                    onPurge = { onPurge(item.issueId) },
                 )
             }
         }
@@ -168,6 +261,12 @@ private fun IssueSection(
 private fun IssueNavigationCard(
     item: IssueNavigationUiItem,
     onClick: () -> Unit,
+    onArchive: () -> Unit,
+    onResume: () -> Unit,
+    onRelatedIssue: () -> Unit,
+    onMoveToTrash: () -> Unit,
+    onRestoreFromTrash: () -> Unit,
+    onPurge: () -> Unit,
 ) {
     Card(
         modifier = Modifier
@@ -202,6 +301,61 @@ private fun IssueNavigationCard(
                 label = "可恢复运行",
                 value = item.activeOrRecoverableRunCount.toString(),
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                when (item.lifecycleState) {
+                    IssueLifecycleState.ACTIVE -> {
+                        TextButton(
+                            onClick = onArchive,
+                            modifier = Modifier.testTag(
+                                JianyuLifecycleAutomationTags.IssueLifecycle.ARCHIVE_BUTTON,
+                            ),
+                        ) { Text("归档") }
+                        TextButton(
+                            onClick = onMoveToTrash,
+                            modifier = Modifier.testTag(
+                                JianyuLifecycleAutomationTags.IssueLifecycle.MOVE_TO_TRASH,
+                            ),
+                        ) { Text("删除") }
+                    }
+                    IssueLifecycleState.ARCHIVED -> {
+                        TextButton(
+                            onClick = onResume,
+                            modifier = Modifier.testTag(
+                                JianyuLifecycleAutomationTags.Resume.BUTTON,
+                            ),
+                        ) { Text("继续") }
+                        TextButton(
+                            onClick = onRelatedIssue,
+                            modifier = Modifier.testTag(
+                                JianyuLifecycleAutomationTags.RelatedIssue.BUTTON,
+                            ),
+                        ) { Text("关联新议题") }
+                        TextButton(
+                            onClick = onMoveToTrash,
+                            modifier = Modifier.testTag(
+                                JianyuLifecycleAutomationTags.IssueLifecycle.MOVE_TO_TRASH,
+                            ),
+                        ) { Text("删除") }
+                    }
+                    IssueLifecycleState.TRASHED -> {
+                        TextButton(
+                            onClick = onRestoreFromTrash,
+                            modifier = Modifier.testTag(
+                                JianyuLifecycleAutomationTags.IssueLifecycle.RESTORE_FROM_TRASH,
+                            ),
+                        ) { Text("恢复") }
+                        TextButton(
+                            onClick = onPurge,
+                            modifier = Modifier.testTag(
+                                JianyuLifecycleAutomationTags.Purge.BUTTON,
+                            ),
+                        ) { Text("彻底清除") }
+                    }
+                }
+            }
         }
     }
 }
