@@ -47,23 +47,27 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY'
+          import re
           from pathlib import Path
 
           path = Path('app/src/main/java/com/elio/jianyu/ui/screens/issues/IssueLifecycleDialogs.kt')
           text = path.read_text(encoding='utf-8')
-          old = '''            text = {
-                Text("议题会保留恢复能力，不会自动过期、自动清空或删除文件。")
-            },'''
-          new = '''            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("议题会保留恢复能力，不会自动过期、自动清空或删除文件。")
-                    Text("系统不会自动清理议题或 Orphan。")
-                    Text("空间不足时请通过手动管理入口处理音频和 App 自有文件。")
-                }
-            },'''
-          if text.count(old) != 1:
-              raise SystemExit(f'Expected exactly one trash guidance block, found {text.count(old)}')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          pattern = re.compile(
+              r'^(?P<indent>\s*)Text\("议题会保留恢复能力，不会自动过期、自动清空或删除文件。"\)$',
+              re.MULTILINE,
+          )
+          matches = list(pattern.finditer(text))
+          if len(matches) != 1:
+              raise SystemExit(f'Expected exactly one trash guidance text, found {len(matches)}')
+          indent = matches[0].group('indent')
+          replacement = '\n'.join([
+              f'{indent}Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {{',
+              f'{indent}    Text("议题会保留恢复能力，不会自动过期、自动清空或删除文件。")',
+              f'{indent}    Text("系统不会自动清理议题或 Orphan。")',
+              f'{indent}    Text("空间不足时请通过手动管理入口处理音频和 App 自有文件。")',
+              f'{indent}}}',
+          ])
+          path.write_text(pattern.sub(replacement, text, count=1), encoding='utf-8')
           PY
 
       - name: Verify generated v12 schema and patch
@@ -74,12 +78,15 @@ jobs:
           dialog='app/src/main/java/com/elio/jianyu/ui/screens/issues/IssueLifecycleDialogs.kt'
           test -f "$schema"
           python3 - <<'PY'
+          import hashlib
           import json
           from pathlib import Path
 
           schema = Path('app/schemas/com.elio.jianyu.data.RoundtableDatabase/12.json')
           data = json.loads(schema.read_text(encoding='utf-8'))
           assert data['database']['version'] == 12
+          assert data['database']['identityHash'] == '933e93291334a0fe8a73fa6f7dc527c0'
+          assert hashlib.sha256(schema.read_bytes()).hexdigest() == '73c174056eb1827cfbd757d5412ce3616875379b5a14cb67825a714c61751afe'
           tables = {entity['tableName'] for entity in data['database']['entities']}
           required = {
               'issue_archive_events',
