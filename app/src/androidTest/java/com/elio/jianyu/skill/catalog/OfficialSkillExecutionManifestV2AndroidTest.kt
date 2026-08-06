@@ -17,7 +17,7 @@ class OfficialSkillExecutionManifestV2AndroidTest {
 
     @Test
     fun all44ProductionSkillsResolveFromPackagedAssets() = runBlocking {
-        val runtime = OfficialSkillCatalogRuntime.initialize(context)
+        val runtime = createOfficialSkillCatalogRuntime(context)
         assertTrue(runtime is OfficialSkillCatalogRuntimeResult.Success)
         val catalog = (runtime as OfficialSkillCatalogRuntimeResult.Success).runtime.catalog
         val resolver = OfficialCatalogExecutionSkillResolver(context, catalog)
@@ -48,7 +48,7 @@ class OfficialSkillExecutionManifestV2AndroidTest {
 
     @Test
     fun requiredConsentFailureStopsBeforeParticipantSnapshotCreation() = runBlocking {
-        val runtime = OfficialSkillCatalogRuntime.initialize(context)
+        val runtime = createOfficialSkillCatalogRuntime(context)
             as OfficialSkillCatalogRuntimeResult.Success
         val person = runtime.runtime.catalog.skills.first {
             it.primaryType == OfficialSkillPrimaryType.PERSON_PERSPECTIVE
