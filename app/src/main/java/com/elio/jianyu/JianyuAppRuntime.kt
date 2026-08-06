@@ -13,12 +13,15 @@ import com.elio.jianyu.execution.ExecutionRunCoordinator
 import com.elio.jianyu.execution.InteractionExecutionNetworkGateway
 import com.elio.jianyu.execution.JianyuExecutionPersistenceGateway
 import com.elio.jianyu.execution.OfficialCatalogExecutionSkillResolver
+import com.elio.jianyu.lifecycle.JianyuLifecycleRuntime
+import com.elio.jianyu.lifecycle.createJianyuLifecycleRuntime
 import com.elio.jianyu.result.StageResultService
 import com.elio.jianyu.skill.catalog.OfficialSkillCatalogRuntimeResult
 import com.elio.jianyu.skill.catalog.createOfficialSkillCatalogRuntime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /** App 组合层共享的见域运行时，保证页面与 Repository 使用同一官方 Skill 事实源。 */
 data class JianyuAppRuntime(
@@ -28,6 +31,7 @@ data class JianyuAppRuntime(
     val collaborationCoordinator: IssueCollaborationCoordinator?,
     val stageResultService: StageResultService,
     val audioRuntime: JianyuAudioRuntime,
+    val lifecycleRuntime: JianyuLifecycleRuntime,
 )
 
 object JianyuAppRuntimeProvider {
@@ -85,13 +89,26 @@ object JianyuAppRuntimeProvider {
             }
             is OfficialSkillCatalogRuntimeResult.Failure -> null
         }
+        val audioRuntime = createJianyuAudioRuntime(context, database)
+        val lifecycleRuntime = createJianyuLifecycleRuntime(
+            context = context,
+            database = database,
+            repository = repository,
+            audioRuntime = audioRuntime,
+            executionCoordinator = executionCoordinator,
+            collaborationCoordinator = collaborationCoordinator,
+        )
+        databaseScope.launch {
+            lifecycleRuntime.purgeCoordinator.recoverPendingOperations()
+        }
         return JianyuAppRuntime(
             repository = repository,
             officialSkillCatalogRuntimeResult = catalogRuntimeResult,
             executionCoordinator = executionCoordinator,
             collaborationCoordinator = collaborationCoordinator,
             stageResultService = StageResultService(repository),
-            audioRuntime = createJianyuAudioRuntime(context, database),
+            audioRuntime = audioRuntime,
+            lifecycleRuntime = lifecycleRuntime,
         )
     }
 }
