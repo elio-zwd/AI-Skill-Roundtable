@@ -12,7 +12,7 @@ class JianyuRepositoryArchitectureTest {
     }
 
     @Test
-    fun roomUsesContinuousVersionElevenStageAdvancementSchema() {
+    fun roomUsesContinuousVersionTwelveLifecycleSchema() {
         val databaseSource = source("app/src/main/java/com/elio/jianyu/data/RoundtableDatabase.kt")
         val executionMigrationSource = source(
             "app/src/main/java/com/elio/jianyu/data/ExecutionRuntimeMigration.kt",
@@ -26,19 +26,27 @@ class JianyuRepositoryArchitectureTest {
         val advancementMigrationSource = source(
             "app/src/main/java/com/elio/jianyu/data/StageAdvancementMigration.kt",
         )
+        val lifecycleMigrationSource = source(
+            "app/src/main/java/com/elio/jianyu/data/IssueLifecycleV12Migration.kt",
+        )
 
-        assertTrue(databaseSource.contains("version = 11"))
-        assertFalse(databaseSource.contains("version = 12"))
+        assertTrue(databaseSource.contains("version = 12"))
+        assertFalse(databaseSource.contains("version = 13"))
         assertTrue(databaseSource.contains("MIGRATION_7_8"))
         assertTrue(databaseSource.contains("MIGRATION_8_9"))
         assertTrue(databaseSource.contains("MIGRATION_9_10"))
         assertTrue(databaseSource.contains("MIGRATION_10_11"))
+        assertTrue(databaseSource.contains("MIGRATION_11_12"))
         assertTrue(databaseSource.contains("ExecutionParticipantStateEntity::class"))
         assertTrue(databaseSource.contains("ExecutionRunBudgetEntity::class"))
         assertTrue(databaseSource.contains("CrossDiscussionSessionEntity::class"))
         assertTrue(databaseSource.contains("ExecutionMessageUsageSnapshotEntity::class"))
         assertTrue(databaseSource.contains("StageAdvancementEntity::class"))
         assertTrue(databaseSource.contains("StageAdvancementSkillMemberEntity::class"))
+        assertTrue(databaseSource.contains("IssueArchiveEventEntity::class"))
+        assertTrue(databaseSource.contains("IssueResumeEventEntity::class"))
+        assertTrue(databaseSource.contains("IssueRelationEntity::class"))
+        assertTrue(databaseSource.contains("IssuePurgeOperationEntity::class"))
         assertTrue(executionMigrationSource.contains("Migration(7, 8)"))
         assertTrue(executionMigrationSource.contains("execution_participant_states"))
         assertTrue(executionMigrationSource.contains("execution_run_budgets"))
@@ -51,6 +59,11 @@ class JianyuRepositoryArchitectureTest {
         assertTrue(advancementMigrationSource.contains("Migration(10, 11)"))
         assertTrue(advancementMigrationSource.contains("stage_advancements"))
         assertTrue(advancementMigrationSource.contains("stage_advancement_skill_members"))
+        assertTrue(lifecycleMigrationSource.contains("Migration(11, 12)"))
+        assertTrue(lifecycleMigrationSource.contains("issue_archive_events"))
+        assertTrue(lifecycleMigrationSource.contains("issue_resume_events"))
+        assertTrue(lifecycleMigrationSource.contains("issue_relations"))
+        assertTrue(lifecycleMigrationSource.contains("issue_purge_operations"))
     }
 
     @Test
@@ -69,7 +82,8 @@ class JianyuRepositoryArchitectureTest {
                     text.contains("resourceLifecycleDao()") ||
                     text.contains("jianyuRepositoryDao()") ||
                     text.contains("collaborationDao()") ||
-                    text.contains("stageAdvancementDao()")
+                    text.contains("stageAdvancementDao()") ||
+                    text.contains("issueLifecycleV12Dao()")
             }
 
         assertTrue(
@@ -97,6 +111,9 @@ class JianyuRepositoryArchitectureTest {
             "app/src/main/java/com/elio/jianyu/data/UsageRepositoryComponent.kt",
             "app/src/main/java/com/elio/jianyu/data/LifecycleRecoveryRepositoryComponent.kt",
             "app/src/main/java/com/elio/jianyu/data/MaterialContextRepositoryComponent.kt",
+            "app/src/main/java/com/elio/jianyu/data/LifecycleGatedRepositoryComponent.kt",
+            "app/src/main/java/com/elio/jianyu/data/RoomIssueLifecycleV12Repository.kt",
+            "app/src/main/java/com/elio/jianyu/data/IssuePurgeDatabaseCleaner.kt",
             "app/src/main/java/com/elio/jianyu/data/JianyuRepositoryTransactions.kt",
         ).map(::source)
 
@@ -112,6 +129,7 @@ class JianyuRepositoryArchitectureTest {
             assertFalse(repositorySource.contains("WorkManager"))
             assertFalse(repositorySource.contains("java.io.File"))
             assertFalse(repositorySource.contains(".delete()"))
+            assertFalse(repositorySource.contains("deleteRecursively"))
         }
     }
 
@@ -132,6 +150,7 @@ class JianyuRepositoryArchitectureTest {
         assertTrue(facade.contains("UsageRepositoryComponent"))
         assertTrue(facade.contains("LifecycleRecoveryRepositoryComponent"))
         assertTrue(facade.contains("MaterialContextRepositoryComponent"))
+        assertTrue(facade.contains("LifecycleGatedRepositoryComponent"))
         assertFalse(facade.contains("withTransaction"))
     }
 
