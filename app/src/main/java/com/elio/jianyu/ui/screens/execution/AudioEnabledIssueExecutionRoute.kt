@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -53,10 +53,10 @@ fun AudioEnabledIssueExecutionRoute(
     collaborationCoordinator: IssueCollaborationCoordinator?,
     stageResultService: StageResultService,
     audioRuntime: JianyuAudioRuntime,
-    issueId: String,
+    issueId: String?,
     stageId: String?,
     onBack: () -> Unit,
-    onOpenStage: (String, String?) -> Unit = { _, _ -> },
+    onOpenStage: (String, String) -> Unit = { _, _ -> },
 ) {
     val scope = rememberCoroutineScope()
     val controller = remember(audioRuntime) {
@@ -68,13 +68,14 @@ fun AudioEnabledIssueExecutionRoute(
     var dialogVisible by remember { mutableStateOf(false) }
 
     suspend fun reloadAudioWorkspace() {
+        val currentIssueId = issueId?.takeIf { it.isNotBlank() }
         val currentStageId = stageId?.takeIf { it.isNotBlank() }
-        if (issueId.isBlank() || currentStageId == null) {
+        if (currentIssueId == null || currentStageId == null) {
             workspace = null
             workspaceError = "STAGE_NOT_FOUND"
             return
         }
-        when (val loaded = stageResultService.load(issueId, currentStageId)) {
+        when (val loaded = stageResultService.load(currentIssueId, currentStageId)) {
             is StageResultLoadResult.Ready -> {
                 workspace = loaded.workspace
                 workspaceError = null
@@ -84,7 +85,7 @@ fun AudioEnabledIssueExecutionRoute(
                 workspaceError = loaded.errorCode
             }
         }
-        controller.load(issueId, currentStageId)
+        controller.load(currentIssueId, currentStageId)
         audioState = controller.state
     }
 
@@ -106,7 +107,7 @@ fun AudioEnabledIssueExecutionRoute(
             onBack = onBack,
             onOpenStage = onOpenStage,
         )
-        if (issueId.isNotBlank() && !stageId.isNullOrBlank()) {
+        if (!issueId.isNullOrBlank() && !stageId.isNullOrBlank()) {
             FloatingActionButton(
                 onClick = {
                     dialogVisible = true
@@ -117,7 +118,7 @@ fun AudioEnabledIssueExecutionRoute(
                     .padding(20.dp)
                     .testTag(JianyuAudioAutomationTags.ENTRY),
             ) {
-                Icon(Icons.Default.VolumeUp, contentDescription = "音频资产")
+                Icon(Icons.Default.PlayArrow, contentDescription = "音频资产")
             }
         }
     }
@@ -159,9 +160,7 @@ fun AudioEnabledIssueExecutionRoute(
                             artifacts = loadedWorkspace.artifacts,
                             state = audioState,
                             onRefresh = {
-                                scope.launch {
-                                    reloadAudioWorkspace()
-                                }
+                                scope.launch { reloadAudioWorkspace() }
                             },
                             onRequestGeneration = { reference ->
                                 controller.requestGeneration(reference)

@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.weight
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -51,27 +51,22 @@ fun AudioAssetWorkspacePanel(
             .testTag(JianyuAutomationTags.AudioAssets.PANEL),
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("音频资产", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "只从完成消息或已确认成果显式生成。恢复页面不会自动联网或重新排队。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                OutlinedButton(
-                    onClick = onRefresh,
-                    enabled = !state.operationInProgress,
-                    modifier = Modifier.testTag(JianyuAutomationTags.AudioAssets.REFRESH),
-                ) { Text("刷新") }
-            }
+            Text("音频资产", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "只从完成消息或已确认成果显式生成。恢复页面不会自动联网或重新排队。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(
+                onClick = onRefresh,
+                enabled = !state.operationInProgress,
+                modifier = Modifier.testTag(JianyuAutomationTags.AudioAssets.REFRESH),
+            ) { Text("刷新") }
 
             if (state.loading || state.operationInProgress) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -79,78 +74,52 @@ fun AudioAssetWorkspacePanel(
                     Text(if (state.loading) "正在读取音频资产" else "正在持久化音频操作")
                 }
             }
-            state.statusMessage?.let {
-                Text(it, color = MaterialTheme.colorScheme.primary)
-            }
+            state.statusMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
             state.errorCode?.let {
                 Text("音频操作失败：$it", color = MaterialTheme.colorScheme.error)
             }
 
-            val completedMessages = messages.filter { !it.isPending }
-            if (completedMessages.isNotEmpty()) {
-                Text("完成消息", style = MaterialTheme.typography.titleSmall)
+            val completedMessages = messages.filterNot(Message::isPending)
+            Text("完成消息", style = MaterialTheme.typography.titleSmall)
+            if (completedMessages.isEmpty()) {
+                Text("当前阶段没有可生成音频的完成消息。")
+            } else {
                 completedMessages.forEach { message ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Text(
-                            text = "${message.senderName} · 消息 ${message.id}",
-                            modifier = Modifier.weight(1f),
-                            maxLines = 2,
-                        )
-                        OutlinedButton(
-                            onClick = {
-                                onRequestGeneration(
-                                    AudioSourceReference.Message(issueId, stageId, message.id),
-                                )
-                            },
-                            enabled = !state.operationInProgress,
-                            modifier = Modifier.testTag(
-                                JianyuAutomationTags.AudioAssets.messageGenerate(message.id),
-                            ),
-                        ) { Text("生成音频") }
-                    }
+                    SourceGenerationCard(
+                        label = "${message.senderName} · 消息 ${message.id}",
+                        buttonTag = JianyuAutomationTags.AudioAssets.messageGenerate(message.id),
+                        enabled = !state.operationInProgress,
+                        onGenerate = {
+                            onRequestGeneration(
+                                AudioSourceReference.Message(issueId, stageId, message.id),
+                            )
+                        },
+                    )
                 }
             }
 
-            if (artifacts.isNotEmpty()) {
-                Text("已确认成果", style = MaterialTheme.typography.titleSmall)
+            Text("已确认成果", style = MaterialTheme.typography.titleSmall)
+            if (artifacts.isEmpty()) {
+                Text("当前阶段没有已确认成果。")
+            } else {
                 artifacts.forEach { artifact ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Text(
-                            text = artifact.title,
-                            modifier = Modifier.weight(1f),
-                            maxLines = 2,
-                        )
-                        OutlinedButton(
-                            onClick = {
-                                onRequestGeneration(
-                                    AudioSourceReference.Artifact(issueId, stageId, artifact.id),
-                                )
-                            },
-                            enabled = !state.operationInProgress,
-                            modifier = Modifier.testTag(
-                                JianyuAutomationTags.AudioAssets.artifactGenerate(artifact.id),
-                            ),
-                        ) { Text("生成音频") }
-                    }
+                    SourceGenerationCard(
+                        label = artifact.title,
+                        buttonTag = JianyuAutomationTags.AudioAssets.artifactGenerate(artifact.id),
+                        enabled = !state.operationInProgress,
+                        onGenerate = {
+                            onRequestGeneration(
+                                AudioSourceReference.Artifact(issueId, stageId, artifact.id),
+                            )
+                        },
+                    )
                 }
-            }
-
-            if (completedMessages.isEmpty() && artifacts.isEmpty()) {
-                Text("当前阶段还没有可生成音频的完成消息或已确认成果。")
             }
 
             Text("资产状态", style = MaterialTheme.typography.titleSmall)
-            if (state.assets.isEmpty()) {
-                Text("当前阶段尚无独立音频资产。")
-            }
+            if (state.assets.isEmpty()) Text("当前阶段尚无独立音频资产。")
             state.assets.forEach { asset ->
-                AudioAssetRow(
+                AudioAssetCard(
                     asset = asset,
                     playbackState = state.playbackState,
                     operationInProgress = state.operationInProgress,
@@ -176,7 +145,31 @@ fun AudioAssetWorkspacePanel(
 }
 
 @Composable
-private fun AudioAssetRow(
+private fun SourceGenerationCard(
+    label: String,
+    buttonTag: String,
+    enabled: Boolean,
+    onGenerate: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(label, maxLines = 2)
+            OutlinedButton(
+                onClick = onGenerate,
+                enabled = enabled,
+                modifier = Modifier.testTag(buttonTag),
+            ) { Text("生成音频") }
+        }
+    }
+}
+
+@Composable
+private fun AudioAssetCard(
     asset: AudioAssetRecord,
     playbackState: AudioAssetPlaybackState,
     operationInProgress: Boolean,
@@ -194,22 +187,22 @@ private fun AudioAssetRow(
             .testTag(JianyuAutomationTags.AudioAssets.asset(asset.id)),
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(asset.source.displayLabel(), style = MaterialTheme.typography.bodyMedium)
+            Text(asset.source.displayLabel())
             Text(
-                text = when {
-                    asset.purgeRequestedAt != null -> "等待受控清理"
-                    else -> "状态：${asset.fileState.storageValue} · ${asset.config.targetFormat.storageValue}"
+                if (asset.purgeRequestedAt != null) {
+                    "等待受控清理"
+                } else {
+                    "状态：${asset.fileState.storageValue} · ${asset.config.targetFormat.storageValue}"
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 when {
                     asset.purgeRequestedAt != null -> Unit
                     asset.fileState == AudioFileState.PENDING -> {
@@ -224,14 +217,16 @@ private fun AudioAssetRow(
                     asset.fileState == AudioFileState.AVAILABLE -> {
                         val playing = playbackState as? AudioAssetPlaybackState.Playing
                         val paused = playbackState as? AudioAssetPlaybackState.Paused
-                        if (playing?.audioAssetId == asset.id) {
-                            OutlinedButton(onClick = onPause) { Text("暂停") }
-                            OutlinedButton(onClick = onStop) { Text("停止") }
-                        } else if (paused?.audioAssetId == asset.id) {
-                            Button(onClick = onResume) { Text("继续") }
-                            OutlinedButton(onClick = onStop) { Text("停止") }
-                        } else {
-                            Button(
+                        when {
+                            playing?.audioAssetId == asset.id -> {
+                                OutlinedButton(onClick = onPause) { Text("暂停") }
+                                OutlinedButton(onClick = onStop) { Text("停止") }
+                            }
+                            paused?.audioAssetId == asset.id -> {
+                                Button(onClick = onResume) { Text("继续") }
+                                OutlinedButton(onClick = onStop) { Text("停止") }
+                            }
+                            else -> Button(
                                 onClick = onPlay,
                                 enabled = !operationInProgress,
                                 modifier = Modifier.testTag(
@@ -240,17 +235,13 @@ private fun AudioAssetRow(
                             ) { Text("播放") }
                         }
                     }
-                    asset.fileState == AudioFileState.FAILED ||
-                        asset.fileState == AudioFileState.MISSING ||
-                        asset.fileState == AudioFileState.CANCELED -> {
-                        Button(
-                            onClick = onRetry,
-                            enabled = !operationInProgress,
-                            modifier = Modifier.testTag(
-                                JianyuAutomationTags.AudioAssets.assetRetry(asset.id),
-                            ),
-                        ) { Text("重试") }
-                    }
+                    else -> Button(
+                        onClick = onRetry,
+                        enabled = !operationInProgress,
+                        modifier = Modifier.testTag(
+                            JianyuAutomationTags.AudioAssets.assetRetry(asset.id),
+                        ),
+                    ) { Text("重试") }
                 }
                 if (asset.purgeRequestedAt == null) {
                     TextButton(
@@ -272,25 +263,22 @@ private fun AudioAssetConfirmationDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val title: String
-    val message: String
-    val confirmLabel: String
-    when (action) {
-        is AudioAssetPendingAction.Generate -> {
-            title = "确认生成音频"
-            message = "确认后才会创建独立 AudioAsset、排入网络任务并使用你的 BYOK API Key。"
-            confirmLabel = "确认生成"
-        }
-        is AudioAssetPendingAction.Retry -> {
-            title = "确认重试音频"
-            message = "将重新读取最新来源内容并显式替换该资产的后台任务，不会静默自动重试。"
-            confirmLabel = "确认重试"
-        }
-        is AudioAssetPendingAction.Delete -> {
-            title = "确认请求删除"
-            message = "这里只记录受控删除请求并阻止迟到回调；物理文件由后续清理流程再次确认后处理。"
-            confirmLabel = "确认请求"
-        }
+    val (title, message, confirmLabel) = when (action) {
+        is AudioAssetPendingAction.Generate -> Triple(
+            "确认生成音频",
+            "确认后才会创建独立 AudioAsset、排入网络任务并使用你的 BYOK API Key。",
+            "确认生成",
+        )
+        is AudioAssetPendingAction.Retry -> Triple(
+            "确认重试音频",
+            "将重新读取最新来源内容并显式替换后台任务，不会静默自动重试。",
+            "确认重试",
+        )
+        is AudioAssetPendingAction.Delete -> Triple(
+            "确认请求删除",
+            "这里只记录受控删除请求并阻止迟到回调；物理文件由后续清理流程再次确认。",
+            "确认请求",
+        )
     }
     AlertDialog(
         onDismissRequest = onDismiss,
