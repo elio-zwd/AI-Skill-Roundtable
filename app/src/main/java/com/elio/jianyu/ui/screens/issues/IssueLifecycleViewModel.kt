@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.elio.jianyu.data.CreateRelatedIssueCommand
 import com.elio.jianyu.data.IssueArchiveEventEntity
-import com.elio.jianyu.data.IssuePurgeFailurePhase
+import com.elio.jianyu.data.IssuePurgeOperationEntity
 import com.elio.jianyu.data.IssuePurgeState
 import com.elio.jianyu.data.RepositoryError
 import com.elio.jianyu.data.RepositoryResult
@@ -13,11 +13,12 @@ import com.elio.jianyu.data.RequestIssuePurgeOperationCommand
 import com.elio.jianyu.data.ResumeArchivedIssueCommand
 import com.elio.jianyu.lifecycle.IssueArchivePreparation
 import com.elio.jianyu.lifecycle.IssueArchiveStopResult
-import com.elio.jianyu.lifecycle.IssueLifecycleTaskStopResult
+import com.elio.jianyu.lifecycle.IssuePurgeExecutionResult
 import com.elio.jianyu.lifecycle.IssuePurgeImpactHasher
 import com.elio.jianyu.lifecycle.IssuePurgeRequestResult
 import com.elio.jianyu.lifecycle.JianyuLifecycleRuntime
 import java.util.UUID
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,8 +48,13 @@ class IssueLifecycleViewModel(
     private var currentPreparation: IssueArchivePreparation? = null
     private var currentArchiveEvent: IssueArchiveEventEntity? = null
     private var currentIssueId: String? = null
+    private var purgeObservationJob: Job? = null
+    private var purgeSubmissionInFlight: Boolean = false
 
     fun dismiss() {
+        purgeObservationJob?.cancel()
+        purgeObservationJob = null
+        purgeSubmissionInFlight = false
         _state.value = null
         pendingAction = null
         currentPreparation = null
@@ -302,8 +308,25 @@ class IssueLifecycleViewModel(
 
     fun beginPurge(issueId: String) {
         currentIssueId = issueId
+        purgeObservationJob?.cancel()
         _state.value = IssueLifecycleUiState.PurgeImpactLoading
         viewModelScope.launch {
+            when (val operations = runtime.repository.listRecoverableIssuePurgeOperations()) {
+                is RepositoryResult.Success -> {
+                    val existing = operations.value.firstOrNull { it.issueId == issueId }
+                    if (existing != null) {
+                        renderPurgeOperation(existing)
+                        observePurge(existing.id)
+                        return@launch
+                    }
+                }
+                is RepositoryResult.Failure -> {
+                    _state.value = IssueLifecycleUiState.PurgeStorageFailure(
+                        operations.error.stableCode("purge_operation_load_failed"),
+                    )
+                    return@launch
+                }
+            }
             when (val result = runtime.impactCalculator.inspect(issueId)) {
                 is RepositoryResult.Success -> _state.value = IssueLifecycleUiState.PurgeImpactReady(result.value)
                 is RepositoryResult.Failure -> _state.value =
@@ -324,43 +347,63 @@ class IssueLifecycleViewModel(
 
     fun confirmPurgeFinal() {
         val current = _state.value as? IssueLifecycleUiState.PurgeConfirming ?: return
-        if (!current.firstConfirmationCompleted) return
+        if (!current.firstConfirmationCompleted || purgeSubmissionInFlight) return
+        purgeSubmissionInFlight = true
         val operationId = stableId()
         viewModelScope.launch {
-            when (
-                val result = runtime.purgeCoordinator.request(
-                    RequestIssuePurgeOperationCommand(
-                        id = operationId,
-                        issueId = current.impact.issueId,
-                        operationId = stableId(),
-                        impactHash = IssuePurgeImpactHasher.hash(current.impact),
-                        firstConfirmation = true,
-                        finalConfirmation = true,
-                        requestedAt = now(),
-                    ),
-                )
-            ) {
-                is IssuePurgeRequestResult.Scheduled -> {
-                    _state.value = IssueLifecycleUiState.PurgeRequested(result.operation)
-                    observePurge(operationId)
+            try {
+                when (
+                    val result = runtime.purgeCoordinator.request(
+                        RequestIssuePurgeOperationCommand(
+                            id = operationId,
+                            issueId = current.impact.issueId,
+                            operationId = stableId(),
+                            impactHash = IssuePurgeImpactHasher.hash(current.impact),
+                            firstConfirmation = true,
+                            finalConfirmation = true,
+                            requestedAt = now(),
+                        ),
+                    )
+                ) {
+                    is IssuePurgeRequestResult.Scheduled -> {
+                        renderPurgeOperation(result.operation)
+                        observePurge(operationId)
+                    }
+                    is IssuePurgeRequestResult.Failure -> _state.value =
+                        IssueLifecycleUiState.PurgeStorageFailure(result.code)
                 }
-                is IssuePurgeRequestResult.Failure -> _state.value =
-                    IssueLifecycleUiState.PurgeStorageFailure(result.code)
+            } finally {
+                purgeSubmissionInFlight = false
             }
         }
     }
 
     fun retryPurge(operationId: String) {
         viewModelScope.launch {
-            runtime.purgeCoordinator.retry(operationId)
-            observePurge(operationId)
+            when (val result = runtime.purgeCoordinator.retry(operationId)) {
+                is IssuePurgeExecutionResult.RetryableFailure -> {
+                    if (result.code == "purge_retry_scheduled") {
+                        observePurge(operationId)
+                    } else {
+                        _state.value = IssueLifecycleUiState.PurgeStorageFailure(result.code)
+                    }
+                }
+                is IssuePurgeExecutionResult.Rejected ->
+                    _state.value = IssueLifecycleUiState.PurgeStorageFailure(result.code)
+                IssuePurgeExecutionResult.Completed ->
+                    _state.value = IssueLifecycleUiState.PurgeCompleted(currentIssueId.orEmpty())
+            }
         }
     }
 
     fun cancelPurge(operationId: String) {
         viewModelScope.launch {
             when (val result = runtime.purgeCancellationService.cancel(operationId, now())) {
-                is RepositoryResult.Success -> _state.value = IssueLifecycleUiState.TrashRestored(result.value)
+                is RepositoryResult.Success -> {
+                    purgeObservationJob?.cancel()
+                    purgeObservationJob = null
+                    _state.value = IssueLifecycleUiState.TrashRestored(result.value)
+                }
                 is RepositoryResult.Failure -> _state.value =
                     IssueLifecycleUiState.PurgeStorageFailure(
                         result.error.stableCode("purge_cancel_failed"),
@@ -370,37 +413,42 @@ class IssueLifecycleViewModel(
     }
 
     private fun observePurge(operationId: String) {
-        viewModelScope.launch {
-            repeat(120) {
+        purgeObservationJob?.cancel()
+        purgeObservationJob = viewModelScope.launch {
+            while (true) {
                 when (val result = runtime.repository.getIssuePurgeOperation(operationId)) {
                     is RepositoryResult.Success -> {
-                        val operation = result.value
-                        _state.value = when (operation.state) {
-                            IssuePurgeState.REQUESTED,
-                            IssuePurgeState.WAITING_FOR_TASKS,
-                            -> IssueLifecycleUiState.PurgeRequested(operation)
-                            IssuePurgeState.CANCELING_TASKS ->
-                                IssueLifecycleUiState.PurgeCancelingTasks(operation)
-                            IssuePurgeState.DELETING_FILES ->
-                                IssueLifecycleUiState.PurgeDeletingFiles(operation)
-                            IssuePurgeState.READY_FOR_DATABASE_PURGE,
-                            IssuePurgeState.DATABASE_PURGING,
-                            -> IssueLifecycleUiState.PurgeDatabaseCleanup(operation)
-                            IssuePurgeState.FAILED_RETRYABLE ->
-                                IssueLifecycleUiState.PurgeRetryableFailure(operation)
-                            IssuePurgeState.COMPLETED ->
-                                IssueLifecycleUiState.PurgeCompleted(operation.issueId)
-                        }
-                        if (operation.state == IssuePurgeState.FAILED_RETRYABLE) return@launch
+                        renderPurgeOperation(result.value)
+                        if (result.value.state == IssuePurgeState.FAILED_RETRYABLE) return@launch
                     }
                     is RepositoryResult.Failure -> {
-                        val issueId = currentIssueId.orEmpty()
-                        _state.value = IssueLifecycleUiState.PurgeCompleted(issueId)
+                        if (result.error is RepositoryError.NotFound) {
+                            _state.value = IssueLifecycleUiState.PurgeCompleted(currentIssueId.orEmpty())
+                        } else {
+                            _state.value = IssueLifecycleUiState.PurgeStorageFailure(
+                                result.error.stableCode("purge_operation_load_failed"),
+                            )
+                        }
                         return@launch
                     }
                 }
                 delay(500L)
             }
+        }
+    }
+
+    private fun renderPurgeOperation(operation: IssuePurgeOperationEntity) {
+        _state.value = when (operation.state) {
+            IssuePurgeState.REQUESTED,
+            IssuePurgeState.WAITING_FOR_TASKS,
+            -> IssueLifecycleUiState.PurgeRequested(operation)
+            IssuePurgeState.CANCELING_TASKS -> IssueLifecycleUiState.PurgeCancelingTasks(operation)
+            IssuePurgeState.DELETING_FILES -> IssueLifecycleUiState.PurgeDeletingFiles(operation)
+            IssuePurgeState.READY_FOR_DATABASE_PURGE,
+            IssuePurgeState.DATABASE_PURGING,
+            -> IssueLifecycleUiState.PurgeDatabaseCleanup(operation)
+            IssuePurgeState.FAILED_RETRYABLE -> IssueLifecycleUiState.PurgeRetryableFailure(operation)
+            IssuePurgeState.COMPLETED -> IssueLifecycleUiState.PurgeCompleted(operation.issueId)
         }
     }
 
