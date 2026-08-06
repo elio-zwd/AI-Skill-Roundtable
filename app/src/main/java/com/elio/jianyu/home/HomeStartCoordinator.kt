@@ -5,6 +5,7 @@ import com.elio.jianyu.data.ContextContentHasher
 import com.elio.jianyu.data.ContextSelectionDraft
 import com.elio.jianyu.data.ContextSourceType
 import com.elio.jianyu.data.JianyuRepository
+import com.elio.jianyu.data.MAX_EXECUTION_CONTEXT_CHARACTERS
 import com.elio.jianyu.data.PrepareExecutionContextCommand
 import com.elio.jianyu.data.PreparedExecutionContext
 import com.elio.jianyu.data.RepositoryError
@@ -14,6 +15,8 @@ import com.elio.jianyu.execution.ExecutionRunCoordinator
 import com.elio.jianyu.execution.ExecutionSkillSelection
 import com.elio.jianyu.execution.ExecutionStartCommand
 import com.elio.jianyu.execution.ExecutionStartException
+import com.elio.jianyu.skill.catalog.OfficialSkillExecutionContext
+import com.elio.jianyu.skill.catalog.OfficialSkillExecutionSelectedMode
 
 interface HomeRepositoryGateway {
     suspend fun saveIssue(command: SaveIssueCommand): RepositoryResult<Unit>
@@ -92,6 +95,26 @@ class HomeStartCoordinator(
             return HomeStartResult.Failure(HomeWorkflowError.NO_EXECUTABLE_SKILL.code)
         }
 
+        val preflightState = HomeWorkflowState(
+            ids = confirmation.ids,
+            draft = HomeQuestionDraft(confirmation.question, confirmation.directions),
+            step = HomeWorkflowStep.FINAL_REVIEW,
+            recommendation = confirmation.recommendation,
+            recommendationConfirmed = true,
+            contextSelection = confirmation.contextSelection,
+            executionConsent = confirmation.executionConsent,
+        )
+        val preflightIssue = HomeWorkflow.executionConsentIssues(preflightState).firstOrNull()
+        if (preflightIssue != null) {
+            return HomeStartResult.Failure(preflightIssue)
+        }
+
+        val selectionDraft = confirmation.contextSelection.toContextSelectionDraft(confirmation.ids)
+            ?: return HomeStartResult.Failure(HomeWorkflowError.CONTEXT_CONFIRMATION_REQUIRED.code)
+        val executionContexts = selected.associate { skill ->
+            skill.skillId to confirmation.toExecutionContext()
+        }
+
         val saveCommand = HomeSaveOnlyCommand(
             ids = confirmation.ids,
             question = confirmation.question,
@@ -102,12 +125,6 @@ class HomeStartCoordinator(
             is RepositoryResult.Success -> Unit
         }
 
-        val selectionDraft = confirmation.contextSelection.toContextSelectionDraft(confirmation.ids)
-            ?: return HomeStartResult.SavedNotStarted(
-                issueId = confirmation.ids.issueId,
-                stageId = confirmation.ids.stageId,
-                errorCode = HomeWorkflowError.CONTEXT_CONFIRMATION_REQUIRED.code,
-            )
         val prepared = when (
             val result = repository.prepareExecutionContext(
                 PrepareExecutionContextCommand(
@@ -134,6 +151,7 @@ class HomeStartCoordinator(
                 ExecutionSkillSelection(
                     officialSkillId = skill.skillId,
                     defaultResponsibility = skill.responsibility,
+                    executionContext = executionContexts.getValue(skill.skillId),
                 )
             },
             currentUserInput = confirmation.question,
@@ -154,6 +172,32 @@ class HomeStartCoordinator(
                 errorCode = result.errorCode,
             )
         }
+    }
+
+    private fun HomeFinalConfirmation.toExecutionContext(): OfficialSkillExecutionContext {
+        val selectedItems = contextSelection.items.filter(HomeContextItemSnapshot::selected)
+        val sensitiveItems = selectedItems.filter(HomeContextItemSnapshot::sensitive)
+        return OfficialSkillExecutionContext(
+            materialProvided = selectedItems.isNotEmpty(),
+            materialAuthorized = selectedItems.isNotEmpty() &&
+                selectedItems.all { it.userConfirmedAt > 0L },
+            sensitiveMaterialConfirmed = sensitiveItems.isEmpty() ||
+                sensitiveItems.all(HomeContextItemSnapshot::sensitiveConfirmed),
+            networkAuthorized = executionConsent.networkAuthorized,
+            containsRestrictedMaterial = executionConsent.restrictedMaterialPresent,
+            materialMayLeaveDevice = executionConsent.materialMayLeaveDevice,
+            highStakesConfirmed = executionConsent.highStakesConfirmed,
+            personDisclaimerConfirmed = executionConsent.personDisclaimerConfirmed,
+            contextCharacters = contextSelection.baseContextCharacters +
+                selectedItems.sumOf { it.selectedContent.length },
+            maxContextCharacters = MAX_EXECUTION_CONTEXT_CHARACTERS,
+            selectedMode = if (recommendation.selectedSkills.size == 1) {
+                OfficialSkillExecutionSelectedMode.SINGLE
+            } else {
+                OfficialSkillExecutionSelectedMode.MULTI
+            },
+            stageExecutable = true,
+        )
     }
 
     private fun HomeSaveOnlyCommand.toSaveIssueCommand(): SaveIssueCommand {
