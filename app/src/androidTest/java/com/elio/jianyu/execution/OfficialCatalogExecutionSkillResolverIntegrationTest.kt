@@ -3,6 +3,8 @@ package com.elio.jianyu.execution
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.elio.jianyu.skill.catalog.OfficialSkillCatalogLoadResult
+import com.elio.jianyu.skill.catalog.OfficialSkillCatalogParser
 import com.elio.jianyu.skill.catalog.OfficialSkillCatalogRuntimeResult
 import com.elio.jianyu.skill.catalog.createOfficialSkillCatalogRuntime
 import kotlinx.coroutines.runBlocking
@@ -68,7 +70,7 @@ class OfficialCatalogExecutionSkillResolverIntegrationTest {
     }
 
     @Test
-    fun realResolverRejectsDuplicateUnknownAndNonExecutableSkills() = runBlocking {
+    fun realResolverRejectsDuplicateUnknownAndHistoricalV1NonExecutableSkills() = runBlocking {
         val runtime = requireNotNull(
             (createOfficialSkillCatalogRuntime(context) as? OfficialSkillCatalogRuntimeResult.Success)
                 ?.runtime,
@@ -77,6 +79,19 @@ class OfficialCatalogExecutionSkillResolverIntegrationTest {
             context = context,
             catalog = runtime.catalog,
             executionEligibility = runtime.executionEligibility,
+        )
+        val historicalV1Catalog = requireNotNull(
+            (
+                OfficialSkillCatalogParser.loadFromAssets(
+                    context = context,
+                    executionPublicationAssetPath =
+                        OfficialSkillCatalogParser.V1_EXECUTION_PUBLICATION_ASSET_PATH,
+                ) as? OfficialSkillCatalogLoadResult.Success
+                )?.catalog,
+        )
+        val historicalV1Resolver = OfficialCatalogExecutionSkillResolver(
+            context = context,
+            catalog = historicalV1Catalog,
         )
 
         val duplicate = runCatching {
@@ -97,7 +112,7 @@ class OfficialCatalogExecutionSkillResolverIntegrationTest {
             )
         }.exceptionOrNull()
         val nonExecutable = runCatching {
-            resolver.resolve(
+            historicalV1Resolver.resolve(
                 runId = "run-non-executable",
                 selections = listOf(ExecutionSkillSelection("zhang_xuefeng")),
                 createdAt = 1_000L,
