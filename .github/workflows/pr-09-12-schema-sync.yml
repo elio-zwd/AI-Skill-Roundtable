@@ -1,0 +1,75 @@
+name: PR09-12 Room Schema Sync
+
+on:
+  push:
+    branches:
+      - feat/pr-09-12-archive-trash
+    paths:
+      - .github/workflows/pr-09-12-schema-sync.yml
+
+permissions:
+  contents: write
+
+jobs:
+  generate-and-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v4
+        with:
+          ref: feat/pr-09-12-archive-trash
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Generate Room schema with KSP
+        run: ./gradlew :app:compileDebugKotlin --stacktrace
+
+      - name: Verify generated v12 schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          schema='app/schemas/com.elio.jianyu.data.RoundtableDatabase/12.json'
+          test -f "$schema"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('app/schemas/com.elio.jianyu.data.RoundtableDatabase/12.json')
+          data = json.loads(path.read_text(encoding='utf-8'))
+          assert data['database']['version'] == 12
+          tables = {entity['tableName'] for entity in data['database']['entities']}
+          required = {
+              'issue_archive_events',
+              'issue_resume_events',
+              'issue_relations',
+              'issue_purge_operations',
+          }
+          assert required <= tables
+          print(f"identityHash={data['database']['identityHash']}")
+          PY
+
+      - name: Commit only generated v12 schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          schema='app/schemas/com.elio.jianyu.data.RoundtableDatabase/12.json'
+          git add -- "$schema"
+          if git diff --cached --quiet; then
+            echo 'Room v12 schema already tracked; no commit required.'
+            exit 0
+          fi
+          changed="$(git diff --cached --name-only)"
+          test "$changed" = "$schema"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat: 提交Room v12生成Schema'
+          git push origin HEAD:feat/pr-09-12-archive-trash
