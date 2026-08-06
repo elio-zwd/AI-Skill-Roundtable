@@ -1,5 +1,7 @@
 package com.elio.jianyu.data
 
+import com.elio.jianyu.lifecycle.IssueWriteAction
+
 /**
  * 见域领域数据公共门面。
  *
@@ -15,6 +17,7 @@ class RoomJianyuRepository(
     JianyuArtifactSourceRecoveryRepository,
     JianyuStageAdvancementRepository {
     private val transactions = JianyuRepositoryTransactions(database)
+    private val writeGate = IssueLifecycleWriteGate(database)
     private val issueExecution = IssueExecutionRepositoryComponent(transactions)
     private val stageAdvancement = StageAdvancementRepositoryComponent(
         transactions = transactions,
@@ -48,16 +51,23 @@ class RoomJianyuRepository(
     }
 
     override suspend fun createStage(command: CreateStageCommand): RepositoryResult<StageEntity> =
-        issueExecution.createStage(command)
+        gate(command.issueId, IssueWriteAction.ADVANCE_STAGE, "create_stage") {
+            issueExecution.createStage(command)
+        }
 
     override suspend fun undoLatestUnrunStage(
         issueId: String,
         stageId: String
-    ): RepositoryResult<Unit> = stageAdvancement.undoLatestUnrunStage(issueId, stageId)
+    ): RepositoryResult<Unit> = gate(issueId, IssueWriteAction.ADVANCE_STAGE, "undo_latest_stage") {
+        stageAdvancement.undoLatestUnrunStage(issueId, stageId)
+    }
 
     override suspend fun advanceIssue(
         command: AdvanceIssueCommand,
-    ): RepositoryResult<AdvanceIssueResult> = stageAdvancement.advanceIssue(command)
+    ): RepositoryResult<AdvanceIssueResult> =
+        gate(command.issueId, IssueWriteAction.ADVANCE_STAGE, "advance_issue") {
+            stageAdvancement.advanceIssue(command)
+        }
 
     override suspend fun getStageAdvancement(
         stageId: String,
@@ -71,11 +81,17 @@ class RoomJianyuRepository(
 
     override suspend fun createExecutionRun(
         command: CreateExecutionRunCommand
-    ): RepositoryResult<ExecutionRunSnapshot> = issueExecution.createExecutionRun(command)
+    ): RepositoryResult<ExecutionRunSnapshot> =
+        gate(command.run.issueId, IssueWriteAction.CREATE_RUN, "create_execution_run") {
+            issueExecution.createExecutionRun(command)
+        }
 
     override suspend fun createExecutionRuntime(
         command: CreateExecutionRuntimeCommand,
-    ): RepositoryResult<ExecutionRuntimeSnapshot> = executionRuntime.createExecutionRuntime(command)
+    ): RepositoryResult<ExecutionRuntimeSnapshot> =
+        gate(command.run.issueId, IssueWriteAction.CREATE_RUN, "create_execution_runtime") {
+            executionRuntime.createExecutionRuntime(command)
+        }
 
     override suspend fun getExecutionRuntime(
         runId: String,
@@ -103,27 +119,37 @@ class RoomJianyuRepository(
     override suspend fun recoverInterruptedExecution(
         command: RecoverInterruptedExecutionCommand,
     ): RepositoryResult<ExecutionRuntimeSnapshot> =
-        collaborationRuntime.recoverInterruptedExecution(command)
+        gateRun(command.runId, IssueWriteAction.CREATE_RUN, "recover_interrupted_execution") {
+            collaborationRuntime.recoverInterruptedExecution(command)
+        }
 
     override suspend fun createDirectedInteraction(
         command: CreateDirectedInteractionCommand,
     ): RepositoryResult<CollaborationStartResult> =
-        collaboration.createDirectedInteraction(command)
+        gate(command.userMessage.issueId, IssueWriteAction.DIRECTED_RESPONSE, "create_directed_interaction") {
+            collaboration.createDirectedInteraction(command)
+        }
 
     override suspend fun createCrossDiscussionResponse(
         command: CreateCrossDiscussionResponseCommand,
     ): RepositoryResult<CollaborationStartResult> =
-        collaboration.createCrossDiscussionResponse(command)
+        gate(command.userMessage.issueId, IssueWriteAction.CROSS_DISCUSSION, "create_cross_discussion_response") {
+            collaboration.createCrossDiscussionResponse(command)
+        }
 
     override suspend fun createCrossDiscussionSynthesis(
         command: CreateCrossDiscussionSynthesisCommand,
     ): RepositoryResult<CollaborationStartResult> =
-        crossDiscussionSynthesis.createCrossDiscussionSynthesis(command)
+        gate(command.run.issueId, IssueWriteAction.CROSS_DISCUSSION, "create_cross_discussion_synthesis") {
+            crossDiscussionSynthesis.createCrossDiscussionSynthesis(command)
+        }
 
     override suspend fun createCollaborationRetry(
         command: CreateCollaborationRetryCommand,
     ): RepositoryResult<CollaborationStartResult> =
-        collaborationRetry.createCollaborationRetry(command)
+        gateRun(command.previousRunId, IssueWriteAction.CROSS_DISCUSSION, "create_collaboration_retry") {
+            collaborationRetry.createCollaborationRetry(command)
+        }
 
     override suspend fun transitionCrossDiscussion(
         command: TransitionCrossDiscussionCommand,
@@ -146,36 +172,66 @@ class RoomJianyuRepository(
 
     override suspend fun appendDomainMessage(
         command: AppendDomainMessageCommand
-    ): RepositoryResult<Message> = issueExecution.appendDomainMessage(command)
+    ): RepositoryResult<Message> =
+        gate(command.issueId, IssueWriteAction.CREATE_RUN, "append_domain_message") {
+            issueExecution.appendDomainMessage(command)
+        }
 
     override suspend fun updatePendingDomainMessage(
         command: UpdatePendingDomainMessageCommand
-    ): RepositoryResult<Message> = pendingMessages.updatePendingDomainMessage(command)
+    ): RepositoryResult<Message> =
+        gate(command.issueId, IssueWriteAction.CREATE_RUN, "update_pending_domain_message") {
+            pendingMessages.updatePendingDomainMessage(command)
+        }
 
     override suspend fun transitionRun(
         command: TransitionRunCommand
-    ): RepositoryResult<ExecutionRunEntity> = issueExecution.transitionRun(command)
+    ): RepositoryResult<ExecutionRunEntity> {
+        val terminalCancellation = command.newStatus == ExecutionRunStatus.STOPPED ||
+            command.newStatus == ExecutionRunStatus.FAILED
+        return if (terminalCancellation) {
+            issueExecution.transitionRun(command)
+        } else {
+            gateRun(command.runId, IssueWriteAction.CREATE_RUN, "transition_run") {
+                issueExecution.transitionRun(command)
+            }
+        }
+    }
 
     override suspend fun saveStageDraft(
         command: SaveStageDraftCommand
-    ): RepositoryResult<StageSummaryDraftEntity> = resources.saveStageDraft(command)
+    ): RepositoryResult<StageSummaryDraftEntity> =
+        gate(command.draft.issueId, IssueWriteAction.SAVE_DRAFT, "save_stage_draft") {
+            resources.saveStageDraft(command)
+        }
 
     override suspend fun abandonStageDraft(
         issueId: String,
         stageId: String
-    ): RepositoryResult<Unit> = resources.abandonStageDraft(issueId, stageId)
+    ): RepositoryResult<Unit> = gate(issueId, IssueWriteAction.SAVE_DRAFT, "abandon_stage_draft") {
+        resources.abandonStageDraft(issueId, stageId)
+    }
 
     override suspend fun confirmArtifact(
         command: ConfirmArtifactCommand
-    ): RepositoryResult<ConfirmedArtifactEntity> = resources.confirmArtifact(command)
+    ): RepositoryResult<ConfirmedArtifactEntity> =
+        gate(command.artifact.issueId, IssueWriteAction.CONFIRM_ARTIFACT, "confirm_artifact") {
+            resources.confirmArtifact(command)
+        }
 
     override suspend fun recordMaterialUsage(
         entity: MaterialUsageSnapshotEntity
-    ): RepositoryResult<MaterialUsageSnapshotEntity> = usages.recordMaterialUsage(entity)
+    ): RepositoryResult<MaterialUsageSnapshotEntity> =
+        gate(entity.issueId, IssueWriteAction.RECORD_CONTEXT_USAGE, "record_material_usage") {
+            usages.recordMaterialUsage(entity)
+        }
 
     override suspend fun recordPersonalContextUsage(
         entity: PersonalContextUsageSnapshotEntity
-    ): RepositoryResult<PersonalContextUsageSnapshotEntity> = usages.recordPersonalContextUsage(entity)
+    ): RepositoryResult<PersonalContextUsageSnapshotEntity> =
+        gate(entity.issueId, IssueWriteAction.RECORD_CONTEXT_USAGE, "record_personal_context_usage") {
+            usages.recordPersonalContextUsage(entity)
+        }
 
     override suspend fun createMaterial(
         command: CreateMaterialCommand,
@@ -235,7 +291,10 @@ class RoomJianyuRepository(
 
     override suspend fun prepareExecutionContext(
         command: PrepareExecutionContextCommand,
-    ): RepositoryResult<PreparedExecutionContext> = materialContext.prepareExecutionContext(command)
+    ): RepositoryResult<PreparedExecutionContext> =
+        gate(command.draft.issueId, IssueWriteAction.RECORD_CONTEXT_USAGE, "prepare_execution_context") {
+            materialContext.prepareExecutionContext(command)
+        }
 
     override suspend fun listRunContextUsage(
         runId: String,
@@ -259,27 +318,41 @@ class RoomJianyuRepository(
     override suspend fun archiveIssue(
         issueId: String,
         changedAt: Long
-    ): RepositoryResult<IssueLifecycleEntity> = lifecycleRecovery.archiveIssue(issueId, changedAt)
+    ): RepositoryResult<IssueLifecycleEntity> = RepositoryResult.Failure(
+        RepositoryError.InvalidState("archive_issue", "archive_event_required"),
+    )
 
     override suspend fun restoreIssue(
         issueId: String,
         changedAt: Long
-    ): RepositoryResult<IssueLifecycleEntity> = lifecycleRecovery.restoreIssue(issueId, changedAt)
+    ): RepositoryResult<IssueLifecycleEntity> = RepositoryResult.Failure(
+        RepositoryError.InvalidState("restore_issue", "resume_event_required"),
+    )
 
     override suspend fun moveIssueToTrash(
         issueId: String,
         changedAt: Long
-    ): RepositoryResult<IssueLifecycleEntity> = lifecycleRecovery.moveIssueToTrash(issueId, changedAt)
+    ): RepositoryResult<IssueLifecycleEntity> =
+        writeGate.requireAllowed(issueId, IssueWriteAction.MOVE_TO_TRASH, "move_issue_to_trash").then {
+            writeGate.requireNoActiveWork(issueId, "move_issue_to_trash").then {
+                lifecycleRecovery.moveIssueToTrash(issueId, changedAt)
+            }
+        }
 
     override suspend fun restoreIssueFromTrash(
         issueId: String,
         changedAt: Long
-    ): RepositoryResult<IssueLifecycleEntity> = lifecycleRecovery.restoreIssueFromTrash(issueId, changedAt)
+    ): RepositoryResult<IssueLifecycleEntity> =
+        gate(issueId, IssueWriteAction.RESTORE_FROM_TRASH, "restore_issue_from_trash") {
+            lifecycleRecovery.restoreIssueFromTrash(issueId, changedAt)
+        }
 
     override suspend fun requestIssuePurge(
         issueId: String,
         requestedAt: Long
-    ): RepositoryResult<IssueLifecycleEntity> = lifecycleRecovery.requestIssuePurge(issueId, requestedAt)
+    ): RepositoryResult<IssueLifecycleEntity> = RepositoryResult.Failure(
+        RepositoryError.InvalidState("request_issue_purge", "purge_operation_required"),
+    )
 
     override suspend fun recoverIssue(issueId: String): RepositoryResult<IssueRecoverySnapshot> =
         lifecycleRecovery.recoverIssue(issueId)
@@ -287,6 +360,20 @@ class RoomJianyuRepository(
     override suspend fun listIssueNavigation(
         states: Set<IssueLifecycleState>
     ): RepositoryResult<List<IssueNavigationItem>> = lifecycleRecovery.listIssueNavigation(states)
+
+    private suspend fun <T> gate(
+        issueId: String,
+        action: IssueWriteAction,
+        operation: String,
+        block: suspend () -> RepositoryResult<T>,
+    ): RepositoryResult<T> = writeGate.requireAllowed(issueId, action, operation).then(block)
+
+    private suspend fun <T> gateRun(
+        runId: String,
+        action: IssueWriteAction,
+        operation: String,
+        block: suspend () -> RepositoryResult<T>,
+    ): RepositoryResult<T> = writeGate.requireRunAllowed(runId, action, operation).then(block)
 
     private companion object {
         const val LEGACY_ISSUE_ID_PREFIX = "legacy-chat-"
