@@ -6,6 +6,10 @@ import com.elio.jianyu.data.RepositoryError
 import com.elio.jianyu.data.RepositoryResult
 import com.elio.jianyu.data.RoundtableDatabase
 
+fun interface IssuePurgeImpactProvider {
+    suspend fun inspect(issueId: String): RepositoryResult<IssuePurgeImpactSnapshot>
+}
+
 /**
  * 从实际 Room 与受控音频文件服务生成不可恢复清理预览。
  *
@@ -14,8 +18,8 @@ import com.elio.jianyu.data.RoundtableDatabase
 class IssuePurgeImpactCalculator(
     private val database: RoundtableDatabase,
     private val audioLifecycleService: AudioAssetLifecycleService,
-) {
-    suspend fun inspect(issueId: String): RepositoryResult<IssuePurgeImpactSnapshot> {
+) : IssuePurgeImpactProvider {
+    override suspend fun inspect(issueId: String): RepositoryResult<IssuePurgeImpactSnapshot> {
         if (issueId.isBlank()) {
             return RepositoryResult.Failure(
                 RepositoryError.ConstraintViolation("inspect_issue_purge", "issue_id_required"),
