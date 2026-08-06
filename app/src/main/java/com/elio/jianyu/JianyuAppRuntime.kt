@@ -1,6 +1,8 @@
 package com.elio.jianyu
 
 import android.content.Context
+import com.elio.jianyu.audio.runtime.JianyuAudioRuntime
+import com.elio.jianyu.audio.runtime.createJianyuAudioRuntime
 import com.elio.jianyu.collaboration.IssueCollaborationCoordinator
 import com.elio.jianyu.collaboration.OfficialCollaborationSkillEligibility
 import com.elio.jianyu.data.JianyuRepository
@@ -25,6 +27,7 @@ data class JianyuAppRuntime(
     val executionCoordinator: ExecutionRunCoordinator?,
     val collaborationCoordinator: IssueCollaborationCoordinator?,
     val stageResultService: StageResultService,
+    val audioRuntime: JianyuAudioRuntime,
 )
 
 object JianyuAppRuntimeProvider {
@@ -88,6 +91,7 @@ object JianyuAppRuntimeProvider {
             executionCoordinator = executionCoordinator,
             collaborationCoordinator = collaborationCoordinator,
             stageResultService = StageResultService(repository),
+            audioRuntime = createJianyuAudioRuntime(context, database),
         )
     }
 }

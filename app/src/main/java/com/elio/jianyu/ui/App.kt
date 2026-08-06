@@ -43,7 +43,7 @@ import com.elio.jianyu.ui.navigation.navigateToSecondary
 import com.elio.jianyu.ui.navigation.navigateToTelemetryFromRoundtable
 import com.elio.jianyu.ui.navigation.navigateToTopLevel
 import com.elio.jianyu.ui.screens.characters.CharacterHallRoute
-import com.elio.jianyu.ui.screens.execution.IssueExecutionRoute
+import com.elio.jianyu.ui.screens.execution.AudioEnabledIssueExecutionRoute
 import com.elio.jianyu.ui.screens.home.HomeRoute
 import com.elio.jianyu.ui.screens.issues.IssuesRoute
 import com.elio.jianyu.ui.screens.library.AudioLibraryRoute
@@ -150,11 +150,12 @@ internal fun MainAppContent(
                     )
                 },
                 issueContent = { issueId, stageId ->
-                    IssueExecutionRoute(
+                    AudioEnabledIssueExecutionRoute(
                         repository = appRuntime.repository,
                         coordinator = appRuntime.executionCoordinator,
                         collaborationCoordinator = appRuntime.collaborationCoordinator,
                         stageResultService = appRuntime.stageResultService,
+                        audioRuntime = appRuntime.audioRuntime,
                         issueId = issueId,
                         stageId = stageId,
                         onBack = { navController.popBackStack() },
