@@ -24,6 +24,10 @@ object HomeTestTags {
         JianyuAutomationTags.Home.CONTEXT_CONFIRMATION_BUTTON
     const val CONTEXT_CONFIRMED_SUMMARY =
         JianyuAutomationTags.Home.CONTEXT_CONFIRMED_SUMMARY
+    const val NETWORK_AUTHORIZATION = "home_execution_network_authorization"
+    const val HIGH_STAKES_CONFIRMATION = "home_execution_high_stakes_confirmation"
+    const val PERSON_DISCLAIMER_CONFIRMATION = "home_execution_person_disclaimer_confirmation"
+    const val RESTRICTED_MATERIAL_BLOCK = "home_execution_restricted_material_block"
 }
 
 @Composable
@@ -71,6 +75,9 @@ fun HomeRoute(
         onModeChanged = viewModel::switchMode,
         onConfirmRecommendation = viewModel::confirmRecommendation,
         onOpenContextConfirmation = viewModel::openContextConfirmation,
+        onNetworkAuthorized = viewModel::setNetworkAuthorized,
+        onHighStakesConfirmed = viewModel::setHighStakesConfirmed,
+        onPersonDisclaimerConfirmed = viewModel::setPersonDisclaimerConfirmed,
         onBrowseSkills = viewModel::browseSkills,
         onStartIssue = viewModel::startIssue,
         onOpenSettings = onOpenSettings,
