@@ -167,6 +167,23 @@ class AdvanceIssueViewModel internal constructor(
         updateDraft { it.copy(expectedOutput = value) }
     }
 
+    fun toggleRosterMember(officialSkillId: String) {
+        val pair = stateWithDraft() ?: return
+        if (pair.first.roster.none { it.officialSkillId == officialSkillId }) return
+        updateDraft { draft ->
+            val selectedIds = draft.roster
+                .mapTo(linkedSetOf()) { it.officialSkillId }
+            if (!selectedIds.add(officialSkillId)) {
+                selectedIds.remove(officialSkillId)
+            }
+            draft.copy(
+                roster = pair.first.roster
+                    .filter { it.officialSkillId in selectedIds }
+                    .mapIndexed { index, member -> member.copy(position = index) },
+            )
+        }
+    }
+
     fun toggleMaterial(materialId: String) {
         updateDraft { draft ->
             draft.copy(selectedMaterialIds = draft.selectedMaterialIds.toggle(materialId))
@@ -540,6 +557,7 @@ class AdvanceIssueViewModel internal constructor(
         savedStateHandle[KEY_MEASURES] = draft.measures.map { it.storageValue }
         savedStateHandle[KEY_OBJECTIVE] = draft.objective
         savedStateHandle[KEY_EXPECTED_OUTPUT] = draft.expectedOutput
+        savedStateHandle[KEY_ROSTER] = draft.roster.map { it.officialSkillId }
         savedStateHandle[KEY_MATERIALS] = draft.selectedMaterialIds.toList()
         savedStateHandle[KEY_ARTIFACTS] = draft.selectedArtifactIds.toList()
         savedStateHandle[KEY_SUMMARY_REVISION] = draft.summaryRevision
@@ -555,6 +573,14 @@ class AdvanceIssueViewModel internal constructor(
                 StageAdvancementMeasure.entries.firstOrNull { it.storageValue == value }
             }
             .toSet()
+        val restoredRosterIds = savedStateHandle.get<List<String>>(KEY_ROSTER)
+        val restoredRoster = if (restoredRosterIds == null) {
+            candidates.roster
+        } else {
+            candidates.roster
+                .filter { it.officialSkillId in restoredRosterIds }
+                .mapIndexed { index, member -> member.copy(position = index) }
+        }
         return AdvanceIssueDraft(
             operationId = operationId,
             newStageId = stageId,
@@ -565,7 +591,7 @@ class AdvanceIssueViewModel internal constructor(
             expectedOutput = savedStateHandle[KEY_EXPECTED_OUTPUT] ?: "行动计划",
             selectedMaterialIds = savedStateHandle.get<List<String>>(KEY_MATERIALS).orEmpty().toSet(),
             selectedArtifactIds = savedStateHandle.get<List<String>>(KEY_ARTIFACTS).orEmpty().toSet(),
-            roster = candidates.roster,
+            roster = restoredRoster,
             summaryRevision = savedStateHandle[KEY_SUMMARY_REVISION] ?: 0L,
             confirmedRevision = null,
         )
@@ -581,6 +607,7 @@ class AdvanceIssueViewModel internal constructor(
             KEY_MEASURES,
             KEY_OBJECTIVE,
             KEY_EXPECTED_OUTPUT,
+            KEY_ROSTER,
             KEY_MATERIALS,
             KEY_ARTIFACTS,
             KEY_SUMMARY_REVISION,
@@ -659,6 +686,7 @@ class AdvanceIssueViewModel internal constructor(
         private const val KEY_MEASURES = "advance_issue.measures"
         private const val KEY_OBJECTIVE = "advance_issue.objective"
         private const val KEY_EXPECTED_OUTPUT = "advance_issue.expected_output"
+        private const val KEY_ROSTER = "advance_issue.roster"
         private const val KEY_MATERIALS = "advance_issue.materials"
         private const val KEY_ARTIFACTS = "advance_issue.artifacts"
         private const val KEY_SUMMARY_REVISION = "advance_issue.summary_revision"
