@@ -2,6 +2,9 @@ package com.elio.jianyu.data
 
 import android.content.Context
 import androidx.room.testing.MigrationTestHelper
+import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.sqlite.db.SupportSQLiteOpenHelper
+import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.After
@@ -35,8 +38,29 @@ class IssueLifecycleV12MigrationTest {
     }
 
     @Test
-    fun everyHistoricalVersionMigratesContinuouslyTo12() {
-        for (startVersion in 1..11) {
+    fun legacyVersionsOneToFourMigrateContinuouslyTo12() {
+        for (startVersion in 1..4) {
+            val name = databaseName(startVersion)
+            createLegacyDatabase(name, startVersion).close()
+
+            val migrated = migrationHelper.runMigrationsAndValidate(
+                name,
+                12,
+                true,
+                *RoundtableDatabase.ALL_MIGRATIONS,
+            )
+            assertEquals(
+                "v$startVersion→v12 foreign_key_check",
+                0,
+                migrated.query("PRAGMA foreign_key_check").use { it.count },
+            )
+            migrated.close()
+        }
+    }
+
+    @Test
+    fun committedSchemaVersionsFiveToElevenMigrateContinuouslyTo12() {
+        for (startVersion in 5..11) {
             val name = databaseName(startVersion)
             migrationHelper.createDatabase(name, startVersion).close()
             val migrated = migrationHelper.runMigrationsAndValidate(
@@ -154,8 +178,84 @@ class IssueLifecycleV12MigrationTest {
         migrated.close()
     }
 
+    private fun createLegacyDatabase(
+        name: String,
+        version: Int,
+    ): SupportSQLiteOpenHelper {
+        val configuration = SupportSQLiteOpenHelper.Configuration.builder(context)
+            .name(name)
+            .callback(
+                object : SupportSQLiteOpenHelper.Callback(version) {
+                    override fun onCreate(database: SupportSQLiteDatabase) {
+                        createLegacySchema(database, version)
+                    }
+
+                    override fun onUpgrade(
+                        database: SupportSQLiteDatabase,
+                        oldVersion: Int,
+                        newVersion: Int,
+                    ) {
+                        error("Unexpected legacy fixture upgrade: $oldVersion -> $newVersion")
+                    }
+                },
+            )
+            .build()
+
+        return FrameworkSQLiteOpenHelperFactory().create(configuration).also {
+            it.writableDatabase
+        }
+    }
+
+    private fun createLegacySchema(
+        database: SupportSQLiteDatabase,
+        version: Int,
+    ) {
+        val skillAssetPathColumn = if (version >= 2) ", skillAssetPath TEXT NOT NULL" else ""
+        val skillDescriptionVectorColumn =
+            if (version >= 3) ", skillDescriptionVector TEXT NOT NULL" else ""
+        val roundIndexColumn = if (version >= 4) ", roundIndex INTEGER NOT NULL DEFAULT 0" else ""
+
+        database.execSQL(
+            """
+            CREATE TABLE characters (
+                id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                avatar TEXT NOT NULL,
+                tagline TEXT NOT NULL,
+                systemPrompt TEXT NOT NULL$skillAssetPathColumn,
+                `order` INTEGER NOT NULL,
+                isActive INTEGER NOT NULL$skillDescriptionVectorColumn,
+                PRIMARY KEY(id)
+            )
+            """.trimIndent(),
+        )
+        database.execSQL(
+            """
+            CREATE TABLE chat_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                title TEXT NOT NULL,
+                createdAt INTEGER NOT NULL
+            )
+            """.trimIndent(),
+        )
+        database.execSQL(
+            """
+            CREATE TABLE messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                chatId INTEGER NOT NULL,
+                senderId TEXT NOT NULL,
+                senderName TEXT NOT NULL,
+                avatar TEXT NOT NULL,
+                text TEXT NOT NULL,
+                timestamp INTEGER NOT NULL,
+                isPending INTEGER NOT NULL$roundIndexColumn
+            )
+            """.trimIndent(),
+        )
+    }
+
     private fun scalarInt(
-        database: androidx.sqlite.db.SupportSQLiteDatabase,
+        database: SupportSQLiteDatabase,
         sql: String,
     ): Int = database.query(sql).use { cursor ->
         assertTrue(cursor.moveToFirst())
@@ -163,7 +263,7 @@ class IssueLifecycleV12MigrationTest {
     }
 
     private fun scalarString(
-        database: androidx.sqlite.db.SupportSQLiteDatabase,
+        database: SupportSQLiteDatabase,
         sql: String,
     ): String = database.query(sql).use { cursor ->
         assertTrue(cursor.moveToFirst())
@@ -171,7 +271,7 @@ class IssueLifecycleV12MigrationTest {
     }
 
     private fun scalarNullableString(
-        database: androidx.sqlite.db.SupportSQLiteDatabase,
+        database: SupportSQLiteDatabase,
         sql: String,
     ): String? = database.query(sql).use { cursor ->
         assertTrue(cursor.moveToFirst())
@@ -179,7 +279,7 @@ class IssueLifecycleV12MigrationTest {
     }
 
     private fun assertTable(
-        database: androidx.sqlite.db.SupportSQLiteDatabase,
+        database: SupportSQLiteDatabase,
         table: String,
     ) {
         database.query(
@@ -189,7 +289,7 @@ class IssueLifecycleV12MigrationTest {
     }
 
     private fun assertIndex(
-        database: androidx.sqlite.db.SupportSQLiteDatabase,
+        database: SupportSQLiteDatabase,
         index: String,
     ) {
         database.query(
