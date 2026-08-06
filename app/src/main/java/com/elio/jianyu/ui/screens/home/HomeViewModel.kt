@@ -380,6 +380,18 @@ class HomeViewModel internal constructor(
         )
     }
 
+    fun setNetworkAuthorized(confirmed: Boolean) {
+        updateExecutionConsent { it.copy(networkAuthorized = confirmed) }
+    }
+
+    fun setHighStakesConfirmed(confirmed: Boolean) {
+        updateExecutionConsent { it.copy(highStakesConfirmed = confirmed) }
+    }
+
+    fun setPersonDisclaimerConfirmed(confirmed: Boolean) {
+        updateExecutionConsent { it.copy(personDisclaimerConfirmed = confirmed) }
+    }
+
     fun saveIssueOnly() {
         val current = _uiState.value.workflow
         if (!HomeWorkflow.canSaveIssueOnly(current)) return
@@ -435,6 +447,7 @@ class HomeViewModel internal constructor(
             directions = current.draft.directions,
             recommendation = recommendation,
             contextSelection = current.contextSelection,
+            executionConsent = current.executionConsent,
             confirmedAt = confirmedAt,
         )
         setWorkflow(
@@ -476,6 +489,19 @@ class HomeViewModel internal constructor(
                 is HomeStartResult.SavedOnly -> Unit
             }
         }
+    }
+
+    private fun updateExecutionConsent(
+        transform: (com.elio.jianyu.home.HomeExecutionConsentSnapshot) ->
+            com.elio.jianyu.home.HomeExecutionConsentSnapshot,
+    ) {
+        val current = _uiState.value.workflow
+        if (!current.contextSelection.confirmed) return
+        val changed = HomeWorkflow.updateExecutionConsent(
+            current,
+            transform(current.executionConsent),
+        )
+        setWorkflow(HomeWorkflow.enterFinalReview(changed))
     }
 
     private fun updateContextCandidate(

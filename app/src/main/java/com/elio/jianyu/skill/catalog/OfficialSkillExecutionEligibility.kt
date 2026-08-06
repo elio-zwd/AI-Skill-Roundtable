@@ -20,6 +20,11 @@ enum class OfficialSkillExecutionEligibilityCode(
     MISSING_OUTPUT_RULE("missing_output_rule"),
     MISSING_PRIVACY_RULE("missing_privacy_rule"),
     MISSING_NETWORK_RULE("missing_network_rule"),
+    MISSING_PERSON_SECTION("missing_person_section"),
+    MISSING_HIGH_STAKES_SECTION("missing_high_stakes_section"),
+    SPECIAL_BOUNDARY_MISSING("special_boundary_missing"),
+    PLACEHOLDER_CONTENT("placeholder_content"),
+    SENSITIVE_LITERAL_PRESENT("sensitive_literal_present"),
     NON_EXECUTABLE_REASON_PRESENT("non_executable_reason_present"),
 }
 
@@ -127,7 +132,7 @@ class OfficialSkillExecutionEligibility(
                 if (content.isBlank()) {
                     add(OfficialSkillExecutionEligibilityCode.ASSET_EMPTY, "正式 Skill 资产为空")
                 } else {
-                    validateSkillContent(content, skill.id, issues)
+                    validateSkillContent(content, skill, issues)
                 }
             }
         }
@@ -150,11 +155,11 @@ class OfficialSkillExecutionEligibility(
 
     private fun validateSkillContent(
         content: String,
-        skillId: String,
+        skill: OfficialSkillDefinition,
         issues: MutableList<OfficialSkillExecutionEligibilityIssue>,
     ) {
         fun add(code: OfficialSkillExecutionEligibilityCode, detail: String) {
-            issues += OfficialSkillExecutionEligibilityIssue(code, skillId, detail)
+            issues += OfficialSkillExecutionEligibilityIssue(code, skill.id, detail)
         }
 
         val headings = content.lineSequence()
@@ -180,6 +185,93 @@ class OfficialSkillExecutionEligibility(
         if (NETWORK_HEADING !in headings) {
             add(OfficialSkillExecutionEligibilityCode.MISSING_NETWORK_RULE, "Skill 资产缺少联网规则")
         }
+        if (
+            skill.primaryType == OfficialSkillPrimaryType.PERSON_PERSPECTIVE &&
+            PERSON_REQUIRED_HEADINGS.any { it !in headings }
+        ) {
+            add(
+                OfficialSkillExecutionEligibilityCode.MISSING_PERSON_SECTION,
+                "人物视角资产缺少模拟身份、来源时效、不确定性或禁止冒充章节",
+            )
+        }
+        if (
+            skill.riskLevel in setOf(
+                OfficialSkillRiskLevel.HIGH_STAKES,
+                OfficialSkillRiskLevel.URGENT,
+            ) && HIGH_STAKES_REQUIRED_HEADINGS.any { it !in headings }
+        ) {
+            add(
+                OfficialSkillExecutionEligibilityCode.MISSING_HIGH_STAKES_SECTION,
+                "高后果资产缺少地区时效、专业复核或紧急处理章节",
+            )
+        }
+
+        val normalized = content.lowercase()
+        if (PLACEHOLDER_MARKERS.any(normalized::contains)) {
+            add(
+                OfficialSkillExecutionEligibilityCode.PLACEHOLDER_CONTENT,
+                "正式 Skill 资产不得包含占位标记",
+            )
+        }
+        if (SENSITIVE_LITERALS.any(normalized::contains)) {
+            add(
+                OfficialSkillExecutionEligibilityCode.SENSITIVE_LITERAL_PRESENT,
+                "正式 Skill 资产包含疑似密钥或开发环境字面量",
+            )
+        }
+
+        when (skill.id) {
+            "office-document-productivity" -> {
+                if (
+                    !content.contains("Markdown") ||
+                    !content.contains("纯文本") ||
+                    !content.contains("结构化表格") ||
+                    !content.contains("不控制桌面") ||
+                    content.contains("自动提交")
+                ) {
+                    add(
+                        OfficialSkillExecutionEligibilityCode.SPECIAL_BOUNDARY_MISSING,
+                        "办公文档助手能力边界不完整",
+                    )
+                }
+            }
+            "original-expression-naturalizer" -> {
+                val required = listOf(
+                    "不规避 AI 检测",
+                    "不协助学术作弊",
+                    "不伪造经历",
+                    "不伪造事实",
+                    "不冒充他人",
+                    "不代写必须由本人独立完成的受限内容",
+                )
+                if (required.any { it !in content }) {
+                    add(
+                        OfficialSkillExecutionEligibilityCode.SPECIAL_BOUNDARY_MISSING,
+                        "自然表达优化诚信边界不完整",
+                    )
+                }
+            }
+            "patent-disclosure-organizer" -> {
+                if (
+                    !content.contains("禁止外传") ||
+                    !content.contains("脱敏摘要") ||
+                    !content.contains("不得发送到外部模型")
+                ) {
+                    add(
+                        OfficialSkillExecutionEligibilityCode.SPECIAL_BOUNDARY_MISSING,
+                        "专利披露整理的禁止外传边界不完整",
+                    )
+                }
+            }
+            "culture-fortune-entertainment" -> {
+                if (!content.contains("不得用于重大决策")) {
+                    add(
+                        OfficialSkillExecutionEligibilityCode.SPECIAL_BOUNDARY_MISSING,
+                        "文化命理娱乐缺少重大决策边界",
+                    )
+                }
+            }
+        }
     }
 
     companion object {
@@ -191,10 +283,24 @@ class OfficialSkillExecutionEligibility(
             "## 风险与限制",
             "## 不得执行的行为",
         )
+        private val PERSON_REQUIRED_HEADINGS = setOf(
+            "## AI 模拟身份声明",
+            "## 公开来源与时效边界",
+            "## 观点不确定性",
+            "## 不得冒充本人",
+        )
+        private val HIGH_STAKES_REQUIRED_HEADINGS = setOf(
+            "## 高后果边界",
+            "## 当前地区与时效",
+            "## 现实专业复核条件",
+            "## 紧急情况处理",
+        )
         private const val INPUT_HEADING = "## 输入要求"
         private const val OUTPUT_HEADING = "## 输出结构"
         private const val PRIVACY_HEADING = "## 资料与个人背景边界"
         private const val NETWORK_HEADING = "## 联网规则"
+        private val PLACEHOLDER_MARKERS = setOf("todo", "tbd", "待补充", "占位内容")
+        private val SENSITIVE_LITERALS = setOf("aiza", "sk-", ".env", "api_key=")
 
         fun isSafeSkillAssetPath(assetPath: String): Boolean {
             if (assetPath.isBlank()) return false

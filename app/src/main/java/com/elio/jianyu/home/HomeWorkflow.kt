@@ -7,6 +7,7 @@ object HomeWorkflow {
         step = HomeWorkflowStep.RESTORED_DRAFT,
         recommendationConfirmed = false,
         contextSelection = state.contextSelection.copy(confirmed = false),
+        executionConsent = HomeExecutionConsentSnapshot(),
         finalConfirmationReady = false,
         activeRecommendationToken = null,
         operationInFlight = false,
@@ -24,6 +25,7 @@ object HomeWorkflow {
             recommendation = null,
             recommendationConfirmed = false,
             contextSelection = HomeContextSelectionSnapshot(),
+            executionConsent = HomeExecutionConsentSnapshot(),
             finalConfirmationReady = false,
             activeRecommendationToken = null,
             errorCode = null,
@@ -44,6 +46,7 @@ object HomeWorkflow {
             recommendation = null,
             recommendationConfirmed = false,
             contextSelection = HomeContextSelectionSnapshot(),
+            executionConsent = HomeExecutionConsentSnapshot(),
             finalConfirmationReady = false,
             activeRecommendationToken = null,
             errorCode = null,
@@ -71,6 +74,7 @@ object HomeWorkflow {
                 recommendation = null,
                 recommendationConfirmed = false,
                 contextSelection = HomeContextSelectionSnapshot(),
+                executionConsent = HomeExecutionConsentSnapshot(),
                 finalConfirmationReady = false,
                 activeRecommendationToken = token,
                 nextRecommendationToken = token + 1L,
@@ -101,6 +105,7 @@ object HomeWorkflow {
             recommendation = normalized,
             recommendationConfirmed = false,
             contextSelection = HomeContextSelectionSnapshot(),
+            executionConsent = HomeExecutionConsentSnapshot(),
             finalConfirmationReady = false,
             activeRecommendationToken = null,
             errorCode = null,
@@ -117,6 +122,7 @@ object HomeWorkflow {
             step = HomeWorkflowStep.NO_SUITABLE_SKILL,
             recommendation = null,
             recommendationConfirmed = false,
+            executionConsent = HomeExecutionConsentSnapshot(),
             activeRecommendationToken = null,
             errorCode = HomeWorkflowError.NO_SUITABLE_SKILL.code,
             operationInFlight = false,
@@ -144,6 +150,7 @@ object HomeWorkflow {
             step = HomeWorkflowStep.NO_EXECUTABLE_SKILL,
             recommendation = recommendation,
             recommendationConfirmed = false,
+            executionConsent = HomeExecutionConsentSnapshot(),
             activeRecommendationToken = null,
             errorCode = HomeWorkflowError.NO_EXECUTABLE_SKILL.code,
             operationInFlight = false,
@@ -170,6 +177,7 @@ object HomeWorkflow {
             return state.copy(
                 step = HomeWorkflowStep.EDITING_RECOMMENDATION,
                 recommendationConfirmed = false,
+                executionConsent = HomeExecutionConsentSnapshot(),
                 errorCode = HomeWorkflowError.NO_EXECUTABLE_SKILL.code,
             )
         }
@@ -177,6 +185,7 @@ object HomeWorkflow {
             step = HomeWorkflowStep.CONTEXT_CONFIRMING,
             recommendationConfirmed = true,
             contextSelection = state.contextSelection.copy(confirmed = false),
+            executionConsent = HomeExecutionConsentSnapshot(),
             finalConfirmationReady = false,
             errorCode = null,
         )
@@ -188,6 +197,7 @@ object HomeWorkflow {
     ): HomeWorkflowState = state.copy(
         step = HomeWorkflowStep.CONTEXT_CONFIRMING,
         contextSelection = selection.copy(confirmed = false),
+        executionConsent = HomeExecutionConsentSnapshot(),
         finalConfirmationReady = false,
         errorCode = null,
     )
@@ -200,17 +210,33 @@ object HomeWorkflow {
             return state.copy(
                 step = HomeWorkflowStep.CONTEXT_NEEDS_CORRECTION,
                 contextSelection = selection.copy(confirmed = false),
+                executionConsent = HomeExecutionConsentSnapshot(),
                 finalConfirmationReady = false,
                 errorCode = HomeWorkflowError.CONTEXT_CONFIRMATION_REQUIRED.code,
             )
         }
+        val restricted = selection.items.any { it.selected && it.sensitive }
         return state.copy(
             step = HomeWorkflowStep.FINAL_REVIEW,
             contextSelection = selection,
+            executionConsent = state.executionConsent.copy(
+                restrictedMaterialPresent = restricted,
+                materialMayLeaveDevice = restricted,
+            ),
             finalConfirmationReady = false,
             errorCode = null,
         )
     }
+
+    fun updateExecutionConsent(
+        state: HomeWorkflowState,
+        consent: HomeExecutionConsentSnapshot,
+    ): HomeWorkflowState = state.copy(
+        step = HomeWorkflowStep.FINAL_REVIEW,
+        executionConsent = consent,
+        finalConfirmationReady = false,
+        errorCode = null,
+    )
 
     fun enterFinalReview(state: HomeWorkflowState): HomeWorkflowState {
         if (!state.recommendationConfirmed || !state.contextSelection.confirmed) {
@@ -220,11 +246,55 @@ object HomeWorkflow {
                 errorCode = HomeWorkflowError.CONTEXT_CONFIRMATION_REQUIRED.code,
             )
         }
+        val ready = executionConsentIssues(state).isEmpty()
         return state.copy(
             step = HomeWorkflowStep.FINAL_REVIEW,
-            finalConfirmationReady = true,
-            errorCode = null,
+            finalConfirmationReady = ready,
+            errorCode = if (ready) null else HomeWorkflowError.CONTEXT_NEEDS_CORRECTION.code,
         )
+    }
+
+    fun executionConsentIssues(state: HomeWorkflowState): List<String> {
+        val selected = state.recommendation?.selectedSkills.orEmpty()
+        val consent = state.executionConsent
+        val selectedItems = state.contextSelection.items.filter(HomeContextItemSnapshot::selected)
+        return buildList {
+            if (selected.any(RecommendedSkill::requiresNetworkAuthorization) && !consent.networkAuthorized) {
+                add("network_authorization_required")
+            }
+            if (
+                selected.any(RecommendedSkill::requiresHighStakesConfirmation) &&
+                !consent.highStakesConfirmed
+            ) {
+                add("high_stakes_confirmation_required")
+            }
+            if (selected.any(RecommendedSkill::isPersonPerspective) && !consent.personDisclaimerConfirmed) {
+                add("person_disclaimer_confirmation_required")
+            }
+            if (selected.any(RecommendedSkill::requiresMaterial) && selectedItems.isEmpty()) {
+                add("required_material_missing")
+            }
+            if (
+                selected.any(RecommendedSkill::requiresMaterialAuthorization) &&
+                selectedItems.any { it.userConfirmedAt <= 0L }
+            ) {
+                add("material_authorization_required")
+            }
+            if (
+                selected.any(RecommendedSkill::requiresSensitiveMaterialConfirmation) &&
+                selectedItems.filter(HomeContextItemSnapshot::sensitive)
+                    .any { !it.sensitiveConfirmed }
+            ) {
+                add("sensitive_material_confirmation_required")
+            }
+            if (
+                selected.any(RecommendedSkill::prohibitsExternalMaterial) &&
+                consent.restrictedMaterialPresent &&
+                consent.materialMayLeaveDevice
+            ) {
+                add("material_external_transfer_prohibited")
+            }
+        }
     }
 
     fun toggleSkillSelection(
@@ -314,6 +384,7 @@ object HomeWorkflow {
             recommendation = updated,
             recommendationConfirmed = false,
             contextSelection = HomeContextSelectionSnapshot(),
+            executionConsent = HomeExecutionConsentSnapshot(),
             finalConfirmationReady = false,
             errorCode = null,
         )

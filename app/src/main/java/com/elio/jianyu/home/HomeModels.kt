@@ -111,6 +111,13 @@ data class RecommendedSkill(
     val executable: Boolean,
     val selected: Boolean,
     val position: Int,
+    val isPersonPerspective: Boolean = false,
+    val requiresHighStakesConfirmation: Boolean = false,
+    val requiresNetworkAuthorization: Boolean = false,
+    val requiresMaterial: Boolean = false,
+    val requiresMaterialAuthorization: Boolean = false,
+    val requiresSensitiveMaterialConfirmation: Boolean = false,
+    val prohibitsExternalMaterial: Boolean = false,
 ) {
     init {
         require(skillId.isNotBlank())
@@ -187,6 +194,20 @@ data class HomeContextSelectionSnapshot(
     val confirmed: Boolean = false,
 )
 
+/**
+ * 用户针对本次阵容、联网和风险边界作出的显式同意。
+ *
+ * 该快照不保存用户正文；阵容、职责、顺序或问题变化后必须整体失效。
+ */
+@Serializable
+data class HomeExecutionConsentSnapshot(
+    val networkAuthorized: Boolean = false,
+    val highStakesConfirmed: Boolean = false,
+    val personDisclaimerConfirmed: Boolean = false,
+    val restrictedMaterialPresent: Boolean = false,
+    val materialMayLeaveDevice: Boolean = false,
+)
+
 @Serializable
 data class HomeWorkflowState(
     val ids: HomeWorkflowIds,
@@ -195,6 +216,7 @@ data class HomeWorkflowState(
     val recommendation: HomeRecommendation? = null,
     val recommendationConfirmed: Boolean = false,
     val contextSelection: HomeContextSelectionSnapshot = HomeContextSelectionSnapshot(),
+    val executionConsent: HomeExecutionConsentSnapshot = HomeExecutionConsentSnapshot(),
     val finalConfirmationReady: Boolean = false,
     val activeRecommendationToken: Long? = null,
     val nextRecommendationToken: Long = 1L,
@@ -210,6 +232,7 @@ data class HomeFinalConfirmation(
     val directions: Set<ValueDirection>,
     val recommendation: HomeRecommendation,
     val contextSelection: HomeContextSelectionSnapshot,
+    val executionConsent: HomeExecutionConsentSnapshot = HomeExecutionConsentSnapshot(),
     val confirmedAt: Long,
 ) {
     init {

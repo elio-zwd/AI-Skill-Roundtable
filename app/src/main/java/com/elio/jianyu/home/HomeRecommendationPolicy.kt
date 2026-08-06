@@ -57,7 +57,7 @@ object HomeRecommendationPolicy {
         val mode = if (selectedCount > 1) RecommendationMode.MULTI else RecommendationMode.SINGLE
         val expectedOutput = candidates
             .filter(RecommendedSkill::selected)
-            .flatMap { listOf(it.expectedOutput) }
+            .map(RecommendedSkill::expectedOutput)
             .distinct()
             .joinToString("、")
             .ifBlank { "可编辑的问题分析与下一步" }
@@ -214,6 +214,20 @@ object HomeRecommendationPolicy {
             executable = availability.executable,
             selected = selected,
             position = position,
+            isPersonPerspective = primaryType == OfficialSkillPrimaryType.PERSON_PERSPECTIVE,
+            requiresHighStakesConfirmation = riskLevel in setOf(
+                OfficialSkillRiskLevel.HIGH_STAKES,
+                OfficialSkillRiskLevel.URGENT,
+            ),
+            requiresNetworkAuthorization =
+                networkRequirement == OfficialSkillNetworkRequirement.REQUIRED,
+            requiresMaterial = OfficialSkillMaterialRequirement.REQUIRED in materialRequirements,
+            requiresMaterialAuthorization =
+                OfficialSkillMaterialRequirement.USER_AUTHORIZED in materialRequirements,
+            requiresSensitiveMaterialConfirmation =
+                OfficialSkillMaterialRequirement.SENSITIVE in materialRequirements,
+            prohibitsExternalMaterial =
+                networkRequirement == OfficialSkillNetworkRequirement.PROHIBITED_FOR_MATERIAL,
         )
     }
 
