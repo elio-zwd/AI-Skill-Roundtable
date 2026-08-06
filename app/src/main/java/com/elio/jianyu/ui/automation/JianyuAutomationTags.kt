@@ -194,6 +194,45 @@ object JianyuAutomationTags {
             "context_candidate_${normalizedStableId(sourceType)}_${normalizedStableId(sourceId)}"
     }
 
+    object AdvanceIssue {
+        const val BUTTON = "issue_advance_button"
+        const val DIALOG = "advance_issue_dialog"
+        const val DIRECTION_STEP = "advance_direction_step"
+        const val DIRECTION_REALITY_SUPPORT = "advance_direction_reality_support"
+        const val DIRECTION_THINKING_EXPANSION = "advance_direction_thinking_expansion"
+        const val MEASURE_STEP = "advance_measure_step"
+        const val CUSTOM_OBJECTIVE = "advance_custom_objective"
+        const val SUMMARY_STEP = "advance_summary_step"
+        const val INHERITED_MATERIALS = "advance_inherited_materials"
+        const val INHERITED_ARTIFACTS = "advance_inherited_artifacts"
+        const val ROSTER = "advance_roster"
+        const val EXPECTED_OUTPUT = "advance_expected_output"
+        const val CONFIRM = "advance_confirm"
+        const val CANCEL = "advance_cancel"
+        const val WAIT_FOR_RUN = "advance_wait_for_run"
+        const val STOP_CURRENT_RUN = "advance_stop_current_run"
+        const val FAILURE = "advance_failure"
+
+        fun rosterMember(skillId: String): String =
+            "advance_roster_member_${normalizedStableId(skillId)}"
+
+        fun material(materialId: String): String =
+            "advance_material_${normalizedStableId(materialId)}"
+
+        fun artifact(artifactId: String): String =
+            "advance_artifact_${normalizedStableId(artifactId)}"
+    }
+
+    object StageTimeline {
+        const val TIMELINE = "stage_timeline"
+        const val CURRENT = "stage_timeline_current"
+        const val UNDO_BUTTON = "stage_undo_button"
+        const val UNDO_CONFIRMATION = "stage_undo_confirmation"
+
+        fun item(stageId: String): String =
+            "stage_timeline_item_${normalizedStableId(stageId)}"
+    }
+
     object Settings {
         const val API_KEYS_ENTRY = "settings_api_keys_entry"
         const val API_KEYS_ACTION = "settings_api_keys_action"
@@ -306,6 +345,27 @@ object JianyuAutomationTags {
         Context.VALIDATION_ERRORS,
         Context.CONFIRM,
         Context.CANCEL,
+        AdvanceIssue.BUTTON,
+        AdvanceIssue.DIALOG,
+        AdvanceIssue.DIRECTION_STEP,
+        AdvanceIssue.DIRECTION_REALITY_SUPPORT,
+        AdvanceIssue.DIRECTION_THINKING_EXPANSION,
+        AdvanceIssue.MEASURE_STEP,
+        AdvanceIssue.CUSTOM_OBJECTIVE,
+        AdvanceIssue.SUMMARY_STEP,
+        AdvanceIssue.INHERITED_MATERIALS,
+        AdvanceIssue.INHERITED_ARTIFACTS,
+        AdvanceIssue.ROSTER,
+        AdvanceIssue.EXPECTED_OUTPUT,
+        AdvanceIssue.CONFIRM,
+        AdvanceIssue.CANCEL,
+        AdvanceIssue.WAIT_FOR_RUN,
+        AdvanceIssue.STOP_CURRENT_RUN,
+        AdvanceIssue.FAILURE,
+        StageTimeline.TIMELINE,
+        StageTimeline.CURRENT,
+        StageTimeline.UNDO_BUTTON,
+        StageTimeline.UNDO_CONFIRMATION,
         Settings.API_KEYS_ENTRY,
         Settings.API_KEYS_ACTION,
         Settings.TELEMETRY_ENTRY,

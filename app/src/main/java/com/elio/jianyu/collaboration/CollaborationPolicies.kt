@@ -5,6 +5,7 @@ import com.elio.jianyu.data.ExecutionParticipantSnapshotEntity
 import com.elio.jianyu.data.ExecutionParticipantStatus
 import com.elio.jianyu.data.ExecutionRunEntity
 import com.elio.jianyu.data.ExecutionRunKind
+import com.elio.jianyu.data.StageAdvancementSkillMemberEntity
 import com.elio.jianyu.skill.catalog.OfficialSkillDefinition
 import com.elio.jianyu.skill.catalog.OfficialSkillExecutionEligibilityResult
 import com.elio.jianyu.skill.catalog.OfficialSkillPrimaryType
@@ -21,6 +22,28 @@ data class CollaborationRoster(
         require(participants.map { it.sourceId }.distinct().size == participants.size)
         require(participants.map { it.position }.distinct().size == participants.size)
     }
+}
+
+data class CurrentStageRosterMember(
+    val officialSkillId: String,
+    val position: Int,
+    val responsibility: String,
+    val sourceRunId: String?,
+    val sourceParticipantSnapshotId: String?,
+)
+
+sealed interface CurrentStageRosterSource {
+    data class StandardRun(
+        val roster: CollaborationRoster,
+        val members: List<CurrentStageRosterMember>,
+    ) : CurrentStageRosterSource
+
+    data class AdvancementPlan(
+        val stageId: String,
+        val members: List<CurrentStageRosterMember>,
+    ) : CurrentStageRosterSource
+
+    data object NoRoster : CurrentStageRosterSource
 }
 
 object CurrentStageRosterPolicy {
@@ -50,6 +73,51 @@ object CurrentStageRosterPolicy {
             return null
         }
         return CollaborationRoster(sourceRun.id, rosterParticipants)
+    }
+
+    fun resolveSource(
+        stageId: String,
+        runs: List<ExecutionRunEntity>,
+        participants: List<ExecutionParticipantSnapshotEntity>,
+        plannedMembers: List<StageAdvancementSkillMemberEntity>,
+    ): CurrentStageRosterSource {
+        val standard = resolve(stageId, runs, participants)
+        if (standard != null) {
+            return CurrentStageRosterSource.StandardRun(
+                roster = standard,
+                members = standard.participants.map { participant ->
+                    CurrentStageRosterMember(
+                        officialSkillId = participant.sourceId,
+                        position = participant.position,
+                        responsibility = participant.defaultResponsibility,
+                        sourceRunId = standard.sourceRunId,
+                        sourceParticipantSnapshotId = participant.id,
+                    )
+                },
+            )
+        }
+        val planned = plannedMembers
+            .filter { it.stageId == stageId }
+            .sortedWith(compareBy({ it.position }, { it.officialSkillId }))
+        if (
+            planned.isEmpty() ||
+            planned.map { it.officialSkillId }.distinct().size != planned.size ||
+            planned.map { it.position }.distinct().size != planned.size
+        ) {
+            return CurrentStageRosterSource.NoRoster
+        }
+        return CurrentStageRosterSource.AdvancementPlan(
+            stageId = stageId,
+            members = planned.map { member ->
+                CurrentStageRosterMember(
+                    officialSkillId = member.officialSkillId,
+                    position = member.position,
+                    responsibility = member.responsibility,
+                    sourceRunId = member.sourceRunId,
+                    sourceParticipantSnapshotId = member.sourceParticipantSnapshotId,
+                )
+            },
+        )
     }
 }
 

@@ -158,6 +158,7 @@ internal fun MainAppContent(
                         issueId = issueId,
                         stageId = stageId,
                         onBack = { navController.popBackStack() },
+                        onOpenStage = navController::navigateToIssue,
                     )
                 },
                 skillsContent = {
