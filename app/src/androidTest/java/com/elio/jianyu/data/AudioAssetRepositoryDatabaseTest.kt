@@ -41,70 +41,70 @@ class AudioAssetRepositoryDatabaseTest {
     @Before
     fun setUp() {
         runBlocking {
-        database = Room.inMemoryDatabaseBuilder(context, RoundtableDatabase::class.java)
-            .allowMainThreadQueries()
-            .build()
-        repository = RoomJianyuRepository(database)
-        val roomAudioRepository = RoomAudioAssetRepository(database, nowProvider = { 1_000L })
-        audioRepository = roomAudioRepository
-        lifecycleRepository = roomAudioRepository
-        repository.saveIssue(
-            SaveIssueCommand(
-                issueId = ISSUE_ID,
-                title = "音频议题",
-                initialStageId = STAGE_ID,
-                initialStageTitle = "当前阶段",
-                initialObjective = "验证独立音频资产",
-                createdAt = 10L,
-            ),
-        ).expectSuccess()
-        repository.appendDomainMessage(
-            AppendDomainMessageCommand(
-                messageId = MESSAGE_ID,
-                issueId = ISSUE_ID,
-                stageId = STAGE_ID,
-                senderId = "skill-a",
-                senderName = "Skill A",
-                avatar = "A",
-                text = MESSAGE_CONTENT,
-                timestamp = 20L,
-                isPending = false,
-                roundIndex = 0,
-                compatibilitySessionTitle = "音频议题",
-            ),
-        ).expectSuccess()
-        repository.appendDomainMessage(
-            AppendDomainMessageCommand(
-                messageId = PENDING_MESSAGE_ID,
-                issueId = ISSUE_ID,
-                stageId = STAGE_ID,
-                senderId = "skill-b",
-                senderName = "Skill B",
-                avatar = "B",
-                text = "尚未完成",
-                timestamp = 21L,
-                isPending = true,
-                roundIndex = 0,
-                compatibilitySessionTitle = "音频议题",
-            ),
-        ).expectSuccess()
-        repository.confirmArtifact(
-            ConfirmArtifactCommand(
-                artifact = ConfirmedArtifactEntity(
-                    id = ARTIFACT_ID,
+            database = Room.inMemoryDatabaseBuilder(context, RoundtableDatabase::class.java)
+                .allowMainThreadQueries()
+                .build()
+            repository = RoomJianyuRepository(database)
+            val roomAudioRepository = RoomAudioAssetRepository(database, nowProvider = { 1_000L })
+            audioRepository = roomAudioRepository
+            lifecycleRepository = roomAudioRepository
+            repository.saveIssue(
+                SaveIssueCommand(
+                    issueId = ISSUE_ID,
+                    title = "音频议题",
+                    initialStageId = STAGE_ID,
+                    initialStageTitle = "当前阶段",
+                    initialObjective = "验证独立音频资产",
+                    createdAt = 10L,
+                ),
+            ).expectSuccess()
+            repository.appendDomainMessage(
+                AppendDomainMessageCommand(
+                    messageId = MESSAGE_ID,
                     issueId = ISSUE_ID,
                     stageId = STAGE_ID,
-                    title = "已确认成果",
-                    content = ARTIFACT_CONTENT,
-                    artifactType = "note",
-                    contentFormat = "markdown",
-                    confirmedAt = 30L,
-                    createdAt = 30L,
-                    updatedAt = 30L,
+                    senderId = "user",
+                    senderName = "用户",
+                    avatar = "U",
+                    text = MESSAGE_CONTENT,
+                    timestamp = 20L,
+                    isPending = false,
+                    roundIndex = 0,
+                    compatibilitySessionTitle = "音频议题",
                 ),
-                sources = ArtifactSources(),
-            ),
-        ).expectSuccess()
+            ).expectSuccess()
+            repository.appendDomainMessage(
+                AppendDomainMessageCommand(
+                    messageId = PENDING_MESSAGE_ID,
+                    issueId = ISSUE_ID,
+                    stageId = STAGE_ID,
+                    senderId = "user",
+                    senderName = "用户",
+                    avatar = "U",
+                    text = "尚未完成",
+                    timestamp = 21L,
+                    isPending = true,
+                    roundIndex = 0,
+                    compatibilitySessionTitle = "音频议题",
+                ),
+            ).expectSuccess()
+            repository.confirmArtifact(
+                ConfirmArtifactCommand(
+                    artifact = ConfirmedArtifactEntity(
+                        id = ARTIFACT_ID,
+                        issueId = ISSUE_ID,
+                        stageId = STAGE_ID,
+                        title = "已确认成果",
+                        content = ARTIFACT_CONTENT,
+                        artifactType = "note",
+                        contentFormat = "markdown",
+                        confirmedAt = 30L,
+                        createdAt = 30L,
+                        updatedAt = 30L,
+                    ),
+                    sources = ArtifactSources(),
+                ),
+            ).expectSuccess()
         }
     }
 
