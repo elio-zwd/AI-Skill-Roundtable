@@ -2,7 +2,10 @@ package com.elio.jianyu.ui.screens.execution
 
 import com.elio.jianyu.audio.assets.AudioAssetRecord
 import com.elio.jianyu.audio.assets.AudioAssetSource
+import com.elio.jianyu.audio.assets.AudioFileReconciliationResult
 import com.elio.jianyu.audio.assets.AudioGenerationConfig
+import com.elio.jianyu.audio.assets.AudioOrphanFile
+import com.elio.jianyu.audio.assets.AudioOrphanReport
 import com.elio.jianyu.audio.assets.AudioSourceReference
 import com.elio.jianyu.audio.assets.AudioTargetFormat
 import com.elio.jianyu.data.AudioFileState
@@ -14,7 +17,7 @@ import org.junit.Test
 
 class AudioAssetWorkspaceControllerTest {
     @Test
-    fun loadOnlyReadsAssetsAndDoesNotGenerateOrSchedule() = runBlocking {
+    fun loadOnlyReadsAssetsAndDoesNotGenerateScheduleOrReconcile() = runBlocking {
         val operations = FakeOperations(listOf(asset()))
         val controller = AudioAssetWorkspaceController(operations)
         controller.load("issue-1", "stage-1")
@@ -22,7 +25,23 @@ class AudioAssetWorkspaceControllerTest {
         assertEquals(0, operations.generateCalls)
         assertEquals(0, operations.retryCalls)
         assertEquals(0, operations.deleteCalls)
+        assertEquals(0, operations.reconcileCalls)
         assertEquals(listOf(asset()), controller.state.assets)
+        assertNull(controller.state.reconciliation)
+    }
+
+    @Test
+    fun reconciliationOnlyRunsAfterExplicitScanAndReportsOrphansWithoutDeletion() = runBlocking {
+        val operations = FakeOperations(listOf(asset()))
+        val controller = AudioAssetWorkspaceController(operations)
+        controller.load("issue-1", "stage-1")
+
+        controller.reconcileFiles()
+
+        assertEquals(1, operations.reconcileCalls)
+        assertEquals(listOf("asset-1"), controller.state.reconciliation?.markedMissingAssetIds)
+        assertEquals(1, controller.state.reconciliation?.orphanReport?.files?.size)
+        assertEquals(0, operations.deleteCalls)
     }
 
     @Test
@@ -64,11 +83,30 @@ class AudioAssetWorkspaceControllerTest {
         var generateCalls = 0
         var retryCalls = 0
         var deleteCalls = 0
+        var reconcileCalls = 0
         var lastReference: AudioSourceReference? = null
 
         override suspend fun listStage(issueId: String, stageId: String): List<AudioAssetRecord> {
             listCalls += 1
             return listedAssets
+        }
+
+        override suspend fun reconcile(issueId: String): AudioFileReconciliationResult {
+            reconcileCalls += 1
+            return AudioFileReconciliationResult(
+                markedMissingAssetIds = listOf("asset-1"),
+                staleAssetIds = emptyList(),
+                orphanReport = AudioOrphanReport(
+                    files = listOf(
+                        AudioOrphanFile(
+                            relativePath = "orphan.wav",
+                            sizeBytes = 64L,
+                            lastModifiedAt = 100L,
+                            reasonCode = "unreferenced",
+                        ),
+                    ),
+                ),
+            )
         }
 
         override suspend fun generate(reference: AudioSourceReference): AudioAssetWorkspaceOperationResult {
