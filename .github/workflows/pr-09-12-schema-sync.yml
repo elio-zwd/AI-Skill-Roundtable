@@ -36,6 +36,9 @@ jobs:
       - name: Validate Gradle wrapper
         uses: gradle/actions/wrapper-validation@v4
 
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
       - name: Generate Room schema with KSP
         run: ./gradlew :app:compileDebugKotlin --stacktrace
 
