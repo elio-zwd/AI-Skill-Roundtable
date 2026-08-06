@@ -19,6 +19,7 @@ data class JianyuAudioRuntime(
     val generationCoordinator: AudioGenerationCoordinator,
     val lifecycleService: AudioAssetLifecycleService,
     val playbackManager: AudioAssetPlaybackManager,
+    val fileStore: AudioFileStore,
 )
 
 fun createJianyuAudioRuntime(
@@ -47,5 +48,6 @@ fun createJianyuAudioRuntime(
             fileStore = fileStore,
             playerFactory = AndroidAudioAssetPlayerFactory(),
         ),
+        fileStore = fileStore,
     )
 }
