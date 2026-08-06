@@ -30,6 +30,7 @@ class AudioAssetWorkspaceControllerTest {
         val operations = FakeOperations(emptyList())
         val controller = AudioAssetWorkspaceController(operations)
         val reference = AudioSourceReference.Message("issue-1", "stage-1", 10L)
+        controller.load("issue-1", "stage-1")
         controller.requestGeneration(reference)
         assertEquals(0, operations.generateCalls)
         assertTrue(controller.state.pendingAction is AudioAssetPendingAction.Generate)
