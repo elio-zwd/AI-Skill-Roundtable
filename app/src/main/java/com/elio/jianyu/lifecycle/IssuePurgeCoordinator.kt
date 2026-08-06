@@ -1,7 +1,7 @@
 package com.elio.jianyu.lifecycle
 
 import com.elio.jianyu.data.IssueLifecycleV12Repository
-import com.elio.jianyu.data.IssuePurgeDatabaseCleaner
+import com.elio.jianyu.data.IssuePurgeDatabaseCleanup
 import com.elio.jianyu.data.IssuePurgeFailurePhase
 import com.elio.jianyu.data.IssuePurgeOperationEntity
 import com.elio.jianyu.data.IssuePurgeState
@@ -22,10 +22,10 @@ sealed interface IssuePurgeExecutionResult {
 
 class IssuePurgeCoordinator(
     private val repository: IssueLifecycleV12Repository,
-    private val impactCalculator: IssuePurgeImpactCalculator,
+    private val impactCalculator: IssuePurgeImpactProvider,
     private val taskController: IssueLifecycleTaskController,
-    private val fileCleaner: IssuePurgeFileCleaner,
-    private val databaseCleaner: IssuePurgeDatabaseCleaner,
+    private val fileCleaner: IssuePurgeFileCleanup,
+    private val databaseCleaner: IssuePurgeDatabaseCleanup,
     private val scheduler: IssuePurgeScheduler,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
