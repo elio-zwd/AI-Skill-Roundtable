@@ -1,0 +1,144 @@
+name: PR09-11 Roster Fix
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: write
+
+jobs:
+  patch-roster-state:
+    if: github.head_ref == 'feat/pr-09-11-advance-issue'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Apply exact roster state patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/src/main/java/com/elio/jianyu/ui/screens/execution/AdvanceIssueViewModel.kt')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_once(old: str, new: str) -> None:
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'Expected exactly one match, found {count}: {old[:80]!r}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              '''    fun updateExpectedOutput(value: String) {
+                  updateDraft { it.copy(expectedOutput = value) }
+              }
+
+              fun toggleMaterial(materialId: String) {''',
+              '''    fun updateExpectedOutput(value: String) {
+                  updateDraft { it.copy(expectedOutput = value) }
+              }
+
+              fun toggleRosterMember(officialSkillId: String) {
+                  val pair = stateWithDraft() ?: return
+                  if (pair.first.roster.none { it.officialSkillId == officialSkillId }) return
+                  updateDraft { draft ->
+                      val selectedIds = draft.roster
+                          .mapTo(linkedSetOf()) { it.officialSkillId }
+                      if (!selectedIds.add(officialSkillId)) {
+                          selectedIds.remove(officialSkillId)
+                      }
+                      draft.copy(
+                          roster = pair.first.roster
+                              .filter { it.officialSkillId in selectedIds }
+                              .mapIndexed { index, member -> member.copy(position = index) },
+                      )
+                  }
+              }
+
+              fun toggleMaterial(materialId: String) {''',
+          )
+
+          replace_once(
+              '''        savedStateHandle[KEY_EXPECTED_OUTPUT] = draft.expectedOutput
+                  savedStateHandle[KEY_MATERIALS] = draft.selectedMaterialIds.toList()''',
+              '''        savedStateHandle[KEY_EXPECTED_OUTPUT] = draft.expectedOutput
+                  savedStateHandle[KEY_ROSTER] = draft.roster.map { it.officialSkillId }
+                  savedStateHandle[KEY_MATERIALS] = draft.selectedMaterialIds.toList()''',
+          )
+
+          replace_once(
+              '''            .mapNotNull { value ->
+                          StageAdvancementMeasure.entries.firstOrNull { it.storageValue == value }
+                      }
+                      .toSet()
+                  return AdvanceIssueDraft(''',
+              '''            .mapNotNull { value ->
+                          StageAdvancementMeasure.entries.firstOrNull { it.storageValue == value }
+                      }
+                      .toSet()
+                  val restoredRosterIds = savedStateHandle.get<List<String>>(KEY_ROSTER)
+                  val restoredRoster = if (restoredRosterIds == null) {
+                      candidates.roster
+                  } else {
+                      candidates.roster
+                          .filter { it.officialSkillId in restoredRosterIds }
+                          .mapIndexed { index, member -> member.copy(position = index) }
+                  }
+                  return AdvanceIssueDraft(''',
+          )
+
+          replace_once(
+              '''            selectedArtifactIds = savedStateHandle.get<List<String>>(KEY_ARTIFACTS).orEmpty().toSet(),
+                      roster = candidates.roster,
+                      summaryRevision = savedStateHandle[KEY_SUMMARY_REVISION] ?: 0L,''',
+              '''            selectedArtifactIds = savedStateHandle.get<List<String>>(KEY_ARTIFACTS).orEmpty().toSet(),
+                      roster = restoredRoster,
+                      summaryRevision = savedStateHandle[KEY_SUMMARY_REVISION] ?: 0L,''',
+          )
+
+          replace_once(
+              '''            KEY_EXPECTED_OUTPUT,
+                      KEY_MATERIALS,''',
+              '''            KEY_EXPECTED_OUTPUT,
+                      KEY_ROSTER,
+                      KEY_MATERIALS,''',
+          )
+
+          replace_once(
+              '''        private const val KEY_EXPECTED_OUTPUT = "advance_issue.expected_output"
+                  private const val KEY_MATERIALS = "advance_issue.materials"''',
+              '''        private const val KEY_EXPECTED_OUTPUT = "advance_issue.expected_output"
+                  private const val KEY_ROSTER = "advance_issue.roster"
+                  private const val KEY_MATERIALS = "advance_issue.materials"''',
+          )
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Commit roster fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          target='app/src/main/java/com/elio/jianyu/ui/screens/execution/AdvanceIssueViewModel.kt'
+          git add -- "$target"
+          if git diff --cached --quiet; then
+            echo 'Roster patch already applied.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix: 恢复推进阵容选择状态'
+          git push origin HEAD:${{ github.head_ref }}
