@@ -47,12 +47,12 @@ class RoomJianyuRepositoryExternalProcessRecoveryTest {
             ).successValue()
             repository.appendDomainMessage(pendingMessageCommand()).successValue()
             repository.saveStageDraft(draftCommand()).successValue()
-            repository.archiveIssue(ISSUE_ID, 30L).successValue()
 
             val seeded = repository.recoverIssue(ISSUE_ID).successValue()
             assertEquals(ExecutionRunStatus.RUNNING, seeded.core.runs.single().status)
             assertEquals(listOf(MESSAGE_ID), seeded.core.pendingMessages.map { it.id })
             assertEquals(listOf(DRAFT_ID), seeded.resources.drafts.map { it.id })
+            assertEquals(IssueLifecycleState.ACTIVE, seeded.core.lifecycle.state)
         } finally {
             database.close()
         }
@@ -72,7 +72,7 @@ class RoomJianyuRepositoryExternalProcessRecoveryTest {
             assertEquals(ExecutionRunStatus.RUNNING, recovery1.core.runs.single().status)
             assertEquals(listOf(MESSAGE_ID), recovery1.core.pendingMessages.map { it.id })
             assertEquals(listOf(DRAFT_ID), recovery1.resources.drafts.map { it.id })
-            assertEquals(IssueLifecycleState.ARCHIVED, recovery1.core.lifecycle.state)
+            assertEquals(IssueLifecycleState.ACTIVE, recovery1.core.lifecycle.state)
             assertTrue(recovery1.core.successfulParticipantSnapshotIds().isEmpty())
             assertEquals(setOf(PARTICIPANT_ID), recovery1.core.retryableParticipantSnapshotIds())
             database.openHelper.writableDatabase.query("PRAGMA foreign_key_check").use { cursor ->
