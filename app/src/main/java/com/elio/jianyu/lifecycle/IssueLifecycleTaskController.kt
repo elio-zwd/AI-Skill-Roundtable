@@ -12,6 +12,7 @@ import com.elio.jianyu.data.getStageCollaboration
 import com.elio.jianyu.execution.ExecutionRunCoordinator
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
+import kotlinx.coroutines.CancellationException
 
 data class IssueLifecycleActiveTasks(
     val issueId: String,
@@ -42,11 +43,14 @@ interface IssueLifecycleTaskController {
 
 /**
  * 生命周期流程只编排既有正式 Stop/Cancel 接口，不在 Repository 事务中取消网络或 WorkManager。
+ *
+ * 官方 Skill 目录加载失败时 Execution/Collaboration Coordinator 可能为空；此时仍允许只读检查，
+ * 但若确实存在相关活动任务，停止请求必须显式失败，不能把任务伪装成终态。
  */
 class DefaultIssueLifecycleTaskController(
     private val repository: JianyuRepository,
-    private val executionCoordinator: ExecutionRunCoordinator,
-    private val collaborationCoordinator: IssueCollaborationCoordinator,
+    private val executionCoordinator: ExecutionRunCoordinator?,
+    private val collaborationCoordinator: IssueCollaborationCoordinator?,
     private val audioCoordinator: AudioGenerationCoordinator,
 ) : IssueLifecycleTaskController {
     override suspend fun inspect(issueId: String): IssueLifecycleActiveTasks {
@@ -57,13 +61,15 @@ class DefaultIssueLifecycleTaskController(
         val activeRuns = recovery.core.runs
             .filter { it.status == ExecutionRunStatus.NOT_STARTED || it.status == ExecutionRunStatus.RUNNING }
             .sortedBy { it.id }
-        val activeDiscussionIds = recovery.core.stages
-            .flatMap { stage ->
-                when (val result = repository.getStageCollaboration(stage.id)) {
-                    is RepositoryResult.Success -> result.value.discussions
-                    is RepositoryResult.Failure -> emptyList()
-                }
+
+        val discussions = mutableListOf<com.elio.jianyu.data.CrossDiscussionSessionEntity>()
+        for (stage in recovery.core.stages) {
+            when (val result = repository.getStageCollaboration(stage.id)) {
+                is RepositoryResult.Success -> discussions += result.value.discussions
+                is RepositoryResult.Failure -> Unit
             }
+        }
+        val activeDiscussionIds = discussions
             .filter { discussion ->
                 discussion.status.storageValue in setOf("responding", "synthesizing")
             }
@@ -106,9 +112,22 @@ class DefaultIssueLifecycleTaskController(
         snapshot: IssueLifecycleActiveTasks,
     ): IssueLifecycleTaskStopResult {
         return try {
-            snapshot.activeStandardRunIds.forEach { executionCoordinator.stop(it) }
-            snapshot.activeCollaborationRunIds.forEach { collaborationCoordinator.stop(it) }
-            snapshot.pendingAudioAssetIds.forEach { audioAssetId ->
+            if (snapshot.activeStandardRunIds.isNotEmpty() && executionCoordinator == null) {
+                return IssueLifecycleTaskStopResult.Failure("lifecycle_execution_runtime_unavailable")
+            }
+            if (
+                (snapshot.activeCollaborationRunIds.isNotEmpty() || snapshot.activeDiscussionIds.isNotEmpty()) &&
+                collaborationCoordinator == null
+            ) {
+                return IssueLifecycleTaskStopResult.Failure("lifecycle_collaboration_runtime_unavailable")
+            }
+            for (runId in snapshot.activeStandardRunIds) {
+                checkNotNull(executionCoordinator).stop(runId)
+            }
+            for (runId in snapshot.activeCollaborationRunIds) {
+                checkNotNull(collaborationCoordinator).stop(runId)
+            }
+            for (audioAssetId in snapshot.pendingAudioAssetIds) {
                 when (audioCoordinator.cancelGeneration(audioAssetId)) {
                     is AudioGenerationCancelResult.Canceled -> Unit
                     is AudioGenerationCancelResult.Failure -> {
@@ -122,6 +141,8 @@ class DefaultIssueLifecycleTaskController(
             } else {
                 IssueLifecycleTaskStopResult.Stopped(latest)
             }
+        } catch (error: CancellationException) {
+            throw error
         } catch (_: Exception) {
             IssueLifecycleTaskStopResult.Failure("lifecycle_task_stop_failed")
         }
