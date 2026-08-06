@@ -182,7 +182,6 @@ class OfficialSkillExecutionContextEligibility {
         OfficialSkillUseMode.SINGLE_ONLY -> selectedMode == OfficialSkillExecutionSelectedMode.SINGLE
         OfficialSkillUseMode.SINGLE_PREFERRED,
         OfficialSkillUseMode.MULTI_PREFERRED,
-        OfficialSkillUseMode.BOTH,
-        -> true
+        OfficialSkillUseMode.BOTH -> true
     }
 }
