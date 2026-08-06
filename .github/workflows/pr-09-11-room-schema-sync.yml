@@ -35,7 +35,11 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Generate Room v11 schema with KSP
-        run: ./gradlew :app:kspDebugKotlin --stacktrace
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew :app:kspDebugKotlin --stacktrace
 
       - name: Commit only generated Room v11 schema
         shell: bash
