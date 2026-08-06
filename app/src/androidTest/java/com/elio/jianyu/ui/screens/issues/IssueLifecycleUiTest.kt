@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertIsDisplayed
@@ -91,13 +94,16 @@ class IssueLifecycleUiTest {
             relatedIssueCount = 1,
             externalObjectCount = 0,
         )
+        var dialogState by mutableStateOf<IssueLifecycleUiState>(
+            IssueLifecycleUiState.PurgeImpactReady(impact),
+        )
         var firstConfirmations = 0
         var finalConfirmations = 0
 
         composeRule.setContent {
             MaterialTheme {
                 IssueLifecycleDialogs(
-                    state = IssueLifecycleUiState.PurgeImpactReady(impact),
+                    state = dialogState,
                     onDismiss = {},
                     onWait = {},
                     onRefreshWaiting = {},
@@ -111,7 +117,13 @@ class IssueLifecycleUiTest {
                     onRelatedTitleChange = {},
                     onRelatedObjectiveChange = {},
                     onRelatedConfirm = {},
-                    onPurgeFirstConfirm = { firstConfirmations += 1 },
+                    onPurgeFirstConfirm = {
+                        firstConfirmations += 1
+                        dialogState = IssueLifecycleUiState.PurgeConfirming(
+                            impact = impact,
+                            firstConfirmationCompleted = true,
+                        )
+                    },
                     onPurgeFinalConfirm = { finalConfirmations += 1 },
                     onPurgeRetry = {},
                     onPurgeCancel = {},
@@ -124,33 +136,6 @@ class IssueLifecycleUiTest {
         assertEquals(1, firstConfirmations)
         assertEquals(0, finalConfirmations)
 
-        composeRule.setContent {
-            MaterialTheme {
-                IssueLifecycleDialogs(
-                    state = IssueLifecycleUiState.PurgeConfirming(
-                        impact = impact,
-                        firstConfirmationCompleted = true,
-                    ),
-                    onDismiss = {},
-                    onWait = {},
-                    onRefreshWaiting = {},
-                    onStop = {},
-                    onSummaryChange = {},
-                    onArchiveConfirm = {},
-                    onTrashConfirm = {},
-                    onResumeChange = {},
-                    onResumeNoChange = {},
-                    onResumeConfirm = {},
-                    onRelatedTitleChange = {},
-                    onRelatedObjectiveChange = {},
-                    onRelatedConfirm = {},
-                    onPurgeFirstConfirm = {},
-                    onPurgeFinalConfirm = { finalConfirmations += 1 },
-                    onPurgeRetry = {},
-                    onPurgeCancel = {},
-                )
-            }
-        }
         composeRule.onNodeWithTag(JianyuLifecycleAutomationTags.Purge.FINAL_CONFIRM).assertIsDisplayed()
         composeRule.onNodeWithTag(JianyuLifecycleAutomationTags.Purge.FINAL_CONFIRM).performClick()
         assertEquals(1, finalConfirmations)
