@@ -15,6 +15,7 @@ data class JianyuLifecycleRuntime(
     val archiveCoordinator: IssueArchiveCoordinator,
     val impactCalculator: IssuePurgeImpactCalculator,
     val purgeCoordinator: IssuePurgeCoordinator,
+    val purgeCancellationService: IssuePurgeCancellationService,
     val purgeScheduler: IssuePurgeScheduler,
 )
 
@@ -59,6 +60,7 @@ fun createJianyuLifecycleRuntime(
         ),
         impactCalculator = impactCalculator,
         purgeCoordinator = purgeCoordinator,
+        purgeCancellationService = IssuePurgeCancellationService(database, scheduler),
         purgeScheduler = scheduler,
     )
 }
