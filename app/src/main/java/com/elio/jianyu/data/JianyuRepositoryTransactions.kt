@@ -32,6 +32,15 @@ internal class JianyuRepositoryTransactions(
         }
     }
 
+    suspend fun <T> databaseRead(
+        block: suspend RoundtableDatabase.() -> T,
+    ): T {
+        if (database.isExplicitlyClosed) {
+            throw RepositoryStorageUnavailableAbort()
+        }
+        return database.block()
+    }
+
     suspend fun <T> databaseTransaction(
         operation: String,
         block: suspend RoundtableDatabase.() -> RepositoryResult<T>,
