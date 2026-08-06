@@ -2,6 +2,9 @@ package com.elio.jianyu.skill.catalog
 
 import java.io.File
 import java.security.MessageDigest
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -9,6 +12,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class OfficialSkillExecutionManifestV2Test {
+    private val json = Json { encodeDefaults = true }
     private val baseSource by lazy { assetFile("official_skill_catalog_v1.json").readText() }
     private val v1Source by lazy { assetFile("official_skill_execution_batch_v1.json").readText() }
     private val v2Source by lazy { assetFile("official_skill_execution_manifest_v2.json").readText() }
@@ -54,27 +58,40 @@ class OfficialSkillExecutionManifestV2Test {
 
     @Test
     fun v2RejectsMissingDuplicateUnknownAndOrderMismatch() {
-        val missing = v2Source.replaceFirst(
-            Regex("\\s*\\{\\s*\\\"id\\\": \\\"original-expression-naturalizer\\\"[\\s\\S]*?\\n\\s*}\\n\\s*]"),
-            "\n  ]",
+        val manifest = json.decodeFromString<OfficialSkillExecutionPublicationManifest>(v2Source)
+        val missing = manifest.copy(skills = manifest.skills.dropLast(1))
+        val duplicate = manifest.copy(
+            skills = manifest.skills.toMutableList().apply {
+                this[1] = this[1].copy(id = this[0].id)
+            },
         )
-        val duplicate = v2Source.replaceFirst(
-            "\"id\": \"elon_musk\"",
-            "\"id\": \"zhang_xuefeng\"",
+        val unknown = manifest.copy(
+            skills = manifest.skills.toMutableList().apply {
+                this[1] = this[1].copy(id = "unknown-person")
+            },
         )
-        val unknown = v2Source.replaceFirst(
-            "\"id\": \"elon_musk\"",
-            "\"id\": \"unknown-person\"",
-        )
-        val orderMismatch = v2Source.replaceFirst(
-            "\"expectedDefaultOrder\": 2",
-            "\"expectedDefaultOrder\": 44",
+        val orderMismatch = manifest.copy(
+            skills = manifest.skills.toMutableList().apply {
+                this[1] = this[1].copy(expectedDefaultOrder = 44)
+            },
         )
 
-        assertFailureCode(OfficialSkillCatalogParser.parse(baseSource, missing), "invalid_execution_manifest_size")
-        assertFailureCode(OfficialSkillCatalogParser.parse(baseSource, duplicate), "duplicate_execution_skill_id")
-        assertFailureCode(OfficialSkillCatalogParser.parse(baseSource, unknown), "unknown_execution_skill")
-        assertFailureCode(OfficialSkillCatalogParser.parse(baseSource, orderMismatch), "execution_order_mismatch")
+        assertFailureCode(
+            OfficialSkillCatalogParser.parse(baseSource, json.encodeToString(missing)),
+            "invalid_execution_manifest_size",
+        )
+        assertFailureCode(
+            OfficialSkillCatalogParser.parse(baseSource, json.encodeToString(duplicate)),
+            "duplicate_execution_skill_id",
+        )
+        assertFailureCode(
+            OfficialSkillCatalogParser.parse(baseSource, json.encodeToString(unknown)),
+            "unknown_execution_skill",
+        )
+        assertFailureCode(
+            OfficialSkillCatalogParser.parse(baseSource, json.encodeToString(orderMismatch)),
+            "execution_order_mismatch",
+        )
     }
 
     @Test
@@ -100,7 +117,10 @@ class OfficialSkillExecutionManifestV2Test {
             assertFalse("${skill.id} 含 .env", text.contains(".env", ignoreCase = true))
             assertFalse("${skill.id} 含 API Key", text.contains("AIza", ignoreCase = true))
             assertFalse("${skill.id} 含 OpenAI 风格 Key", text.contains("sk-"))
-            assertTrue("${skill.id} 静态资格失败", eligibility.audit(skill).eligible)
+            assertTrue(
+                "${skill.id} 静态资格失败：${eligibility.audit(skill).issues}",
+                eligibility.audit(skill).eligible,
+            )
             assertTrue("${skill.id} 与其他资产正文完全重复", hashes.add(sha256(normalize(text))))
         }
         assertEquals(44, hashes.size)
@@ -158,11 +178,14 @@ class OfficialSkillExecutionManifestV2Test {
 
     @Test
     fun v1AndV2AreDifferentAuditablePublicationFacts() {
+        val v1 = json.decodeFromString<OfficialSkillExecutionPublicationManifest>(v1Source)
+        val v2 = json.decodeFromString<OfficialSkillExecutionPublicationManifest>(v2Source)
+
         assertNotEquals(v1Source, v2Source)
-        assertTrue(v1Source.contains("jianyu-official-skill-execution-batch-v1"))
-        assertTrue(v2Source.contains("jianyu-official-skill-execution-manifest-v2"))
-        assertEquals(4, Regex("\\\"id\\\"").findAll(v1Source).count())
-        assertEquals(44, Regex("\\\"id\\\"").findAll(v2Source).count())
+        assertEquals("jianyu-official-skill-execution-batch-v1", v1.batchId)
+        assertEquals("jianyu-official-skill-execution-manifest-v2", v2.batchId)
+        assertEquals(4, v1.skills.size)
+        assertEquals(44, v2.skills.size)
     }
 
     private fun assetText(catalog: OfficialSkillCatalog, id: String): String =
