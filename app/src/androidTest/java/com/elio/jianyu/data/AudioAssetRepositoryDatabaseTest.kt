@@ -23,7 +23,6 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -45,8 +44,9 @@ class AudioAssetRepositoryDatabaseTest {
             .allowMainThreadQueries()
             .build()
         repository = RoomJianyuRepository(database)
-        audioRepository = repository
-        lifecycleRepository = repository
+        val roomAudioRepository = RoomAudioAssetRepository(database, nowProvider = { 1_000L })
+        audioRepository = roomAudioRepository
+        lifecycleRepository = roomAudioRepository
         repository.saveIssue(
             SaveIssueCommand(
                 issueId = ISSUE_ID,
