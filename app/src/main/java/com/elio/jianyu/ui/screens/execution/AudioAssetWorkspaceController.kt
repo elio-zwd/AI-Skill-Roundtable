@@ -4,6 +4,7 @@ import com.elio.jianyu.audio.assets.AudioAssetDeleteRequestResult
 import com.elio.jianyu.audio.assets.AudioAssetPlaybackResult
 import com.elio.jianyu.audio.assets.AudioAssetPlaybackState
 import com.elio.jianyu.audio.assets.AudioAssetRecord
+import com.elio.jianyu.audio.assets.AudioFileReconciliationResult
 import com.elio.jianyu.audio.assets.AudioGenerationCancelResult
 import com.elio.jianyu.audio.assets.AudioGenerationRequestResult
 import com.elio.jianyu.audio.assets.AudioGenerationRetryResult
@@ -30,6 +31,7 @@ data class AudioAssetWorkspaceState(
     val pendingAction: AudioAssetPendingAction? = null,
     val statusMessage: String? = null,
     val errorCode: String? = null,
+    val reconciliation: AudioFileReconciliationResult? = null,
     val playbackState: AudioAssetPlaybackState = AudioAssetPlaybackState.Idle,
 )
 
@@ -40,6 +42,7 @@ sealed interface AudioAssetWorkspaceOperationResult {
 
 interface AudioAssetWorkspaceOperations {
     suspend fun listStage(issueId: String, stageId: String): List<AudioAssetRecord>
+    suspend fun reconcile(issueId: String): AudioFileReconciliationResult
     suspend fun generate(reference: AudioSourceReference): AudioAssetWorkspaceOperationResult
     suspend fun retry(audioAssetId: String): AudioAssetWorkspaceOperationResult
     suspend fun cancel(audioAssetId: String): AudioAssetWorkspaceOperationResult
@@ -56,7 +59,8 @@ interface AudioAssetWorkspaceOperations {
  * 议题共享工作区中的音频状态控制器。
  *
  * 构造与 load 只读取 Room 资产；生成、重试和删除必须先保存 pendingAction，
- * 再由用户触发 confirmPendingAction，避免恢复、导航或重组自动消耗网络与 Key。
+ * 再由用户触发 confirmPendingAction。缺失与孤儿对账也只能由显式扫描触发，
+ * 避免恢复、导航或重组自动改变状态、消耗网络或删除文件。
  */
 class AudioAssetWorkspaceController(
     private val operations: AudioAssetWorkspaceOperations,
@@ -77,6 +81,7 @@ class AudioAssetWorkspaceController(
             pendingAction = null,
             statusMessage = null,
             errorCode = null,
+            reconciliation = null,
         )
         refresh()
     }
@@ -130,6 +135,31 @@ class AudioAssetWorkspaceController(
             is AudioAssetPendingAction.Delete -> operations.requestDelete(action.audioAssetId)
         }
         applyOperationResult(result)
+        refresh()
+    }
+
+    suspend fun reconcileFiles() {
+        val issueId = state.issueId ?: return
+        if (state.operationInProgress) return
+        state = state.copy(
+            operationInProgress = true,
+            statusMessage = null,
+            errorCode = null,
+        )
+        state = try {
+            val result = operations.reconcile(issueId)
+            state.copy(
+                operationInProgress = false,
+                reconciliation = result,
+                statusMessage = "缺失与孤儿检查已完成，不会自动删除文件",
+                errorCode = null,
+            )
+        } catch (_: Throwable) {
+            state.copy(
+                operationInProgress = false,
+                errorCode = "RECONCILIATION_FAILURE",
+            )
+        }
         refresh()
     }
 
@@ -204,6 +234,9 @@ class RuntimeAudioAssetWorkspaceOperations(
     override suspend fun listStage(issueId: String, stageId: String): List<AudioAssetRecord> =
         runtime.lifecycleService.listAudioAssetsForStage(issueId, stageId)
 
+    override suspend fun reconcile(issueId: String): AudioFileReconciliationResult =
+        runtime.lifecycleService.reconcileFilesForIssue(issueId)
+
     override suspend fun generate(reference: AudioSourceReference): AudioAssetWorkspaceOperationResult {
         val result = runtime.generationCoordinator.createGenerationRequest(
             CreateAudioGenerationCommand(
@@ -219,8 +252,7 @@ class RuntimeAudioAssetWorkspaceOperations(
             is AudioGenerationRequestResult.Queued -> success("音频已加入后台生成队列")
             is AudioGenerationRequestResult.ReusedAvailable -> success("已复用可播放音频")
             is AudioGenerationRequestResult.ReusedPending -> success("相同音频正在生成")
-            is AudioGenerationRequestResult.ExplicitRetryRequired ->
-                failure("EXPLICIT_RETRY_REQUIRED")
+            is AudioGenerationRequestResult.ExplicitRetryRequired -> failure("EXPLICIT_RETRY_REQUIRED")
             is AudioGenerationRequestResult.Failure -> failure(result.errorCode.name)
             AudioGenerationRequestResult.ConfirmationRequired -> failure("CONFIRMATION_REQUIRED")
         }

@@ -34,6 +34,7 @@ fun AudioAssetWorkspacePanel(
     artifacts: List<ConfirmedArtifactEntity>,
     state: AudioAssetWorkspaceState,
     onRefresh: () -> Unit,
+    onReconcile: () -> Unit,
     onRequestGeneration: (AudioSourceReference) -> Unit,
     onRequestRetry: (String) -> Unit,
     onCancelGeneration: (String) -> Unit,
@@ -58,25 +59,52 @@ fun AudioAssetWorkspacePanel(
         ) {
             Text("音频资产", style = MaterialTheme.typography.titleMedium)
             Text(
-                "只从完成消息或已确认成果显式生成。恢复页面不会自动联网或重新排队。",
+                "只从完成消息或已确认成果显式生成。恢复页面不会自动联网、重新排队或扫描文件。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            OutlinedButton(
-                onClick = onRefresh,
-                enabled = !state.operationInProgress,
-                modifier = Modifier.testTag(JianyuAutomationTags.AudioAssets.REFRESH),
-            ) { Text("刷新") }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = onRefresh,
+                    enabled = !state.operationInProgress,
+                    modifier = Modifier.testTag(JianyuAutomationTags.AudioAssets.REFRESH),
+                ) { Text("刷新状态") }
+                OutlinedButton(
+                    onClick = onReconcile,
+                    enabled = !state.operationInProgress,
+                    modifier = Modifier.testTag(JianyuAutomationTags.AudioAssets.RECONCILE),
+                ) { Text("检查缺失与孤儿") }
+            }
 
             if (state.loading || state.operationInProgress) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     CircularProgressIndicator()
-                    Text(if (state.loading) "正在读取音频资产" else "正在持久化音频操作")
+                    Text(if (state.loading) "正在读取音频资产" else "正在执行受控音频操作")
                 }
             }
             state.statusMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
             state.errorCode?.let {
                 Text("音频操作失败：$it", color = MaterialTheme.colorScheme.error)
+            }
+            state.reconciliation?.let { result ->
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text("文件检查结果", style = MaterialTheme.typography.titleSmall)
+                        Text("新标记缺失：${result.markedMissingAssetIds.size}")
+                        Text("并发状态变化：${result.staleAssetIds.size}")
+                        Text("孤儿文件：${result.orphanReport.files.size}")
+                        Text(
+                            "这里只报告孤儿文件，不会自动删除。物理清理由后续受控流程再次确认。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
 
             val completedMessages = messages.filterNot(Message::isPending)

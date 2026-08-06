@@ -44,7 +44,7 @@ import kotlinx.coroutines.launch
  * 在现有单一 IssueExecution 工作区上叠加独立音频资产入口。
  *
  * 候选来源与原成果面板使用同一 StageResultService；恢复只执行读取，不创建资产、
- * 不安排 WorkManager、不访问网络。打开弹窗时重新读取，便于看到刚确认的成果。
+ * 不安排 WorkManager、不访问网络或扫描文件。打开弹窗时重新读取正式数据。
  */
 @Composable
 fun AudioEnabledIssueExecutionRoute(
@@ -161,6 +161,12 @@ fun AudioEnabledIssueExecutionRoute(
                             state = audioState,
                             onRefresh = {
                                 scope.launch { reloadAudioWorkspace() }
+                            },
+                            onReconcile = {
+                                scope.launch {
+                                    controller.reconcileFiles()
+                                    audioState = controller.state
+                                }
                             },
                             onRequestGeneration = { reference ->
                                 controller.requestGeneration(reference)

@@ -6,6 +6,7 @@ object JianyuAudioAutomationTags {
     const val DIALOG = "audio_assets_dialog"
     const val PANEL = "audio_assets_panel"
     const val REFRESH = "audio_assets_refresh"
+    const val RECONCILE = "audio_assets_reconcile"
     const val CONFIRMATION_DIALOG = "audio_assets_confirmation_dialog"
     const val CONFIRM = "audio_assets_confirmation_confirm"
     const val DISMISS = "audio_assets_confirmation_cancel"
@@ -36,6 +37,7 @@ object JianyuAudioAutomationTags {
         DIALOG,
         PANEL,
         REFRESH,
+        RECONCILE,
         CONFIRMATION_DIALOG,
         CONFIRM,
         DISMISS,
