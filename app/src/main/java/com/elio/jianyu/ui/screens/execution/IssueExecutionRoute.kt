@@ -80,7 +80,27 @@ fun IssueExecutionRoute(
                 }
                 AdvanceIssueEvent.RequestStopCurrentRun -> {
                     viewModel.stop()
-                    collaborationViewModel.stop()
+                    val collaboration = collaborationState as? IssueCollaborationUiState.Content
+                    val activeCollaborationRunIds = buildList {
+                        addAll(
+                            collaboration?.directedRuns.orEmpty()
+                                .filter { it.status in ACTIVE_RUN_STATUSES }
+                                .map { it.runId },
+                        )
+                        collaboration?.sessions.orEmpty().forEach { session ->
+                            when (session.status) {
+                                CrossDiscussionStatus.RESPONDING -> add(session.responseRunId)
+                                CrossDiscussionStatus.SYNTHESIZING -> {
+                                    session.synthesisRunId?.let(::add)
+                                }
+                                else -> Unit
+                            }
+                        }
+                    }.distinct()
+                    activeCollaborationRunIds.forEach { runId ->
+                        collaborationCoordinator?.stop(runId)
+                    }
+                    collaborationViewModel.load(issueId, stageId)
                 }
             }
         }
@@ -158,6 +178,7 @@ fun IssueExecutionRoute(
         onToggleMeasure = advanceIssueViewModel::toggleMeasure,
         onObjectiveChanged = advanceIssueViewModel::updateObjective,
         onExpectedOutputChanged = advanceIssueViewModel::updateExpectedOutput,
+        onToggleRosterMember = advanceIssueViewModel::toggleRosterMember,
         onToggleMaterial = advanceIssueViewModel::toggleMaterial,
         onToggleArtifact = advanceIssueViewModel::toggleArtifact,
         onContinueToSummary = advanceIssueViewModel::continueToSummary,
