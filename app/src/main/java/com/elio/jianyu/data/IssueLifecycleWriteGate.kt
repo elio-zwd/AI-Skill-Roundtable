@@ -56,6 +56,26 @@ internal class IssueLifecycleWriteGate(
         }
     }
 
+    suspend fun requireRunAllowed(
+        runId: String,
+        action: IssueWriteAction,
+        operation: String,
+    ): RepositoryResult<Unit> {
+        if (runId.isBlank()) {
+            return RepositoryResult.Failure(
+                RepositoryError.ConstraintViolation(operation, "run_id_required"),
+            )
+        }
+        val run = try {
+            database.jianyuRepositoryDao().getExecutionRun(runId)
+        } catch (_: Exception) {
+            return RepositoryResult.Failure(
+                RepositoryError.StorageFailure(operation, retryable = true),
+            )
+        } ?: return RepositoryResult.Failure(RepositoryError.NotFound("execution_run", runId))
+        return requireAllowed(run.issueId, action, operation)
+    }
+
     suspend fun requireNoActiveWork(
         issueId: String,
         operation: String,
