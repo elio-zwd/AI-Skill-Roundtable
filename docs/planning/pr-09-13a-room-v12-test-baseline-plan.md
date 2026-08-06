@@ -291,6 +291,8 @@ adb -s emulator-5554 shell am force-stop com.elio.jianyu
 6. `test: 同步 Room v12 幂等恢复测试契约`
 7. `test: 同步官方 Skill v2 执行测试契约`
 8. `docs: 补充 Room v12 全量设备失败根因计划`
+9. `docs: 更新 Room v12 修复后严格只读复验说明`
+10. `docs: 修正本地验收阶段状态表述`
 
 GitHub Contents API 按文件创建 Commit；所有 Commit 均服务于同一测试基线修复任务，不混入生产修改。
 
