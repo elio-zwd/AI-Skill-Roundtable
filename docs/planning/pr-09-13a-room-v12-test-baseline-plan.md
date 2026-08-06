@@ -2,9 +2,9 @@
 
 ## 1. 目标与边界
 
-本 PR 只同步 PR09-12 将 Room 升级到 v12 后仍停留在 v11 的历史 Android Instrumentation 测试契约，使迁移注册序列继续保持精确、连续、可审计。
+本 PR 只同步 PR09-12 将 Room 升级到 v12、PR09-05C 将默认执行发布升级到 v2 后遗留的历史 Android Instrumentation 测试契约，使最新 `main` 的全量设备测试重新具备可验证的绿色基线。
 
-本 PR 不实现 PR09-13A/13B 的备份、快照、加密导出、KDF、AEAD、导入或恢复替换，也不修改任何生产数据库、Repository、UI、Schema 或 Migration。
+本 PR 不实现 PR09-13A/13B 的备份、快照、加密导出、KDF、AEAD、导入或恢复替换，也不修改任何生产数据库、Repository、UI、Schema、Migration、Skill 资产或执行 Manifest。
 
 ## 2. 精确基线
 
@@ -16,9 +16,9 @@
 - PR09-05C Merge SHA：`4db7843a84911d7ad871a8aad5dd698a34b70b10`
 - 分支创建前开放 PR：0
 
-## 3. 根因证据
+## 3. 正式生产契约
 
-### 3.1 正式生产契约
+### 3.1 Room v12
 
 `RoundtableDatabase.kt` 明确：
 
@@ -38,89 +38,160 @@
 - v11→v12 数据保留、表与唯一索引；
 - `PRAGMA foreign_key_check = 0`。
 
-因此，迁移注册序列新增 `11→12` 是正式生产合同，而不是待选择行为。
+### 3.2 生命周期 v12
 
-### 3.2 已锁定的精确失败
+`RoomJianyuRepository` 明确拒绝旧快捷入口：
 
-当前可从最新 `main` 源码直接证明以下两项会失败：
+- `archiveIssue()` → `archive_event_required`；
+- `restoreIssue()` → `resume_event_required`；
+- `requestIssuePurge()` → `purge_operation_required`。
+
+正式入口为：
+
+- `RoomIssueLifecycleV12Repository.archiveIssueWithEvent()`；
+- `resumeArchivedIssue()`；
+- `requestIssuePurgeOperation()`。
+
+归档和移入回收站均不得绕过活动 Run、Pending Message、活动 Cross Discussion 或 Pending Audio。测试不能再构造“Run 仍活动但 Issue 已归档/回收”的非法组合。
+
+### 3.3 官方 Skill 默认发布
+
+PR09-05C 后默认执行发布为 v2：
+
+- 固定 Catalog 的 44 项全部可执行；
+- `zhang_xuefeng` 在默认 v2 Runtime 中不再是 non-executable；
+- 历史 v1 发布仍可通过 `OfficialSkillCatalogParser.V1_EXECUTION_PUBLICATION_ASSET_PATH` 显式加载，并保持仅四项可执行。
+
+因此，验证 `skill_not_executable` 分支时必须显式使用历史 v1 Catalog，不能继续把默认 v2 中的人物 Skill 当作不可执行项。
+
+## 4. 第一阶段已锁定并修复的失败
+
+首次静态根因分析锁定以下两项确定性失败：
 
 1. `ExecutionRuntimeMigrationTest#allMigrationsRemainContinuousFromVersion1ToVersion11`
-   - 旧预期：精确列表只到 `10→11`；
-   - 实际值：`ALL_MIGRATIONS` 已额外包含 `11→12`；
-   - 第一根因：当前数据库版本升级后，历史全局迁移注册序列断言未同步；
-   - 分类：纯测试合同滞后，不涉及 v7→v8 生产行为。
+   - 旧预期只到 `10→11`；
+   - 实际 `ALL_MIGRATIONS` 已包含 `11→12`；
+   - 修复：方法名同步到 v12，精确列表追加 `11 to 12`。
 
 2. `ResourceLifecycleMigrationTest#allMigrationsRemainContinuousFromVersion1ToVersion11`
-   - 旧预期：精确列表只到 `10→11`；
-   - 实际值：`ALL_MIGRATIONS` 已额外包含 `11→12`；
-   - 第一根因：当前数据库版本升级后，历史全局迁移注册序列断言未同步；
-   - 分类：纯测试合同滞后，不涉及 v6→v7 或 v5→v7 生产行为。
+   - 根因与修复相同。
 
-PR09-05C 本地验收报告汇总为 7 项历史 Room v11 基线失败，但公开 PR、Review、评论和当前可读取报告没有保存其余类/方法或 JUnit XML。当前计划不把“7 项”拆成未经证据支持的文件名；本地全量复验必须用于确认是否还有其他独立失败。
+首次本地严格只读验收已在精确 Head `a70308d6eb91ced7e3d60a666d51e5b955ed66a8` 上真实证明：
 
-### 3.3 明确排除的历史测试
+- `ExecutionRuntimeMigrationTest`：2/2 PASS；
+- `ResourceLifecycleMigrationTest`：3/3 PASS；
+- 10 个 Room v12 与生命周期重点类：36/36 PASS；
+- JVM、Lint、Debug、Release、AndroidTest APK：PASS；
+- 全量设备测试运行到 152 项时出现 5 个 Failure，并因后续超时未完成 195 项全量。
 
-`StageAdvancementMigrationTest` 的两个方法有意从 v10 创建 fixture，并只运行 `MIGRATION_10_11` 验证历史迁移。它们仍应以 v11 为终点，不改名、不追加 `MIGRATION_11_12`。
+## 5. 第一轮全量设备 Failure 根因分类
 
-`IssueLifecycleV12MigrationTest` 的 v11 fixture 有意验证 `MIGRATION_11_12`，同样不改写为动态版本或其他终点。
+### 5.1 `RoomJianyuRepositoryDatabaseTest#lifecycleAndPurgeRequestNeverDeleteIssueOrStopRun`
 
-## 4. 修改文件
+- 现象：`archiveIssue()` 返回 `RepositoryResult.Failure`，测试强转 `Success`。
+- 第一根因：测试仍调用 v12 明确禁止的旧 Archive 快捷入口，并继续期待活动 Run 下归档、移入回收站和请求 Purge 均成功。
+- 生产行为：正确；旧入口必须失败，活动任务必须阻止 Trash。
+- 分类：历史测试合同滞后，不是生产缺陷。
+- 最小修复：
+  - 将 Archive、Trash、Purge 三个结果保留为 Failure；
+  - 精确断言 `archive_event_required`、`trash_active_work`、`purge_operation_required`；
+  - 继续证明 Issue 未删除、Run 仍 `RUNNING`、Lifecycle 仍 `ACTIVE`、未写入 `purgeRequestedAt`。
 
-计划修改：
+### 5.2 `RoomJianyuRepositoryExternalProcessRecoveryTest#step1SeedRecoveryStateBeforeExternalForceStop`
+
+- 现象：旧 `archiveIssue()` 返回 Failure，测试强转 Success。
+- 第一根因：测试同时要求 Run 为 `RUNNING`、Message 为 Pending、Draft 存在且 Issue 为 `ARCHIVED`；该组合在 v12 下被正式禁止。
+- 生产行为：正确；活动任务不能归档。
+- 分类：历史测试夹具滞后，不是生产缺陷。
+- 最小修复：删除旧 Archive 快捷入口调用，明确种子和重启后 Lifecycle 均保持 `ACTIVE`，继续验证 Run、Pending Message、Draft 和外键完整性。
+
+### 5.3 `RoomJianyuRepositoryExternalProcessRecoveryTest#step2VerifyRecoveryStateAfterExternalForceStopAndAppRestart`
+
+- 现象：预期 `ARCHIVED`，实际 `ACTIVE`。
+- 第一根因：step1 在 Archive 强转处失败，未写入归档状态；这是 step1 的连锁结果，不是独立 Repository 恢复错误。
+- 分类：由 5.2 导致的级联测试失败。
+- 最小修复：与合法 v12 种子一致，重启后精确期待 `ACTIVE`。
+
+### 5.4 `RoomJianyuRepositoryIdempotencyTest#saveIssueRetryRemainsIdempotentAfterMessageAndLifecycleChanges`
+
+- 现象：旧 `archiveIssue()` 返回 Failure，测试强转 Success。
+- 第一根因：测试仍使用旧 Archive 快捷入口。
+- 生产行为：正确。
+- 分类：历史测试合同滞后，不是生产缺陷。
+- 最小修复：
+  - 先把 Run 从 `NOT_STARTED→RUNNING→SUCCEEDED`，满足无活动任务门禁；
+  - 使用 `RoomIssueLifecycleV12Repository.archiveIssueWithEvent()`；
+  - 使用精确 Stage/Run/Draft/Artifact/Audio 快照计数；
+  - 保留“保存议题重试在消息和生命周期变化后仍幂等”的原业务断言。
+
+### 5.5 `OfficialCatalogExecutionSkillResolverIntegrationTest#realResolverRejectsDuplicateUnknownAndNonExecutableSkills`
+
+- 现象：默认 Runtime 下 `zhang_xuefeng` 成功解析，旧测试期待 `skill_not_executable`。
+- 第一根因：PR09-05C 已将默认 v2 发布升级为 44 项全部可执行，旧测试仍假设人物 Skill 默认不可执行。
+- 生产行为：正确。
+- 分类：历史 Skill 发布测试合同滞后，不是生产缺陷。
+- 最小修复：
+  - duplicate 与 unknown 继续使用默认 v2 Resolver；
+  - non-executable 分支显式加载历史 v1 发布清单；
+  - 使用 v1 Resolver 验证 `zhang_xuefeng` 返回 `skill_not_executable`；
+  - 不修改默认 v2、Catalog、资产或生产 Resolver。
+
+## 6. 修改文件
+
+测试文件：
 
 - `app/src/androidTest/java/com/elio/jianyu/data/ExecutionRuntimeMigrationTest.kt`
 - `app/src/androidTest/java/com/elio/jianyu/data/ResourceLifecycleMigrationTest.kt`
-- `docs/testing/pr-09-13a-room-v12-test-baseline-local-readonly-acceptance-prompt.md`
+- `app/src/androidTest/java/com/elio/jianyu/data/RoomJianyuRepositoryDatabaseTest.kt`
+- `app/src/androidTest/java/com/elio/jianyu/data/RoomJianyuRepositoryExternalProcessRecoveryTest.kt`
+- `app/src/androidTest/java/com/elio/jianyu/data/RoomJianyuRepositoryIdempotencyTest.kt`
+- `app/src/androidTest/java/com/elio/jianyu/execution/OfficialCatalogExecutionSkillResolverIntegrationTest.kt`
 
-本计划文件：
+文档：
 
 - `docs/planning/pr-09-13a-room-v12-test-baseline-plan.md`
+- `docs/testing/pr-09-13a-room-v12-test-baseline-local-readonly-acceptance-prompt.md`
 
-## 5. 最小实现
-
-对两个全局迁移注册序列测试分别执行相同的精确同步：
-
-1. 测试方法名从 `Version1ToVersion11` 改为 `Version1ToVersion12`；
-2. 期望列表末尾增加精确对 `11 to 12`；
-3. 保留从 `1→2` 开始的所有历史步骤；
-4. 保留精确列表相等断言，不改成 `>= 11`、动态终点或仅检查相邻性；
-5. 不修改同文件内各领域历史 Migration fixture、数据、索引、外键和幂等断言。
-
-## 6. 禁止修改的生产文件
+## 7. 禁止修改的生产范围
 
 本 PR 不修改：
 
-- `app/src/main/java/com/elio/jianyu/data/RoundtableDatabase.kt`
-- `app/src/main/java/com/elio/jianyu/data/IssueLifecycleV12Migration.kt`
-- `app/src/main/java/com/elio/jianyu/data/IssueLifecycleV12*.kt`
-- `app/src/main/java/com/elio/jianyu/lifecycle/`
-- `app/src/main/java/com/elio/jianyu/skill/`
-- `app/src/main/assets/`
-- `app/schemas/com.elio.jianyu.data.RoundtableDatabase/12.json`
-- Manifest、Gradle、CI、生产 Repository 与生产 UI。
+- `app/src/main/`；
+- `app/schemas/`；
+- `app/src/test/`；
+- `app/src/main/assets/`；
+- `AndroidManifest.xml`；
+- Gradle 依赖；
+- `.github/`；
+- Room 版本、Migration 和 `12.json`；
+- 生产 Repository、生命周期协调器、Skill Catalog、Resolver、UI。
 
-如果真实设备复验出现 Schema mismatch、外键失败、迁移丢数据或生产异常，本 PR 不修改测试掩盖问题，而是停止并建议独立生产修复 PR。
+任何新复验若出现 Schema mismatch、外键失败、迁移丢数据、生产异常或合法 v12 流程失败，立即停止本测试修复 PR，不得继续修改断言掩盖问题。
 
-## 7. 测试驱动顺序
+## 8. 测试驱动顺序
 
-由于当前远端对话没有 Android SDK、模拟器或本地仓库工作区，本轮 RED 证据来自源码中的确定性期望/实际差异；真实 Gradle 和设备 RED/GREEN 由独立本地只读验收执行。
+### 第一轮
 
-本地验收顺序：
+```text
+旧迁移列表失败
+→ 证明 ALL_MIGRATIONS 正式包含 11→12
+→ 最小同步两个迁移列表断言
+→ 两类专项设备复验通过
+```
 
-1. 精确锁定 Draft PR 当前 Head；
-2. 在未修改源码的情况下，读取原始 Base 对应方法，确认旧期望缺少 `11→12`；
-3. 在 PR Head 上逐类执行：
-   - `ExecutionRuntimeMigrationTest`
-   - `ResourceLifecycleMigrationTest`
-4. 执行：
-   - `IssueLifecycleV12MigrationTest`
-   - `StageAdvancementMigrationTest`
-   - PR09-12 生命周期与恢复重点类；
-5. 执行全量 `connectedDebugAndroidTest`；
-6. 对 JUnit XML 逐项核对失败数；
-7. 如果仍出现历史 v11 断言，记录精确类、方法、第一条根因，不在只读验收中修改。
+### 第二轮
 
-## 8. 单类复验命令
+```text
+全量设备测试暴露 5 个 Failure
+→ 逐项读取生产合同与测试源码
+→ 确认 4 个独立测试合同滞后 + 1 个级联结果
+→ 仅修改四个 AndroidTest 文件
+→ 四类专项复验
+→ Room v12 重点回归
+→ 全量 195 项设备复验
+```
+
+## 9. 专项复验命令
 
 ```powershell
 .\gradlew.bat :app:connectedDebugAndroidTest `
@@ -128,19 +199,61 @@ PR09-05C 本地验收报告汇总为 7 项历史 Room v11 基线失败，但公�
 
 .\gradlew.bat :app:connectedDebugAndroidTest `
   -Pandroid.testInstrumentationRunnerArguments.class=com.elio.jianyu.data.ResourceLifecycleMigrationTest
+
+.\gradlew.bat :app:connectedDebugAndroidTest `
+  -Pandroid.testInstrumentationRunnerArguments.class=com.elio.jianyu.data.RoomJianyuRepositoryDatabaseTest
+
+.\gradlew.bat :app:connectedDebugAndroidTest `
+  -Pandroid.testInstrumentationRunnerArguments.class=com.elio.jianyu.data.RoomJianyuRepositoryIdempotencyTest
+
+.\gradlew.bat :app:connectedDebugAndroidTest `
+  -Pandroid.testInstrumentationRunnerArguments.class=com.elio.jianyu.execution.OfficialCatalogExecutionSkillResolverIntegrationTest
 ```
 
-重点迁移回归：
+外部进程恢复必须两阶段执行：
 
 ```powershell
 .\gradlew.bat :app:connectedDebugAndroidTest `
-  -Pandroid.testInstrumentationRunnerArguments.class=com.elio.jianyu.data.IssueLifecycleV12MigrationTest
+  -Pandroid.testInstrumentationRunnerArguments.class=com.elio.jianyu.data.RoomJianyuRepositoryExternalProcessRecoveryTest#step1SeedRecoveryStateBeforeExternalForceStop
+
+adb -s emulator-5554 shell am force-stop com.elio.jianyu
+adb -s emulator-5554 shell monkey -p com.elio.jianyu -c android.intent.category.LAUNCHER 1
+adb -s emulator-5554 shell am force-stop com.elio.jianyu
 
 .\gradlew.bat :app:connectedDebugAndroidTest `
-  -Pandroid.testInstrumentationRunnerArguments.class=com.elio.jianyu.data.StageAdvancementMigrationTest
+  -Pandroid.testInstrumentationRunnerArguments.class=com.elio.jianyu.data.RoomJianyuRepositoryExternalProcessRecoveryTest#step2VerifyRecoveryStateAfterExternalForceStopAndAppRestart
 ```
 
-## 9. 全量验证命令
+同时允许先整类运行以验证普通 Instrumentation 顺序，但整类运行不能替代真实 force-stop 两阶段证据。
+
+## 10. 重点回归
+
+至少复验：
+
+- `IssueLifecycleV12MigrationTest`
+- `IssueLifecycleV12RepositoryDatabaseTest`
+- `IssuePurgeDatabaseCleanerTest`
+- `RoomJianyuRepositoryProcessRecoveryTest`
+- `ArtifactSourceRecoveryDatabaseTest`
+- `StageAdvancementMigrationTest`
+- `StageAdvancementRepositoryDatabaseTest`
+- `AudioAssetRepositoryDatabaseTest`
+- `IssueArchiveCoordinatorDatabaseTest`
+- `IssueLifecycleUiTest`
+- `OfficialSkillExecutionManifestV2AndroidTest`
+
+重点检查：
+
+- v1～v12 连续 Migration；
+- v11→v12 专项和 `PRAGMA foreign_key_check`；
+- 旧生命周期快捷入口不能绕过 v12 事实表；
+- 活动任务阻止 Archive/Trash；
+- 终态 Run 可以按正式入口归档；
+- 外部进程恢复不伪造归档状态；
+- 默认 v2 44 项可执行；
+- 显式 v1 回滚仅四项可执行。
+
+## 11. 完整验证命令
 
 ```powershell
 .\gradlew.bat --stop
@@ -153,59 +266,80 @@ PR09-05C 本地验收报告汇总为 7 项历史 Room v11 基线失败，但公�
 .\gradlew.bat :app:connectedDebugAndroidTest
 ```
 
-同时执行仓库现有应用身份、Secret Scan、Schema freshness 与 `git diff --check` 门禁。必须分别报告 JVM、AndroidTest APK 编译、设备 Instrumentation、外部 UIAutomator 与人工点检，不能互相替代。
+同时执行：
 
-## 10. Commit 边界
+- `tools/check-app-identity.ps1`；
+- Secret Scan 等价检查；
+- `git diff --check`；
+- `git diff --exit-code -- app/schemas`；
+- 最终工作区 Clean 和精确 Head 锁定。
+
+必须分别报告 JVM、AndroidTest APK 编译、设备 Instrumentation、外部 force-stop、UIAutomator 与人工点检，不能互相替代。
+
+## 12. Commit 边界
+
+已建立：
 
 1. `docs: 制定 Room v12 测试基线修复计划`
-   - 只提交本计划。
 2. `test: 同步 Room v12 历史设备测试断言`
-   - 只修改两个已锁定迁移序列测试；
-   - 添加本地严格只读验收 Prompt。
+3. `docs: 添加 Room v12 测试基线验收说明`
 
-不得混入生产代码、格式化、依赖升级、Schema 或无关测试重构。
+第二轮失败收口：
 
-## 11. 验证状态与完成门禁
+4. `test: 同步 Room v12 Repository 生命周期测试契约`
+5. `test: 同步 Room v12 生命周期恢复测试契约`
+6. `test: 同步 Room v12 幂等恢复测试契约`
+7. `test: 同步官方 Skill v2 执行测试契约`
+8. `docs: 补充 Room v12 全量设备失败根因计划`
 
-远端对话可完成：
+GitHub Contents API 按文件创建 Commit；所有 Commit 均服务于同一测试基线修复任务，不混入生产修改。
 
-- 仓库、Base、开放 PR、PR #50/#51、源码、Schema 和测试合同的静态核对；
-- 差异范围审查；
-- GitHub CI 状态读取。
+## 13. 验证状态与完成门禁
 
-远端对话不能完成：
+当前已经有真实证据：
 
-- JVM、Lint、Debug/Release、AndroidTest APK 的本地执行；
-- 模拟器上的单类和全量 Instrumentation；
-- JUnit XML 实际统计；
-- 外部 UIAutomator 或人工设备点检。
+- 第一阶段两个迁移类 5/5 PASS；
+- 10 个 Room v12 重点类 36/36 PASS；
+- 首轮 GitHub CI 全绿；
+- 首轮全量设备测试发现的 5 项 Failure 已取得精确类、方法和第一根因。
 
-在独立本地设备验收完成前，结论只能是 `INSUFFICIENT_EVIDENCE`，不得宣布全量设备基线绿色，也不得启动 PR09-13A。
+第二轮测试修改完成后，在新精确 Head 上必须重新执行：
 
-## 12. 风险与回滚
+- GitHub CI；
+- 四个独立失败类专项；
+- 外部恢复真实 force-stop 两阶段；
+- 重点 Room/生命周期/Skill 回归；
+- 全量 `connectedDebugAndroidTest`，必须完成全部测试，不接受运行到 152 项后卡挂；
+- JUnit XML 汇总必须失败数为 0。
+
+在上述证据完成前，状态仍为 `INSUFFICIENT_EVIDENCE`，不得宣布全量设备基线绿色，也不得启动 PR09-13A。
+
+## 14. 风险与回滚
 
 主要风险：
 
-- 汇总报告所称 7 项中可能还有未保存明细的独立失败；
-- 仅凭源码静态证据不能证明真实设备环境全部通过；
-- 测试修改若错误地扩大到历史专项 Migration，会削弱版本边界。
+- 首轮全量套件未完成 195 项，后 43 项可能仍存在独立失败；
+- 外部进程恢复必须真实经过 force-stop，普通整类运行不足以覆盖该路径；
+- 测试若错误地伪造 Archive/Trash 或把默认 v2 降回 v1，会削弱正式产品合同。
 
 控制方式：
 
-- 仅修改两个全局注册序列断言；
-- 明确保留所有历史专项 Migration 的原始终点；
-- 全量设备验收必须读取 JUnit XML；
-- 任何生产缺陷立即停止本 PR。
+- 旧快捷入口改为精确失败码断言；
+- 合法 Archive 使用 v12 Event 正式入口；
+- 活动恢复夹具保持 `ACTIVE`；
+- non-executable 只在显式历史 v1 Catalog 中验证；
+- 全量设备测试必须跑完并读取 JUnit XML。
 
-回滚方式：整体回滚本 PR 的测试和文档 Commit；不得回滚 Room v12、PR09-12、`12.json` 或使用 destructive migration。
+回滚方式：整体回滚本 PR 的测试和文档 Commit；不得回滚 Room v12、PR09-12、PR09-05C、`12.json`、v2 Manifest 或使用 destructive migration。
 
-## 13. PR09-13A 交接门禁
+## 15. PR09-13A 交接门禁
 
 PR09-13A 必须满足：
 
-1. 本 Draft PR 的精确 Head 完成本地严格只读验收；
-2. 全量 `connectedDebugAndroidTest` 失败数为 0；
-3. GitHub CI 全绿；
-4. 用户明确授权 Ready 与合并；
-5. 本 PR 已实际合并；
-6. 从合并后的最新 `main` 创建 `security/pr-09-13a-backup-design`，不得复用本分支或未合并 Head。
+1. 本 Draft PR 的最终精确 Head 完成本地严格只读验收；
+2. 全量 `connectedDebugAndroidTest` 完整执行且失败数为 0；
+3. 外部进程恢复两阶段通过；
+4. GitHub CI 全绿；
+5. 用户明确授权 Ready 与合并；
+6. 本 PR 已实际合并；
+7. 从合并后的最新 `main` 创建 `security/pr-09-13a-backup-design`，不得复用本分支或未合并 Head。
