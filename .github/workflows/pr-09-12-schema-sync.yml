@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  generate-and-commit:
+  generate-patch-and-commit:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -34,17 +34,43 @@ jobs:
       - name: Generate Room schema with KSP
         run: ./gradlew :app:compileDebugKotlin --stacktrace
 
-      - name: Verify generated v12 schema
+      - name: Add explicit trash retention guidance
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/src/main/java/com/elio/jianyu/ui/screens/issues/IssueLifecycleDialogs.kt')
+          text = path.read_text(encoding='utf-8')
+          old = '''            text = {
+              Text("议题会保留恢复能力，不会自动过期、自动清空或删除文件。")
+            },'''
+          new = '''            text = {
+              Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("议题会保留恢复能力，不会自动过期、自动清空或删除文件。")
+                Text("系统不会自动清理议题或 Orphan。")
+                Text("空间不足时请通过手动管理入口处理音频和 App 自有文件。")
+              }
+            },'''
+          if text.count(old) != 1:
+              raise SystemExit(f'Expected exactly one trash guidance block, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
+      - name: Verify generated v12 schema and patch
         shell: bash
         run: |
           set -euo pipefail
           schema='app/schemas/com.elio.jianyu.data.RoundtableDatabase/12.json'
+          dialog='app/src/main/java/com/elio/jianyu/ui/screens/issues/IssueLifecycleDialogs.kt'
           test -f "$schema"
           python3 - <<'PY'
           import json
           from pathlib import Path
-          path = Path('app/schemas/com.elio.jianyu.data.RoundtableDatabase/12.json')
-          data = json.loads(path.read_text(encoding='utf-8'))
+
+          schema = Path('app/schemas/com.elio.jianyu.data.RoundtableDatabase/12.json')
+          data = json.loads(schema.read_text(encoding='utf-8'))
           assert data['database']['version'] == 12
           tables = {entity['tableName'] for entity in data['database']['entities']}
           required = {
@@ -54,22 +80,24 @@ jobs:
               'issue_purge_operations',
           }
           assert required <= tables
+          dialog = Path('app/src/main/java/com/elio/jianyu/ui/screens/issues/IssueLifecycleDialogs.kt').read_text(encoding='utf-8')
+          assert '系统不会自动清理议题或 Orphan' in dialog
+          assert '手动管理' in dialog
           print(f"identityHash={data['database']['identityHash']}")
           PY
+          git diff --check -- "$schema" "$dialog"
 
-      - name: Commit only generated v12 schema
+      - name: Commit only schema and dialog fix
         shell: bash
         run: |
           set -euo pipefail
           schema='app/schemas/com.elio.jianyu.data.RoundtableDatabase/12.json'
-          git add -- "$schema"
-          if git diff --cached --quiet; then
-            echo 'Room v12 schema already tracked; no commit required.'
-            exit 0
-          fi
-          changed="$(git diff --cached --name-only)"
-          test "$changed" = "$schema"
+          dialog='app/src/main/java/com/elio/jianyu/ui/screens/issues/IssueLifecycleDialogs.kt'
+          git add -- "$schema" "$dialog"
+          changed="$(git diff --cached --name-only | sort)"
+          expected="$(printf '%s\n%s\n' "$schema" "$dialog" | sort)"
+          test "$changed" = "$expected"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'feat: 提交Room v12生成Schema'
+          git commit -m 'fix: 修复回收站保留文案并提交Room v12 Schema'
           git push origin HEAD:feat/pr-09-12-archive-trash
