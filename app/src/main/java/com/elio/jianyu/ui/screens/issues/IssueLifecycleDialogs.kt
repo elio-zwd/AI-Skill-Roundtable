@@ -217,7 +217,11 @@ fun IssueLifecycleDialogs(
             onDismissRequest = onDismiss,
             title = { Text("移入回收站") },
             text = {
-                Text("议题会保留恢复能力，不会自动过期、自动清空或删除文件。")
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("议题会保留恢复能力，不会自动过期、自动清空或删除文件。")
+                    Text("系统不会自动清理议题或 Orphan。")
+                    Text("空间不足时请通过手动管理入口处理音频和 App 自有文件。")
+                }
             },
             confirmButton = {
                 Button(
