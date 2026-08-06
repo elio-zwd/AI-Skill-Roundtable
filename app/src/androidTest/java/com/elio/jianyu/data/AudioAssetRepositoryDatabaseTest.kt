@@ -39,7 +39,8 @@ class AudioAssetRepositoryDatabaseTest {
     private lateinit var lifecycleRepository: AudioAssetLifecycleRepositoryPort
 
     @Before
-    fun setUp() = runBlocking {
+    fun setUp() {
+        runBlocking {
         database = Room.inMemoryDatabaseBuilder(context, RoundtableDatabase::class.java)
             .allowMainThreadQueries()
             .build()
@@ -104,6 +105,7 @@ class AudioAssetRepositoryDatabaseTest {
                 sources = ArtifactSources(),
             ),
         ).expectSuccess()
+        }
     }
 
     @After

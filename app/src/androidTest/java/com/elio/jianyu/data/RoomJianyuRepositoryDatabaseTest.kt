@@ -67,7 +67,7 @@ class RoomJianyuRepositoryDatabaseTest {
     }
 
     @Test
-    fun stageCreationUsesDomainOrderAndOnlyLatestEmptyStageCanBeUndone() = runBlocking {
+    fun legacyStageCreationUsesDomainOrderAndRequiresAdvancementRootForUndo() = runBlocking {
         repository.saveIssue(issueCommand()).successValue()
         val stage1 = repository.createStage(
             CreateStageCommand(
@@ -94,8 +94,14 @@ class RoomJianyuRepositoryDatabaseTest {
             repository.undoLatestUnrunStage(ISSUE_ID, stage1.id).failureError()
                 is RepositoryError.InvalidState
         )
-        repository.undoLatestUnrunStage(ISSUE_ID, stage2.id).successValue()
-        assertEquals(listOf(0, 1), database.coreDomainDao().getStagesForIssue(ISSUE_ID).map { it.sequenceIndex })
+        assertTrue(
+            repository.undoLatestUnrunStage(ISSUE_ID, stage2.id).failureError()
+                is RepositoryError.InvalidState
+        )
+        assertEquals(
+            listOf(0, 1, 2),
+            database.coreDomainDao().getStagesForIssue(ISSUE_ID).map { it.sequenceIndex },
+        )
     }
 
     @Test

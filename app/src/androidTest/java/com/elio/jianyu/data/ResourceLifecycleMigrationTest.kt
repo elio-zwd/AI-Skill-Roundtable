@@ -37,7 +37,7 @@ class ResourceLifecycleMigrationTest {
     }
 
     @Test
-    fun allMigrationsRemainContinuousFromVersion1ToVersion10() {
+    fun allMigrationsRemainContinuousFromVersion1ToVersion11() {
         val migrationPairs = RoundtableDatabase.ALL_MIGRATIONS.map {
             it.startVersion to it.endVersion
         }
@@ -53,6 +53,7 @@ class ResourceLifecycleMigrationTest {
                 7 to 8,
                 8 to 9,
                 9 to 10,
+                10 to 11,
             ),
             migrationPairs
         )
