@@ -22,6 +22,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.elio.jianyu.home.HomeExecutionConsentSnapshot
 import com.elio.jianyu.home.HomeRecommendation
 import com.elio.jianyu.home.RecommendationMode
 import com.elio.jianyu.home.RecommendedSkill
@@ -201,10 +202,23 @@ internal fun HomeFinalReviewCard(
     recommendation: HomeRecommendation,
     directions: Set<ValueDirection>,
     selectedContextCount: Int,
+    executionConsent: HomeExecutionConsentSnapshot,
+    consentIssues: List<String>,
+    onNetworkAuthorized: (Boolean) -> Unit,
+    onHighStakesConfirmed: (Boolean) -> Unit,
+    onPersonDisclaimerConfirmed: (Boolean) -> Unit,
     onStart: () -> Unit,
     startEnabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val selected = recommendation.selectedSkills
+    val needsNetwork = selected.any(RecommendedSkill::requiresNetworkAuthorization)
+    val needsHighStakes = selected.any(RecommendedSkill::requiresHighStakesConfirmation)
+    val needsPersonDisclaimer = selected.any(RecommendedSkill::isPersonPerspective)
+    val blocksRestrictedMaterial = selected.any(RecommendedSkill::prohibitsExternalMaterial) &&
+        executionConsent.restrictedMaterialPresent &&
+        executionConsent.materialMayLeaveDevice
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -219,19 +233,63 @@ internal fun HomeFinalReviewCard(
         ) {
             Text("最终确认", style = MaterialTheme.typography.titleMedium)
             Text(recommendation.questionSummary)
-            JianyuMetadataRow(
-                "价值方向",
-                directions.toDisplayText(),
-            )
+            JianyuMetadataRow("价值方向", directions.toDisplayText())
             JianyuMetadataRow(
                 "模式",
                 if (recommendation.mode == RecommendationMode.SINGLE) "单 Skill" else "多 Skill",
             )
-            recommendation.selectedSkills.forEach { skill ->
+            selected.forEach { skill ->
                 JianyuMetadataRow(skill.displayName, skill.responsibility)
+                if (skill.isPersonPerspective || skill.requiresHighStakesConfirmation) {
+                    Text(
+                        skill.riskDisclosure,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
             }
             JianyuMetadataRow("资料与个人背景", "已确认 $selectedContextCount 项")
             JianyuMetadataRow("预期输出", recommendation.expectedOutput)
+
+            if (needsNetwork) {
+                HomeConsentCheckbox(
+                    checked = executionConsent.networkAuthorized,
+                    label = "我同意本次为核验当前事实使用联网能力；没有真实来源时不得声称已检索。",
+                    tag = HomeTestTags.NETWORK_AUTHORIZATION,
+                    onCheckedChange = onNetworkAuthorized,
+                )
+            }
+            if (needsHighStakes) {
+                HomeConsentCheckbox(
+                    checked = executionConsent.highStakesConfirmed,
+                    label = "我已阅读高后果边界，结果不替代现实专业复核或紧急帮助。",
+                    tag = HomeTestTags.HIGH_STAKES_CONFIRMATION,
+                    onCheckedChange = onHighStakesConfirmed,
+                )
+            }
+            if (needsPersonDisclaimer) {
+                HomeConsentCheckbox(
+                    checked = executionConsent.personDisclaimerConfirmed,
+                    label = "我理解人物 Skill 只是 AI 模拟公开思考框架，不代表本人。",
+                    tag = HomeTestTags.PERSON_DISCLAIMER_CONFIRMATION,
+                    onCheckedChange = onPersonDisclaimerConfirmed,
+                )
+            }
+            if (blocksRestrictedMaterial) {
+                Text(
+                    "所选资料包含禁止外传的敏感正文，当前外部模型运行被阻止。请取消该资料，改用自行脱敏摘要或仅查看本地通用清单。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.testTag(HomeTestTags.RESTRICTED_MATERIAL_BLOCK),
+                )
+            }
+            if (consentIssues.isNotEmpty() && !blocksRestrictedMaterial) {
+                Text(
+                    "仍需完成：${consentIssues.joinToString("、")}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             Text(
                 "确认后将创建一个新议题和初始阶段，并开始模型调用。",
                 style = MaterialTheme.typography.bodyMedium,
@@ -246,6 +304,28 @@ internal fun HomeFinalReviewCard(
                 Text("确认并开始运行")
             }
         }
+    }
+}
+
+@Composable
+private fun HomeConsentCheckbox(
+    checked: Boolean,
+    label: String,
+    tag: String,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(tag),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = Modifier.semantics { role = Role.Checkbox },
+        )
+        Text(label, modifier = Modifier.weight(1f))
     }
 }
 
