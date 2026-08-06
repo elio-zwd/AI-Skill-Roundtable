@@ -84,6 +84,7 @@ sealed interface AudioAssetDeleteRequestResult {
  * 正式音频资产的缺失对账、影响检查和受控删除请求入口。
  *
  * 该服务没有物理删除 API：孤儿文件、正式文件与来源对象只能由 PR09-12 在用户确认后清理。
+ * 孤儿扫描必须使用全局引用视图，不能把其他议题仍在引用的文件误报为孤儿。
  */
 class AudioAssetLifecycleService(
     private val repository: AudioAssetLifecycleRepositoryPort,
@@ -112,9 +113,7 @@ class AudioAssetLifecycleService(
     suspend fun reconcileFilesForIssue(issueId: String): AudioFileReconciliationResult {
         require(issueId.isNotBlank()) { "议题 ID 不能为空" }
         val assets = repository.listAudioAssetsForIssue(issueId)
-        val referencedPaths = assets.mapNotNull { asset ->
-            asset.storagePath?.takeIf { it.isNotBlank() }
-        }.toSet()
+        val globalReferencedPaths = referencedPathsForOrphanScan(assets)
         val markedMissing = mutableListOf<String>()
         val stale = mutableListOf<String>()
 
@@ -146,16 +145,14 @@ class AudioAssetLifecycleService(
         return AudioFileReconciliationResult(
             markedMissingAssetIds = markedMissing.sorted(),
             staleAssetIds = stale.sorted(),
-            orphanReport = fileStore.scanOrphans(referencedPaths),
+            orphanReport = fileStore.scanOrphans(globalReferencedPaths),
         )
     }
 
     suspend fun inspectPurgeImpact(issueId: String): AudioPurgeImpact {
         require(issueId.isNotBlank()) { "议题 ID 不能为空" }
         val assets = repository.listAudioAssetsForIssue(issueId)
-        val referencedPaths = assets.mapNotNull { asset ->
-            asset.storagePath?.takeIf { it.isNotBlank() }
-        }.toSet()
+        val globalReferencedPaths = referencedPathsForOrphanScan(assets)
         val missingIds = linkedSetOf<String>()
         var referencedFileCount = 0
         var referencedFileBytes = 0L
@@ -198,7 +195,7 @@ class AudioAssetLifecycleService(
             referencedFileBytes = referencedFileBytes,
             missingAssetIds = missingIds.sorted(),
             uniqueWorkNames = uniqueWorkNames,
-            orphanReport = fileStore.scanOrphans(referencedPaths),
+            orphanReport = fileStore.scanOrphans(globalReferencedPaths),
         )
     }
 
@@ -254,6 +251,17 @@ class AudioAssetLifecycleService(
             scheduler.cancel(plan.uniqueWorkName)
         }
         return result
+    }
+
+    private suspend fun referencedPathsForOrphanScan(
+        issueAssets: List<AudioAssetRecord>,
+    ): Set<String> {
+        val referencedAssets = (repository as? AudioAssetGlobalReferenceRepositoryPort)
+            ?.listAllAudioAssets()
+            ?: issueAssets
+        return referencedAssets.mapNotNull { asset ->
+            asset.storagePath?.takeIf { it.isNotBlank() }
+        }.toSet()
     }
 
     private fun safeAdd(
