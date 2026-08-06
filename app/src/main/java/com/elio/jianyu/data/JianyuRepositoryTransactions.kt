@@ -20,6 +20,9 @@ internal class JianyuRepositoryTransactions(
     private val collaborationDao: CollaborationDao
         get() = database.collaborationDao()
 
+    private val stageAdvancementDao: StageAdvancementDao
+        get() = database.stageAdvancementDao()
+
     suspend fun <T> transaction(
         operation: String,
         block: suspend JianyuRepositoryDao.() -> RepositoryResult<T>
@@ -40,6 +43,23 @@ internal class JianyuRepositoryTransactions(
             database.withTransaction {
                 val scope = CollaborationTransactionScope(dao, collaborationDao)
                 when (val result = scope.block()) {
+                    is RepositoryResult.Success -> result
+                    is RepositoryResult.Failure -> throw RepositoryTransactionFailureAbort(result.error)
+                }
+            }
+        }
+    }
+
+    suspend fun <T> stageAdvancementTransaction(
+        operation: String,
+        block: suspend StageAdvancementDao.() -> RepositoryResult<T>,
+    ): RepositoryResult<T> {
+        return execute(operation) {
+            if (database.isExplicitlyClosed) {
+                throw RepositoryStorageUnavailableAbort()
+            }
+            database.withTransaction {
+                when (val result = stageAdvancementDao.block()) {
                     is RepositoryResult.Success -> result
                     is RepositoryResult.Failure -> throw RepositoryTransactionFailureAbort(result.error)
                 }

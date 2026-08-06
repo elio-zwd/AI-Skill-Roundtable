@@ -241,19 +241,22 @@ try {
         'MIGRATION_6_7',
         'MIGRATION_7_8',
         'MIGRATION_8_9',
-        'MIGRATION_9_10'
+        'MIGRATION_9_10',
+        'MIGRATION_10_11'
     )
     $missingMigrations = @($requiredMigrations | Where-Object { $databaseSource -notmatch [regex]::Escape($_) })
     $materialContextMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/MaterialContextMigration.kt' -Raw
     $collaborationMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/CollaborationMigration.kt' -Raw
-    if ($databaseSource -match 'version\s*=\s*10' -and
+    $stageAdvancementMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/StageAdvancementMigration.kt' -Raw
+    if ($databaseSource -match 'version\s*=\s*11' -and
         $missingMigrations.Count -eq 0 -and
         $databaseSource -match '"roundtable_database"' -and
         $materialContextMigration -match 'Migration\(8,\s*9\)' -and
-        $collaborationMigration -match 'Migration\(9,\s*10\)') {
-        Pass 'Room Runtime Contract' 'Room 已连续升级到 v10，v1→v10 迁移链和数据库名保持完整'
+        $collaborationMigration -match 'Migration\(9,\s*10\)' -and
+        $stageAdvancementMigration -match 'Migration\(10,\s*11\)') {
+        Pass 'Room Runtime Contract' 'Room 已连续升级到 v11，v1→v11 迁移链和数据库名保持完整'
     } else {
-        Fail 'Room Runtime Contract' "Room v10、连续迁移链或数据库名异常；缺失迁移=$($missingMigrations -join ', ')"
+        Fail 'Room Runtime Contract' "Room v11、连续迁移链或数据库名异常；缺失迁移=$($missingMigrations -join ', ')"
     }
 
     $keyStoreSource = Get-Content 'app/src/main/java/com/elio/jianyu/network/EncryptedApiKeyStore.kt' -Raw

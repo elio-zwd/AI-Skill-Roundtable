@@ -3,7 +3,7 @@ package com.elio.jianyu.data
 /**
  * 见域领域数据公共门面。
  *
- * 公共调用方只依赖 [JianyuRepository]；内部按议题执行、Pending 消息、资源、
+ * 公共调用方只依赖 [JianyuRepository]；内部按议题执行、阶段推进、Pending 消息、资源、
  * 使用快照、协作和生命周期恢复拆分组件，并共享唯一 [JianyuRepositoryTransactions] 事务协调器。
  */
 class RoomJianyuRepository(
@@ -12,9 +12,14 @@ class RoomJianyuRepository(
 ) : JianyuRepository,
     JianyuExecutionRuntimeRepository,
     JianyuCollaborationRepository,
-    JianyuArtifactSourceRecoveryRepository {
+    JianyuArtifactSourceRecoveryRepository,
+    JianyuStageAdvancementRepository {
     private val transactions = JianyuRepositoryTransactions(database)
     private val issueExecution = IssueExecutionRepositoryComponent(transactions)
+    private val stageAdvancement = StageAdvancementRepositoryComponent(
+        transactions = transactions,
+        officialSkillIdValidator = officialSkillIdValidator,
+    )
     private val executionRuntime = ExecutionRuntimeRepositoryComponent(transactions)
     private val collaborationRuntime = CollaborationRuntimeRepositoryComponent(transactions)
     private val collaboration = CollaborationRepositoryComponent(transactions)
@@ -48,7 +53,21 @@ class RoomJianyuRepository(
     override suspend fun undoLatestUnrunStage(
         issueId: String,
         stageId: String
-    ): RepositoryResult<Unit> = issueExecution.undoLatestUnrunStage(issueId, stageId)
+    ): RepositoryResult<Unit> = stageAdvancement.undoLatestUnrunStage(issueId, stageId)
+
+    override suspend fun advanceIssue(
+        command: AdvanceIssueCommand,
+    ): RepositoryResult<AdvanceIssueResult> = stageAdvancement.advanceIssue(command)
+
+    override suspend fun getStageAdvancement(
+        stageId: String,
+    ): RepositoryResult<StageAdvancementSnapshot> =
+        stageAdvancement.getStageAdvancement(stageId)
+
+    override suspend fun listStageAdvancements(
+        issueId: String,
+    ): RepositoryResult<List<StageAdvancementSnapshot>> =
+        stageAdvancement.listStageAdvancements(issueId)
 
     override suspend fun createExecutionRun(
         command: CreateExecutionRunCommand

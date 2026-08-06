@@ -42,8 +42,13 @@ import kotlinx.coroutines.launch
         IssueLifecycleEntity::class,
         CrossDiscussionSessionEntity::class,
         ExecutionMessageUsageSnapshotEntity::class,
+        StageAdvancementEntity::class,
+        StageAdvancementMeasureEntity::class,
+        StageAdvancementSkillMemberEntity::class,
+        StageAdvancementMaterialEntity::class,
+        StageAdvancementArtifactEntity::class,
     ],
-    version = 10,
+    version = 11,
     exportSchema = true,
 )
 @TypeConverters(
@@ -51,6 +56,7 @@ import kotlinx.coroutines.launch
     ResourceLifecycleConverters::class,
     ExecutionRuntimeConverters::class,
     CollaborationConverters::class,
+    StageAdvancementConverters::class,
 )
 abstract class RoundtableDatabase : RoomDatabase() {
     private val explicitlyClosed = AtomicBoolean(false)
@@ -70,6 +76,7 @@ abstract class RoundtableDatabase : RoomDatabase() {
     abstract fun resourceLifecycleDao(): ResourceLifecycleDao
     internal abstract fun jianyuRepositoryDao(): JianyuRepositoryDao
     internal abstract fun collaborationDao(): CollaborationDao
+    internal abstract fun stageAdvancementDao(): StageAdvancementDao
 
     companion object {
         @Volatile
@@ -156,6 +163,7 @@ abstract class RoundtableDatabase : RoomDatabase() {
         val MIGRATION_7_8: Migration = ExecutionRuntimeMigration.MIGRATION_7_8
         val MIGRATION_8_9: Migration = MaterialContextMigration.MIGRATION_8_9
         val MIGRATION_9_10: Migration = CollaborationMigration.MIGRATION_9_10
+        val MIGRATION_10_11: Migration = StageAdvancementMigration.MIGRATION_10_11
 
         val ALL_MIGRATIONS: Array<Migration> = arrayOf(
             MIGRATION_1_2,
@@ -167,6 +175,7 @@ abstract class RoundtableDatabase : RoomDatabase() {
             MIGRATION_7_8,
             MIGRATION_8_9,
             MIGRATION_9_10,
+            MIGRATION_10_11,
         )
 
         fun getDatabase(context: Context, scope: CoroutineScope): RoundtableDatabase {
