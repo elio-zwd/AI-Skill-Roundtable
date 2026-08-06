@@ -1,6 +1,11 @@
 name: PR09-12 Room Schema Sync
 
 on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/pr-09-12-schema-sync.yml
   push:
     branches:
       - feat/pr-09-12-archive-trash
@@ -44,14 +49,14 @@ jobs:
           path = Path('app/src/main/java/com/elio/jianyu/ui/screens/issues/IssueLifecycleDialogs.kt')
           text = path.read_text(encoding='utf-8')
           old = '''            text = {
-              Text("议题会保留恢复能力，不会自动过期、自动清空或删除文件。")
+                Text("议题会保留恢复能力，不会自动过期、自动清空或删除文件。")
             },'''
           new = '''            text = {
-              Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("议题会保留恢复能力，不会自动过期、自动清空或删除文件。")
-                Text("系统不会自动清理议题或 Orphan。")
-                Text("空间不足时请通过手动管理入口处理音频和 App 自有文件。")
-              }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("议题会保留恢复能力，不会自动过期、自动清空或删除文件。")
+                    Text("系统不会自动清理议题或 Orphan。")
+                    Text("空间不足时请通过手动管理入口处理音频和 App 自有文件。")
+                }
             },'''
           if text.count(old) != 1:
               raise SystemExit(f'Expected exactly one trash guidance block, found {text.count(old)}')
