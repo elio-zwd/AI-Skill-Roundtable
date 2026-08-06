@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.elio.jianyu.home.HomeWorkflow
 import com.elio.jianyu.home.HomeWorkflowStep
 import com.elio.jianyu.home.RecommendationMode
 import com.elio.jianyu.home.ValueDirection
@@ -38,6 +39,9 @@ fun HomeScreen(
     onModeChanged: (RecommendationMode) -> Unit,
     onConfirmRecommendation: () -> Unit,
     onOpenContextConfirmation: () -> Unit,
+    onNetworkAuthorized: (Boolean) -> Unit,
+    onHighStakesConfirmed: (Boolean) -> Unit,
+    onPersonDisclaimerConfirmed: (Boolean) -> Unit,
     onBrowseSkills: () -> Unit,
     onStartIssue: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -211,6 +215,11 @@ fun HomeScreen(
                     recommendation = recommendation,
                     directions = workflow.draft.directions,
                     selectedContextCount = workflow.contextSelection.items.count { it.selected },
+                    executionConsent = workflow.executionConsent,
+                    consentIssues = HomeWorkflow.executionConsentIssues(workflow),
+                    onNetworkAuthorized = onNetworkAuthorized,
+                    onHighStakesConfirmed = onHighStakesConfirmed,
+                    onPersonDisclaimerConfirmed = onPersonDisclaimerConfirmed,
                     onStart = onStartIssue,
                     startEnabled = workflow.finalConfirmationReady && !workflow.operationInFlight,
                 )

@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.home.HomeContextSelectionSnapshot
+import com.elio.jianyu.home.HomeExecutionConsentSnapshot
 import com.elio.jianyu.home.HomeRecommendation
 import com.elio.jianyu.home.HomeWorkflow
 import com.elio.jianyu.home.HomeWorkflowIds
@@ -98,7 +99,7 @@ class HomeScreenTest {
     }
 
     @Test
-    fun finalReview_requiresExplicitContextConfirmationAndKeepsStartTagStable() {
+    fun finalReview_generalSkillKeepsStableStartTagEnabled() {
         val recommendation = recommendation()
         val state = HomeWorkflow.initial(ids).copy(
             draft = com.elio.jianyu.home.HomeQuestionDraft(
@@ -122,6 +123,87 @@ class HomeScreenTest {
             .assertIsEnabled()
     }
 
+    @Test
+    fun personHighStakesNetworkSkillShowsThreeExplicitConfirmationsAndDisablesStart() {
+        val recommendation = recommendation(
+            skill = RecommendedSkill(
+                skillId = "person-risk-network",
+                displayName = "人物高后果 Skill",
+                responsibility = "分析公开思考框架",
+                reason = "测试人物与风险披露",
+                risk = RecommendationRisk.HIGH_STAKES,
+                riskDisclosure = "AI 模拟，不代表本人；重要决定需专业复核",
+                freshnessDisclosure = "当前事实需要联网核验",
+                networkRequirement = "需要联网核验",
+                materialRequirement = "资料可选",
+                expectedOutput = "风险分析",
+                executable = true,
+                selected = true,
+                position = 0,
+                isPersonPerspective = true,
+                requiresHighStakesConfirmation = true,
+                requiresNetworkAuthorization = true,
+            ),
+        )
+        val state = HomeWorkflow.initial(ids).copy(
+            draft = com.elio.jianyu.home.HomeQuestionDraft(recommendation.questionSummary),
+            step = HomeWorkflowStep.FINAL_REVIEW,
+            recommendation = recommendation,
+            recommendationConfirmed = true,
+            contextSelection = HomeContextSelectionSnapshot(confirmed = true),
+            executionConsent = HomeExecutionConsentSnapshot(),
+            finalConfirmationReady = false,
+        )
+        setHomeContent(HomeUiState(state))
+
+        composeRule.onNodeWithTag(HomeTestTags.NETWORK_AUTHORIZATION).assertExists()
+        composeRule.onNodeWithTag(HomeTestTags.HIGH_STAKES_CONFIRMATION).assertExists()
+        composeRule.onNodeWithTag(HomeTestTags.PERSON_DISCLAIMER_CONFIRMATION).assertExists()
+        composeRule.onNodeWithTag(JianyuAutomationTags.Home.START_ISSUE_BUTTON)
+            .assertIsNotEnabled()
+    }
+
+    @Test
+    fun restrictedPatentMaterialShowsBlockAndDisablesStart() {
+        val recommendation = recommendation(
+            skill = RecommendedSkill(
+                skillId = "patent-disclosure-organizer",
+                displayName = "专利交底材料整理",
+                responsibility = "整理脱敏摘要",
+                reason = "测试禁止外传",
+                risk = RecommendationRisk.HIGH_STAKES,
+                riskDisclosure = "禁止外传材料不得发送至外部模型",
+                freshnessDisclosure = "按法域核验",
+                networkRequirement = "资料正文不得联网发送",
+                materialRequirement = "需要资料",
+                expectedOutput = "材料清单",
+                executable = true,
+                selected = true,
+                position = 0,
+                requiresHighStakesConfirmation = true,
+                prohibitsExternalMaterial = true,
+            ),
+        )
+        val state = HomeWorkflow.initial(ids).copy(
+            draft = com.elio.jianyu.home.HomeQuestionDraft(recommendation.questionSummary),
+            step = HomeWorkflowStep.FINAL_REVIEW,
+            recommendation = recommendation,
+            recommendationConfirmed = true,
+            contextSelection = HomeContextSelectionSnapshot(confirmed = true),
+            executionConsent = HomeExecutionConsentSnapshot(
+                highStakesConfirmed = true,
+                restrictedMaterialPresent = true,
+                materialMayLeaveDevice = true,
+            ),
+            finalConfirmationReady = false,
+        )
+        setHomeContent(HomeUiState(state))
+
+        composeRule.onNodeWithTag(HomeTestTags.RESTRICTED_MATERIAL_BLOCK).assertExists()
+        composeRule.onNodeWithTag(JianyuAutomationTags.Home.START_ISSUE_BUTTON)
+            .assertIsNotEnabled()
+    }
+
     private fun setHomeContent(
         uiState: HomeUiState,
         examples: List<HomeExampleQuestion> = defaultHomeExampleQuestions,
@@ -143,6 +225,9 @@ class HomeScreenTest {
                     onModeChanged = {},
                     onConfirmRecommendation = {},
                     onOpenContextConfirmation = {},
+                    onNetworkAuthorized = {},
+                    onHighStakesConfirmed = {},
+                    onPersonDisclaimerConfirmed = {},
                     onBrowseSkills = {},
                     onStartIssue = {},
                     onOpenSettings = {},
@@ -152,29 +237,29 @@ class HomeScreenTest {
         }
     }
 
-    private fun recommendation(): HomeRecommendation = HomeRecommendation(
+    private fun recommendation(
+        skill: RecommendedSkill = RecommendedSkill(
+            skillId = "career-advisor",
+            displayName = "职业规划顾问",
+            responsibility = "拆解目标并形成阶段计划",
+            reason = "问题聚焦职业路径和行动安排",
+            risk = RecommendationRisk.GENERAL,
+            riskDisclosure = "一般决策风险，需要结合现实条件复核",
+            freshnessDisclosure = "岗位信息需要按当前地区核验",
+            networkRequirement = "联网可选",
+            materialRequirement = "资料可选",
+            expectedOutput = "半年行动计划",
+            executable = true,
+            selected = true,
+            position = 0,
+        ),
+    ): HomeRecommendation = HomeRecommendation(
         questionSummary = "如何规划未来半年的职业转型？",
         directions = setOf(ValueDirection.REALITY_SUPPORT),
         mode = RecommendationMode.SINGLE,
         modeReason = "一个专业能力即可先覆盖当前目标。",
-        skills = listOf(
-            RecommendedSkill(
-                skillId = "career-advisor",
-                displayName = "职业规划顾问",
-                responsibility = "拆解目标并形成阶段计划",
-                reason = "问题聚焦职业路径和行动安排",
-                risk = RecommendationRisk.GENERAL,
-                riskDisclosure = "一般决策风险，需要结合现实条件复核",
-                freshnessDisclosure = "岗位信息需要按当前地区核验",
-                networkRequirement = "联网可选",
-                materialRequirement = "资料可选",
-                expectedOutput = "半年行动计划",
-                executable = true,
-                selected = true,
-                position = 0,
-            ),
-        ),
-        expectedOutput = "半年行动计划",
+        skills = listOf(skill),
+        expectedOutput = skill.expectedOutput,
         source = RecommendationSource.LOCAL_CATALOG,
     )
 }
