@@ -1,6 +1,9 @@
 package com.elio.jianyu.ui
 
+import android.app.Application
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -9,6 +12,8 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -18,9 +23,13 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -29,13 +38,20 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.elio.jianyu.JianyuAppRuntime
 import com.elio.jianyu.JianyuAppRuntimeProvider
+import com.elio.jianyu.runtime.JianyuRuntimeState
 import com.elio.jianyu.skill.catalog.OfficialSkillUseRequest
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
+import com.elio.jianyu.ui.automation.JianyuRuntimeAutomationTags
 import com.elio.jianyu.ui.navigation.AppDestination
 import com.elio.jianyu.ui.navigation.AppNavHost
 import com.elio.jianyu.ui.navigation.navigateToIssue
@@ -62,20 +78,130 @@ object AppTestTags {
         JianyuAutomationTags.Navigation.destination(destination.testTagSuffix)
 }
 
+/**
+ * App 根宿主观察 Runtime 世代；维护期间移除全部数据库消费者，重开后使用全新的
+ * ViewModelStore 与 NavController，旧 ViewModel 不会跨世代继续持有失效 DAO。
+ */
 @Composable
 fun MainAppContent(
-    viewModel: RoundtableViewModel = viewModel(),
     onOfficialSkillUseRequested: (OfficialSkillUseRequest) -> Unit = {},
 ) {
-    val applicationContext = LocalContext.current.applicationContext
-    val appRuntime = remember(applicationContext) {
-        JianyuAppRuntimeProvider.get(applicationContext)
+    val application = LocalContext.current.applicationContext as Application
+    val runtimeStateFlow = remember(application) {
+        JianyuAppRuntimeProvider.observe(application)
     }
-    MainAppContent(
-        viewModel = viewModel,
-        appRuntime = appRuntime,
-        onOfficialSkillUseRequested = onOfficialSkillUseRequested,
-    )
+    val runtimeState by runtimeStateFlow.collectAsState()
+
+    when (val state = runtimeState) {
+        is JianyuRuntimeState.Ready -> RuntimeReadyMainAppContent(
+            application = application,
+            state = state,
+            onOfficialSkillUseRequested = onOfficialSkillUseRequested,
+        )
+        else -> JianyuRuntimeStatusContent(
+            state = state,
+            onRetry = { JianyuAppRuntimeProvider.retryOpen(application) },
+        )
+    }
+}
+
+@Composable
+private fun RuntimeReadyMainAppContent(
+    application: Application,
+    state: JianyuRuntimeState.Ready,
+    onOfficialSkillUseRequested: (OfficialSkillUseRequest) -> Unit,
+) {
+    val runtimeLease = remember(state.generation) {
+        JianyuAppRuntimeProvider.tryAcquireReady(state.generation)
+    }
+    if (runtimeLease == null) {
+        JianyuRuntimeStatusContent(
+            state = JianyuRuntimeState.Maintenance(state.generation),
+            onRetry = {},
+        )
+        return
+    }
+
+    val storeOwner = remember(state.generation) { RuntimeGenerationViewModelStoreOwner() }
+    DisposableEffect(state.generation, runtimeLease, storeOwner) {
+        onDispose {
+            storeOwner.viewModelStore.clear()
+            runtimeLease.close()
+        }
+    }
+
+    CompositionLocalProvider(LocalViewModelStoreOwner provides storeOwner) {
+        val roundtableViewModel: RoundtableViewModel = viewModel(
+            viewModelStoreOwner = storeOwner,
+            key = "roundtable-runtime-${state.generation}",
+            factory = ViewModelProvider.AndroidViewModelFactory.getInstance(application),
+        )
+        key(state.generation) {
+            MainAppContent(
+                viewModel = roundtableViewModel,
+                appRuntime = runtimeLease.runtime,
+                onOfficialSkillUseRequested = onOfficialSkillUseRequested,
+            )
+        }
+    }
+}
+
+/** 非 Ready 状态的全局安全占位，不展示底层异常、路径或用户正文。 */
+@Composable
+internal fun JianyuRuntimeStatusContent(
+    state: JianyuRuntimeState,
+    onRetry: () -> Unit,
+) {
+    val unavailable = state is JianyuRuntimeState.Unavailable
+    val tag = if (unavailable) {
+        JianyuRuntimeAutomationTags.UNAVAILABLE
+    } else {
+        JianyuRuntimeAutomationTags.MAINTENANCE
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp)
+            .testTag(tag),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        if (!unavailable) {
+            CircularProgressIndicator()
+            Text(
+                text = "正在安全暂停本地数据访问",
+                modifier = Modifier.padding(top = 16.dp),
+                style = MaterialTheme.typography.titleMedium,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = "完成数据库维护后将自动恢复。",
+                modifier = Modifier.padding(top = 8.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        } else {
+            Text(
+                text = "本地数据服务暂时不可用",
+                style = MaterialTheme.typography.titleMedium,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = "数据库重新打开失败。你可以重试；应用不会使用已关闭的旧数据连接。",
+                modifier = Modifier.padding(top = 8.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Button(
+                onClick = onRetry,
+                modifier = Modifier
+                    .padding(top = 16.dp)
+                    .testTag(JianyuRuntimeAutomationTags.RETRY),
+            ) {
+                Text("重试")
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
@@ -143,6 +269,7 @@ internal fun MainAppContent(
                 issuesContent = {
                     IssuesRoute(
                         repository = appRuntime.repository,
+                        lifecycleRuntime = appRuntime.lifecycleRuntime,
                         onOpenIssue = navController::navigateToIssue,
                         onOpenSettings = {
                             navController.navigateToSecondary(AppDestination.SETTINGS)
@@ -286,4 +413,8 @@ internal fun AppBottomNavigation(
             )
         }
     }
+}
+
+private class RuntimeGenerationViewModelStoreOwner : ViewModelStoreOwner {
+    override val viewModelStore: ViewModelStore = ViewModelStore()
 }
