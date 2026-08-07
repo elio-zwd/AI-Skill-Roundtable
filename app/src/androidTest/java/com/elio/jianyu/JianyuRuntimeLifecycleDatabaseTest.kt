@@ -14,13 +14,14 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.yield
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -69,17 +70,14 @@ class JianyuRuntimeLifecycleDatabaseTest {
                 },
                 afterReopen = { reopened ->
                     assertTrue(reopened.database.isOpen)
-                    reopened.database.openHelper.writableDatabase
-                        .query("PRAGMA foreign_key_check")
-                        .use { cursor -> assertEquals(0, cursor.count) }
+                    assertDatabaseHealthy(reopened)
                 },
             )
         }
 
-        yield()
-        assertTrue(
-            JianyuAppRuntimeProvider.observe(context).value is JianyuRuntimeState.Maintenance,
-        )
+        JianyuAppRuntimeProvider.observe(context).first {
+            it is JianyuRuntimeState.Maintenance
+        }
         assertFalse(beforeCloseEntered.isCompleted)
         assertFalse(whileClosedEntered.isCompleted)
 
@@ -108,6 +106,28 @@ class JianyuRuntimeLifecycleDatabaseTest {
     }
 
     @Test
+    fun beforeCloseFailureRestoresOriginalReadyGenerationWithoutClosingDatabase() = runBlocking {
+        val initial = JianyuAppRuntimeProvider.observe(context).value as JianyuRuntimeState.Ready
+
+        val outcome = withContext(Dispatchers.IO) {
+            JianyuAppRuntimeProvider.withDatabaseClosed(
+                context = context,
+                beforeClose = { throw IllegalStateException("checkpoint-failed") },
+                whileClosed = { error("whileClosed must not run") },
+                afterReopen = { error("afterReopen must not run") },
+            )
+        }
+
+        val failure = outcome as DatabaseMaintenanceOutcome.Failure
+        assertEquals(DatabaseMaintenanceStage.BEFORE_CLOSE, failure.stage)
+        assertFalse(failure.reopened)
+        val restored = JianyuAppRuntimeProvider.observe(context).value as JianyuRuntimeState.Ready
+        assertEquals(initial.generation, restored.generation)
+        assertSame(initial.runtime, restored.runtime)
+        assertTrue(restored.runtime.database.isOpen)
+    }
+
+    @Test
     fun whileClosedFailureStillReopensAndPublishesUsableNewGeneration() = runBlocking {
         val initial = JianyuAppRuntimeProvider.observe(context).value as JianyuRuntimeState.Ready
         initial.runtime.repository.saveIssue(issueCommand("issue-1", "stage-1", 10L)).successValue()
@@ -117,7 +137,7 @@ class JianyuRuntimeLifecycleDatabaseTest {
                 context = context,
                 beforeClose = {},
                 whileClosed = { throw IllegalStateException("expected-test-failure") },
-                afterReopen = {},
+                afterReopen = { assertDatabaseHealthy(it) },
             )
         }
 
@@ -145,7 +165,7 @@ class JianyuRuntimeLifecycleDatabaseTest {
                     entered.complete(Unit)
                     CompletableDeferred<Unit>().await()
                 },
-                afterReopen = {},
+                afterReopen = { assertDatabaseHealthy(it) },
             )
         }
         entered.await()
@@ -160,7 +180,7 @@ class JianyuRuntimeLifecycleDatabaseTest {
     }
 
     @Test
-    fun afterReopenVerificationFailureReturnsFailureButKeepsRuntimeAvailable() = runBlocking {
+    fun afterReopenVerificationFailureStaysUnavailableUntilValidatedRetry() = runBlocking {
         val initial = JianyuAppRuntimeProvider.observe(context).value as JianyuRuntimeState.Ready
 
         val outcome = withContext(Dispatchers.IO) {
@@ -174,11 +194,22 @@ class JianyuRuntimeLifecycleDatabaseTest {
 
         val failure = outcome as DatabaseMaintenanceOutcome.Failure
         assertEquals(DatabaseMaintenanceStage.AFTER_REOPEN, failure.stage)
-        assertTrue(failure.reopened)
-        val reopened = JianyuAppRuntimeProvider.observe(context).value as JianyuRuntimeState.Ready
-        assertEquals(initial.generation + 1L, reopened.generation)
-        reopened.runtime.repository
-            .saveIssue(issueCommand("issue-after-verify", "stage-after-verify", 40L))
+        assertFalse(failure.reopened)
+        val unavailable = JianyuAppRuntimeProvider.observe(context).value as JianyuRuntimeState.Unavailable
+        assertEquals(initial.generation + 1L, unavailable.generation)
+        assertEquals(DatabaseMaintenanceStage.AFTER_REOPEN, unavailable.stage)
+
+        assertTrue(
+            withContext(Dispatchers.IO) {
+                JianyuAppRuntimeProvider.retryOpen(context)
+            },
+        )
+        val retried = JianyuAppRuntimeProvider.observe(context).value as JianyuRuntimeState.Ready
+        assertEquals(unavailable.generation, retried.generation)
+        assertTrue(retried.runtime.database.isOpen)
+        assertDatabaseHealthy(retried.runtime)
+        retried.runtime.repository
+            .saveIssue(issueCommand("issue-after-retry", "stage-after-retry", 40L))
             .successValue()
     }
 
@@ -196,7 +227,7 @@ class JianyuRuntimeLifecycleDatabaseTest {
                     entered.complete(Unit)
                     continueClosed.await()
                 },
-                afterReopen = {},
+                afterReopen = { assertDatabaseHealthy(it) },
             )
         }
         entered.await()
@@ -212,6 +243,15 @@ class JianyuRuntimeLifecycleDatabaseTest {
 
         continueClosed.complete(Unit)
         maintenance.await()
+    }
+
+    private fun assertDatabaseHealthy(runtime: JianyuAppRuntime) {
+        runtime.database.openHelper.writableDatabase
+            .query("SELECT 1")
+            .use { cursor -> assertTrue(cursor.moveToFirst()) }
+        runtime.database.openHelper.writableDatabase
+            .query("PRAGMA foreign_key_check")
+            .use { cursor -> assertEquals(0, cursor.count) }
     }
 
     private fun issueCommand(issueId: String, stageId: String, createdAt: Long) = SaveIssueCommand(
