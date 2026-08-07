@@ -38,10 +38,10 @@ class BackupPrototypeIsolationTest {
         val relevantLines = buildFile.readLines(Charsets.UTF_8)
             .map(String::trim)
             .filter { line ->
-                line.contains("bcprov-jdk18on") || line.contains("tink-android")
+                line.contains("bcprov-jdk15to18") || line.contains("tink-android")
             }
 
-        assertTrue(relevantLines.any { it == "testImplementation(\"org.bouncycastle:bcprov-jdk18on:1.84\")" })
+        assertTrue(relevantLines.any { it == "testImplementation(\"org.bouncycastle:bcprov-jdk15to18:1.84\")" })
         assertTrue(relevantLines.any { it == "testImplementation(\"com.google.crypto.tink:tink-android:1.23.0\")" })
         assertFalse(relevantLines.any { it.startsWith("implementation(") })
         assertFalse(relevantLines.any { it.startsWith("api(") })
