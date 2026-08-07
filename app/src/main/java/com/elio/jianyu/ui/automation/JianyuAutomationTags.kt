@@ -13,6 +13,9 @@ object JianyuAutomationTags {
     object App {
         const val CONTENT_ROOT = "jianyu_app_content_root"
         const val BOTTOM_NAVIGATION = "app_bottom_navigation"
+        const val RUNTIME_MAINTENANCE = "app_runtime_maintenance"
+        const val RUNTIME_UNAVAILABLE = "app_runtime_unavailable"
+        const val RUNTIME_RETRY = "app_runtime_retry"
     }
 
     object Navigation {
@@ -244,6 +247,9 @@ object JianyuAutomationTags {
     val frozenStaticTags: List<String> = listOf(
         App.CONTENT_ROOT,
         App.BOTTOM_NAVIGATION,
+        App.RUNTIME_MAINTENANCE,
+        App.RUNTIME_UNAVAILABLE,
+        App.RUNTIME_RETRY,
         Navigation.HOME,
         Navigation.ISSUES,
         Navigation.SKILLS,
