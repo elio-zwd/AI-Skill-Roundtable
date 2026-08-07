@@ -9,6 +9,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.runtime.DatabaseMaintenanceStage
 import com.elio.jianyu.runtime.JianyuRuntimeState
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
+import com.elio.jianyu.ui.automation.JianyuRuntimeAutomationTags
 import com.elio.jianyu.ui.theme.SkillRoundtableTheme
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -32,13 +33,13 @@ class RuntimeMaintenanceHostTest {
         }
 
         composeRule
-            .onNodeWithTag(JianyuAutomationTags.App.RUNTIME_MAINTENANCE)
+            .onNodeWithTag(JianyuRuntimeAutomationTags.MAINTENANCE)
             .assertExists()
         composeRule
             .onNodeWithTag(JianyuAutomationTags.App.CONTENT_ROOT)
             .assertDoesNotExist()
         composeRule
-            .onNodeWithTag(JianyuAutomationTags.App.RUNTIME_RETRY)
+            .onNodeWithTag(JianyuRuntimeAutomationTags.RETRY)
             .assertDoesNotExist()
     }
 
@@ -58,10 +59,10 @@ class RuntimeMaintenanceHostTest {
         }
 
         composeRule
-            .onNodeWithTag(JianyuAutomationTags.App.RUNTIME_UNAVAILABLE)
+            .onNodeWithTag(JianyuRuntimeAutomationTags.UNAVAILABLE)
             .assertExists()
         composeRule
-            .onNodeWithTag(JianyuAutomationTags.App.RUNTIME_RETRY)
+            .onNodeWithTag(JianyuRuntimeAutomationTags.RETRY)
             .assertExists()
             .performClick()
         composeRule.runOnIdle {
