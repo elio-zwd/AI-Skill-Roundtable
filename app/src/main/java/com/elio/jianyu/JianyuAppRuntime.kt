@@ -70,7 +70,9 @@ object JianyuAppRuntimeProvider {
     private var leaseRegistry = RuntimeLeaseRegistry()
 
     fun observe(context: Context): StateFlow<JianyuRuntimeState> {
-        ensureReady(context.applicationContext)
+        if (_state.value is JianyuRuntimeState.Uninitialized) {
+            runCatching { ensureReady(context.applicationContext) }
+        }
         return _state.asStateFlow()
     }
 
@@ -190,6 +192,14 @@ object JianyuAppRuntimeProvider {
                 } catch (error: Throwable) {
                     operationFailure = error
                 }
+            } else {
+                withContext(NonCancellable) {
+                    runCatching {
+                        if (ready.runtime.database.isOpen) {
+                            ready.runtime.database.close()
+                        }
+                    }
+                }
             }
 
             val reopenedRuntimeResult = withContext(NonCancellable) {
@@ -217,8 +227,13 @@ object JianyuAppRuntimeProvider {
                 )
             }
 
-            val afterReopenFailure = withContext(NonCancellable) {
-                runCatching { afterReopen(reopenedRuntime) }.exceptionOrNull()
+            var afterReopenFailure: Throwable? = null
+            withContext(NonCancellable) {
+                try {
+                    afterReopen(reopenedRuntime)
+                } catch (error: Throwable) {
+                    afterReopenFailure = error
+                }
             }
             publishReady(
                 runtime = reopenedRuntime,
@@ -278,6 +293,7 @@ object JianyuAppRuntimeProvider {
     }
 
     @VisibleForTesting
+    @Suppress("UNUSED_PARAMETER")
     internal suspend fun resetForTests(context: Context) {
         maintenanceMutex.lock()
         try {
