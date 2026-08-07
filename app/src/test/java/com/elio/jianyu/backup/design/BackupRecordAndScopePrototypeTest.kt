@@ -17,9 +17,11 @@ class BackupRecordAndScopePrototypeTest {
         assertEquals(1L, emptyResult.recordCountBeforeComplete)
         assertEquals(0L, emptyResult.entityCount)
         assertEquals(0L, emptyResult.blobCount)
+        assertEquals(74L, emptyResult.totalPlaintextBytesBeforeComplete)
         assertEquals(2L, unicodeResult.recordCountBeforeComplete)
         assertEquals(1L, unicodeResult.entityCount)
         assertEquals(0L, unicodeResult.blobCount)
+        assertEquals(229L, unicodeResult.totalPlaintextBytesBeforeComplete)
     }
 
     @Test
