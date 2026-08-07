@@ -143,6 +143,10 @@ dependencies {
     testImplementation("org.mockito.kotlin:mockito-kotlin:4.1.0")
     testImplementation("org.json:json:20240303")
 
+    // PR09-13A design prototype only; these dependencies are not packaged in the production APK.
+    testImplementation("org.bouncycastle:bcprov-jdk18on:1.84")
+    testImplementation("com.google.crypto.tink:tink-android:1.23.0")
+
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.navigation:navigation-testing:${libs.versions.navigationCompose.get()}")
