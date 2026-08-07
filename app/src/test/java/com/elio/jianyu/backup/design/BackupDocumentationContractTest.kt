@@ -24,16 +24,18 @@ class BackupDocumentationContractTest {
 
         listOf(
             "Argon2id",
-            "AES-256-GCM",
-            "AES256_GCM_HKDF_1MB",
+            "Purge",
+            "Android Auto Backup",
+            "authentication_failed",
         ).forEach { value ->
-            assertTrue("威胁模型缺少 $value", threatModel.contains(value))
-            assertTrue("Envelope 规范缺少 $value", envelope.contains(value))
-            assertTrue("交接文档缺少 $value", handoff.contains(value))
+            assertTrue("威胁模型缺少安全边界：$value", threatModel.contains(value))
         }
 
         listOf(
+            "Argon2id",
             "65,536 KiB",
+            "AES-256-GCM",
+            "AES256_GCM_HKDF_1MB",
             "jianyu-portable-backup/1",
             "jianyu-device-snapshot/1",
             "4A 59 42 4B 50 0D 0A 1A",
