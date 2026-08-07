@@ -36,6 +36,17 @@ class JianyuAutomationTagsTest {
     }
 
     @Test
+    fun runtimeLifecycleTags_areFrozenInCentralContract() {
+        val required = listOf(
+            JianyuAutomationTags.App.RUNTIME_MAINTENANCE,
+            JianyuAutomationTags.App.RUNTIME_UNAVAILABLE,
+            JianyuAutomationTags.App.RUNTIME_RETRY,
+        )
+
+        assertTrue(JianyuAutomationTags.frozenStaticTags.containsAll(required))
+    }
+
+    @Test
     fun legacyTags_remainCompatibleWithCentralContract() {
         assertEquals(JianyuAutomationTags.App.BOTTOM_NAVIGATION, AppTestTags.BOTTOM_NAVIGATION)
         assertEquals(
