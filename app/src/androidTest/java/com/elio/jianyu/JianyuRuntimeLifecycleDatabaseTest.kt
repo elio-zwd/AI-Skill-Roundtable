@@ -9,6 +9,7 @@ import com.elio.jianyu.data.SaveIssueCommand
 import com.elio.jianyu.runtime.DatabaseMaintenanceOutcome
 import com.elio.jianyu.runtime.DatabaseMaintenanceStage
 import com.elio.jianyu.runtime.JianyuRuntimeState
+import com.elio.jianyu.runtime.JianyuRuntimeUnavailableException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
