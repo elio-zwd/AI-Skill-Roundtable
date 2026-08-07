@@ -566,11 +566,20 @@ PR09-13B 必须实现一个唯一 `BackupOperationGate`：
 PR09-13A 测试原型：
 
 ```kotlin
-testImplementation("org.bouncycastle:bcprov-jdk18on:1.84")
+testImplementation("org.bouncycastle:bcprov-jdk15to18:1.84")
 testImplementation("com.google.crypto.tink:tink-android:1.23.0")
 ```
 
-PR09-13B 生产候选同版本，前提是：
+PR09-13B 生产候选使用相同版本与构件：
+
+```kotlin
+implementation("org.bouncycastle:bcprov-jdk15to18:1.84")
+implementation("com.google.crypto.tink:tink-android:1.23.0")
+```
+
+选择 `bcprov-jdk15to18:1.84` 的原因是当前项目固定 JDK 17 和 Android Jetifier 构建链。`bcprov-jdk18on:1.84` 是多版本 JAR，并在精确 Head `a075ff8bd2a4a70bc8dd12621cdd8ab99e64315d` 的 GitHub Actions 中因 `META-INF/versions/25` class major 69 无法被当前 Jetifier 扫描，导致测试启动前失败。该失败不是 Argon2id 算法或公开向量失败。V1 不通过 Jetifier ignorelist 绕过依赖检查，也不降低 Bouncy Castle 版本。
+
+生产采用前还必须满足：
 
 - 精确版本无阻断安全公告；
 - 许可证登记完成；
