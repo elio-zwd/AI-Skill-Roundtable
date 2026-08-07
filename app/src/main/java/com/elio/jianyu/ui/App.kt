@@ -29,6 +29,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -70,6 +71,8 @@ import com.elio.jianyu.ui.screens.settings.SettingsRoute
 import com.elio.jianyu.ui.screens.settings.TelemetryRoute
 import com.elio.jianyu.ui.screens.skills.OfficialSkillNavigationRoute
 import com.elio.jianyu.viewmodel.RoundtableViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 object AppTestTags {
     const val BOTTOM_NAVIGATION = JianyuAutomationTags.App.BOTTOM_NAVIGATION
@@ -91,6 +94,7 @@ fun MainAppContent(
         JianyuAppRuntimeProvider.observe(application)
     }
     val runtimeState by runtimeStateFlow.collectAsState()
+    val runtimeRetryScope = rememberCoroutineScope()
 
     when (val state = runtimeState) {
         is JianyuRuntimeState.Ready -> RuntimeReadyMainAppContent(
@@ -100,7 +104,11 @@ fun MainAppContent(
         )
         else -> JianyuRuntimeStatusContent(
             state = state,
-            onRetry = { JianyuAppRuntimeProvider.retryOpen(application) },
+            onRetry = {
+                runtimeRetryScope.launch(Dispatchers.IO) {
+                    JianyuAppRuntimeProvider.retryOpen(application)
+                }
+            },
         )
     }
 }
@@ -187,7 +195,7 @@ internal fun JianyuRuntimeStatusContent(
                 textAlign = TextAlign.Center,
             )
             Text(
-                text = "数据库重新打开失败。你可以重试；应用不会使用已关闭的旧数据连接。",
+                text = "数据库重新打开或验证失败。你可以重试；应用不会使用未验证的旧数据连接。",
                 modifier = Modifier.padding(top = 8.dp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
