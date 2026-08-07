@@ -41,7 +41,7 @@ class BackupDocumentationContractTest {
             "4A 59 42 4B 50 0D 0A 1A",
             "4A 59 53 4E 50 0D 0A 1A",
             "jianyu_backup_snapshot_wrap_v1",
-            "org.bouncycastle:bcprov-jdk18on:1.84",
+            "org.bouncycastle:bcprov-jdk15to18:1.84",
             "com.google.crypto.tink:tink-android:1.23.0",
         ).forEach { value ->
             assertTrue("Envelope 规范缺少 $value", envelope.contains(value))
