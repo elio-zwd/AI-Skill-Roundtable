@@ -1,6 +1,6 @@
-# PR09-13A 前置修复：Room v12 测试基线修复后本地严格只读验收 Prompt
+# Draft PR #52 第三轮本地严格只读验收 Prompt
 
-你现在负责对 GitHub 仓库 `elio-zwd/AI-Skill-Roundtable` 中 Draft PR #52 做第二轮严格只读验收。
+你现在负责对 GitHub 仓库 `elio-zwd/AI-Skill-Roundtable` 的 Draft PR #52 做第三轮严格只读验收。
 
 仓库：
 
@@ -8,7 +8,7 @@
 https://github.com/elio-zwd/AI-Skill-Roundtable
 ```
 
-Draft PR：
+PR：
 
 ```text
 https://github.com/elio-zwd/AI-Skill-Roundtable/pull/52
@@ -20,145 +20,81 @@ https://github.com/elio-zwd/AI-Skill-Roundtable/pull/52
 fix/pr-09-13a-room-v12-test-baseline
 ```
 
-本 PR 的唯一目标是：
+本轮只验证 Room v12 / Skill v2 历史测试基线和外部进程恢复测试编排，不实现 PR09-13A，不允许修改任何文件。
 
-> 同步 PR09-12 Room v12 与 PR09-05C 默认 Skill v2 发布后遗留的历史 Android Instrumentation 测试契约，使最新 `main` 的全量设备测试恢复为可验证绿色基线。
+## 一、严格只读纪律
 
-本 PR 不是 PR09-13A，不允许实现备份、快照、加密导出、KDF、AEAD、导入或恢复替换。
-
-## 一、首轮验收事实
-
-首轮本地验收锁定旧 Head：
+只允许：
 
 ```text
-a70308d6eb91ced7e3d60a666d51e5b955ed66a8
-```
-
-已真实通过：
-
-- `ExecutionRuntimeMigrationTest`：2/2；
-- `ResourceLifecycleMigrationTest`：3/3；
-- 10 个 Room v12 与生命周期重点类：36/36；
-- JVM、Lint、Debug、Release、AndroidTest APK；
-- GitHub CI。
-
-首轮全量 `connectedDebugAndroidTest` 包含 195 项，运行到 152 项后卡挂；已完成部分为 147 PASS、5 Failure。失败为：
-
-1. `RoomJianyuRepositoryDatabaseTest#lifecycleAndPurgeRequestNeverDeleteIssueOrStopRun`；
-2. `RoomJianyuRepositoryExternalProcessRecoveryTest#step1SeedRecoveryStateBeforeExternalForceStop`；
-3. `RoomJianyuRepositoryExternalProcessRecoveryTest#step2VerifyRecoveryStateAfterExternalForceStopAndAppRestart`；
-4. `RoomJianyuRepositoryIdempotencyTest#saveIssueRetryRemainsIdempotentAfterMessageAndLifecycleChanges`；
-5. `OfficialCatalogExecutionSkillResolverIntegrationTest#realResolverRejectsDuplicateUnknownAndNonExecutableSkills`。
-
-远端根因复核已确认：
-
-- 以上不是 5 个生产缺陷；
-- 实际为 4 个独立历史测试合同滞后；
-- External Process step2 是 step1 失败后的级联结果；
-- 生产 v12 正确拒绝旧 `archiveIssue()` / `requestIssuePurge()` 快捷入口；
-- 活动 Run/Pending Message 正确阻止 Archive/Trash；
-- 默认 Skill v2 正确将固定 44 项全部发布为可执行。
-
-本轮必须验证第二轮修复是否精确、是否没有掩盖生产缺陷，以及全量 195 项或当前实际套件是否完整执行为 0 Failure。
-
-## 二、绝对只读纪律
-
-全过程只允许：
-
-```text
-拉取
-检出
+fetch / checkout / pull --ff-only
 读取
 构建
 测试
-安装测试 APK
-执行受控 force-stop
-收集日志与 JUnit XML
-生成验收报告
+安装 APK
+受控 adb force-stop / start / am instrument
+读取日志与 JUnit XML
+输出报告
 ```
 
 禁止：
 
 ```text
-修改任何仓库文件
-自动格式化
-自动修复
-提交
-推送
-变基
-合并
-关闭 PR
-标记 Ready
-启用自动合并
-删除分支
-强制更新分支
-降低断言
-删除测试
+修改文件
+格式化或自动修复
+提交、推送、变基、合并
+修改 PR 状态
+删除测试或降低断言
 使用 @Ignore
-修改生产代码
-修改测试夹具
-重新生成并保留 Schema 差异
-adb uninstall
-adb shell pm clear
-清空模拟器用户数据
-调用生产网络
-使用真实 API Key
+修改生产代码、Schema、Migration、Gradle、Manifest、CI
+两阶段之间重新安装 APK或清除数据
 ```
 
-发现问题时只报告，不修改。任何失败必须保存测试类、方法、首个失败日志、复现命令、退出码、第一根因和 JUnit XML。
+## 二、精确 Head 锁
 
-## 三、精确 Head 锁
-
-打开 PR #52 描述，复制：
+先从 PR #52 描述读取：
 
 ```text
-最终验收锁定 Head：<40 位 SHA>
+最终验收锁定 Head：<SHA>
 ```
 
 执行：
 
 ```powershell
-$expectedHead = "<从 PR #52 描述复制>"
+$expectedHead = "<从 PR 描述复制>"
 
 git fetch origin --prune
 git checkout fix/pr-09-13a-room-v12-test-baseline
 git pull --ff-only origin fix/pr-09-13a-room-v12-test-baseline
 
-git status --short
-git branch --show-current
-git rev-parse HEAD
-git rev-parse origin/fix/pr-09-13a-room-v12-test-baseline
-git rev-parse origin/main
-git merge-base HEAD origin/main
-git log -20 --oneline --decorate
-
-$actualHead = (git rev-parse HEAD).Trim()
+$localHead = (git rev-parse HEAD).Trim()
 $remoteHead = (git rev-parse origin/fix/pr-09-13a-room-v12-test-baseline).Trim()
-if ($actualHead -ne $expectedHead) {
-    throw "HEAD mismatch: expected=$expectedHead actual=$actualHead"
-}
-if ($remoteHead -ne $expectedHead) {
-    throw "Remote mismatch: expected=$expectedHead remote=$remoteHead"
-}
-if ((git status --short).Length -ne 0) {
-    throw "Working tree must be clean"
-}
+$base = (git merge-base HEAD origin/main).Trim()
+
+git status --short
+git diff --exit-code
+git diff --cached --exit-code
+
+if ($localHead -ne $expectedHead) { throw "HEAD mismatch" }
+if ($remoteHead -ne $expectedHead) { throw "Remote HEAD mismatch" }
 ```
 
-要求：
+必须记录：
 
-- PR 仍为 Draft；
-- Base/merge-base 为 `main@4db7843a84911d7ad871a8aad5dd698a34b70b10`，或 PR 描述中明确记录的后续更新基线；
-- Local、Remote、PR 描述三权一致；
-- 未启动 `security/pr-09-13a-backup-design`。
+- PR 状态仍为 Draft；
+- Local Head；
+- Remote Head；
+- PR 描述锁定 Head；
+- Merge-base；
+- 三权是否一致。
 
-任一不满足：
+不一致则停止，结论为：
 
 ```text
 BLOCKED_HEAD_NOT_LOCKED
 ```
 
-## 四、环境和设备记录
+## 三、环境记录
 
 ```powershell
 Get-CimInstance Win32_OperatingSystem |
@@ -173,31 +109,42 @@ adb devices -l
 Get-Date -Format "yyyy-MM-dd HH:mm:ss K"
 ```
 
-显式指定设备：
+设置实际设备：
 
 ```powershell
-$device = "emulator-5554" # 若实际设备不同，填写真实序列号
+$device = "emulator-5554"
+adb -s $device shell getprop ro.product.model
 adb -s $device shell getprop ro.build.version.sdk
 adb -s $device shell getprop ro.build.version.release
-adb -s $device shell getprop ro.product.model
 adb -s $device shell wm size
 adb -s $device shell wm density
 adb -s $device shell settings get system font_scale
 ```
 
-记录 Windows、PowerShell、Git、JDK、Gradle、Kotlin、ADB、设备、API、Android、分辨率、密度、字号和验收起止时间。
+## 四、差异范围
 
-## 五、差异范围
+Base：
+
+```text
+4db7843a84911d7ad871a8aad5dd698a34b70b10
+```
 
 执行：
 
 ```powershell
-git diff --name-status 4db7843a84911d7ad871a8aad5dd698a34b70b10...HEAD
-git diff --stat 4db7843a84911d7ad871a8aad5dd698a34b70b10...HEAD
-git diff --check 4db7843a84911d7ad871a8aad5dd698a34b70b10...HEAD
+$baseSha = "4db7843a84911d7ad871a8aad5dd698a34b70b10"
+git diff --name-status "$baseSha...HEAD"
+git diff --stat "$baseSha...HEAD"
+git diff --check "$baseSha...HEAD"
+
+git diff --exit-code "$baseSha...HEAD" -- app/src/main
+git diff --exit-code "$baseSha...HEAD" -- app/src/test
+git diff --exit-code "$baseSha...HEAD" -- app/src/main/assets
+git diff --exit-code "$baseSha...HEAD" -- app/schemas
+git diff --exit-code "$baseSha...HEAD" -- .github
 ```
 
-允许的测试文件仅为：
+允许差异只能包含 6 个 AndroidTest 文件和 2 份文档：
 
 ```text
 app/src/androidTest/java/com/elio/jianyu/data/ExecutionRuntimeMigrationTest.kt
@@ -206,124 +153,45 @@ app/src/androidTest/java/com/elio/jianyu/data/RoomJianyuRepositoryDatabaseTest.k
 app/src/androidTest/java/com/elio/jianyu/data/RoomJianyuRepositoryExternalProcessRecoveryTest.kt
 app/src/androidTest/java/com/elio/jianyu/data/RoomJianyuRepositoryIdempotencyTest.kt
 app/src/androidTest/java/com/elio/jianyu/execution/OfficialCatalogExecutionSkillResolverIntegrationTest.kt
-```
-
-允许的文档仅为：
-
-```text
 docs/planning/pr-09-13a-room-v12-test-baseline-plan.md
 docs/testing/pr-09-13a-room-v12-test-baseline-local-readonly-acceptance-prompt.md
 ```
 
-生产路径必须无差异：
+出现生产路径差异立即判定 `FAIL_SCOPE_VIOLATION`。
 
-```powershell
-git diff --exit-code 4db7843a84911d7ad871a8aad5dd698a34b70b10...HEAD -- app/src/main
-git diff --exit-code 4db7843a84911d7ad871a8aad5dd698a34b70b10...HEAD -- app/schemas
-git diff --exit-code 4db7843a84911d7ad871a8aad5dd698a34b70b10...HEAD -- app/src/test
-git diff --exit-code 4db7843a84911d7ad871a8aad5dd698a34b70b10...HEAD -- app/src/main/assets
-git diff --exit-code 4db7843a84911d7ad871a8aad5dd698a34b70b10...HEAD -- .github
-```
+## 五、静态核对第三轮修复
 
-必须确认没有修改：
+检查 `RoomJianyuRepositoryExternalProcessRecoveryTest`：
 
-- `RoundtableDatabase.kt`；
-- 任何 Entity、DAO、Migration；
-- `12.json` 或历史 Schema；
-- 生产 Repository、Lifecycle、Skill Catalog、Resolver、Manifest、资产或 UI；
-- Gradle、Manifest、CI；
-- destructive migration；
-- `@Ignore`、删除测试、宽松版本断言或动态版本终点。
-
-## 六、逐项静态合同检查
-
-### 6.1 迁移注册序列
-
-确认：
-
-- 两个方法名精确同步到 `Version1ToVersion12`；
-- 预期列表精确包含 `1→2` 至 `11→12`；
-- 没有改动 v6→v7、v7→v8 等历史数据断言；
-- `StageAdvancementMigrationTest` 仍有意以 v11 为终点。
-
-### 6.2 Repository 生命周期
-
-确认 `RoomJianyuRepositoryDatabaseTest`：
-
-- 不再把旧 `archiveIssue()`、旧 `requestIssuePurge()` 强转为 Success；
-- 精确断言：
-  - `archive_event_required`；
-  - `trash_active_work`；
-  - `purge_operation_required`；
-- 继续断言 Issue 存在、Run 仍 `RUNNING`、Lifecycle 为 `ACTIVE`、`purgeRequestedAt == null`。
-
-### 6.3 外部进程恢复
-
-确认：
-
-- 种子不再伪造“活动任务 + ARCHIVED”非法状态；
-- step1 与 step2 精确期待 `ACTIVE`；
-- Run、Pending Message、Draft 和外键断言保留。
-
-### 6.4 保存议题幂等
-
-确认：
-
-- Run 经过 `NOT_STARTED→RUNNING→SUCCEEDED`；
-- 归档使用 `RoomIssueLifecycleV12Repository.archiveIssueWithEvent()`；
-- Archive 快照精确为 1 Stage、1 Run、0 Draft/Artifact/Audio；
-- 保存议题重试继续断言幂等、Lifecycle 为 `ARCHIVED`、兼容 Session 保留。
-
-### 6.5 Skill v2/v1
-
-确认：
-
-- duplicate 与 unknown 仍使用默认 v2 Runtime；
-- non-executable 显式加载 `V1_EXECUTION_PUBLICATION_ASSET_PATH`；
-- `zhang_xuefeng` 只在历史 v1 Resolver 中期待 `skill_not_executable`；
-- 未修改默认 v2 44 项全部可执行合同。
-
-## 七、证据目录与低 Token 工具
-
-优先使用：
+1. 存在显式参数：
 
 ```text
-tools/local-verification/Invoke-LocalVerification.ps1
+jianyuExternalProcessRecovery=true
 ```
 
-证据保存到仓库外：
+2. 未传参数时使用 JUnit Assume 跳过，不是 `@Ignore`；
+3. step1 / step2 方法和全部恢复断言仍保留；
+4. step2 先检查 Issue 与 Lifecycle 是否存在；
+5. Repository Failure 会输出具体 `RepositoryError`；
+6. 未修改任何生产文件。
 
-```powershell
-$EvidenceRoot = Join-Path $env:TEMP (
-  "jianyu-pr52-retest-" + (Get-Date -Format "yyyyMMdd-HHmmss")
-)
-New-Item -ItemType Directory -Path $EvidenceRoot -Force | Out-Null
-```
+## 六、基础构建
 
-每个命令记录：
-
-- 完整命令；
-- 开始/结束时间；
-- 退出码；
-- 测试总数、失败、错误、跳过；
-- 原始日志；
-- JUnit XML。
-
-## 八、构建与 JVM
+依次执行并记录退出码：
 
 ```powershell
 .\gradlew.bat --stop
-.\gradlew.bat :app:compileDebugKotlin --stacktrace
-.\gradlew.bat :app:testDebugUnitTest --stacktrace
-.\gradlew.bat :app:lintDebug --stacktrace
-.\gradlew.bat :app:assembleDebug --stacktrace
-.\gradlew.bat :app:assembleRelease --stacktrace
-.\gradlew.bat :app:assembleDebugAndroidTest --stacktrace
+.\gradlew.bat --no-daemon :app:compileDebugKotlin --stacktrace
+.\gradlew.bat --no-daemon :app:testDebugUnitTest --stacktrace
+.\gradlew.bat --no-daemon :app:lintDebug --stacktrace
+.\gradlew.bat --no-daemon :app:assembleDebug --stacktrace
+.\gradlew.bat --no-daemon :app:assembleRelease --stacktrace
+.\gradlew.bat --no-daemon :app:assembleDebugAndroidTest --stacktrace
 ```
 
-严格区分 JVM、Lint、Debug、Release/R8 和 AndroidTest APK 编译；`assembleDebugAndroidTest` 不等于设备测试通过。
+任一非 0 即 FAIL。
 
-## 九、六个修复类专项复验
+## 七、五个普通专项类
 
 分别运行：
 
@@ -337,251 +205,278 @@ $classes = @(
 )
 
 foreach ($class in $classes) {
-  .\gradlew.bat :app:connectedDebugAndroidTest `
+  .\gradlew.bat --no-daemon :app:connectedDebugAndroidTest `
     "-Pandroid.testInstrumentationRunnerArguments.class=$class" `
     --stacktrace
-  if ($LASTEXITCODE -ne 0) {
-    throw "Instrumentation failed: $class"
-  }
+  if ($LASTEXITCODE -ne 0) { throw "FAILED: $class" }
 }
 ```
 
-`RoomJianyuRepositoryExternalProcessRecoveryTest` 先整类执行一次：
+记录每类测试数、通过、失败、Error、Skipped、耗时与退出码。
+
+## 八、普通全量 Instrumentation
+
+先运行普通全量：
 
 ```powershell
-.\gradlew.bat :app:connectedDebugAndroidTest `
-  -Pandroid.testInstrumentationRunnerArguments.class=com.elio.jianyu.data.RoomJianyuRepositoryExternalProcessRecoveryTest `
-  --stacktrace
+.\gradlew.bat --no-daemon :app:connectedDebugAndroidTest --stacktrace
 ```
 
-必须记录每类实际测试数量和 JUnit XML。
+本轮必须确认：
 
-## 十、外部进程真实 force-stop 两阶段
+- 全量任务完整结束，不再停在 152/195；
+- `RoomJianyuRepositoryExternalProcessRecoveryTest` 两项以 Assume 跳过；
+- 跳过原因明确为未传 `jianyuExternalProcessRecovery=true`；
+- 除这两项外 0 Failure、0 Error；
+- Gradle Exit Code = 0；
+- JUnit XML 正常生成。
 
-先执行 step1：
+注意：
+
+- 这两项跳过不等于专项通过；
+- 专项必须在下一节通过直接 ADB Instrumentation 真实执行；
+- 如果全量仍卡挂，记录最后测试类/方法、logcat、线程或进程信息，结论 FAIL。
+
+## 九、外部进程恢复真实两阶段
+
+### 9.1 一次性安装
+
+使用前面构建出的 APK，一次性安装：
 
 ```powershell
-.\gradlew.bat :app:connectedDebugAndroidTest `
-  "-Pandroid.testInstrumentationRunnerArguments.class=com.elio.jianyu.data.RoomJianyuRepositoryExternalProcessRecoveryTest#step1SeedRecoveryStateBeforeExternalForceStop" `
-  --stacktrace
+$appApk = "app/build/outputs/apk/debug/app-debug.apk"
+$testApk = "app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
+
+adb -s $device install -r -t $appApk
+adb -s $device install -r -t $testApk
 ```
 
-再执行：
+确认 Instrumentation 组件：
+
+```powershell
+adb -s $device shell pm list instrumentation
+```
+
+预期组件通常为：
+
+```text
+com.elio.jianyu.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+以设备真实输出为准：
+
+```powershell
+$runner = "com.elio.jianyu.test/androidx.test.runner.AndroidJUnitRunner"
+```
+
+### 9.2 只在开始前清理一次
+
+```powershell
+adb -s $device shell am force-stop com.elio.jianyu
+adb -s $device shell pm clear com.elio.jianyu
+```
+
+从这里开始到 step2 完成前，严禁：
+
+```text
+再次安装 APK
+再次运行 connectedDebugAndroidTest
+pm clear
+adb uninstall
+清空模拟器数据
+```
+
+### 9.3 直接运行 step1
+
+```powershell
+adb -s $device shell am instrument -w -r `
+  -e jianyuExternalProcessRecovery true `
+  -e class "com.elio.jianyu.data.RoomJianyuRepositoryExternalProcessRecoveryTest#step1SeedRecoveryStateBeforeExternalForceStop" `
+  $runner
+```
+
+必须 PASS，并证明：
+
+- Issue ACTIVE；
+- Run RUNNING；
+- Pending Message 存在；
+- Draft 存在。
+
+### 9.4 真实重启目标 App
 
 ```powershell
 adb -s $device shell am force-stop com.elio.jianyu
 adb -s $device shell monkey -p com.elio.jianyu -c android.intent.category.LAUNCHER 1
+Start-Sleep -Seconds 3
 adb -s $device shell am force-stop com.elio.jianyu
 ```
 
-最后执行 step2：
+记录每条输出。
+
+### 9.5 直接运行 step2
 
 ```powershell
-.\gradlew.bat :app:connectedDebugAndroidTest `
-  "-Pandroid.testInstrumentationRunnerArguments.class=com.elio.jianyu.data.RoomJianyuRepositoryExternalProcessRecoveryTest#step2VerifyRecoveryStateAfterExternalForceStopAndAppRestart" `
+adb -s $device shell am instrument -w -r `
+  -e jianyuExternalProcessRecovery true `
+  -e class "com.elio.jianyu.data.RoomJianyuRepositoryExternalProcessRecoveryTest#step2VerifyRecoveryStateAfterExternalForceStopAndAppRestart" `
+  $runner
+```
+
+必须 PASS，并验证：
+
+- step1 写入的 Issue 和 Lifecycle 仍存在；
+- 两次 `recoverIssue()` 结果一致；
+- Stage = 1；
+- Run = 1 且状态 RUNNING；
+- Pending Message 保留；
+- Draft 保留；
+- Lifecycle = ACTIVE；
+- 成功 Participant 集合为空；
+- 可重试 Participant 集合正确；
+- `PRAGMA foreign_key_check = 0`。
+
+若失败，必须保存新的明确错误：
+
+- Issue/Lifecycle 不存在提示；或
+- `RepositoryResult.Failure(error=...)` 的具体错误。
+
+不得再只报告 `ClassCastException`。
+
+## 十、重点回归
+
+运行：
+
+```powershell
+.\gradlew.bat --no-daemon :app:connectedDebugAndroidTest `
+  "-Pandroid.testInstrumentationRunnerArguments.class=com.elio.jianyu.data.IssueLifecycleV12MigrationTest,com.elio.jianyu.data.IssueLifecycleV12RepositoryDatabaseTest,com.elio.jianyu.data.IssuePurgeDatabaseCleanerTest,com.elio.jianyu.data.RoomJianyuRepositoryProcessRecoveryTest,com.elio.jianyu.data.ArtifactSourceRecoveryDatabaseTest,com.elio.jianyu.data.StageAdvancementMigrationTest,com.elio.jianyu.data.StageAdvancementRepositoryDatabaseTest,com.elio.jianyu.data.AudioAssetRepositoryDatabaseTest,com.elio.jianyu.lifecycle.IssueArchiveCoordinatorDatabaseTest,com.elio.jianyu.ui.screens.issues.IssueLifecycleUiTest,com.elio.jianyu.skill.catalog.OfficialSkillExecutionManifestV2AndroidTest" `
   --stacktrace
 ```
 
-必须证明：
+记录类数、测试数、通过、失败、Error、Skipped、耗时、退出码。
 
-- step1 成功写入 ACTIVE Lifecycle、RUNNING Run、Pending Message、Draft；
-- force-stop 和 App 启动后数据未丢失；
-- step2 两次 Recovery 相等；
-- Lifecycle 保持 ACTIVE；
-- 外键检查为 0。
-
-普通整类运行不能代替本节两阶段证据。
-
-## 十一、Room v12 与 Skill 重点回归
-
-至少逐类运行：
+## 十一、JUnit XML
 
 ```powershell
-$regressionClasses = @(
-  "com.elio.jianyu.data.IssueLifecycleV12MigrationTest",
-  "com.elio.jianyu.data.IssueLifecycleV12RepositoryDatabaseTest",
-  "com.elio.jianyu.data.IssuePurgeDatabaseCleanerTest",
-  "com.elio.jianyu.data.RoomJianyuRepositoryProcessRecoveryTest",
-  "com.elio.jianyu.data.ArtifactSourceRecoveryDatabaseTest",
-  "com.elio.jianyu.data.StageAdvancementMigrationTest",
-  "com.elio.jianyu.data.StageAdvancementRepositoryDatabaseTest",
-  "com.elio.jianyu.data.AudioAssetRepositoryDatabaseTest",
-  "com.elio.jianyu.lifecycle.IssueArchiveCoordinatorDatabaseTest",
-  "com.elio.jianyu.ui.screens.issues.IssueLifecycleUiTest",
-  "com.elio.jianyu.skill.catalog.OfficialSkillExecutionManifestV2AndroidTest"
-)
+$xmlFiles = Get-ChildItem `
+  -Path app/build/outputs/androidTest-results `
+  -Recurse `
+  -Filter "*.xml"
 
-foreach ($class in $regressionClasses) {
-  .\gradlew.bat :app:connectedDebugAndroidTest `
-    "-Pandroid.testInstrumentationRunnerArguments.class=$class" `
-    --stacktrace
-  if ($LASTEXITCODE -ne 0) {
-    throw "Regression failed: $class"
+$xmlFiles | Select-Object FullName,Length,LastWriteTime
+```
+
+汇总所有最新 XML：
+
+```powershell
+$summary = foreach ($file in $xmlFiles) {
+  [xml]$xml = Get-Content $file.FullName
+  foreach ($suite in @($xml.testsuites.testsuite) + @($xml.testsuite)) {
+    if ($null -ne $suite) {
+      [pscustomobject]@{
+        File = $file.FullName
+        Suite = $suite.name
+        Tests = [int]$suite.tests
+        Failures = [int]$suite.failures
+        Errors = [int]$suite.errors
+        Skipped = [int]$suite.skipped
+        Time = $suite.time
+      }
+    }
   }
 }
+
+$summary | Format-Table -AutoSize
+$summary | Measure-Object Tests,Failures,Errors,Skipped -Sum
 ```
 
-重点证明：
+普通全量允许且只允许 External Process 两项 Assume Skipped；其他 Failure / Error 必须为 0。
 
-- v1～v12 连续 Migration；
-- v11→v12 数据、索引和外键；
-- Archive Event、Resume Event、Relation、Purge Operation；
-- 旧快捷入口不能绕过 v12；
-- 活动任务阻止 Archive/Trash；
-- 合法终态 Run 可以使用正式 Event 归档；
-- 默认 v2 44 项可执行；
-- 显式 v1 回滚仅四项可执行。
-
-## 十二、全量设备 Instrumentation
-
-在全部专项通过后执行：
-
-```powershell
-.\gradlew.bat :app:connectedDebugAndroidTest --stacktrace
-```
-
-要求：
-
-- 必须完整执行到 Gradle 退出；
-- 不接受只运行到 152 项后卡挂；
-- 若当前套件仍为 195 项，应记录 195/195；
-- 若测试数量变化，解释原因并以当前 Head 的 JUnit XML 为准；
-- 失败数、错误数必须为 0；
-- 保存所有 JUnit XML。
-
-汇总：
-
-```text
-总测试数
-通过数
-失败数
-错误数
-跳过数
-设备序列号
-API Level
-开始和结束时间
-JUnit XML 路径
-```
-
-任何失败必须逐项记录，不得只给总数。
-
-## 十三、静态门禁与 Secret Scan
+## 十二、身份、Secret 与终检
 
 ```powershell
 pwsh -NoProfile -File tools/check-app-identity.ps1
 
-git grep -n -I -E "AIza[0-9A-Za-z_-]+|sk-[0-9A-Za-z_-]+|api[_-]?key\s*=|Authorization:\s*Bearer|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY" -- `
-  app/src/main app/src/test app/src/androidTest docs
-```
+git.exe grep -n -I -E `
+  "AIza[0-9A-Za-z_-]+|sk-[0-9A-Za-z_-]+|api[_-]?key\s*=|Authorization:\s*Bearer|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY" `
+  -- app/src/main app/src/test app/src/androidTest docs
 
-执行仓库现有 Secret Scan 等价检查。确认无真实密钥、Token、密码、用户正文或绝对敏感路径。
-
-## 十四、GitHub CI
-
-读取最终锁定 Head 的：
-
-- Secret scan；
-- Android UI Test Compile；
-- Android CI。
-
-要求全部 `success`。必须明确 AndroidTest APK 编译和 GitHub JVM/构建不能替代设备 Instrumentation。
-
-## 十五、终检
-
-```powershell
+git diff --exit-code -- app/schemas
 git status --short
 git diff --exit-code
 git diff --cached --exit-code
 git rev-parse HEAD
 git rev-parse origin/fix/pr-09-13a-room-v12-test-baseline
-git diff --exit-code -- app/schemas
 ```
 
-要求：
+`git grep` 退出码 1 且无输出表示未发现匹配，不要误判。
 
-- 工作区干净；
-- Schema 无漂移；
-- Local、Remote、Expected Head 一致；
-- 验收期间无修改、Commit、Push、Ready、Merge。
+## 十三、GitHub CI
 
-## 十六、结论规则
-
-只能输出：
+检查精确 Head 对应：
 
 ```text
-PASS
-PASS_WITH_NOTES
-FAIL
-INSUFFICIENT_EVIDENCE
+Secret scan
+Android UI Test Compile
+Android CI
 ```
+
+记录 Run 编号、状态、结论和绑定 SHA。
+
+## 十四、判定标准
 
 ### PASS
 
-仅当同时满足：
+必须全部满足：
 
-- Head 三权锁定；
-- 差异只含 6 个 AndroidTest 和 2 份文档；
-- 生产代码、Schema、Migration、资产和 Manifest 无变化；
-- 六个修复类专项全部通过；
-- 外部 force-stop 两阶段通过；
-- 11 个重点回归类全部通过；
-- 全量设备测试完整执行且 0 Failure/0 Error；
+- Head 三权一致；
+- 差异范围正确；
+- 生产路径、Schema 无变化；
+- 五个普通专项类通过；
+- 普通全量完整结束；
+- 普通全量仅 External Process 两项 Assume Skipped；
+- 外部进程 step1 / step2 通过直接 ADB Instrumentation 真实执行；
+- 重点回归通过；
 - JVM、Lint、Debug、Release、AndroidTest APK 通过；
-- Secret Scan、身份门禁、Schema freshness 通过；
-- 同一 Head GitHub CI 全绿；
-- 工作区最终干净。
-
-### PASS_WITH_NOTES
-
-仅允许不影响 Room/Repository/Skill 基线的人工视觉、TalkBack 等非阻断备注。任何测试未完成、卡挂、失败、外键问题或 CI 未完成都不能使用。
+- CI 全绿；
+- 工作区 Clean。
 
 ### FAIL
 
-任一构建、测试、Lint、Secret Scan、Schema、外键、合法生产合同或 Head 锁失败。
+任一成立即 FAIL：
+
+- 普通测试 Failure / Error；
+- 全量再次卡挂；
+- External Process 真实专项失败；
+- 两阶段之间数据消失；
+- `RepositoryResult.Failure`；
+- 外键失败；
+- 生产路径或 Schema 漂移；
+- CI 失败。
 
 ### INSUFFICIENT_EVIDENCE
 
-缺少设备、force-stop、全量 Instrumentation、JUnit XML、关键构建或同一 Head CI，且没有已知失败。
+适用于设备不可用、全量未完成、XML 缺失、专项未真实执行或 Head 无法锁定。
 
-## 十七、失败格式
+## 十五、最终报告结构
 
-```text
-测试类：
-测试方法：
-命令：
-退出码：
-第一条失败日志：
-预期值：
-实际值：
-第一根因：
-是否由本 PR 引入：
-是否为历史测试合同滞后：
-是否涉及生产行为：
-是否涉及数据丢失、Schema mismatch 或 foreign_key_check：
-建议后续：
+```markdown
+# Draft PR #52 第三轮严格只读验收报告
+
+## 一、最终结论
+## 二、精确 Head 与 PR 状态
+## 三、环境与设备
+## 四、差异范围
+## 五、基础构建与 JVM
+## 六、五个普通专项类
+## 七、普通全量 Instrumentation
+## 八、External Process 直接 ADB 两阶段
+## 九、重点回归
+## 十、JUnit XML
+## 十一、身份与 Secret Scan
+## 十二、GitHub CI
+## 十三、工作区终检
+## 十四、失败项或未验证项
+## 十五、风险与建议
 ```
 
-只读验收 AI 不得自行修复。
-
-## 十八、最终报告必须包含
-
-1. 最终结论；
-2. 仓库、PR、Base、Branch、Expected/Actual/Remote Head；
-3. 环境和设备；
-4. 差异文件；
-5. 生产路径未变化证据；
-6. 首轮 5 项 Failure 的修复后结果；
-7. 六个修复类专项数量；
-8. 外部 force-stop 两阶段；
-9. 重点回归结果；
-10. 全量设备测试完整数量和 JUnit XML；
-11. JVM、Lint、Debug、Release、AndroidTest APK；
-12. Secret Scan 和身份门禁；
-13. GitHub CI；
-14. 工作区最终状态；
-15. 尚未验证项；
-16. 风险和回归区域；
-17. 是否允许建议 Ready；
-18. PR09-13A 是否满足启动门禁。
-
-即使最终 PASS，也不得自行标记 Ready、合并、删除分支或启动 PR09-13A；只把报告反馈给远端开发对话。
+即使 PASS，本地 AI 只能建议 Ready，不得修改 PR、合并或启动 PR09-13A。
