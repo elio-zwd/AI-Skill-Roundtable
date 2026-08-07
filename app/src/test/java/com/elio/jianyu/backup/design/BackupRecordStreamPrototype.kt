@@ -27,6 +27,7 @@ internal object BackupRecordStreamPrototype {
         var nextSequence = 0L
         var manifestCbor: ByteArray? = null
         var completeSeen = false
+        var totalPlaintextBytesBeforeComplete: Long? = null
         val activeBlobs = linkedMapOf<String, BlobState>()
 
         while (offset < recordStream.size) {
@@ -199,6 +200,7 @@ internal object BackupRecordStreamPrototype {
                     ) {
                         throw BackupDesignException(BackupDesignErrorCode.VERIFICATION_FAILED)
                     }
+                    totalPlaintextBytesBeforeComplete = transcript.size.toLong()
                     completeSeen = true
                     if (offset != recordStream.size) {
                         throw BackupDesignException(BackupDesignErrorCode.TRAILING_DATA)
@@ -214,7 +216,8 @@ internal object BackupRecordStreamPrototype {
             recordCountBeforeComplete = recordCount,
             entityCount = entityCount,
             blobCount = blobCount,
-            totalPlaintextBytesBeforeComplete = recordStream.size.toLong(),
+            totalPlaintextBytesBeforeComplete = totalPlaintextBytesBeforeComplete
+                ?: throw BackupDesignException(BackupDesignErrorCode.VERIFICATION_FAILED),
         )
     }
 
