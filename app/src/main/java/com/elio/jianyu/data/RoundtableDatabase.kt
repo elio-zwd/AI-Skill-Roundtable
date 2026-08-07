@@ -187,19 +187,52 @@ abstract class RoundtableDatabase : RoomDatabase() {
         )
 
         fun getDatabase(context: Context, scope: CoroutineScope): RoundtableDatabase {
-            return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,
-                    RoundtableDatabase::class.java,
-                    "roundtable_database",
-                )
-                    .addMigrations(*ALL_MIGRATIONS)
-                    .addCallback(DatabaseCallback(scope, context.applicationContext))
-                    .build()
-                INSTANCE = instance
-                instance
+            val current = INSTANCE
+            if (current != null && !current.isExplicitlyClosed) {
+                return current
+            }
+            return synchronized(this) {
+                val synchronizedCurrent = INSTANCE
+                if (synchronizedCurrent != null && !synchronizedCurrent.isExplicitlyClosed) {
+                    synchronizedCurrent
+                } else {
+                    if (synchronizedCurrent?.isExplicitlyClosed == true) {
+                        INSTANCE = null
+                    }
+                    buildDatabase(context, scope).also { instance ->
+                        INSTANCE = instance
+                    }
+                }
             }
         }
+
+        /**
+         * 仅允许生命周期所有者关闭它持有的当前单例。
+         *
+         * 先在同一 companion 锁内摘除 [INSTANCE]，再关闭旧实例；并发 `getDatabase` 会等待关闭
+         * 完成后创建新实例，不能拿到半关闭对象。
+         */
+        internal fun closeAndClear(expected: RoundtableDatabase) {
+            synchronized(this) {
+                check(INSTANCE === expected) {
+                    "只能关闭当前 RoundtableDatabase 单例"
+                }
+                INSTANCE = null
+                expected.close()
+            }
+        }
+
+        private fun buildDatabase(
+            context: Context,
+            scope: CoroutineScope,
+        ): RoundtableDatabase = Room.databaseBuilder(
+            context.applicationContext,
+            RoundtableDatabase::class.java,
+            "roundtable_database",
+        )
+            .addMigrations(*ALL_MIGRATIONS)
+            .addCallback(DatabaseCallback(scope, context.applicationContext))
+            .build()
     }
 
     private class DatabaseCallback(
