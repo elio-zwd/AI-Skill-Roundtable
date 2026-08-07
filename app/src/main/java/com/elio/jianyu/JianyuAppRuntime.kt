@@ -194,15 +194,11 @@ object JianyuAppRuntimeProvider {
                 }
             } else {
                 withContext(NonCancellable) {
-                    runCatching {
-                        if (ready.runtime.database.isOpen) {
-                            ready.runtime.database.close()
-                        }
-                    }
+                    closeDatabaseBestEffort(ready.runtime.database)
                 }
             }
 
-            val reopenedRuntimeResult = withContext(NonCancellable) {
+            val reopenedRuntimeResult = withContext(NonCancellable + Dispatchers.IO) {
                 runCatching {
                     create(
                         context = applicationContext,
@@ -228,13 +224,30 @@ object JianyuAppRuntimeProvider {
             }
 
             var afterReopenFailure: Throwable? = null
-            withContext(NonCancellable) {
+            withContext(NonCancellable + Dispatchers.IO) {
                 try {
                     afterReopen(reopenedRuntime)
                 } catch (error: Throwable) {
                     afterReopenFailure = error
                 }
             }
+            if (afterReopenFailure != null) {
+                withContext(NonCancellable + Dispatchers.IO) {
+                    closeDatabaseBestEffort(reopenedRuntime.database)
+                }
+                publishUnavailable(
+                    generation = targetGeneration,
+                    stage = DatabaseMaintenanceStage.AFTER_REOPEN,
+                )
+                cancellation?.let { throw it }
+                return DatabaseMaintenanceOutcome.Failure(
+                    stage = DatabaseMaintenanceStage.AFTER_REOPEN,
+                    cause = requireNotNull(afterReopenFailure),
+                    reopened = false,
+                    generation = targetGeneration,
+                )
+            }
+
             publishReady(
                 runtime = reopenedRuntime,
                 newGeneration = targetGeneration,
@@ -257,14 +270,6 @@ object JianyuAppRuntimeProvider {
                     generation = targetGeneration,
                 )
             }
-            afterReopenFailure?.let { error ->
-                return DatabaseMaintenanceOutcome.Failure(
-                    stage = DatabaseMaintenanceStage.AFTER_REOPEN,
-                    cause = error,
-                    reopened = true,
-                    generation = targetGeneration,
-                )
-            }
 
             @Suppress("UNCHECKED_CAST")
             return DatabaseMaintenanceOutcome.Success(
@@ -276,19 +281,39 @@ object JianyuAppRuntimeProvider {
         }
     }
 
-    /** Unavailable 只允许显式重试；重试不会复用旧 Runtime。 */
-    fun retryOpen(context: Context): Boolean = synchronized(stateMonitor) {
-        val unavailable = _state.value as? JianyuRuntimeState.Unavailable
-            ?: return@synchronized _state.value is JianyuRuntimeState.Ready
-        return@synchronized try {
-            val reopened = create(
-                context = context.applicationContext,
-                recoverPendingOperations = false,
+    /**
+     * Unavailable 只允许显式重试。候选 Runtime 通过最小查询和外键检查后才重新发布。
+     */
+    suspend fun retryOpen(context: Context): Boolean {
+        maintenanceMutex.lock()
+        try {
+            val unavailable = synchronized(stateMonitor) {
+                _state.value as? JianyuRuntimeState.Unavailable
+            } ?: return _state.value is JianyuRuntimeState.Ready
+
+            val reopenedRuntimeResult = withContext(NonCancellable + Dispatchers.IO) {
+                runCatching {
+                    create(
+                        context = context.applicationContext,
+                        recoverPendingOperations = false,
+                    ).also(::validateRuntimeHealth)
+                }
+            }
+            val reopenedRuntime = reopenedRuntimeResult.getOrNull()
+            if (reopenedRuntime == null) {
+                publishUnavailable(
+                    generation = unavailable.generation,
+                    stage = DatabaseMaintenanceStage.REOPEN,
+                )
+                return false
+            }
+            publishReady(
+                runtime = reopenedRuntime,
+                newGeneration = unavailable.generation,
             )
-            publishReadyLocked(reopened, unavailable.generation)
-            true
-        } catch (_: Throwable) {
-            false
+            return true
+        } finally {
+            maintenanceMutex.unlock()
         }
     }
 
@@ -307,7 +332,7 @@ object JianyuAppRuntimeProvider {
             }
             if (currentReady != null) {
                 leaseRegistry.awaitReleased(currentReady.generation)
-                runCatching { RoundtableDatabase.closeAndClear(currentReady.runtime.database) }
+                closeDatabaseBestEffort(currentReady.runtime.database)
             }
             synchronized(stateMonitor) {
                 runtime = null
@@ -400,6 +425,27 @@ object JianyuAppRuntimeProvider {
         }
     }
 
+    private fun validateRuntimeHealth(candidate: JianyuAppRuntime) {
+        candidate.database.openHelper.writableDatabase
+            .query("SELECT 1")
+            .use { cursor -> check(cursor.moveToFirst()) { "database_minimal_query_failed" } }
+        candidate.database.openHelper.writableDatabase
+            .query("PRAGMA foreign_key_check")
+            .use { cursor -> check(cursor.count == 0) { "database_foreign_key_check_failed" } }
+    }
+
+    private fun closeDatabaseBestEffort(database: RoundtableDatabase) {
+        runCatching {
+            RoundtableDatabase.closeAndClear(database)
+        }.onFailure {
+            runCatching {
+                if (database.isOpen) {
+                    database.close()
+                }
+            }
+        }
+    }
+
     private fun create(
         context: Context,
         recoverPendingOperations: Boolean,
@@ -409,65 +455,70 @@ object JianyuAppRuntimeProvider {
             context = context,
             scope = databaseScope,
         )
-        val repository = when (catalogRuntimeResult) {
-            is OfficialSkillCatalogRuntimeResult.Success -> RoomJianyuRepository(
-                database = database,
-                officialSkillIdValidator = catalogRuntimeResult.runtime.validator,
-            )
-            is OfficialSkillCatalogRuntimeResult.Failure -> RoomJianyuRepository(
-                database = database,
-            )
-        }
-        var collaborationCoordinator: IssueCollaborationCoordinator? = null
-        val executionCoordinator = when (catalogRuntimeResult) {
-            is OfficialSkillCatalogRuntimeResult.Success -> {
-                val skillResolver = OfficialCatalogExecutionSkillResolver(
-                    context = context,
-                    catalog = catalogRuntimeResult.runtime.catalog,
-                    executionEligibility = catalogRuntimeResult.runtime.executionEligibility,
+        try {
+            val repository = when (catalogRuntimeResult) {
+                is OfficialSkillCatalogRuntimeResult.Success -> RoomJianyuRepository(
+                    database = database,
+                    officialSkillIdValidator = catalogRuntimeResult.runtime.validator,
                 )
-                ExecutionRunCoordinator(
-                    persistence = JianyuExecutionPersistenceGateway(repository),
-                    skillResolver = skillResolver,
-                    networkGateway = InteractionExecutionNetworkGateway(context),
-                    contextBuilder = ExecutionContextBuilder(),
-                ).also { coordinator ->
-                    collaborationCoordinator = IssueCollaborationCoordinator(
-                        repository = repository,
-                        executionCoordinator = coordinator,
-                        integratorResolver = skillResolver,
-                        eligibility = OfficialCollaborationSkillEligibility(
-                            catalog = catalogRuntimeResult.runtime.catalog,
-                            executionEligibility = catalogRuntimeResult.runtime.executionEligibility,
-                        ),
+                is OfficialSkillCatalogRuntimeResult.Failure -> RoomJianyuRepository(
+                    database = database,
+                )
+            }
+            var collaborationCoordinator: IssueCollaborationCoordinator? = null
+            val executionCoordinator = when (catalogRuntimeResult) {
+                is OfficialSkillCatalogRuntimeResult.Success -> {
+                    val skillResolver = OfficialCatalogExecutionSkillResolver(
+                        context = context,
+                        catalog = catalogRuntimeResult.runtime.catalog,
+                        executionEligibility = catalogRuntimeResult.runtime.executionEligibility,
                     )
+                    ExecutionRunCoordinator(
+                        persistence = JianyuExecutionPersistenceGateway(repository),
+                        skillResolver = skillResolver,
+                        networkGateway = InteractionExecutionNetworkGateway(context),
+                        contextBuilder = ExecutionContextBuilder(),
+                    ).also { coordinator ->
+                        collaborationCoordinator = IssueCollaborationCoordinator(
+                            repository = repository,
+                            executionCoordinator = coordinator,
+                            integratorResolver = skillResolver,
+                            eligibility = OfficialCollaborationSkillEligibility(
+                                catalog = catalogRuntimeResult.runtime.catalog,
+                                executionEligibility = catalogRuntimeResult.runtime.executionEligibility,
+                            ),
+                        )
+                    }
+                }
+                is OfficialSkillCatalogRuntimeResult.Failure -> null
+            }
+            val audioRuntime = createJianyuAudioRuntime(context, database)
+            val lifecycleRuntime = createJianyuLifecycleRuntime(
+                context = context,
+                database = database,
+                repository = repository,
+                audioRuntime = audioRuntime,
+                executionCoordinator = executionCoordinator,
+                collaborationCoordinator = collaborationCoordinator,
+            )
+            if (recoverPendingOperations) {
+                databaseScope.launch {
+                    lifecycleRuntime.purgeCoordinator.recoverPendingOperations()
                 }
             }
-            is OfficialSkillCatalogRuntimeResult.Failure -> null
+            return JianyuAppRuntime(
+                repository = repository,
+                officialSkillCatalogRuntimeResult = catalogRuntimeResult,
+                executionCoordinator = executionCoordinator,
+                collaborationCoordinator = collaborationCoordinator,
+                stageResultService = StageResultService(repository),
+                audioRuntime = audioRuntime,
+                lifecycleRuntime = lifecycleRuntime,
+                database = database,
+            )
+        } catch (error: Throwable) {
+            closeDatabaseBestEffort(database)
+            throw error
         }
-        val audioRuntime = createJianyuAudioRuntime(context, database)
-        val lifecycleRuntime = createJianyuLifecycleRuntime(
-            context = context,
-            database = database,
-            repository = repository,
-            audioRuntime = audioRuntime,
-            executionCoordinator = executionCoordinator,
-            collaborationCoordinator = collaborationCoordinator,
-        )
-        if (recoverPendingOperations) {
-            databaseScope.launch {
-                lifecycleRuntime.purgeCoordinator.recoverPendingOperations()
-            }
-        }
-        return JianyuAppRuntime(
-            repository = repository,
-            officialSkillCatalogRuntimeResult = catalogRuntimeResult,
-            executionCoordinator = executionCoordinator,
-            collaborationCoordinator = collaborationCoordinator,
-            stageResultService = StageResultService(repository),
-            audioRuntime = audioRuntime,
-            lifecycleRuntime = lifecycleRuntime,
-            database = database,
-        )
     }
 }
