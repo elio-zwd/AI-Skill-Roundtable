@@ -1,9 +1,9 @@
 package com.elio.jianyu.backup.design
 
 /**
- * PR09-13A design prototype for the explicit backup whitelist.
+ * PR09-13A 备份数据白名单设计原型。
  *
- * Not a production API and not used by the app runtime.
+ * 不是生产 API，也不会被应用运行时调用。
  */
 internal enum class PrototypeBackupObjectType {
     ISSUE,
@@ -138,10 +138,11 @@ internal object BackupDataScopePrototype {
         if (rawLocator.indexOf('\u0000') >= 0) {
             throw BackupDesignException(BackupDesignErrorCode.PATH_INVALID)
         }
-        return when (scheme?.lowercase()) {
+        val normalizedScheme = scheme?.lowercase()
+        return when (normalizedScheme) {
             "http", "https" -> PrototypePortableLocator.PublicUrl(rawLocator)
             "content", "file" -> PrototypePortableLocator.UnavailableAfterImport(
-                sourceType = scheme.lowercase(),
+                sourceType = normalizedScheme,
             )
             else -> {
                 if (rawLocator.startsWith('/') || rawLocator.startsWith('\\') ||
@@ -150,7 +151,7 @@ internal object BackupDataScopePrototype {
                     throw BackupDesignException(BackupDesignErrorCode.PATH_INVALID)
                 }
                 PrototypePortableLocator.UnavailableAfterImport(
-                    sourceType = scheme?.lowercase() ?: "unknown",
+                    sourceType = normalizedScheme ?: "unknown",
                 )
             }
         }
