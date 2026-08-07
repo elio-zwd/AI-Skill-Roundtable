@@ -5,6 +5,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.elio.jianyu.data.RepositoryError
 import com.elio.jianyu.data.RepositoryResult
+import com.elio.jianyu.data.RoundtableDatabase
 import com.elio.jianyu.data.SaveIssueCommand
 import com.elio.jianyu.runtime.DatabaseMaintenanceOutcome
 import com.elio.jianyu.runtime.DatabaseMaintenanceStage
@@ -180,21 +181,27 @@ class JianyuRuntimeLifecycleDatabaseTest {
     }
 
     @Test
-    fun afterReopenVerificationFailureStaysUnavailableUntilValidatedRetry() = runBlocking {
+    fun afterReopenVerificationFailureClosesCandidateUntilValidatedRetry() = runBlocking {
         val initial = JianyuAppRuntimeProvider.observe(context).value as JianyuRuntimeState.Ready
+        var rejectedDatabase: RoundtableDatabase? = null
 
         val outcome = withContext(Dispatchers.IO) {
             JianyuAppRuntimeProvider.withDatabaseClosed(
                 context = context,
                 beforeClose = {},
                 whileClosed = { Unit },
-                afterReopen = { throw IllegalStateException("verification-failed") },
+                afterReopen = {
+                    rejectedDatabase = it.database
+                    throw IllegalStateException("verification-failed")
+                },
             )
         }
 
         val failure = outcome as DatabaseMaintenanceOutcome.Failure
         assertEquals(DatabaseMaintenanceStage.AFTER_REOPEN, failure.stage)
         assertFalse(failure.reopened)
+        val rejected = requireNotNull(rejectedDatabase)
+        assertFalse(rejected.isOpen)
         val unavailable = JianyuAppRuntimeProvider.observe(context).value as JianyuRuntimeState.Unavailable
         assertEquals(initial.generation + 1L, unavailable.generation)
         assertEquals(DatabaseMaintenanceStage.AFTER_REOPEN, unavailable.stage)
@@ -206,6 +213,7 @@ class JianyuRuntimeLifecycleDatabaseTest {
         )
         val retried = JianyuAppRuntimeProvider.observe(context).value as JianyuRuntimeState.Ready
         assertEquals(unavailable.generation, retried.generation)
+        assertNotSame(rejected, retried.runtime.database)
         assertTrue(retried.runtime.database.isOpen)
         assertDatabaseHealthy(retried.runtime)
         retried.runtime.repository
