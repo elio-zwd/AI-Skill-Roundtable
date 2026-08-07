@@ -293,10 +293,7 @@ object JianyuAppRuntimeProvider {
 
             val reopenedRuntimeResult = withContext(NonCancellable + Dispatchers.IO) {
                 runCatching {
-                    create(
-                        context = context.applicationContext,
-                        recoverPendingOperations = false,
-                    ).also(::validateRuntimeHealth)
+                    createValidatedRuntime(context.applicationContext)
                 }
             }
             val reopenedRuntime = reopenedRuntimeResult.getOrNull()
@@ -422,6 +419,20 @@ object JianyuAppRuntimeProvider {
                 generation = generation,
                 stage = stage,
             )
+        }
+    }
+
+    private fun createValidatedRuntime(context: Context): JianyuAppRuntime {
+        val candidate = create(
+            context = context,
+            recoverPendingOperations = false,
+        )
+        try {
+            validateRuntimeHealth(candidate)
+            return candidate
+        } catch (error: Throwable) {
+            closeDatabaseBestEffort(candidate.database)
+            throw error
         }
     }
 
