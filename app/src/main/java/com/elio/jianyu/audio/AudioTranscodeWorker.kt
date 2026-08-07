@@ -6,13 +6,14 @@ import android.media.MediaCodecInfo
 import android.media.MediaFormat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.elio.jianyu.data.RoundtableDatabase
+import com.elio.jianyu.JianyuAppRuntimeProvider
 import com.elio.jianyu.telemetry.PrivacySafeLogger
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class AudioTranscodeWorker(
     context: Context,
@@ -36,14 +37,23 @@ class AudioTranscodeWorker(
 
         val aacFile = File(wavPath.replace(".wav", ".aac"))
         try {
-            PrivacySafeLogger.d(TAG, "Audio transcoding started")
-            encodePcmToAac(wavFile, aacFile)
+            JianyuAppRuntimeProvider.withRuntime(applicationContext) { runtime ->
+                PrivacySafeLogger.d(TAG, "Audio transcoding started")
+                encodePcmToAac(wavFile, aacFile)
 
-            val database = RoundtableDatabase.getDatabase(applicationContext, this)
-            database.chatDao().updateMessageAudio(messageId, aacFile.absolutePath, "aac", aacFile.length())
-            if (wavFile.exists()) wavFile.delete()
-            PrivacySafeLogger.d(TAG, "Audio transcoding completed")
-            Result.success()
+                runtime.database.chatDao().updateMessageAudio(
+                    messageId,
+                    aacFile.absolutePath,
+                    "aac",
+                    aacFile.length(),
+                )
+                if (wavFile.exists()) wavFile.delete()
+                PrivacySafeLogger.d(TAG, "Audio transcoding completed")
+                Result.success()
+            }
+        } catch (error: CancellationException) {
+            if (aacFile.exists()) aacFile.delete()
+            throw error
         } catch (error: Exception) {
             PrivacySafeLogger.e(TAG, "Audio transcoding failed", error)
             if (aacFile.exists()) aacFile.delete()

@@ -21,15 +21,14 @@ class IssuePurgeWorker(
             return failure("invalid_purge_worker_data")
         }
         return try {
-            when (
-                val result = JianyuAppRuntimeProvider.get(applicationContext)
-                    .lifecycleRuntime
-                    .purgeCoordinator
-                    .execute(operationId)
-            ) {
-                IssuePurgeExecutionResult.Completed -> ListenableWorker.Result.success()
-                is IssuePurgeExecutionResult.RetryableFailure -> failure(result.code)
-                is IssuePurgeExecutionResult.Rejected -> failure(result.code)
+            JianyuAppRuntimeProvider.withRuntime(applicationContext) { runtime ->
+                when (
+                    val result = runtime.lifecycleRuntime.purgeCoordinator.execute(operationId)
+                ) {
+                    IssuePurgeExecutionResult.Completed -> ListenableWorker.Result.success()
+                    is IssuePurgeExecutionResult.RetryableFailure -> failure(result.code)
+                    is IssuePurgeExecutionResult.Rejected -> failure(result.code)
+                }
             }
         } catch (error: CancellationException) {
             throw error
