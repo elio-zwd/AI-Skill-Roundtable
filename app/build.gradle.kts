@@ -144,7 +144,7 @@ dependencies {
     testImplementation("org.json:json:20240303")
 
     // PR09-13A design prototype only; these dependencies are not packaged in the production APK.
-    testImplementation("org.bouncycastle:bcprov-jdk18on:1.84")
+    testImplementation("org.bouncycastle:bcprov-jdk15to18:1.84")
     testImplementation("com.google.crypto.tink:tink-android:1.23.0")
 
     androidTestImplementation(platform(libs.androidx.compose.bom))
