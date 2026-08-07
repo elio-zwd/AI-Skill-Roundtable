@@ -6,7 +6,10 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
+import org.junit.Before
 import org.junit.FixMethodOrder
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -15,18 +18,31 @@ import org.junit.runners.MethodSorters
 /**
  * 两阶段外部进程恢复测试。
  *
- * 本地严格验收应分别运行 step1 和 step2，并在两者之间执行：
+ * 该测试需要在一次 APK 安装后通过两次 `adb shell am instrument` 分别运行 step1、step2，
+ * 并在两者之间执行：
  * 1. adb shell am force-stop com.elio.jianyu
  * 2. adb shell monkey -p com.elio.jianyu -c android.intent.category.LAUNCHER 1
  * 3. adb shell am force-stop com.elio.jianyu
  *
- * 这样会真实经过 App 启动时的旧 Pending 清理逻辑，再由 step2 验证领域数据未丢失。
+ * 普通全量 Instrumentation 不具备外部 ADB 协调条件，因此未显式传入
+ * `jianyuExternalProcessRecovery=true` 时跳过本类，避免与同进程已打开的生产数据库单例争用。
  */
 @RunWith(AndroidJUnit4::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 class RoomJianyuRepositoryExternalProcessRecoveryTest {
     private val context: Context
         get() = InstrumentationRegistry.getInstrumentation().targetContext
+
+    @Before
+    fun requireExplicitExternalProcessRecoveryRun() {
+        val enabled = InstrumentationRegistry.getArguments()
+            .getString(EXTERNAL_PROCESS_RECOVERY_ARGUMENT)
+            ?.equals("true", ignoreCase = true) == true
+        assumeTrue(
+            "外部进程恢复测试必须通过一次安装后的 adb shell am instrument 显式启用",
+            enabled,
+        )
+    }
 
     @Test
     fun step1SeedRecoveryStateBeforeExternalForceStop() = runBlocking {
@@ -47,12 +63,12 @@ class RoomJianyuRepositoryExternalProcessRecoveryTest {
             ).successValue()
             repository.appendDomainMessage(pendingMessageCommand()).successValue()
             repository.saveStageDraft(draftCommand()).successValue()
-            repository.archiveIssue(ISSUE_ID, 30L).successValue()
 
             val seeded = repository.recoverIssue(ISSUE_ID).successValue()
             assertEquals(ExecutionRunStatus.RUNNING, seeded.core.runs.single().status)
             assertEquals(listOf(MESSAGE_ID), seeded.core.pendingMessages.map { it.id })
             assertEquals(listOf(DRAFT_ID), seeded.resources.drafts.map { it.id })
+            assertEquals(IssueLifecycleState.ACTIVE, seeded.core.lifecycle.state)
         } finally {
             database.close()
         }
@@ -62,6 +78,15 @@ class RoomJianyuRepositoryExternalProcessRecoveryTest {
     fun step2VerifyRecoveryStateAfterExternalForceStopAndAppRestart() = runBlocking {
         val database = openDatabase()
         try {
+            assertNotNull(
+                "step2 未找到 step1 写入的 Issue；请确认两阶段之间没有重新安装 APK、清除数据或再次运行 connectedDebugAndroidTest",
+                database.coreDomainDao().getIssue(ISSUE_ID),
+            )
+            assertNotNull(
+                "step2 未找到 step1 写入的 Lifecycle；请确认两阶段使用同一应用数据目录",
+                database.resourceLifecycleDao().getIssueLifecycle(ISSUE_ID),
+            )
+
             val repository = RoomJianyuRepository(database)
             val recovery1 = repository.recoverIssue(ISSUE_ID).successValue()
             val recovery2 = repository.recoverIssue(ISSUE_ID).successValue()
@@ -72,7 +97,7 @@ class RoomJianyuRepositoryExternalProcessRecoveryTest {
             assertEquals(ExecutionRunStatus.RUNNING, recovery1.core.runs.single().status)
             assertEquals(listOf(MESSAGE_ID), recovery1.core.pendingMessages.map { it.id })
             assertEquals(listOf(DRAFT_ID), recovery1.resources.drafts.map { it.id })
-            assertEquals(IssueLifecycleState.ARCHIVED, recovery1.core.lifecycle.state)
+            assertEquals(IssueLifecycleState.ACTIVE, recovery1.core.lifecycle.state)
             assertTrue(recovery1.core.successfulParticipantSnapshotIds().isEmpty())
             assertEquals(setOf(PARTICIPANT_ID), recovery1.core.retryableParticipantSnapshotIds())
             database.openHelper.writableDatabase.query("PRAGMA foreign_key_check").use { cursor ->
@@ -174,10 +199,17 @@ class RoomJianyuRepositoryExternalProcessRecoveryTest {
     }
 
     private fun <T> RepositoryResult<T>.successValue(): T {
-        return (this as RepositoryResult.Success<T>).value
+        return when (this) {
+            is RepositoryResult.Success -> value
+            is RepositoryResult.Failure -> throw AssertionError(
+                "期望 RepositoryResult.Success，实际为 Failure(error=$error)",
+            )
+        }
     }
 
     companion object {
+        private const val EXTERNAL_PROCESS_RECOVERY_ARGUMENT =
+            "jianyuExternalProcessRecovery"
         private const val DATABASE_NAME = "roundtable_database"
         private const val ISSUE_ID = "issue-external-process-recovery"
         private const val STAGE_ID = "stage-external-process-recovery"

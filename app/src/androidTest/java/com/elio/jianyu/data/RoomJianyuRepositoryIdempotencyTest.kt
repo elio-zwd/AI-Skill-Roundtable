@@ -20,6 +20,7 @@ class RoomJianyuRepositoryIdempotencyTest {
 
     private lateinit var database: RoundtableDatabase
     private lateinit var repository: JianyuRepository
+    private lateinit var lifecycleRepository: RoomIssueLifecycleV12Repository
 
     @Before
     fun setUp() {
@@ -30,6 +31,7 @@ class RoomJianyuRepositoryIdempotencyTest {
             database = database,
             officialSkillIdValidator = OfficialSkillIdValidator { id -> id == SKILL_ID }
         )
+        lifecycleRepository = RoomIssueLifecycleV12Repository(database)
     }
 
     @After
@@ -43,7 +45,39 @@ class RoomJianyuRepositoryIdempotencyTest {
         repository.saveIssue(command).successValue()
         repository.createExecutionRun(runCommand()).successValue()
         repository.appendDomainMessage(messageCommand()).successValue()
-        repository.archiveIssue(ISSUE_ID, 40L).successValue()
+        repository.transitionRun(
+            TransitionRunCommand(
+                runId = RUN_ID,
+                expectedStatuses = setOf(ExecutionRunStatus.NOT_STARTED),
+                newStatus = ExecutionRunStatus.RUNNING,
+                updatedAt = 31L,
+                startedAt = 31L,
+            ),
+        ).successValue()
+        repository.transitionRun(
+            TransitionRunCommand(
+                runId = RUN_ID,
+                expectedStatuses = setOf(ExecutionRunStatus.RUNNING),
+                newStatus = ExecutionRunStatus.SUCCEEDED,
+                updatedAt = 32L,
+                finishedAt = 32L,
+            ),
+        ).successValue()
+        lifecycleRepository.archiveIssueWithEvent(
+            ArchiveIssueWithEventCommand(
+                eventId = "archive-event-idempotency",
+                issueId = ISSUE_ID,
+                operationId = "archive-operation-idempotency",
+                summaryMarkdown = "幂等恢复归档简报",
+                currentStageIdSnapshot = STAGE_ID,
+                stageCountSnapshot = 1,
+                runCountSnapshot = 1,
+                draftCountSnapshot = 0,
+                artifactCountSnapshot = 0,
+                audioAssetCountSnapshot = 0,
+                archivedAt = 40L,
+            ),
+        ).successValue()
 
         val repeated = repository.saveIssue(command)
         val saved = repeated.successValue()
