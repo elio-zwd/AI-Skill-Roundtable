@@ -52,7 +52,6 @@ import com.elio.jianyu.JianyuAppRuntimeProvider
 import com.elio.jianyu.runtime.JianyuRuntimeState
 import com.elio.jianyu.skill.catalog.OfficialSkillUseRequest
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
-import com.elio.jianyu.ui.automation.JianyuRuntimeAutomationTags
 import com.elio.jianyu.ui.navigation.AppDestination
 import com.elio.jianyu.ui.navigation.AppNavHost
 import com.elio.jianyu.ui.navigation.navigateToIssue
@@ -162,9 +161,9 @@ internal fun JianyuRuntimeStatusContent(
 ) {
     val unavailable = state is JianyuRuntimeState.Unavailable
     val tag = if (unavailable) {
-        JianyuRuntimeAutomationTags.UNAVAILABLE
+        JianyuAutomationTags.App.RUNTIME_UNAVAILABLE
     } else {
-        JianyuRuntimeAutomationTags.MAINTENANCE
+        JianyuAutomationTags.App.RUNTIME_MAINTENANCE
     }
     Column(
         modifier = Modifier
@@ -204,7 +203,7 @@ internal fun JianyuRuntimeStatusContent(
                 onClick = onRetry,
                 modifier = Modifier
                     .padding(top = 16.dp)
-                    .testTag(JianyuRuntimeAutomationTags.RETRY),
+                    .testTag(JianyuAutomationTags.App.RUNTIME_RETRY),
             ) {
                 Text("重试")
             }
