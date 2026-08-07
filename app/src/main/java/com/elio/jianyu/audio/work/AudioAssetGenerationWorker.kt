@@ -28,16 +28,15 @@ class AudioAssetGenerationWorker(
             ?: return failure("missing_audio_asset_id")
 
         return try {
-            val result = JianyuAppRuntimeProvider.get(applicationContext)
-                .audioRuntime
-                .generationCoordinator
-                .execute(audioAssetId)
-            when (AudioWorkerCompletionPolicy.resolve(result)) {
-                AudioWorkerCompletion.SUCCESS -> ListenableWorker.Result.success()
-                AudioWorkerCompletion.FAILURE -> {
-                    val code = (result as? AudioGenerationExecutionResult.Failure)
-                        ?.errorCode ?: AudioGenerationErrorCode.UNKNOWN
-                    failure(code.name.lowercase())
+            JianyuAppRuntimeProvider.withRuntime(applicationContext) { runtime ->
+                val result = runtime.audioRuntime.generationCoordinator.execute(audioAssetId)
+                when (AudioWorkerCompletionPolicy.resolve(result)) {
+                    AudioWorkerCompletion.SUCCESS -> ListenableWorker.Result.success()
+                    AudioWorkerCompletion.FAILURE -> {
+                        val code = (result as? AudioGenerationExecutionResult.Failure)
+                            ?.errorCode ?: AudioGenerationErrorCode.UNKNOWN
+                        failure(code.name.lowercase())
+                    }
                 }
             }
         } catch (error: CancellationException) {
