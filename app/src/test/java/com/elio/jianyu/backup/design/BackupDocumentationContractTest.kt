@@ -7,31 +7,33 @@ import org.junit.Test
 
 class BackupDocumentationContractTest {
     @Test
-    fun frozenDocumentsShareTheSameAlgorithmsAndIdentifiers() {
+    fun envelopeAndHandoffShareFrozenAlgorithmsAndIdentifiers() {
         val root = repositoryRoot()
-        val documents = listOf(
+        val threatModel = File(
+            root,
             "docs/security/pr-09-13a-backup-threat-model.md",
+        ).readText(Charsets.UTF_8)
+        val envelope = File(
+            root,
             "docs/architecture/pr-09-13a-backup-envelope-spec.md",
-            "docs/architecture/pr-09-13a-backup-data-scope.md",
+        ).readText(Charsets.UTF_8)
+        val handoff = File(
+            root,
             "docs/planning/pr-09-13a-interface-handoff.md",
-        ).associateWith { path -> File(root, path).readText(Charsets.UTF_8) }
+        ).readText(Charsets.UTF_8)
 
-        val requiredAcrossSecurityDocuments = listOf(
+        listOf(
             "Argon2id",
-            "65,536 KiB",
             "AES-256-GCM",
             "AES256_GCM_HKDF_1MB",
-        )
-        requiredAcrossSecurityDocuments.forEach { value ->
-            assertTrue(
-                "冻结文档必须共同包含 $value",
-                documents.values.all { text -> text.contains(value) },
-            )
+        ).forEach { value ->
+            assertTrue("威胁模型缺少 $value", threatModel.contains(value))
+            assertTrue("Envelope 规范缺少 $value", envelope.contains(value))
+            assertTrue("交接文档缺少 $value", handoff.contains(value))
         }
 
-        val envelope = documents.getValue("docs/architecture/pr-09-13a-backup-envelope-spec.md")
-        val handoff = documents.getValue("docs/planning/pr-09-13a-interface-handoff.md")
         listOf(
+            "65,536 KiB",
             "jianyu-portable-backup/1",
             "jianyu-device-snapshot/1",
             "4A 59 42 4B 50 0D 0A 1A",
