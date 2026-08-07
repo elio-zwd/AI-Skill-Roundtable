@@ -25,33 +25,16 @@ internal object BackupCryptoPrototype {
         if (password.isEmpty() || password.indexOf('\u0000') >= 0) {
             throw BackupDesignException(BackupDesignErrorCode.KDF_PARAMETERS_OUT_OF_POLICY)
         }
-        var index = 0
-        while (index < password.length) {
-            val current = password[index]
-            when {
-                Character.isHighSurrogate(current) -> {
-                    if (index + 1 >= password.length || !Character.isLowSurrogate(password[index + 1])) {
-                        throw BackupDesignException(BackupDesignErrorCode.KDF_PARAMETERS_OUT_OF_POLICY)
-                    }
-                    index += 2
-                }
-                Character.isLowSurrogate(current) ->
-                    throw BackupDesignException(BackupDesignErrorCode.KDF_PARAMETERS_OUT_OF_POLICY)
-                else -> index += 1
-            }
-        }
-        val normalized = Normalizer.normalize(password, Normalizer.Form.NFC)
+        validateSurrogates(password)
+        val encoded = Normalizer.normalize(password, Normalizer.Form.NFC)
             .toByteArray(StandardCharsets.UTF_8)
-        if (normalized.isEmpty() || normalized.size > BackupDesignConstants.MAX_PASSWORD_UTF8_BYTES) {
+        if (encoded.isEmpty() || encoded.size > BackupDesignConstants.MAX_PASSWORD_UTF8_BYTES) {
             throw BackupDesignException(BackupDesignErrorCode.KDF_PARAMETERS_OUT_OF_POLICY)
         }
-        return normalized
+        return encoded
     }
 
-    fun derivePortableKek(
-        password: String,
-        salt: ByteArray,
-    ): ByteArray {
+    fun derivePortableKek(password: String, salt: ByteArray): ByteArray {
         if (salt.size != BackupDesignConstants.KDF_SALT_BYTES) {
             throw BackupDesignException(BackupDesignErrorCode.INVALID_HEADER)
         }
@@ -84,13 +67,7 @@ internal object BackupCryptoPrototype {
         nonce: ByteArray,
         rootKey: ByteArray,
         aad: ByteArray,
-    ): ByteArray = aesGcm(
-        mode = Cipher.ENCRYPT_MODE,
-        key = kek,
-        nonce = nonce,
-        input = rootKey,
-        aad = aad,
-    )
+    ): ByteArray = aesGcm(Cipher.ENCRYPT_MODE, kek, nonce, rootKey, aad)
 
     fun unwrapRootKey(
         kek: ByteArray,
@@ -98,13 +75,7 @@ internal object BackupCryptoPrototype {
         wrappedRootKey: ByteArray,
         aad: ByteArray,
     ): ByteArray = try {
-        aesGcm(
-            mode = Cipher.DECRYPT_MODE,
-            key = kek,
-            nonce = nonce,
-            input = wrappedRootKey,
-            aad = aad,
-        ).also { rootKey ->
+        aesGcm(Cipher.DECRYPT_MODE, kek, nonce, wrappedRootKey, aad).also { rootKey ->
             if (rootKey.size != BackupDesignConstants.ROOT_KEY_BYTES) {
                 throw BackupDesignException(BackupDesignErrorCode.AUTHENTICATION_FAILED)
             }
@@ -115,25 +86,11 @@ internal object BackupCryptoPrototype {
         throw BackupDesignException(BackupDesignErrorCode.AUTHENTICATION_FAILED, error)
     }
 
-    fun derivePortableStreamingIkm(
-        rootKey: ByteArray,
-        envelopeId: ByteArray,
-    ): ByteArray = hkdfSha256(
-        ikm = rootKey,
-        salt = envelopeId,
-        info = BackupDesignConstants.PORTABLE_STREAM_INFO.toByteArray(StandardCharsets.US_ASCII),
-        outputLength = BackupDesignConstants.STREAM_DERIVED_KEY_BYTES,
-    )
+    fun derivePortableStreamingIkm(rootKey: ByteArray, envelopeId: ByteArray): ByteArray =
+        deriveStreamingIkm(rootKey, envelopeId, BackupDesignConstants.PORTABLE_STREAM_INFO)
 
-    fun deriveSnapshotStreamingIkm(
-        rootKey: ByteArray,
-        envelopeId: ByteArray,
-    ): ByteArray = hkdfSha256(
-        ikm = rootKey,
-        salt = envelopeId,
-        info = BackupDesignConstants.SNAPSHOT_STREAM_INFO.toByteArray(StandardCharsets.US_ASCII),
-        outputLength = BackupDesignConstants.STREAM_DERIVED_KEY_BYTES,
-    )
+    fun deriveSnapshotStreamingIkm(rootKey: ByteArray, envelopeId: ByteArray): ByteArray =
+        deriveStreamingIkm(rootKey, envelopeId, BackupDesignConstants.SNAPSHOT_STREAM_INFO)
 
     fun streamAssociatedData(
         wrapAad: ByteArray,
@@ -164,35 +121,21 @@ internal object BackupCryptoPrototype {
             throw BackupDesignException(BackupDesignErrorCode.UNSUPPORTED_AEAD)
         }
 
-        val segments = mutableListOf<ByteArray>()
-        if (plaintext.size <= firstPlaintextLimit) {
-            segments += plaintext
-        } else {
-            segments += plaintext.copyOfRange(0, firstPlaintextLimit)
-            var offset = firstPlaintextLimit
-            while (offset < plaintext.size) {
-                val end = minOf(plaintext.size, offset + laterPlaintextLimit)
-                segments += plaintext.copyOfRange(offset, end)
-                offset = end
-            }
-        }
-
+        val segments = splitPlaintext(plaintext, firstPlaintextLimit, laterPlaintextLimit)
         return ByteArrayOutputStream().apply {
             write(header)
-            segments.forEachIndexed { segmentIndex, segment ->
-                val final = segmentIndex == segments.lastIndex
-                val nonce = streamingNonce(noncePrefix, segmentIndex, final)
+            segments.forEachIndexed { index, segment ->
                 write(
                     aesGcm(
                         mode = Cipher.ENCRYPT_MODE,
                         key = derivedKey,
-                        nonce = nonce,
+                        nonce = streamingNonce(noncePrefix, index, index == segments.lastIndex),
                         input = segment,
                         aad = ByteArray(0),
                     ),
                 )
             }
-        }.toByteArray()
+        }.toByteArray().also { derivedKey.fill(0) }
     }
 
     fun decryptStreamingReference(
@@ -224,11 +167,16 @@ internal object BackupCryptoPrototype {
         try {
             while (offset < ciphertext.size) {
                 val remaining = ciphertext.size - offset
-                val segmentLength = minOf(ciphertextSegmentSize, remaining)
+                val maximumCiphertextLength = if (segmentIndex == 0) {
+                    ciphertextSegmentSize - BackupDesignConstants.STREAM_HEADER_BYTES
+                } else {
+                    ciphertextSegmentSize
+                }
+                val segmentLength = minOf(maximumCiphertextLength, remaining)
                 if (segmentLength < BackupDesignConstants.GCM_TAG_BYTES) {
                     throw BackupDesignException(BackupDesignErrorCode.AUTHENTICATION_FAILED)
                 }
-                val final = remaining <= ciphertextSegmentSize
+                val final = remaining <= maximumCiphertextLength
                 val encryptedSegment = ciphertext.copyOfRange(offset, offset + segmentLength)
                 plaintext.write(
                     aesGcm(
@@ -241,14 +189,13 @@ internal object BackupCryptoPrototype {
                 )
                 offset += segmentLength
                 segmentIndex += 1
-                if (final && offset != ciphertext.size) {
-                    throw BackupDesignException(BackupDesignErrorCode.AUTHENTICATION_FAILED)
-                }
             }
         } catch (error: BackupDesignException) {
             throw error
         } catch (error: Throwable) {
             throw BackupDesignException(BackupDesignErrorCode.AUTHENTICATION_FAILED, error)
+        } finally {
+            derivedKey.fill(0)
         }
         if (segmentIndex == 0) {
             throw BackupDesignException(BackupDesignErrorCode.AUTHENTICATION_FAILED)
@@ -267,31 +214,37 @@ internal object BackupCryptoPrototype {
         recordStream: ByteArray,
         ciphertextSegmentSize: Int = BackupDesignConstants.PRODUCTION_CIPHERTEXT_SEGMENT_BYTES,
     ): ByteArray {
+        require(rootKey.size == BackupDesignConstants.ROOT_KEY_BYTES)
+        require(wrapNonce.size == BackupDesignConstants.WRAP_NONCE_BYTES)
         val header = BackupEnvelopePrototype.encodePortableHeader(salt, envelopeId)
         val wrapAad = BackupEnvelopePrototype.buildOuterPrefix(
             BackupDesignConstants.PORTABLE_MAGIC,
             header,
         )
         val kek = derivePortableKek(password, salt)
-        val wrappedRootKey = wrapRootKey(kek, wrapNonce, rootKey, wrapAad)
+        val wrappedRootKey = try {
+            wrapRootKey(kek, wrapNonce, rootKey, wrapAad)
+        } finally {
+            kek.fill(0)
+        }
         val streamIkm = derivePortableStreamingIkm(rootKey, envelopeId)
         val streamAad = streamAssociatedData(wrapAad, wrapNonce, wrappedRootKey)
-        val streamingCiphertext = encryptStreamingReference(
-            ikm = streamIkm,
-            associatedData = streamAad,
-            plaintext = recordStream,
-            streamSalt = streamSalt,
-            noncePrefix = noncePrefix,
-            ciphertextSegmentSize = ciphertextSegmentSize,
-        )
-        kek.fill(0)
+        val streamingCiphertext = try {
+            encryptStreamingReference(
+                ikm = streamIkm,
+                associatedData = streamAad,
+                plaintext = recordStream,
+                streamSalt = streamSalt,
+                noncePrefix = noncePrefix,
+                ciphertextSegmentSize = ciphertextSegmentSize,
+            )
+        } finally {
+            streamIkm.fill(0)
+        }
         return wrapAad + wrapNonce + wrappedRootKey + streamingCiphertext
     }
 
-    fun decryptPortableVectorFile(
-        password: String,
-        file: ByteArray,
-    ): ByteArray {
+    fun decryptPortableVectorFile(password: String, file: ByteArray): ByteArray {
         val parsed = BackupEnvelopePrototype.parsePortable(file)
         val salt = parsed.header.kdfSalt
             ?: throw BackupDesignException(BackupDesignErrorCode.INVALID_HEADER)
@@ -301,19 +254,26 @@ internal object BackupCryptoPrototype {
         } finally {
             kek.fill(0)
         }
-        val streamIkm = derivePortableStreamingIkm(rootKey, parsed.header.envelopeId)
-        rootKey.fill(0)
+        val streamIkm = try {
+            derivePortableStreamingIkm(rootKey, parsed.header.envelopeId)
+        } finally {
+            rootKey.fill(0)
+        }
         val streamAad = streamAssociatedData(
             parsed.wrapAad,
             parsed.wrapNonce,
             parsed.wrappedRootKey,
         )
-        return decryptStreamingReference(
-            ikm = streamIkm,
-            associatedData = streamAad,
-            ciphertext = parsed.streamingCiphertext,
-            ciphertextSegmentSize = BackupDesignConstants.PRODUCTION_CIPHERTEXT_SEGMENT_BYTES,
-        )
+        return try {
+            decryptStreamingReference(
+                ikm = streamIkm,
+                associatedData = streamAad,
+                ciphertext = parsed.streamingCiphertext,
+                ciphertextSegmentSize = BackupDesignConstants.PRODUCTION_CIPHERTEXT_SEGMENT_BYTES,
+            )
+        } finally {
+            streamIkm.fill(0)
+        }
     }
 
     fun hkdfSha256(
@@ -323,7 +283,7 @@ internal object BackupCryptoPrototype {
         outputLength: Int,
     ): ByteArray {
         require(outputLength in 1..(255 * 32))
-        val extract = Mac.getInstance("HmacSHA256").apply {
+        val pseudoRandomKey = Mac.getInstance("HmacSHA256").apply {
             init(SecretKeySpec(salt, "HmacSHA256"))
         }.doFinal(ikm)
         val output = ByteArrayOutputStream()
@@ -331,7 +291,7 @@ internal object BackupCryptoPrototype {
         var counter = 1
         while (output.size() < outputLength) {
             previous = Mac.getInstance("HmacSHA256").apply {
-                init(SecretKeySpec(extract, "HmacSHA256"))
+                init(SecretKeySpec(pseudoRandomKey, "HmacSHA256"))
                 update(previous)
                 update(info)
                 update(counter.toByte())
@@ -339,12 +299,64 @@ internal object BackupCryptoPrototype {
             output.write(previous)
             counter += 1
         }
-        extract.fill(0)
+        pseudoRandomKey.fill(0)
         previous.fill(0)
         return output.toByteArray().copyOf(outputLength)
     }
 
     fun sha256(value: ByteArray): ByteArray = MessageDigest.getInstance("SHA-256").digest(value)
+
+    private fun deriveStreamingIkm(
+        rootKey: ByteArray,
+        envelopeId: ByteArray,
+        info: String,
+    ): ByteArray {
+        if (rootKey.size != BackupDesignConstants.ROOT_KEY_BYTES ||
+            envelopeId.size != BackupDesignConstants.ENVELOPE_ID_BYTES
+        ) {
+            throw BackupDesignException(BackupDesignErrorCode.INVALID_HEADER)
+        }
+        return hkdfSha256(
+            ikm = rootKey,
+            salt = envelopeId,
+            info = info.toByteArray(StandardCharsets.US_ASCII),
+            outputLength = BackupDesignConstants.STREAM_DERIVED_KEY_BYTES,
+        )
+    }
+
+    private fun validateSurrogates(password: String) {
+        var index = 0
+        while (index < password.length) {
+            val current = password[index]
+            when {
+                Character.isHighSurrogate(current) -> {
+                    if (index + 1 >= password.length || !Character.isLowSurrogate(password[index + 1])) {
+                        throw BackupDesignException(BackupDesignErrorCode.KDF_PARAMETERS_OUT_OF_POLICY)
+                    }
+                    index += 2
+                }
+                Character.isLowSurrogate(current) ->
+                    throw BackupDesignException(BackupDesignErrorCode.KDF_PARAMETERS_OUT_OF_POLICY)
+                else -> index += 1
+            }
+        }
+    }
+
+    private fun splitPlaintext(
+        plaintext: ByteArray,
+        firstLimit: Int,
+        laterLimit: Int,
+    ): List<ByteArray> {
+        if (plaintext.size <= firstLimit) return listOf(plaintext)
+        val result = mutableListOf(plaintext.copyOfRange(0, firstLimit))
+        var offset = firstLimit
+        while (offset < plaintext.size) {
+            val end = minOf(plaintext.size, offset + laterLimit)
+            result += plaintext.copyOfRange(offset, end)
+            offset = end
+        }
+        return result
+    }
 
     private fun validateStreamingInputs(
         ikm: ByteArray,
@@ -369,7 +381,7 @@ internal object BackupCryptoPrototype {
         .order(ByteOrder.BIG_ENDIAN)
         .put(noncePrefix)
         .putInt(segmentIndex)
-        .put(if (final) 1 else 0)
+        .put(if (final) 1.toByte() else 0.toByte())
         .array()
 
     private fun aesGcm(
@@ -379,7 +391,9 @@ internal object BackupCryptoPrototype {
         input: ByteArray,
         aad: ByteArray,
     ): ByteArray {
-        if (key.size != BackupDesignConstants.ROOT_KEY_BYTES || nonce.size != BackupDesignConstants.WRAP_NONCE_BYTES) {
+        if (key.size != BackupDesignConstants.ROOT_KEY_BYTES ||
+            nonce.size != BackupDesignConstants.WRAP_NONCE_BYTES
+        ) {
             throw BackupDesignException(BackupDesignErrorCode.UNSUPPORTED_AEAD)
         }
         return try {
