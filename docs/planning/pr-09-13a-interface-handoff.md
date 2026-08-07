@@ -152,18 +152,21 @@ Key Version：0
 PR09-13B 使用：
 
 ```kotlin
-implementation("org.bouncycastle:bcprov-jdk18on:1.84")
+implementation("org.bouncycastle:bcprov-jdk15to18:1.84")
 implementation("com.google.crypto.tink:tink-android:1.23.0")
 ```
 
-约束：
+冻结原因与限制：
 
-- Bouncy Castle 只调用轻量级 Argon2 API，不注册全局 Provider；
-- Tink 使用官方 Streaming AEAD，不复制或修改库内密码学实现；
-- 依赖升级必须独立审查并重跑全部公开向量；
-- 必须记录 R8 后 Debug/Release APK 增量；
-- 必须验证依赖不引入 Native ABI；
-- Apache-2.0 和 Bouncy Castle License 必须进入第三方许可登记；
+- Bouncy Castle 版本保持 `1.84`，只把 Android/JDK 17 构件冻结为 `bcprov-jdk15to18`。
+- `bcprov-jdk18on:1.84` 是已被精确 CI 否决的候选：多版本 JAR 中 `META-INF/versions/25` class major 69 无法被当前 Android Jetifier/JDK 17 构建链扫描，导致测试启动前失败。
+- 不通过 `android.jetifier.ignorelist` 或关闭全局 Jetifier 绕过依赖检查。
+- Bouncy Castle 只调用轻量级 Argon2 API，不注册全局 Provider。
+- Tink 使用官方 Streaming AEAD，不复制或修改库内密码学实现。
+- 依赖升级必须独立审查并重跑全部公开向量。
+- 必须记录 R8 后 Debug/Release APK 增量。
+- 必须验证依赖不引入 Native ABI。
+- Apache-2.0 和 Bouncy Castle License 必须进入第三方许可登记。
 - PR09-13A 的测试参考实现不能复制到生产 Runtime。
 
 ## 7. Envelope
@@ -524,7 +527,7 @@ data_extraction_rules.xml
 
 - 混合架构；
 - Argon2id Profile 1；
-- Bouncy Castle 1.84；
+- Bouncy Castle `bcprov-jdk15to18:1.84`；
 - Tink Android 1.23.0；
 - AES-256-GCM Root Key 包装；
 - Tink AES256_GCM_HKDF_1MB；
