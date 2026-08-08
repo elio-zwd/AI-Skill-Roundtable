@@ -191,7 +191,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      height: 30px;
+      height: 24px;
       padding: 0 18px;
       color: var(--text-2);
       font-size: 11px;
@@ -202,33 +202,75 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      min-height: 60px;
-      padding: 10px 16px;
+      min-height: 52px;
+      padding: 6px 16px;
       border-bottom: 1px solid var(--border);
       background: color-mix(in srgb, var(--surface) 94%, transparent);
     }
     .app-topbar h1 { margin: 0; font-size: 18px; line-height: 1.25; }
-    .app-topbar .sub { color: var(--text-2); font-size: 12px; }
+    .app-topbar .sub { color: var(--text-2); font-size: 12px; line-height: 16px; }
+    .app-topbar .sub[hidden] { display: none; }
     .icon-button {
       display: inline-grid;
       place-items: center;
-      width: 44px;
-      height: 44px;
-      border: 1px solid var(--border);
-      border-radius: 22px;
+      width: 40px;
+      height: 40px;
+      border: 0;
+      border-radius: 12px;
       color: var(--text);
       background: var(--surface);
       font-size: 19px;
+    }
+    .topbar-icon {
+      width: 20px;
+      height: 20px;
+      stroke: currentColor;
+      stroke-width: 1.9;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
 
     .screen {
       min-height: 0;
       flex: 1 1 auto;
       overflow-y: auto;
-      padding: 16px;
+      padding: 12px 16px 16px;
       overscroll-behavior: contain;
     }
     .screen > * + * { margin-top: 16px; }
+
+    .issue-tabs { margin-top: 0; }
+    .issue-section-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .issue-section-header h2 { margin: 0; font-size: 18px; }
+    .issue-section-header span { color: var(--text-2); font-size: 12px; }
+    .issue-list {
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--surface);
+    }
+    .issue-row {
+      display: flex;
+      align-items: flex-start;
+      width: 100%;
+      gap: 10px;
+      padding: 13px;
+      border: 0;
+      border-top: 1px solid var(--border);
+      color: var(--text);
+      background: transparent;
+      text-align: left;
+    }
+    .issue-row:first-child { border-top: 0; }
+    .issue-row:hover { background: var(--surface-2); }
+    .issue-row .list-grow { min-width: 0; }
+    .issue-row .chip { flex: 0 0 auto; }
 
     .state-banner {
       display: flex;
@@ -765,7 +807,7 @@
         <section id="workspace-composer" class="workspace-composer" aria-label="继续当前阶段"></section>
         <nav class="bottom-nav" aria-label="底部导航">
           <button data-page="home" aria-label="首页"><span class="nav-icon-wrap"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3.5 10 8.5-7 8.5 7v10a1 1 0 0 1-1 1h-5v-6h-5v6h-5a1 1 0 0 1-1-1z"/></svg></span><span class="nav-label">首页</span></button>
-          <button data-page="issues" aria-label="议题"><span class="nav-icon-wrap"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h13M7 12h13M7 19h13M3.5 5h.01M3.5 12h.01M3.5 19h.01"/></svg></span><span class="nav-label">议题</span></button>
+          <button data-page="issues" aria-label="议题"><span class="nav-icon-wrap"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 5.5h13a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H11l-4.5 3v-3H5.5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z"/><path d="M8 10h8M8 13.5h5"/></svg></span><span class="nav-label">议题</span></button>
           <button data-page="skills" aria-label="Skill"><span class="nav-icon-wrap"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 1.5 6.5L20 10l-6.5 1.5L12 18l-1.5-6.5L4 10l6.5-1.5z"/><path d="m19 16 .7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7z"/></svg></span><span class="nav-label">Skill</span></button>
           <button data-page="resources" aria-label="资料与成果"><span class="nav-icon-wrap"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21zM20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5A2.5 2.5 0 0 1 20 21z"/></svg></span><span class="nav-label">资料与成果</span></button>
         </nav>
@@ -778,6 +820,7 @@
       var state = "Content";
       var page = "launch";
       var workspaceMode = "independent";
+      var issuesTab = "active";
       var advanceStep = 1;
       var selectedDirections = { practical: true, perspective: true };
       var workspaceMenuOpen = false;
@@ -791,7 +834,7 @@
         workspace: ["机器人嵌入式转向", "阶段 1 · 明确目标与约束"],
         result: ["阶段草稿", "阶段 1 · 尚未确认成果"],
         advance: ["推进议题", "创建下一阶段"],
-        issues: ["议题", "进行中 · 已归档 · 回收站"],
+        issues: ["议题", ""],
         resources: ["资料与成果", "来源、背景与可交付成果"],
         skills: ["Skill 目录", "寻找适合此刻的能力"],
         settings: ["设置", "模型、可访问性与数据"]
@@ -939,11 +982,16 @@
 
       function issuesView() {
         if (state === "Empty") { return stateBanner() + emptyCard("还没有保存的议题", "从首页创建议题"); }
-        return stateBanner() +
-          "<section><p class='eyebrow'>持续容器</p><h2 class='page-title'>你的议题</h2><p class='page-copy'>进行中、已归档与回收站始终分段显示。</p></section>" +
-          "<section class='card'><h2>进行中</h2><div class='list-row'><span class='avatar'>1</span><div class='list-grow'><strong>机器人嵌入式岗位转向</strong><span>阶段 1 · 2 位 Skill 已完成 · 今天</span></div><span class='chip warning'>部分完成</span></div><div class='list-row'><span class='avatar'>2</span><div class='list-grow'><strong>整理下半年学习节奏</strong><span>阶段 2 · 已保存成果 · 昨天</span></div><span class='chip success'>可继续</span></div></section>" +
-          "<section class='card'><h2>已归档</h2><p>归档可恢复继续，历史阶段、资料和成果保持连续。</p><button class='button'>查看已归档议题</button></section>" +
-          "<section class='card'><h2>回收站</h2><p>回收站没有自动过期；恢复与彻底清除严格分离。</p><button class='button danger'>打开回收站</button></section>";
+        var tabBar = "<section class='mode-tabs issue-tabs' role='tablist' aria-label='议题状态'><button id='issues-active-tab' role='tab' aria-controls='issues-tab-panel' aria-selected='" + (issuesTab === "active") + "' tabindex='" + (issuesTab === "active" ? "0" : "-1") + "' class='" + (issuesTab === "active" ? "active" : "") + "' data-issues-tab='active'>进行中</button><button id='issues-archived-tab' role='tab' aria-controls='issues-tab-panel' aria-selected='" + (issuesTab === "archived") + "' tabindex='" + (issuesTab === "archived" ? "0" : "-1") + "' class='" + (issuesTab === "archived" ? "active" : "") + "' data-issues-tab='archived'>已归档</button><button id='issues-trash-tab' role='tab' aria-controls='issues-tab-panel' aria-selected='" + (issuesTab === "trash") + "' tabindex='" + (issuesTab === "trash" ? "0" : "-1") + "' class='" + (issuesTab === "trash" ? "active" : "") + "' data-issues-tab='trash'>回收站</button></section>";
+        var content = "";
+        if (issuesTab === "active") {
+          content = "<section id='issues-tab-panel' role='tabpanel' aria-labelledby='issues-active-tab'><div class='issue-section-header'><h2>进行中的议题</h2><span>2 个议题</span></div><div class='issue-list'><button class='issue-row' data-page='workspace'><span class='avatar'>1</span><span class='list-grow'><strong>机器人嵌入式岗位转向</strong><span>阶段 1 · 2 位 Skill 已完成 · 今天</span></span><span class='chip warning'>部分完成</span></button><button class='issue-row' data-page='workspace'><span class='avatar'>2</span><span class='list-grow'><strong>整理下半年学习节奏</strong><span>阶段 2 · 已保存成果 · 昨天</span></span><span class='chip success'>可继续</span></button></div></section>";
+        } else if (issuesTab === "archived") {
+          content = "<section id='issues-tab-panel' role='tabpanel' aria-labelledby='issues-archived-tab'><div class='issue-section-header'><h2>已归档</h2><span>1 个议题</span></div><div class='issue-list'><button class='issue-row'><span class='avatar'>档</span><span class='list-grow'><strong>转行准备方向调研</strong><span>阶段 3 · 2 份成果 · 归档于上周</span></span><span class='chip'>已归档</span></button></div><p class='helper'>归档议题可恢复继续，历史阶段、资料和成果保持连续。</p></section>";
+        } else {
+          content = "<section id='issues-tab-panel' role='tabpanel' aria-labelledby='issues-trash-tab'><div class='issue-section-header'><h2>回收站</h2><span>1 个项目</span></div><div class='issue-list'><button class='issue-row'><span class='avatar'>回</span><span class='list-grow'><strong>未完成的求职对比</strong><span>删除于昨天 · 可恢复</span></span><span class='chip warning'>待处理</span></button></div><p class='helper'>回收站没有自动过期；恢复与彻底清除严格分离。</p><button class='button danger'>管理回收站</button></section>";
+        }
+        return stateBanner() + tabBar + content;
       }
 
       function resourcesView() {
@@ -971,8 +1019,11 @@
       }
 
       function render() {
-        document.getElementById("screen-name").textContent = labels[page][0];
-        document.getElementById("screen-subtitle").textContent = labels[page][1];
+        var screenName = document.getElementById("screen-name");
+        var screenSubtitle = document.getElementById("screen-subtitle");
+        screenName.textContent = labels[page][0];
+        screenSubtitle.textContent = labels[page][1];
+        screenSubtitle.hidden = !labels[page][1];
         var view = {
           launch: launchView,
           home: homeView,
@@ -1001,7 +1052,7 @@
           topbarAction.removeAttribute("data-workspace-menu");
           topbarAction.setAttribute("data-page", "settings");
           topbarAction.setAttribute("aria-label", "打开设置");
-          topbarAction.textContent = "○";
+          topbarAction.innerHTML = "<svg class='topbar-icon' viewBox='0 0 24 24' aria-hidden='true'><path d='M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4'/><circle cx='12' cy='12' r='3.5'/></svg>";
           composer.innerHTML = "";
         }
         document.getElementById("screen-content").innerHTML = view[page]();
@@ -1044,6 +1095,12 @@
         if (direction) {
           var key = direction.getAttribute("data-direction");
           selectedDirections[key] = !selectedDirections[key];
+          render();
+          return;
+        }
+        var issuesTabButton = event.target.closest("[data-issues-tab]");
+        if (issuesTabButton) {
+          issuesTab = issuesTabButton.getAttribute("data-issues-tab");
           render();
           return;
         }
