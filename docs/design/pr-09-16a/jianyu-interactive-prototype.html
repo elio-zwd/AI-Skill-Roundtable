@@ -344,6 +344,7 @@
       line-height: 1.45;
     }
     .helper { display: block; margin-top: 7px; color: var(--text-2); font-size: 12px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
     .direction-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .direction {
@@ -414,6 +415,53 @@
     .list-grow { min-width: 0; flex: 1; }
     .list-grow strong { display: block; font-size: 14px; }
     .list-grow span { display: block; color: var(--text-2); font-size: 12px; }
+
+    .skill-page { display: grid; gap: 14px; }
+    .skill-hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .skill-hero .eyebrow { margin: 0 0 4px; }
+    .skill-hero .page-title { font-size: 24px; }
+    .skill-count { flex: 0 0 auto; padding: 6px 9px; border-radius: 8px; color: var(--brand-strong); background: var(--surface-3); font-size: 12px; font-weight: 800; }
+    .skill-tools { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+    .skill-search { position: relative; display: flex; align-items: center; }
+    .skill-search-icon { position: absolute; left: 13px; width: 18px; height: 18px; color: var(--text-2); pointer-events: none; }
+    .skill-search-icon path { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+    .skill-search input { width: 100%; min-height: 46px; padding: 10px 46px 10px 40px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface-2); color: var(--text); }
+    .skill-search input::placeholder { color: var(--text-2); }
+    .skill-search-clear { position: absolute; right: 3px; display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 9px; color: var(--text-2); background: transparent; font-size: 20px; line-height: 1; }
+    .skill-search-clear:hover { background: var(--surface-3); color: var(--brand-strong); }
+    .skill-filter-bar { display: flex; flex-wrap: wrap; gap: 7px; }
+    .skill-filter { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 40px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 10px; color: var(--text-2); background: var(--surface); font-size: 12px; font-weight: 700; }
+    .skill-filter span { color: inherit; font-size: 11px; font-weight: 500; }
+    .skill-filter.active { border-color: var(--brand); color: var(--brand-strong); background: var(--surface-3); }
+    .skill-results { display: grid; gap: 8px; }
+    .skill-results-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 0 2px; }
+    .skill-results-head strong { font-size: 14px; }
+    .skill-results-head span { color: var(--text-2); font-size: 12px; }
+    .skill-list { overflow: hidden; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+    .skill-row { padding: 13px; border-top: 1px solid var(--border); }
+    .skill-row:first-child { border-top: 0; }
+    .skill-row-top { display: flex; align-items: flex-start; gap: 10px; }
+    .skill-row-avatar { width: 40px; height: 40px; border-radius: 11px; color: var(--brand-strong); background: var(--surface-3); }
+    .skill-row-main { min-width: 0; flex: 1; }
+    .skill-row-title { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; min-width: 0; }
+    .skill-row-title strong { min-width: 0; overflow-wrap: anywhere; font-size: 15px; }
+    .skill-status { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; color: var(--success); font-size: 11px; font-weight: 800; }
+    .skill-status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .skill-status.warning { color: var(--warning); }
+    .skill-row-meta { display: block; margin-top: 2px; color: var(--text-2); font-size: 12px; }
+    .skill-row-summary { margin: 10px 0 0; color: var(--text); font-size: 13px; line-height: 1.55; }
+    .skill-row-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 9px; }
+    .skill-boundary { min-width: 0; color: var(--text-2); font-size: 11px; line-height: 1.4; }
+    .skill-detail-action { display: inline-flex; align-items: center; justify-content: center; gap: 3px; min-width: 92px; min-height: 44px; padding: 6px 8px; border: 0; border-radius: 9px; color: var(--brand-strong); background: transparent; font-size: 12px; font-weight: 800; }
+    .skill-detail-action:hover { background: var(--surface-3); }
+    .skill-detail-action svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+    .skill-detail-panel { margin: 12px 0 0 50px; padding: 11px 12px; border-left: 2px solid var(--brand); border-radius: 0 10px 10px 0; background: var(--surface-2); }
+    .skill-detail-panel p { margin: 0; color: var(--text-2); font-size: 12px; line-height: 1.55; }
+    .skill-detail-panel p + p { margin-top: 5px; }
+    .skill-detail-panel strong { color: var(--text); }
+    .skill-empty { padding: 22px 16px; text-align: center; }
+    .skill-empty strong, .skill-empty span { display: block; }
+    .skill-empty span { margin-top: 4px; color: var(--text-2); font-size: 12px; }
 
     .timeline { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 3px; }
     .stage-pill {
@@ -954,6 +1002,9 @@
       var workspaceMenuOpen = false;
       var composerMenuOpen = false;
       var selectedIndependentSkill = "career";
+      var skillQuery = "";
+      var skillTypeFilter = "all";
+      var skillDetailKey = "";
       var pageHistory = [];
       var primaryPages = ["home", "issues", "skills", "resources"];
       var fallbackParent = { recommend: "home", context: "recommend", workspace: "issues", result: "workspace", advance: "workspace", settings: "home" };
@@ -968,7 +1019,7 @@
         advance: ["推进议题", "创建下一阶段"],
         issues: ["议题", ""],
         resources: ["资料与成果", "来源、背景与可交付成果"],
-        skills: ["Skill 目录", "寻找适合此刻的能力"],
+        skills: ["Skill 目录", "搜索可用能力"],
         settings: ["设置", "模型、可访问性与数据"]
       };
 
@@ -994,6 +1045,13 @@
         embedded: { initial: "嵌", shortName: "工程", name: "嵌入式工程顾问", role: "技术可行性", body: "建议先用现有经验搭建一个包含传感器、RTOS 和边缘推理的最小项目，再用招聘要求补齐缺口。", status: ["已完成", "success"] },
         risk: { initial: "塔", shortName: "反方", name: "塔勒布视角", role: "反方检查", body: "不要把单一行业预测当作确定性。保留回退路径，并用可转移能力衡量每一项投入。", status: ["需要处理", "warning"] }
       };
+
+      var skillCatalog = [
+        { key: "embedded", initial: "嵌", name: "嵌入式工程顾问", type: "专业顾问", role: "技术可行性", status: ["可用", "success"], summary: "评估技术路径、项目范围与能力缺口。", boundary: "提供分析与计划，不替代实际工程验证。", useFor: "机器人嵌入式转向、项目路线和岗位要求对照。", notFor: "不替代真实项目验证、招聘流程或工程交付。" },
+        { key: "career", initial: "职", name: "职业发展顾问", type: "专业顾问", role: "行动路径", status: ["可用", "success"], summary: "把目标拆成岗位样本、能力差距和可验证的下一步。", boundary: "提供行动拆解，不替代你的最终选择。", useFor: "职业转向、里程碑设计和小步验证。", notFor: "不承诺岗位结果，也不替代真实反馈。" },
+        { key: "taleb", initial: "塔", name: "塔勒布视角", type: "人物视角", role: "反方检查", status: ["可用", "success"], summary: "检查脆弱假设、单一路径和无法承受的风险。", boundary: "AI 模拟视角，不代表本人或事实结论。", useFor: "反方质疑、回退路径和风险暴露检查。", notFor: "不提供事实认证，不替你裁决真理。" },
+        { key: "deai", initial: "去", name: "去 AI 化助手", type: "任务助手", role: "现实沟通表达", status: ["可用", "success"], summary: "让真实内容更像你本人表达，保留事实和责任边界。", boundary: "只处理真实内容，不用于规避检测或伪造事实。", useFor: "邮件、说明、复盘和行动计划的自然表达。", notFor: "不捏造经历，不隐藏 AI 参与边界。" }
+      ];
 
       function stateBanner() {
         if (state === "Content") {
@@ -1153,10 +1211,37 @@
       }
 
       function skillsView() {
+        var query = skillQuery.trim().toLowerCase();
+        var filtered = skillCatalog.filter(function (skill) {
+          var matchesType = skillTypeFilter === "all" || skill.type === skillTypeFilter;
+          var searchText = (skill.name + " " + skill.type + " " + skill.role + " " + skill.summary).toLowerCase();
+          return matchesType && (!query || searchText.indexOf(query) !== -1);
+        });
+        var counts = { all: skillCatalog.length, "专业顾问": 0, "人物视角": 0, "任务助手": 0 };
+        skillCatalog.forEach(function (skill) { counts[skill.type] += 1; });
+        var filterOptions = [
+          ["all", "全部"],
+          ["专业顾问", "专业顾问"],
+          ["人物视角", "人物视角"],
+          ["任务助手", "任务助手"]
+        ];
+        var filterMarkup = filterOptions.map(function (option) {
+          var active = skillTypeFilter === option[0];
+          var count = counts[option[0]];
+          return "<button class='skill-filter " + (active ? "active" : "") + "' data-skill-filter='" + option[0] + "' role='tab' aria-selected='" + active + "' aria-controls='skill-results'>" + option[1] + " <span>" + count + "</span></button>";
+        }).join("");
+        var rows = filtered.map(function (skill) {
+          var detailOpen = skillDetailKey === skill.key;
+          var detail = detailOpen ? "<div class='skill-detail-panel' aria-live='polite'><p><strong>适合：</strong>" + skill.useFor + "</p><p><strong>边界：</strong>" + skill.notFor + "</p></div>" : "";
+          return "<article class='skill-row'><div class='skill-row-top'><span class='avatar skill-row-avatar' aria-hidden='true'>" + skill.initial + "</span><div class='skill-row-main'><div class='skill-row-title'><strong>" + skill.name + "</strong><span class='skill-status " + skill.status[1] + "'>" + skill.status[0] + "</span></div><span class='skill-row-meta'>" + skill.type + " · " + skill.role + "</span></div></div><p class='skill-row-summary'>" + skill.summary + "</p><div class='skill-row-footer'><span class='skill-boundary'>边界：" + skill.boundary + "</span><button class='skill-detail-action' data-skill-detail='" + skill.key + "' aria-expanded='" + detailOpen + "'>" + (detailOpen ? "收起" : "查看详情") + "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='m9 5 7 7-7 7'/></svg></button></div>" + detail + "</article>";
+        }).join("");
+        if (!rows) {
+          rows = "<div class='skill-empty'><strong>没有找到匹配的 Skill</strong><span>试试更短的关键词，或切换到「全部」。</span></div>";
+        }
         return stateBanner() +
-          "<section><p class='eyebrow'>能力目录</p><h2 class='page-title'>选择合适的视角与顾问</h2><p class='page-copy'>Skill 的名称、类型、边界和可用性始终有文字表达。</p></section>" +
-          "<section class='card'><label class='input-label' for='search'>搜索 Skill</label><input id='search' class='text-input' value='嵌入式' aria-label='搜索 Skill'><div class='chip-row' style='margin-top:10px'><span class='chip'>专业顾问</span><span class='chip'>人物视角</span><span class='chip'>任务助手</span></div></section>" +
-          "<section class='card'><div class='list-row'><span class='avatar'>嵌</span><div class='list-grow'><strong>嵌入式工程顾问</strong><span>专业顾问 · 可用 · 评估技术路径</span><span>边界：提供分析与计划，不替代实际工程验证。</span></div><button class='text-action'>详情</button></div><div class='list-row'><span class='avatar'>去</span><div class='list-grow'><strong>去AI化助手</strong><span>任务助手 · 可用 · 现实沟通表达</span><span>让真实内容更像你本人表达，不用于规避检测或伪造事实。</span></div><button class='text-action'>详情</button></div></section>";
+          "<section class='skill-page'><div class='skill-hero'><div><p class='eyebrow'>能力目录</p><h2 class='page-title'>选一个帮手</h2><p class='page-copy'>先按类型筛选，再查看它能做什么和不能做什么。</p></div><span class='skill-count'>" + skillCatalog.length + " 个可用</span></div>" +
+          "<section class='skill-tools' aria-label='搜索和筛选 Skill'><div class='skill-search'><svg class='skill-search-icon' viewBox='0 0 24 24' aria-hidden='true'><path d='m20 20-4.4-4.4m2.1-5.1a7.2 7.2 0 1 1-14.4 0 7.2 7.2 0 0 1 14.4 0z'/></svg><label class='sr-only' for='skill-search'>搜索 Skill</label><input id='skill-search' value='" + skillQuery.replace(/&/g, "&amp;").replace(/"/g, "&quot;") + "' placeholder='搜索名称、职责或类型' aria-label='搜索 Skill'><button class='skill-search-clear' data-clear-skill-search aria-label='清空搜索'>×</button></div><div class='skill-filter-bar' role='tablist' aria-label='按 Skill 类型筛选'>" + filterMarkup + "</div></section>" +
+          "<section id='skill-results' class='skill-results' aria-label='Skill 列表'><div class='skill-results-head'><strong>匹配结果</strong><span>" + filtered.length + " 个</span></div><div class='skill-list'>" + rows + "</div></section></section>";
       }
 
       function settingsView() {
@@ -1296,6 +1381,26 @@
           render();
           return;
         }
+        var skillFilterButton = event.target.closest("[data-skill-filter]");
+        if (skillFilterButton) {
+          skillTypeFilter = skillFilterButton.getAttribute("data-skill-filter");
+          skillDetailKey = "";
+          render();
+          return;
+        }
+        var clearSkillSearch = event.target.closest("[data-clear-skill-search]");
+        if (clearSkillSearch) {
+          skillQuery = "";
+          render();
+          return;
+        }
+        var skillDetailButton = event.target.closest("[data-skill-detail]");
+        if (skillDetailButton) {
+          var detailKey = skillDetailButton.getAttribute("data-skill-detail");
+          skillDetailKey = skillDetailKey === detailKey ? "" : detailKey;
+          render();
+          return;
+        }
         var skillTab = event.target.closest("[data-skill-tab]");
         if (skillTab) {
           selectedIndependentSkill = skillTab.getAttribute("data-skill-tab");
@@ -1312,6 +1417,17 @@
         var step = event.target.closest("[data-step]");
         if (step) {
           advanceStep = Number(step.getAttribute("data-step"));
+          render();
+        }
+      });
+
+      document.addEventListener("input", function (event) {
+        if (event.target.id === "skill-search") {
+          skillQuery = event.target.value;
+        }
+      });
+      document.addEventListener("change", function (event) {
+        if (event.target.id === "skill-search") {
           render();
         }
       });
