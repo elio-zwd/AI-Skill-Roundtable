@@ -520,6 +520,84 @@
     .rail-actions .text-action { min-height: 30px; padding: 3px 6px; font-size: 12px; }
 
     .chat-stream { display: grid; gap: 18px; }
+    .independent-replies { display: grid; gap: 10px; }
+    .reply-group-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .reply-group-heading strong { font-size: 13px; }
+    .reply-group-heading span { color: var(--text-2); font-size: 12px; }
+    .skill-selector { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .skill-tab {
+      display: flex;
+      align-items: center;
+      min-height: 52px;
+      gap: 6px;
+      padding: 7px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text-2);
+      background: var(--surface);
+      text-align: left;
+    }
+    .skill-tab.active { border-color: var(--brand); color: var(--brand-strong); background: var(--surface-3); }
+    .skill-tab-initial {
+      display: grid;
+      place-items: center;
+      width: 26px;
+      height: 26px;
+      flex: 0 0 auto;
+      border-radius: 8px;
+      color: var(--brand-strong);
+      background: color-mix(in srgb, var(--surface) 55%, transparent);
+      font-size: 13px;
+      font-weight: 900;
+    }
+    .skill-tab-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 700; }
+    .skill-tab-mark { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 99px; background: var(--success); }
+    .skill-tab-mark[data-tone="warning"] { background: var(--warning); }
+    .focused-reply {
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: var(--surface);
+    }
+    .focused-reply-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 13px;
+      border-bottom: 1px solid var(--border);
+    }
+    .focused-reply .response-avatar {
+      display: grid;
+      place-items: center;
+      width: 32px;
+      height: 32px;
+      flex: 0 0 auto;
+      border-radius: 10px;
+      color: var(--brand-strong);
+      background: var(--surface-3);
+      font-weight: 900;
+    }
+    .response-identity { min-width: 0; flex: 1; }
+    .response-identity strong, .response-identity span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .response-identity strong { color: var(--text); font-size: 14px; }
+    .response-identity span { margin-top: 1px; color: var(--text-2); font-size: 12px; }
+    .focused-reply .message-badges { gap: 4px; }
+    .focused-reply-body { margin: 0; padding: 14px 13px; color: var(--text); font-size: 14px; line-height: 1.65; }
+    .focused-reply-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 0 13px 12px;
+      color: var(--text-2);
+      font-size: 11px;
+    }
+    .focused-reply-footer .text-action { min-height: 28px; padding: 2px 5px; font-size: 12px; }
     .chat-message {
       display: grid;
       grid-template-columns: 36px minmax(0, 1fr);
@@ -876,6 +954,7 @@
       var selectedDirections = { practical: true, perspective: true };
       var workspaceMenuOpen = false;
       var composerMenuOpen = false;
+      var selectedIndependentSkill = "career";
       var pageHistory = [];
       var primaryPages = ["home", "issues", "skills", "resources"];
       var fallbackParent = { recommend: "home", context: "recommend", workspace: "issues", result: "workspace", advance: "workspace", settings: "home" };
@@ -909,6 +988,12 @@
         "Recovering": ["info", "正在恢复上一次运行", "这是恢复而非新的运行。可查看历史或取消恢复。", "↻"],
         "Restored": ["success", "已恢复", "焦点会回到已恢复对象，不会自动跳到页面开头。", "✓"],
         "Unavailable": ["danger", "当前能力不可用", "显示受影响模型或 Skill 的原因，并给出不暗中替换的下一步。", "×"]
+      };
+
+      var independentReplies = {
+        career: { initial: "职", shortName: "职业顾问", name: "职业发展顾问", role: "行动路径", body: "先把半年目标拆成岗位样本、能力差距、一个可展示项目和三次反馈。这样能用小实验降低一次性选择的风险。", status: ["已完成", "success"] },
+        embedded: { initial: "嵌", shortName: "嵌入顾问", name: "嵌入式工程顾问", role: "技术可行性", body: "建议先用现有经验搭建一个包含传感器、RTOS 和边缘推理的最小项目，再用招聘要求补齐缺口。", status: ["已完成", "success"] },
+        risk: { initial: "塔", shortName: "反方视角", name: "塔勒布视角", role: "反方检查", body: "不要把单一行业预测当作确定性。保留回退路径，并用可转移能力衡量每一项投入。", status: ["需要处理", "warning"] }
       };
 
       function stateBanner() {
@@ -965,6 +1050,19 @@
         return "<article class='chat-message user'><span class='avatar'>我</span><div class='message-stack'><div class='message-header'><div class='message-identity'><span>你</span></div></div><div class='message-bubble'>" + body + "</div><div class='message-footer'><span>已发送</span></div></div></article>";
       }
 
+      function independentRepliesView() {
+        var keys = Object.keys(independentReplies);
+        var tabs = "";
+        for (var index = 0; index < keys.length; index++) {
+          var key = keys[index];
+          var item = independentReplies[key];
+          var selected = key === selectedIndependentSkill;
+          tabs += "<button id='skill-tab-" + key + "' class='skill-tab " + (selected ? "active" : "") + "' role='tab' aria-selected='" + selected + "' aria-controls='focused-skill-reply' data-skill-tab='" + key + "' aria-label='" + item.name + "，" + item.status[0] + "'><span class='skill-tab-initial' aria-hidden='true'>" + item.initial + "</span><span class='skill-tab-label'>" + item.shortName + "</span><span class='skill-tab-mark' data-tone='" + item.status[1] + "' aria-hidden='true'></span></button>";
+        }
+        var current = independentReplies[selectedIndependentSkill];
+        return "<section class='independent-replies' aria-label='多 Skill 独立回应'><div class='reply-group-heading'><strong>独立回应</strong><span>选择一位 Skill 查看</span></div><div class='skill-selector' role='tablist' aria-label='选择 Skill'>" + tabs + "</div><article id='focused-skill-reply' class='focused-reply' role='tabpanel' aria-labelledby='skill-tab-" + selectedIndependentSkill + "'><header class='focused-reply-header'><span class='response-avatar' aria-hidden='true'>" + current.initial + "</span><div class='response-identity'><strong>" + current.name + "</strong><span>" + current.role + "</span></div><div class='message-badges'><span class='chip'>AI 生成</span><span class='chip " + current.status[1] + "'>" + current.status[0] + "</span></div></header><p class='focused-reply-body'>" + current.body + "</p><footer class='focused-reply-footer'><span>来源：本阶段 · 刚刚</span><button class='text-action'>完整回应</button></footer></article></section>";
+      }
+
       function workspaceRail() {
         if (state === "Content") {
           return "<div class='chat-rail'><span>3 位 Skill 已回应 · 可继续追问或整理当前结论</span><button class='text-action'>查看阵容</button></div>";
@@ -998,9 +1096,7 @@
         var modeContent = "";
         if (workspaceMode === "independent") {
           modeContent = userMessage("我有 Android 开发经验，想在半年内转向机器人嵌入式岗位。第一步应该怎样验证方向？") +
-            chatMessage("职业发展顾问", "行动路径", "先把半年目标拆成岗位样本、能力差距、一个可展示项目和三次反馈。这样能用小实验降低一次性选择的风险。", ["已完成", "success"]) +
-            chatMessage("嵌入式工程顾问", "技术可行性", "建议先用现有经验搭建一个包含传感器、RTOS 和边缘推理的最小项目，再用招聘要求补齐缺口。", ["已完成", "success"]) +
-            chatMessage("塔勒布视角", "反方检查", "不要把单一行业预测当作确定性。保留回退路径，并用可转移能力衡量每一项投入。", ["需要处理", "warning"]);
+            independentRepliesView();
         } else if (workspaceMode === "directed") {
           modeContent = "<div class='conversation-divider'>定向回应 · 结束后恢复多 Skill</div>" +
             userMessage("请根据我的现有 Android 经验，给出第一个机器人嵌入式项目的范围建议。") +
@@ -1198,6 +1294,12 @@
         var issuesTabButton = event.target.closest("[data-issues-tab]");
         if (issuesTabButton) {
           issuesTab = issuesTabButton.getAttribute("data-issues-tab");
+          render();
+          return;
+        }
+        var skillTab = event.target.closest("[data-skill-tab]");
+        if (skillTab) {
+          selectedIndependentSkill = skillTab.getAttribute("data-skill-tab");
           render();
           return;
         }
