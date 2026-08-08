@@ -520,64 +520,60 @@
     .rail-actions .text-action { min-height: 30px; padding: 3px 6px; font-size: 12px; }
 
     .chat-stream { display: grid; gap: 18px; }
-    .independent-replies { display: grid; gap: 10px; }
+    .independent-replies {
+      display: grid;
+      gap: 12px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
     .reply-group-heading {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
     }
-    .reply-group-heading strong { font-size: 13px; }
+    .reply-group-heading strong { font-size: 14px; }
     .reply-group-heading span { color: var(--text-2); font-size: 12px; }
-    .skill-selector { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .skill-selector { display: flex; gap: 18px; border-bottom: 1px solid var(--border); }
     .skill-tab {
       display: flex;
       align-items: center;
-      min-height: 52px;
-      gap: 6px;
-      padding: 7px;
-      border: 1px solid var(--border);
-      border-radius: 12px;
+      min-height: 40px;
+      gap: 5px;
+      padding: 0 0 10px;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      border-radius: 0;
       color: var(--text-2);
-      background: var(--surface);
+      background: transparent;
       text-align: left;
     }
-    .skill-tab.active { border-color: var(--brand); color: var(--brand-strong); background: var(--surface-3); }
+    .skill-tab.active { border-color: var(--brand); color: var(--brand-strong); background: transparent; }
     .skill-tab-initial {
-      display: grid;
-      place-items: center;
-      width: 26px;
-      height: 26px;
       flex: 0 0 auto;
-      border-radius: 8px;
       color: var(--brand-strong);
-      background: color-mix(in srgb, var(--surface) 55%, transparent);
       font-size: 13px;
       font-weight: 900;
     }
-    .skill-tab-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 700; }
-    .skill-tab-mark { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 99px; background: var(--success); }
-    .skill-tab-mark[data-tone="warning"] { background: var(--warning); }
+    .skill-tab-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 700; }
     .focused-reply {
-      overflow: hidden;
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      background: var(--surface);
+      min-width: 0;
+      padding-left: 13px;
+      border-left: 2px solid var(--brand);
     }
     .focused-reply-header {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 12px 13px;
-      border-bottom: 1px solid var(--border);
+      gap: 7px;
+      padding: 0 0 8px;
     }
     .focused-reply .response-avatar {
       display: grid;
       place-items: center;
-      width: 32px;
-      height: 32px;
+      width: 28px;
+      height: 28px;
       flex: 0 0 auto;
-      border-radius: 10px;
+      border-radius: 8px;
       color: var(--brand-strong);
       background: var(--surface-3);
       font-weight: 900;
@@ -586,14 +582,17 @@
     .response-identity strong, .response-identity span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .response-identity strong { color: var(--text); font-size: 14px; }
     .response-identity span { margin-top: 1px; color: var(--text-2); font-size: 12px; }
-    .focused-reply .message-badges { gap: 4px; }
-    .focused-reply-body { margin: 0; padding: 14px 13px; color: var(--text); font-size: 14px; line-height: 1.65; }
+    .response-flags { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 5px; color: var(--text-2); font-size: 11px; }
+    .response-state { color: var(--success); font-weight: 700; }
+    .response-state::before { content: "·"; margin-right: 5px; color: var(--text-2); }
+    .response-state.warning { color: var(--warning); }
+    .focused-reply-body { margin: 0; padding: 0 0 12px; color: var(--text); font-size: 16px; line-height: 1.72; }
     .focused-reply-footer {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 8px;
-      padding: 0 13px 12px;
+      padding: 0;
       color: var(--text-2);
       font-size: 11px;
     }
@@ -991,9 +990,9 @@
       };
 
       var independentReplies = {
-        career: { initial: "职", shortName: "职业顾问", name: "职业发展顾问", role: "行动路径", body: "先把半年目标拆成岗位样本、能力差距、一个可展示项目和三次反馈。这样能用小实验降低一次性选择的风险。", status: ["已完成", "success"] },
-        embedded: { initial: "嵌", shortName: "嵌入顾问", name: "嵌入式工程顾问", role: "技术可行性", body: "建议先用现有经验搭建一个包含传感器、RTOS 和边缘推理的最小项目，再用招聘要求补齐缺口。", status: ["已完成", "success"] },
-        risk: { initial: "塔", shortName: "反方视角", name: "塔勒布视角", role: "反方检查", body: "不要把单一行业预测当作确定性。保留回退路径，并用可转移能力衡量每一项投入。", status: ["需要处理", "warning"] }
+        career: { initial: "职", shortName: "职业", name: "职业发展顾问", role: "行动路径", body: "先把半年目标拆成岗位样本、能力差距、一个可展示项目和三次反馈。这样能用小实验降低一次性选择的风险。", status: ["已完成", "success"] },
+        embedded: { initial: "嵌", shortName: "工程", name: "嵌入式工程顾问", role: "技术可行性", body: "建议先用现有经验搭建一个包含传感器、RTOS 和边缘推理的最小项目，再用招聘要求补齐缺口。", status: ["已完成", "success"] },
+        risk: { initial: "塔", shortName: "反方", name: "塔勒布视角", role: "反方检查", body: "不要把单一行业预测当作确定性。保留回退路径，并用可转移能力衡量每一项投入。", status: ["需要处理", "warning"] }
       };
 
       function stateBanner() {
@@ -1057,10 +1056,10 @@
           var key = keys[index];
           var item = independentReplies[key];
           var selected = key === selectedIndependentSkill;
-          tabs += "<button id='skill-tab-" + key + "' class='skill-tab " + (selected ? "active" : "") + "' role='tab' aria-selected='" + selected + "' aria-controls='focused-skill-reply' data-skill-tab='" + key + "' aria-label='" + item.name + "，" + item.status[0] + "'><span class='skill-tab-initial' aria-hidden='true'>" + item.initial + "</span><span class='skill-tab-label'>" + item.shortName + "</span><span class='skill-tab-mark' data-tone='" + item.status[1] + "' aria-hidden='true'></span></button>";
+          tabs += "<button id='skill-tab-" + key + "' class='skill-tab " + (selected ? "active" : "") + "' role='tab' aria-selected='" + selected + "' aria-controls='focused-skill-reply' data-skill-tab='" + key + "' aria-label='" + item.name + "，" + item.status[0] + "'><span class='skill-tab-initial' aria-hidden='true'>" + item.initial + "</span><span class='skill-tab-label'>" + item.shortName + "</span></button>";
         }
         var current = independentReplies[selectedIndependentSkill];
-        return "<section class='independent-replies' aria-label='多 Skill 独立回应'><div class='reply-group-heading'><strong>独立回应</strong><span>选择一位 Skill 查看</span></div><div class='skill-selector' role='tablist' aria-label='选择 Skill'>" + tabs + "</div><article id='focused-skill-reply' class='focused-reply' role='tabpanel' aria-labelledby='skill-tab-" + selectedIndependentSkill + "'><header class='focused-reply-header'><span class='response-avatar' aria-hidden='true'>" + current.initial + "</span><div class='response-identity'><strong>" + current.name + "</strong><span>" + current.role + "</span></div><div class='message-badges'><span class='chip'>AI 生成</span><span class='chip " + current.status[1] + "'>" + current.status[0] + "</span></div></header><p class='focused-reply-body'>" + current.body + "</p><footer class='focused-reply-footer'><span>来源：本阶段 · 刚刚</span><button class='text-action'>完整回应</button></footer></article></section>";
+        return "<section class='independent-replies' aria-label='多 Skill 独立回应'><div class='reply-group-heading'><strong>独立观点</strong><span>3 位 Skill</span></div><div class='skill-selector' role='tablist' aria-label='选择 Skill'>" + tabs + "</div><article id='focused-skill-reply' class='focused-reply' role='tabpanel' aria-labelledby='skill-tab-" + selectedIndependentSkill + "'><header class='focused-reply-header'><span class='response-avatar' aria-hidden='true'>" + current.initial + "</span><div class='response-identity'><strong>" + current.name + "</strong><span>" + current.role + "</span></div><div class='response-flags'><span>AI 生成</span><span class='response-state " + current.status[1] + "'>" + current.status[0] + "</span></div></header><p class='focused-reply-body'>" + current.body + "</p><footer class='focused-reply-footer'><span>来源：本阶段 · 刚刚</span><button class='text-action'>完整回应</button></footer></article></section>";
       }
 
       function workspaceRail() {
