@@ -201,12 +201,13 @@
     .app-topbar {
       display: flex;
       align-items: center;
-      justify-content: space-between;
       min-height: 52px;
       padding: 6px 16px;
       border-bottom: 1px solid var(--border);
       background: color-mix(in srgb, var(--surface) 94%, transparent);
     }
+    .topbar-title { min-width: 0; flex: 1; }
+    .app-topbar h1, .app-topbar .sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .app-topbar h1 { margin: 0; font-size: 18px; line-height: 1.25; }
     .app-topbar .sub { color: var(--text-2); font-size: 12px; line-height: 16px; }
     .app-topbar .sub[hidden] { display: none; }
@@ -221,6 +222,7 @@
       background: var(--surface);
       font-size: 19px;
     }
+    .topbar-back { margin-right: 4px; }
     .topbar-icon {
       width: 20px;
       height: 20px;
@@ -812,7 +814,8 @@
       <section class="device" aria-live="polite">
         <div class="status-strip"><span>9:41</span><span>● ● ●</span></div>
         <header class="app-topbar">
-          <div><h1 id="screen-name">启动与初始化</h1><span class="sub" id="screen-subtitle">见域 · 看见更多观点</span></div>
+          <button id="topbar-back" class="icon-button topbar-back" aria-label="返回" hidden><svg class="topbar-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 5-7 7 7 7"/></svg></button>
+          <div class="topbar-title"><h1 id="screen-name">启动与初始化</h1><span class="sub" id="screen-subtitle">见域 · 看见更多观点</span></div>
           <button id="topbar-action" class="icon-button" aria-label="打开设置" data-page="settings">○</button>
         </header>
         <div class="screen" id="screen-content"></div>
@@ -837,6 +840,9 @@
       var selectedDirections = { practical: true, perspective: true };
       var workspaceMenuOpen = false;
       var composerMenuOpen = false;
+      var pageHistory = [];
+      var primaryPages = ["home", "issues", "skills", "resources"];
+      var fallbackParent = { recommend: "home", context: "recommend", workspace: "issues", result: "workspace", advance: "workspace", settings: "home" };
 
       var labels = {
         launch: ["启动与初始化", "见域 · 看见更多观点"],
@@ -912,7 +918,7 @@
           "<section><p class='eyebrow'>开始前确认</p><h2 class='page-title'>决定这次带入什么</h2><p class='page-copy'>每项都有来源、时间与敏感范围；只在本次明确确认后带入。</p></section>" +
           "<section class='card'><h2>本次资料</h2><div class='list-row'><span class='avatar'>资</span><div class='list-grow'><strong>嵌入式项目经历梳理</strong><span>个人笔记 · 更新于今天 · 本次带入</span></div><span class='chip success'>已选</span></div><div class='list-row'><span class='avatar'>链</span><div class='list-grow'><strong>目标岗位 JD 对比</strong><span>外部来源 · 采集于 2026-08-01</span></div><span class='chip success'>已选</span></div></section>" +
           "<section class='card'><h2>个人背景</h2><div class='list-row'><span class='avatar'>背</span><div class='list-grow'><strong>职业约束与时间安排</strong><span>敏感内容 · 仅本阶段使用 · 不在推荐卡预览全文</span></div><span class='chip warning'>敏感</span></div></section>" +
-          "<div class='button-row'><button class='button' data-page='recommend'>返回阵容</button><button class='button primary' data-page='workspace'>确认并开始</button></div>";
+          "<div class='button-row'><button class='button' data-return-to='recommend'>返回阵容</button><button class='button primary' data-page='workspace'>确认并开始</button></div>";
       }
 
       function chatMessage(name, role, body, chip) {
@@ -1030,6 +1036,36 @@
           "<section class='card'><h2>遥测与诊断</h2><p>当前：仅元数据。危险操作保留独立确认和影响说明。</p><button class='button'>打开诊断</button></section>";
       }
 
+      function navigateTo(nextPage) {
+        if (nextPage === page) { return; }
+        if (primaryPages.indexOf(nextPage) !== -1 || (nextPage === "home" && page === "launch")) {
+          pageHistory = [];
+        } else {
+          pageHistory.push(page);
+        }
+        page = nextPage;
+        workspaceMenuOpen = false;
+        composerMenuOpen = false;
+        render();
+      }
+
+      function returnToPrevious() {
+        var previous = pageHistory.pop() || fallbackParent[page] || "home";
+        page = previous;
+        workspaceMenuOpen = false;
+        composerMenuOpen = false;
+        render();
+      }
+
+      function returnToPage(targetPage) {
+        var historyIndex = pageHistory.lastIndexOf(targetPage);
+        pageHistory = historyIndex === -1 ? [] : pageHistory.slice(0, historyIndex);
+        page = targetPage;
+        workspaceMenuOpen = false;
+        composerMenuOpen = false;
+        render();
+      }
+
       function render() {
         var screenName = document.getElementById("screen-name");
         var screenSubtitle = document.getElementById("screen-subtitle");
@@ -1051,9 +1087,15 @@
         };
         var isWorkspace = page === "workspace";
         var device = document.querySelector(".device");
+        var topbar = document.querySelector(".app-topbar");
+        var topbarBack = document.getElementById("topbar-back");
         var topbarAction = document.getElementById("topbar-action");
         var composer = document.getElementById("workspace-composer");
+        var hasBack = page !== "launch" && primaryPages.indexOf(page) === -1;
         device.classList.toggle("chat-mode", isWorkspace);
+        topbar.classList.toggle("has-back", hasBack);
+        topbarBack.hidden = !hasBack;
+        topbarAction.hidden = page === "settings";
         if (isWorkspace) {
           topbarAction.removeAttribute("data-page");
           topbarAction.setAttribute("data-workspace-menu", "true");
@@ -1083,12 +1125,19 @@
       }
 
       document.addEventListener("click", function (event) {
+        var backButton = event.target.closest("[id='topbar-back']");
+        if (backButton) {
+          returnToPrevious();
+          return;
+        }
         var pageButton = event.target.closest("[data-page]");
         if (pageButton && !pageButton.disabled) {
-          page = pageButton.getAttribute("data-page");
-          workspaceMenuOpen = false;
-          composerMenuOpen = false;
-          render();
+          navigateTo(pageButton.getAttribute("data-page"));
+          return;
+        }
+        var returnButton = event.target.closest("[data-return-to]");
+        if (returnButton) {
+          returnToPage(returnButton.getAttribute("data-return-to"));
           return;
         }
         var workspaceMenu = event.target.closest("[data-workspace-menu]");
