@@ -661,15 +661,37 @@
     .device.chat-mode .workspace-composer { display: block; }
     .device.chat-mode .bottom-nav { display: none; }
     .bottom-nav button {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1px;
       min-height: 54px;
       border: 0;
-      border-radius: 10px;
       color: var(--text-2);
       background: transparent;
       font-size: 11px;
       font-weight: 700;
     }
-    .bottom-nav button.active { color: var(--brand-strong); background: var(--surface-3); }
+    .nav-icon-wrap {
+      display: grid;
+      place-items: center;
+      width: 48px;
+      height: 30px;
+      border-radius: 12px;
+    }
+    .nav-icon {
+      width: 20px;
+      height: 20px;
+      stroke: currentColor;
+      stroke-width: 1.9;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .nav-label { line-height: 16px; }
+    .bottom-nav button.active { color: var(--brand-strong); font-weight: 800; }
+    .bottom-nav button.active .nav-icon-wrap { background: var(--surface-3); }
 
     @media (max-width: 760px) {
       .prototype-shell { grid-template-columns: 1fr; }
@@ -742,10 +764,10 @@
         <div class="screen" id="screen-content"></div>
         <section id="workspace-composer" class="workspace-composer" aria-label="继续当前阶段"></section>
         <nav class="bottom-nav" aria-label="底部导航">
-          <button data-page="home">首页</button>
-          <button data-page="issues">议题</button>
-          <button data-page="skills">Skill</button>
-          <button data-page="resources">资料与成果</button>
+          <button data-page="home" aria-label="首页"><span class="nav-icon-wrap"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3.5 10 8.5-7 8.5 7v10a1 1 0 0 1-1 1h-5v-6h-5v6h-5a1 1 0 0 1-1-1z"/></svg></span><span class="nav-label">首页</span></button>
+          <button data-page="issues" aria-label="议题"><span class="nav-icon-wrap"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h13M7 12h13M7 19h13M3.5 5h.01M3.5 12h.01M3.5 19h.01"/></svg></span><span class="nav-label">议题</span></button>
+          <button data-page="skills" aria-label="Skill"><span class="nav-icon-wrap"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 1.5 6.5L20 10l-6.5 1.5L12 18l-1.5-6.5L4 10l6.5-1.5z"/><path d="m19 16 .7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7z"/></svg></span><span class="nav-label">Skill</span></button>
+          <button data-page="resources" aria-label="资料与成果"><span class="nav-icon-wrap"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21zM20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5A2.5 2.5 0 0 1 20 21z"/></svg></span><span class="nav-label">资料与成果</span></button>
         </nav>
       </section>
     </section>
@@ -985,7 +1007,15 @@
         document.getElementById("screen-content").innerHTML = view[page]();
         var nodes = document.querySelectorAll("[data-page]");
         for (var i = 0; i < nodes.length; i++) {
-          nodes[i].classList.toggle("active", nodes[i].getAttribute("data-page") === page);
+          var selected = nodes[i].getAttribute("data-page") === page;
+          nodes[i].classList.toggle("active", selected);
+          if (nodes[i].closest(".bottom-nav")) {
+            if (selected) {
+              nodes[i].setAttribute("aria-current", "page");
+            } else {
+              nodes[i].removeAttribute("aria-current");
+            }
+          }
         }
       }
 
