@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -99,8 +100,13 @@ private fun StageResultContent(
         modifier = modifier
             .fillMaxWidth()
             .testTag(StageResultTestTags.PANEL),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        Text(
+            "阶段记录",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+        )
         Text("阶段草稿与成果", style = MaterialTheme.typography.titleMedium)
         Text(
             "草稿只在本地保存；只有最终确认后才会成为正式成果。",
@@ -143,20 +149,26 @@ private fun StageResultContent(
                     .testTag(StageResultTestTags.DRAFT_EDITOR),
             )
             DraftSaveStatusCard(state.saveStatus)
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Button(
                     onClick = callbacks.onSave,
                     enabled = state.saveStatus !is StageDraftSaveStatus.Saving,
-                    modifier = Modifier.testTag(StageResultTestTags.DRAFT_SAVE),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .testTag(StageResultTestTags.DRAFT_SAVE),
                 ) {
                     Text("保存")
                 }
                 TextButton(
                     onClick = callbacks.onRequestAbandon,
-                    modifier = Modifier.testTag(StageResultTestTags.DRAFT_ABANDON),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .testTag(StageResultTestTags.DRAFT_ABANDON),
                 ) {
                     Text("放弃当前草稿")
                 }
@@ -164,7 +176,10 @@ private fun StageResultContent(
             if (state.canConfirmArtifact) {
                 Button(
                     onClick = callbacks.onRequestArtifactConfirmation,
-                    modifier = Modifier.testTag(StageResultTestTags.ARTIFACT_CONFIRM),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .testTag(StageResultTestTags.ARTIFACT_CONFIRM),
                 ) {
                     Text("确认正式成果")
                 }
@@ -314,6 +329,14 @@ private fun StageArtifactList(
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag(StageResultTestTags.artifact(artifact.id)),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            ),
+            shape = MaterialTheme.shapes.medium,
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.outlineVariant,
+            ),
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -350,6 +373,9 @@ private fun ArtifactConfirmationDialog(
     AlertDialog(
         modifier = Modifier.testTag(StageResultTestTags.ARTIFACT_CONFIRMATION_DIALOG),
         onDismissRequest = callbacks.onDismissArtifactConfirmation,
+        containerColor = MaterialTheme.colorScheme.surface,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         title = { Text("确认正式成果") },
         text = {
             Column(

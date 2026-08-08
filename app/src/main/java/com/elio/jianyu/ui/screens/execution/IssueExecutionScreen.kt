@@ -73,6 +73,7 @@ fun IssueExecutionScreen(
 
     Scaffold(
         modifier = Modifier.testTag(IssueExecutionTestTags.SCREEN),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             IssueExecutionTopBar(
                 title = contentState?.issueTitle ?: "议题工作区",

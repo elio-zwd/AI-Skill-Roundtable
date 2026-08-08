@@ -25,12 +25,13 @@ val AppTextPrimary = Color(0xFFF8FAFC)
 val AppTextSecondary = Color(0xFFCBD5E1)
 val AppDivider = Color(0xFF334155)
 
-val LightCanvas = Color(0xFFF8FAFC)
-val LightSurface = Color(0xFFFFFFFF)
-val LightSurfaceRaised = Color(0xFFF1F5F9)
+// 浅色界面采用雾灰蓝画布与柔白纸面，避免整屏纯白导致的表单感。
+val LightCanvas = Color(0xFFF1F4F8)
+val LightSurface = Color(0xFFFAFBFD)
+val LightSurfaceRaised = Color(0xFFE9EEF5)
 val LightTextPrimary = Color(0xFF111827)
 val LightTextSecondary = Color(0xFF475569)
-val LightDivider = Color(0xFFCBD5E1)
+val LightDivider = Color(0xFFC7D2E0)
 
 val DarkBrandPrimary = Color(0xFFA5B4FC)
 val DarkBrandPrimaryStrong = Color(0xFFC7D2FE)

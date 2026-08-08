@@ -108,6 +108,7 @@ internal fun MainAppContent(
             .fillMaxSize()
             .testTag(JianyuAutomationTags.App.CONTENT_ROOT)
             .semantics { testTagsAsResourceId = true },
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = contentWindowInsets,
         bottomBar = {
             if (currentTopLevel != null) {

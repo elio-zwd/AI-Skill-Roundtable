@@ -158,12 +158,12 @@ UI/UX Pro Max 指引已经应用：文本对比度目标为 WCAG AA、Android �
 | color.brand.container | #EEF2FF | #29285A | A 开放边界容器。 |
 | color.direction.practical | #0F766E | #5EEAD4 | 现实支持标签与路径。 |
 | color.direction.perspective | #6D28D9 | #C4B5FD | 思维拓展标签与假设。 |
-| color.surface.canvas | #F8FAFC | #10131A | 页面背景。 |
-| color.surface.base | #FFFFFF | #171B24 | 主卡/Sheet。 |
-| color.surface.raised | #FFFFFF | #252C39 | 悬浮卡、输入区。 |
+| color.surface.canvas | #F1F4F8 | #10131A | 页面背景；使用雾灰蓝画布，避免整屏纯白。 |
+| color.surface.base | #FAFBFD | #171B24 | 主卡/Sheet；柔白纸面，不使用纯白背景。 |
+| color.surface.raised | #E9EEF5 | #252C39 | 悬浮卡、输入区。 |
 | color.text.primary | #111827 | #F8FAFC | 标题/正文。 |
 | color.text.secondary | #475569 | #CBD5E1 | 元信息。 |
-| color.border.default | #CBD5E1 | #334155 | B 编辑边线。 |
+| color.border.default | #C7D2E0 | #334155 | B 编辑边线。 |
 | color.status.success | #047857 | #5EEAD4 | 已完成；不单独依赖颜色。 |
 | color.status.warning | #A15C00 | #FBBF24 | 注意、部分成功、限流。 |
 | color.status.danger | #B42318 | #FDA4AF | 失败、不可恢复动作。 |

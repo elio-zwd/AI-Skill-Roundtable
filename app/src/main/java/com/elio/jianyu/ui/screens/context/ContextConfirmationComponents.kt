@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -49,6 +50,9 @@ fun ContextConfirmationDialog(
     AlertDialog(
         modifier = Modifier.testTag(ContextConfirmationTestTags.DIALOG),
         onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         title = {
             Text(if (state.retryMode) "确认本次重试上下文" else "确认执行上下文")
         },
@@ -173,6 +177,22 @@ private fun ContextCandidateCard(
         modifier = Modifier
             .fillMaxWidth()
             .testTag(ContextConfirmationTestTags.candidate(candidate.sourceType, candidate.sourceId)),
+        colors = CardDefaults.cardColors(
+            containerColor = if (candidate.selected) {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerLow
+            },
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = if (candidate.selected) {
+                MaterialTheme.colorScheme.primary.copy(alpha = .38f)
+            } else {
+                MaterialTheme.colorScheme.outlineVariant
+            },
+        ),
+        shape = MaterialTheme.shapes.medium,
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
