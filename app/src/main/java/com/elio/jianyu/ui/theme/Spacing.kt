@@ -10,9 +10,13 @@ import androidx.compose.ui.unit.dp
 @Immutable
 data class SkillRoundtableSpacing(
     val screenHorizontal: Dp = 16.dp,
-    val compact: Dp = 8.dp,
     val tiny: Dp = 4.dp,
-    val bottomNavigationHeight: Dp = 60.dp,
+    val compact: Dp = 8.dp,
+    val small: Dp = 12.dp,
+    val medium: Dp = 16.dp,
+    val large: Dp = 24.dp,
+    val xLarge: Dp = 32.dp,
+    val bottomNavigationHeight: Dp = 80.dp,
 )
 
 internal val LocalSkillRoundtableSpacing = staticCompositionLocalOf {

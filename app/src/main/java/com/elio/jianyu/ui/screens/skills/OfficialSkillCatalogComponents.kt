@@ -64,38 +64,46 @@ internal fun OfficialSkillCatalogHeader(
     onQueryChanged: (String) -> Unit,
     onOpenFilters: () -> Unit,
 ) {
-    Text(
-        text = "官方 Skill",
-        style = MaterialTheme.typography.headlineSmall,
-        fontWeight = FontWeight.SemiBold,
-    )
-    Text(
-        text = "共 $totalSkillCount 项。能找到不等于已经可以执行。",
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-    Spacer(Modifier.height(10.dp))
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        OutlinedTextField(
-            value = query,
-            onValueChange = onQueryChanged,
-            label = { Text("搜索名称、ID、领域、场景或输出") },
-            singleLine = true,
-            modifier = Modifier
-                .weight(1f)
-                .testTag(OfficialSkillCatalogTestTags.SEARCH),
+        Text(
+            text = "Skill 目录",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
         )
-        Spacer(Modifier.width(8.dp))
-        OutlinedButton(
-            onClick = onOpenFilters,
-            modifier = Modifier
-                .heightIn(min = 48.dp)
-                .testTag(OfficialSkillCatalogTestTags.FILTER_BUTTON),
+        Text(
+            text = "共 $totalSkillCount 项能力。可查看职责、可用性与边界。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("筛选")
+            OutlinedTextField(
+                value = query,
+                onValueChange = onQueryChanged,
+                label = { Text("搜索 Skill") },
+                placeholder = { Text("名称、领域或输出") },
+                singleLine = true,
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 56.dp)
+                    .testTag(OfficialSkillCatalogTestTags.SEARCH),
+            )
+            Spacer(Modifier.width(8.dp))
+            OutlinedButton(
+                onClick = onOpenFilters,
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .testTag(OfficialSkillCatalogTestTags.FILTER_BUTTON),
+            ) {
+                Text("筛选")
+            }
         }
     }
 }
@@ -117,7 +125,8 @@ internal fun OfficialSkillCatalogSectionTabs(
     ScrollableTabRow(
         selectedTabIndex = tabs.indexOfFirst { it.first == selected }.coerceAtLeast(0),
         edgePadding = 0.dp,
-        divider = {},
+        containerColor = MaterialTheme.colorScheme.surface,
+        divider = { HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant) },
     ) {
         tabs.forEach { (section, label) ->
             Tab(
@@ -167,7 +176,7 @@ internal fun OfficialSkillCatalogList(
         modifier = Modifier
             .fillMaxSize()
             .testTag(OfficialSkillCatalogTestTags.LIST),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
         items(skills, key = OfficialSkillDefinition::id) { skill ->
             OfficialSkillCard(
@@ -188,17 +197,15 @@ private fun OfficialSkillCard(
     onOpenDetail: () -> Unit,
     onToggleFavorite: () -> Unit,
 ) {
-    Card(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onOpenDetail)
-            .semantics { contentDescription = "${skill.nameZh}，官方 Skill 详情" }
-            .testTag(OfficialSkillCatalogTestTags.skill(skill.id)),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
+            .semantics { contentDescription = "${skill.nameZh}，查看 Skill 详情" }
+            .testTag(OfficialSkillCatalogTestTags.skill(skill.id))
+            .padding(vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Column(Modifier.padding(14.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top,
@@ -228,27 +235,20 @@ private fun OfficialSkillCard(
                 text = skill.summary,
                 style = MaterialTheme.typography.bodyMedium,
             )
-            Spacer(Modifier.height(8.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .testTag(OfficialSkillCatalogTestTags.skillStatus(skill.id)),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                skill.statusLabels().forEach { label ->
-                    AssistChip(onClick = {}, label = { Text(label) })
-                }
-            }
+            Text(
+                text = skill.statusLabels().joinToString(" · "),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag(OfficialSkillCatalogTestTags.skillStatus(skill.id)),
+            )
             skill.listBoundaryHint()?.let { hint ->
-                Spacer(Modifier.height(6.dp))
                 Text(
                     text = hint,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 

@@ -5,8 +5,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -34,6 +35,7 @@ internal fun IssueCollaborationWorkspaceSection(
     onSynthesize: (String) -> Unit,
     onRetrySynthesis: (String) -> Unit,
     onStop: (String) -> Unit,
+    showComposer: Boolean = true,
 ) {
     IssueCollaborationSection(
         state = state,
@@ -51,6 +53,7 @@ internal fun IssueCollaborationWorkspaceSection(
         onSynthesize = onSynthesize,
         onRetrySynthesis = onRetrySynthesis,
         onStop = onStop,
+        showComposer = showComposer,
     )
     val content = state as? IssueCollaborationUiState.Content ?: return
     content.directedRuns.forEach { directed ->
@@ -68,7 +71,7 @@ private fun DirectedResponseStatusCard(
     operationInProgress: Boolean,
     onRetry: (String) -> Unit,
 ) {
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .testTag(
@@ -78,6 +81,9 @@ private fun DirectedResponseStatusCard(
                     JianyuAutomationTags.Collaboration.directedParticipant(directed.skillId)
                 },
             ),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = MaterialTheme.shapes.small,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),

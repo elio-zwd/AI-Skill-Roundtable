@@ -1,24 +1,38 @@
 package com.elio.jianyu.ui.screens.execution
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -46,6 +60,7 @@ internal fun IssueCollaborationSection(
     onSynthesize: (String) -> Unit,
     onRetrySynthesis: (String) -> Unit,
     onStop: (String) -> Unit,
+    showComposer: Boolean = true,
 ) {
     when (state) {
         IssueCollaborationUiState.Loading -> Card(modifier = Modifier.fillMaxWidth()) {
@@ -62,12 +77,14 @@ internal fun IssueCollaborationSection(
             message = state.message,
         )
         is IssueCollaborationUiState.Content -> {
-            CollaborationComposer(
-                state = state,
-                onInputChanged = onInputChanged,
-                onOpenDirected = onOpenDirected,
-                onOpenCross = onOpenCross,
-            )
+            if (showComposer) {
+                CollaborationComposer(
+                    state = state,
+                    onInputChanged = onInputChanged,
+                    onOpenDirected = onOpenDirected,
+                    onOpenCross = onOpenCross,
+                )
+            }
             state.sessions.forEach { session ->
                 CrossDiscussionStatusCard(
                     session = session,
@@ -98,6 +115,130 @@ internal fun IssueCollaborationSection(
                     onConfirm = onConfirmCross,
                 )
                 null -> Unit
+            }
+        }
+    }
+}
+
+@Composable
+internal fun WorkspaceComposer(
+    state: IssueCollaborationUiState.Content,
+    onInputChanged: (String) -> Unit,
+    onOpenDirected: () -> Unit,
+    onOpenCross: () -> Unit,
+) {
+    var actionsExpanded by remember { mutableStateOf(false) }
+    androidx.compose.material3.Surface(
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 2.dp,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "继续当前阶段",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = if (state.hasRoster) "选择回应方式" else "当前没有可用 Skill",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            ) {
+                Box {
+                    IconButton(
+                        onClick = { actionsExpanded = true },
+                        enabled = state.hasRoster && !state.operationInProgress,
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "选择回应方式",
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = actionsExpanded,
+                        onDismissRequest = { actionsExpanded = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text("点名回应")
+                                    Text(
+                                        "仅由一位 Skill 回应这次问题",
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
+                            },
+                            onClick = {
+                                actionsExpanded = false
+                                onOpenDirected()
+                            },
+                            enabled = state.canOpenDirected,
+                            modifier = Modifier.testTag(
+                                JianyuAutomationTags.Collaboration.DIRECTED_RESPONSE_BUTTON,
+                            ),
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text("发起交叉讨论")
+                                    Text(
+                                        "选择参与 Skill 后开展一轮讨论",
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
+                            },
+                            onClick = {
+                                actionsExpanded = false
+                                onOpenCross()
+                            },
+                            enabled = state.canOpenCross,
+                            modifier = Modifier.testTag(
+                                JianyuAutomationTags.Collaboration.CROSS_DISCUSSION_BUTTON,
+                            ),
+                        )
+                    }
+                }
+                OutlinedTextField(
+                    value = state.input,
+                    onValueChange = onInputChanged,
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag(JianyuAutomationTags.Collaboration.INPUT),
+                    label = { Text("向当前阵容追问") },
+                    placeholder = { Text("输入后选择回应方式") },
+                    minLines = 1,
+                    maxLines = 4,
+                    enabled = !state.operationInProgress,
+                )
+            }
+            state.errorMessage?.let { message ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            if (state.operationInProgress) {
+                Text(
+                    text = "正在持久化协作事实并执行",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
@@ -384,10 +525,13 @@ private fun CrossDiscussionStatusCard(
     onRetrySynthesis: (String) -> Unit,
     onStop: (String) -> Unit,
 ) {
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .testTag(JianyuAutomationTags.Collaboration.session(session.sessionId)),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = MaterialTheme.shapes.small,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier
