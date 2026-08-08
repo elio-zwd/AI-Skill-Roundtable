@@ -179,6 +179,7 @@
       width: min(100%, 412px);
       height: min(820px, calc(100vh - 86px));
       min-height: 620px;
+      container-type: inline-size;
       overflow: hidden;
       border: 1px solid var(--border);
       border-radius: 28px;
@@ -520,83 +521,74 @@
     .rail-actions .text-action { min-height: 30px; padding: 3px 6px; font-size: 12px; }
 
     .chat-stream { display: grid; gap: 18px; }
-    .independent-replies {
-      display: grid;
-      gap: 12px;
-      padding-top: 14px;
-      border-top: 1px solid var(--border);
-    }
-    .reply-group-heading {
+    .parallel-comparison { display: grid; gap: 10px; padding-top: 14px; border-top: 1px solid var(--border); }
+    .comparison-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .comparison-heading strong { font-size: 14px; }
+    .comparison-heading span { color: var(--text-2); font-size: 12px; }
+    .comparison-track {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
       gap: 10px;
+      overflow-x: auto;
+      margin-right: -16px;
+      padding: 2px 16px 7px 0;
+      scroll-snap-type: x mandatory;
+      scrollbar-width: thin;
+      overscroll-behavior-x: contain;
     }
-    .reply-group-heading strong { font-size: 14px; }
-    .reply-group-heading span { color: var(--text-2); font-size: 12px; }
-    .skill-selector { display: flex; gap: 18px; border-bottom: 1px solid var(--border); }
-    .skill-tab {
+    .comparison-card {
       display: flex;
-      align-items: center;
-      min-height: 40px;
-      gap: 5px;
-      padding: 0 0 10px;
-      border: 0;
-      border-bottom: 2px solid transparent;
-      border-radius: 0;
-      color: var(--text-2);
-      background: transparent;
+      flex: 0 0 min(76%, 280px);
+      flex-direction: column;
+      min-height: 168px;
+      gap: 10px;
+      padding: 13px;
+      border: 1px solid var(--border);
+      border-top: 3px solid var(--brand);
+      border-radius: 14px;
+      color: var(--text);
+      background: var(--surface);
       text-align: left;
+      scroll-snap-align: start;
     }
-    .skill-tab.active { border-color: var(--brand); color: var(--brand-strong); background: transparent; }
-    .skill-tab-initial {
-      flex: 0 0 auto;
-      color: var(--brand-strong);
-      font-size: 13px;
-      font-weight: 900;
-    }
-    .skill-tab-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 700; }
-    .focused-reply {
-      min-width: 0;
-      padding-left: 13px;
-      border-left: 2px solid var(--brand);
-    }
-    .focused-reply-header {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      padding: 0 0 8px;
-    }
-    .focused-reply .response-avatar {
+    .comparison-card[data-tone="warning"] { border-top-color: var(--warning); }
+    .comparison-card.active { background: var(--surface-3); }
+    .comparison-card-head { display: flex; align-items: center; gap: 8px; }
+    .comparison-card-head .response-avatar {
       display: grid;
       place-items: center;
-      width: 28px;
-      height: 28px;
+      width: 30px;
+      height: 30px;
       flex: 0 0 auto;
-      border-radius: 8px;
+      border-radius: 9px;
       color: var(--brand-strong);
-      background: var(--surface-3);
+      background: color-mix(in srgb, var(--surface-3) 70%, var(--surface));
       font-weight: 900;
     }
-    .response-identity { min-width: 0; flex: 1; }
-    .response-identity strong, .response-identity span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .response-identity strong { color: var(--text); font-size: 14px; }
-    .response-identity span { margin-top: 1px; color: var(--text-2); font-size: 12px; }
-    .response-flags { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 5px; color: var(--text-2); font-size: 11px; }
-    .response-state { color: var(--success); font-weight: 700; }
-    .response-state::before { content: "·"; margin-right: 5px; color: var(--text-2); }
-    .response-state.warning { color: var(--warning); }
-    .focused-reply-body { margin: 0; padding: 0 0 12px; color: var(--text); font-size: 16px; line-height: 1.72; }
-    .focused-reply-footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+    .comparison-card-identity { min-width: 0; flex: 1; }
+    .comparison-card-identity strong, .comparison-card-identity span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .comparison-card-identity strong { font-size: 13px; }
+    .comparison-card-identity span { margin-top: 1px; color: var(--text-2); font-size: 11px; }
+    .comparison-card-status { color: var(--success); font-size: 11px; font-weight: 700; }
+    .comparison-card-status.warning { color: var(--warning); }
+    .comparison-card-summary { display: -webkit-box; overflow: hidden; margin: 0; color: var(--text); font-size: 14px; line-height: 1.55; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+    .comparison-card-action { margin-top: auto; color: var(--brand-strong); font-size: 12px; font-weight: 800; }
+    .comparison-detail {
+      display: grid;
       gap: 8px;
-      padding: 0;
-      color: var(--text-2);
-      font-size: 11px;
+      padding: 14px 0 0 13px;
+      border-left: 2px solid var(--brand);
     }
-    .focused-reply-footer .text-action { min-height: 28px; padding: 2px 5px; font-size: 12px; }
+    .comparison-detail-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+    .comparison-detail-head strong { font-size: 14px; }
+    .comparison-detail-head span { color: var(--text-2); font-size: 11px; }
+    .comparison-detail-body { margin: 0; color: var(--text); font-size: 16px; line-height: 1.72; }
+    .comparison-detail-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--text-2); font-size: 11px; }
+    .comparison-detail-footer .text-action { min-height: 28px; padding: 2px 5px; font-size: 12px; }
+
+    @container (min-width: 600px) {
+      .comparison-track { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: visible; margin-right: 0; padding-right: 0; }
+      .comparison-card { min-width: 0; }
+    }
     .chat-message {
       display: grid;
       grid-template-columns: 36px minmax(0, 1fr);
@@ -953,7 +945,7 @@
       var selectedDirections = { practical: true, perspective: true };
       var workspaceMenuOpen = false;
       var composerMenuOpen = false;
-      var selectedIndependentSkill = "career";
+      var comparisonDetailSkill = "career";
       var pageHistory = [];
       var primaryPages = ["home", "issues", "skills", "resources"];
       var fallbackParent = { recommend: "home", context: "recommend", workspace: "issues", result: "workspace", advance: "workspace", settings: "home" };
@@ -990,9 +982,9 @@
       };
 
       var independentReplies = {
-        career: { initial: "职", shortName: "职业", name: "职业发展顾问", role: "行动路径", body: "先把半年目标拆成岗位样本、能力差距、一个可展示项目和三次反馈。这样能用小实验降低一次性选择的风险。", status: ["已完成", "success"] },
-        embedded: { initial: "嵌", shortName: "工程", name: "嵌入式工程顾问", role: "技术可行性", body: "建议先用现有经验搭建一个包含传感器、RTOS 和边缘推理的最小项目，再用招聘要求补齐缺口。", status: ["已完成", "success"] },
-        risk: { initial: "塔", shortName: "反方", name: "塔勒布视角", role: "反方检查", body: "不要把单一行业预测当作确定性。保留回退路径，并用可转移能力衡量每一项投入。", status: ["需要处理", "warning"] }
+        career: { initial: "职", shortName: "职业", name: "职业发展顾问", role: "行动路径", summary: "把半年目标拆成岗位样本、能力差距、可展示项目和三次反馈。", body: "先把半年目标拆成岗位样本、能力差距、一个可展示项目和三次反馈。这样能用小实验降低一次性选择的风险。", status: ["已完成", "success"] },
+        embedded: { initial: "嵌", shortName: "工程", name: "嵌入式工程顾问", role: "技术可行性", summary: "先用传感器、RTOS 和边缘推理做一个最小项目，再对照招聘要求补缺。", body: "建议先用现有经验搭建一个包含传感器、RTOS 和边缘推理的最小项目，再用招聘要求补齐缺口。", status: ["已完成", "success"] },
+        risk: { initial: "塔", shortName: "反方", name: "塔勒布视角", role: "反方检查", summary: "不要把单一行业预测当确定性，保留回退路径并衡量可转移能力。", body: "不要把单一行业预测当作确定性。保留回退路径，并用可转移能力衡量每一项投入。", status: ["需要处理", "warning"] }
       };
 
       function stateBanner() {
@@ -1049,17 +1041,17 @@
         return "<article class='chat-message user'><span class='avatar'>我</span><div class='message-stack'><div class='message-header'><div class='message-identity'><span>你</span></div></div><div class='message-bubble'>" + body + "</div><div class='message-footer'><span>已发送</span></div></div></article>";
       }
 
-      function independentRepliesView() {
+      function parallelComparisonView() {
         var keys = Object.keys(independentReplies);
         var tabs = "";
         for (var index = 0; index < keys.length; index++) {
           var key = keys[index];
           var item = independentReplies[key];
-          var selected = key === selectedIndependentSkill;
-          tabs += "<button id='skill-tab-" + key + "' class='skill-tab " + (selected ? "active" : "") + "' role='tab' aria-selected='" + selected + "' aria-controls='focused-skill-reply' data-skill-tab='" + key + "' aria-label='" + item.name + "，" + item.status[0] + "'><span class='skill-tab-initial' aria-hidden='true'>" + item.initial + "</span><span class='skill-tab-label'>" + item.shortName + "</span></button>";
+          var selected = key === comparisonDetailSkill;
+          tabs += "<button class='comparison-card " + (selected ? "active" : "") + "' data-tone='" + item.status[1] + "' data-comparison-skill='" + key + "' aria-controls='comparison-detail' aria-pressed='" + selected + "' aria-label='查看" + item.name + "的完整回应'><span class='comparison-card-head'><span class='response-avatar' aria-hidden='true'>" + item.initial + "</span><span class='comparison-card-identity'><strong>" + item.name + "</strong><span>" + item.role + "</span></span></span><span class='comparison-card-status " + item.status[1] + "'>" + item.status[0] + "</span><span class='comparison-card-summary'>" + item.summary + "</span><span class='comparison-card-action'>查看完整回应 →</span></button>";
         }
-        var current = independentReplies[selectedIndependentSkill];
-        return "<section class='independent-replies' aria-label='多 Skill 独立回应'><div class='reply-group-heading'><strong>独立观点</strong><span>3 位 Skill</span></div><div class='skill-selector' role='tablist' aria-label='选择 Skill'>" + tabs + "</div><article id='focused-skill-reply' class='focused-reply' role='tabpanel' aria-labelledby='skill-tab-" + selectedIndependentSkill + "'><header class='focused-reply-header'><span class='response-avatar' aria-hidden='true'>" + current.initial + "</span><div class='response-identity'><strong>" + current.name + "</strong><span>" + current.role + "</span></div><div class='response-flags'><span>AI 生成</span><span class='response-state " + current.status[1] + "'>" + current.status[0] + "</span></div></header><p class='focused-reply-body'>" + current.body + "</p><footer class='focused-reply-footer'><span>来源：本阶段 · 刚刚</span><button class='text-action'>完整回应</button></footer></article></section>";
+        var current = independentReplies[comparisonDetailSkill];
+        return "<section class='parallel-comparison' aria-label='多 Skill 回应对比'><div class='comparison-heading'><strong>三方独立回应</strong><span>左右滑动比较</span></div><div class='comparison-track' role='group' aria-label='Skill 回应摘要'>" + tabs + "</div><article id='comparison-detail' class='comparison-detail' aria-live='polite'><div class='comparison-detail-head'><strong>" + current.name + " · " + current.role + "</strong><span>AI 生成 · " + current.status[0] + "</span></div><p class='comparison-detail-body'>" + current.body + "</p><footer class='comparison-detail-footer'><span>来源：本阶段 · 刚刚</span><button class='text-action'>完整回应</button></footer></article></section>";
       }
 
       function workspaceRail() {
@@ -1095,7 +1087,7 @@
         var modeContent = "";
         if (workspaceMode === "independent") {
           modeContent = userMessage("我有 Android 开发经验，想在半年内转向机器人嵌入式岗位。第一步应该怎样验证方向？") +
-            independentRepliesView();
+            parallelComparisonView();
         } else if (workspaceMode === "directed") {
           modeContent = "<div class='conversation-divider'>定向回应 · 结束后恢复多 Skill</div>" +
             userMessage("请根据我的现有 Android 经验，给出第一个机器人嵌入式项目的范围建议。") +
@@ -1296,9 +1288,9 @@
           render();
           return;
         }
-        var skillTab = event.target.closest("[data-skill-tab]");
-        if (skillTab) {
-          selectedIndependentSkill = skillTab.getAttribute("data-skill-tab");
+        var comparisonCard = event.target.closest("[data-comparison-skill]");
+        if (comparisonCard) {
+          comparisonDetailSkill = comparisonCard.getAttribute("data-comparison-skill");
           render();
           return;
         }
