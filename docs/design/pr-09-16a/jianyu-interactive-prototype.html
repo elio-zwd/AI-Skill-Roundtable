@@ -232,6 +232,24 @@
       stroke-linecap: round;
       stroke-linejoin: round;
     }
+    .device.chat-mode .app-topbar {
+      min-height: 56px;
+      gap: 4px;
+      padding: 4px 12px;
+    }
+    .device.chat-mode .icon-button {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: transparent;
+    }
+    .device.chat-mode .topbar-back { margin-right: 0; }
+    .device.chat-mode .app-topbar h1 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -.01em;
+      line-height: 22px;
+    }
 
     .screen {
       min-height: 0;
@@ -447,20 +465,38 @@
     .workspace-context {
       display: flex;
       align-items: center;
-      gap: 8px;
-      min-height: 38px;
-      overflow-x: auto;
+      gap: 10px;
+      min-height: 32px;
+      padding: 2px 0;
       color: var(--text-2);
       font-size: 12px;
       white-space: nowrap;
     }
-    .workspace-context button {
-      min-height: 34px;
-      padding: 5px 9px;
-      border: 1px solid var(--border);
-      border-radius: 99px;
+    .workspace-stage {
+      display: inline-flex;
+      min-width: 0;
+      align-items: center;
+      gap: 6px;
+    }
+    .workspace-stage strong {
+      flex: 0 0 auto;
+      padding: 3px 7px;
+      border-radius: 7px;
+      color: var(--brand-strong);
+      background: var(--surface-3);
+      font-size: 11px;
+    }
+    .workspace-stage span {
+      overflow: hidden;
+      text-overflow: ellipsis;
       color: var(--text-2);
-      background: var(--surface);
+      font-weight: 600;
+    }
+    .workspace-roster {
+      flex: 0 0 auto;
+      padding-left: 10px;
+      border-left: 1px solid var(--border);
+      color: var(--text-2);
       font-weight: 700;
     }
     .chat-rail {
@@ -849,7 +885,7 @@
         home: ["首页", "从一个问题开始"],
         recommend: ["Skill 推荐", "选择有理由的阵容"],
         context: ["确认本次上下文", "资料与个人背景"],
-        workspace: ["机器人嵌入式转向", "阶段 1 · 明确目标与约束"],
+        workspace: ["机器人嵌入式转向", ""],
         result: ["阶段草稿", "阶段 1 · 尚未确认成果"],
         advance: ["推进议题", "创建下一阶段"],
         issues: ["议题", ""],
@@ -974,7 +1010,7 @@
             chatMessage("会议行动助手", "交叉讨论整合", "参与者中 2 位已完成、1 位需要重试。共识：先用小项目检验方向。分歧：投入节奏和机会成本。建议：两周完成项目范围，并在四周后复盘求职信号。", ["部分完成", "warning"]);
         }
         return workspaceMenu() +
-          "<section class='workspace-context'><button>阶段 1 · 明确目标与约束</button><button>3 位 Skill</button><span>AI 对话工作区</span></section>" +
+          "<section class='workspace-context' aria-label='当前阶段与 Skill 阵容'><span class='workspace-stage'><strong>阶段 1</strong><span>明确目标与约束</span></span><span class='workspace-roster'>3 位 Skill</span></section>" +
           workspaceRail() +
           "<section class='chat-stream'>" + modeContent + "</section>";
       }
@@ -1100,7 +1136,7 @@
           topbarAction.removeAttribute("data-page");
           topbarAction.setAttribute("data-workspace-menu", "true");
           topbarAction.setAttribute("aria-label", "打开工作区功能");
-          topbarAction.textContent = "⋯";
+          topbarAction.innerHTML = "<svg class='topbar-icon' viewBox='0 0 24 24' aria-hidden='true'><circle cx='5' cy='12' r='1.5' fill='currentColor' stroke='none'/><circle cx='12' cy='12' r='1.5' fill='currentColor' stroke='none'/><circle cx='19' cy='12' r='1.5' fill='currentColor' stroke='none'/></svg>";
           composer.innerHTML = workspaceComposerView();
         } else {
           topbarAction.removeAttribute("data-workspace-menu");
