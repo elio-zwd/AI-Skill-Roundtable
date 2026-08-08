@@ -492,16 +492,22 @@
     .chat-message.user .avatar { grid-column: 2; }
     .chat-message.user .message-stack { grid-column: 1; grid-row: 1; justify-self: end; max-width: 88%; }
     .message-stack { min-width: 0; }
-    .message-meta {
+    .message-header {
       display: flex;
-      align-items: center;
-      gap: 6px;
-      min-height: 22px;
-      margin: 0 0 5px;
-      font-size: 12px;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 36px;
+      margin: 0 0 6px;
     }
-    .message-meta strong { color: var(--text); }
-    .message-meta span { color: var(--text-2); }
+    .message-identity { min-width: 0; }
+    .message-identity strong, .message-identity span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .message-identity strong { color: var(--text); font-size: 14px; }
+    .message-identity span { margin-top: 1px; color: var(--text-2); font-size: 12px; }
+    .message-badges { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; }
+    .message-badges .chip { min-height: 24px; padding: 2px 7px; font-size: 11px; white-space: nowrap; }
+    .chat-message.user .message-header { min-height: 20px; justify-content: flex-end; }
+    .chat-message.user .message-identity span { text-align: right; }
     .message-bubble {
       padding: 12px 13px;
       border: 1px solid var(--border);
@@ -735,6 +741,12 @@
     .bottom-nav button.active { color: var(--brand-strong); font-weight: 800; }
     .bottom-nav button.active .nav-icon-wrap { background: var(--surface-3); }
 
+    @media (max-width: 380px) {
+      .message-header { flex-wrap: wrap; }
+      .message-identity { flex-basis: 100%; }
+      .message-badges { justify-content: flex-start; }
+    }
+
     @media (max-width: 760px) {
       .prototype-shell { grid-template-columns: 1fr; }
       .control-panel { position: static; height: auto; padding: 16px; border-right: 0; border-bottom: 1px solid var(--border); }
@@ -904,11 +916,11 @@
       }
 
       function chatMessage(name, role, body, chip) {
-        return "<article class='chat-message'><span class='avatar'>" + name.charAt(0) + "</span><div class='message-stack'><div class='message-meta'><strong>" + name + "</strong><span>· " + role + "</span><span class='chip'>AI 生成</span><span class='chip " + chip[1] + "'>" + chip[0] + "</span></div><div class='message-bubble'>" + body + "</div><div class='message-footer'><span>来源：本阶段 · 刚刚</span><button class='text-action'>完整回应</button></div></div></article>";
+        return "<article class='chat-message'><span class='avatar'>" + name.charAt(0) + "</span><div class='message-stack'><div class='message-header'><div class='message-identity'><strong>" + name + "</strong><span>" + role + "</span></div><div class='message-badges'><span class='chip'>AI 生成</span><span class='chip " + chip[1] + "'>" + chip[0] + "</span></div></div><div class='message-bubble'>" + body + "</div><div class='message-footer'><span>来源：本阶段 · 刚刚</span><button class='text-action'>完整回应</button></div></div></article>";
       }
 
       function userMessage(body) {
-        return "<article class='chat-message user'><span class='avatar'>我</span><div class='message-stack'><div class='message-meta'><span>你</span></div><div class='message-bubble'>" + body + "</div><div class='message-footer'><span>已发送</span></div></div></article>";
+        return "<article class='chat-message user'><span class='avatar'>我</span><div class='message-stack'><div class='message-header'><div class='message-identity'><span>你</span></div></div><div class='message-bubble'>" + body + "</div><div class='message-footer'><span>已发送</span></div></div></article>";
       }
 
       function workspaceRail() {
@@ -953,7 +965,7 @@
             chatMessage("嵌入式工程顾问", "定向回应", "从一个可在两周内演示的传感器采集、控制和日志闭环开始。范围应小到可以复盘，而不是直接堆完整机器人平台。", ["定向回应", "success"]);
         } else {
           modeContent = "<div class='conversation-divider'>本次交叉讨论 · 焦点：转向风险是否可控</div>" +
-            chatMessage("会议行动助手", "整合本次交叉讨论，不裁决真理", "参与者中 2 位已完成、1 位需要重试。共识：先用小项目检验方向。分歧：投入节奏和机会成本。建议：两周完成项目范围，并在四周后复盘求职信号。", ["部分完成", "warning"]);
+            chatMessage("会议行动助手", "交叉讨论整合", "参与者中 2 位已完成、1 位需要重试。共识：先用小项目检验方向。分歧：投入节奏和机会成本。建议：两周完成项目范围，并在四周后复盘求职信号。", ["部分完成", "warning"]);
         }
         return workspaceMenu() +
           "<section class='workspace-context'><button>阶段 1 · 明确目标与约束</button><button>3 位 Skill</button><span>AI 对话工作区</span></section>" +
