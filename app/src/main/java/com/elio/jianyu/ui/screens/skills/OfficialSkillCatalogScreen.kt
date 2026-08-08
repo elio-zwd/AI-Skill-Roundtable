@@ -55,8 +55,15 @@ internal fun OfficialSkillCatalogScreen(
                     OfficialSkillCatalogHeader(
                         query = uiState.query,
                         totalSkillCount = uiState.totalSkillCount,
+                        filters = uiState.filters,
                         onQueryChanged = {
                             onEvent(OfficialSkillCatalogEvent.SearchChanged(it))
+                        },
+                        onSelectPrimaryType = { type ->
+                            onEvent(OfficialSkillCatalogEvent.ClearFilters)
+                            type?.let {
+                                onEvent(OfficialSkillCatalogEvent.TogglePrimaryType(it))
+                            }
                         },
                         onOpenFilters = {
                             onEvent(OfficialSkillCatalogEvent.FilterDialogChanged(true))

@@ -61,7 +61,9 @@ import com.elio.jianyu.skill.catalog.OfficialSkillUseMode
 internal fun OfficialSkillCatalogHeader(
     query: String,
     totalSkillCount: Int,
+    filters: OfficialSkillCatalogFilters,
     onQueryChanged: (String) -> Unit,
+    onSelectPrimaryType: (OfficialSkillPrimaryType?) -> Unit,
     onOpenFilters: () -> Unit,
 ) {
     Column(
@@ -71,13 +73,18 @@ internal fun OfficialSkillCatalogHeader(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            text = "Skill 目录",
-            style = MaterialTheme.typography.titleLarge,
+            text = "能力目录",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Text(
+            text = "选一个帮手",
+            style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.SemiBold,
         )
         Text(
-            text = "共 $totalSkillCount 项能力。可查看职责、可用性与边界。",
-            style = MaterialTheme.typography.bodySmall,
+            text = "先按类型筛选，再查看它能做什么和不能做什么。共 $totalSkillCount 项能力。",
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Row(
@@ -102,8 +109,33 @@ internal fun OfficialSkillCatalogHeader(
                     .heightIn(min = 48.dp)
                     .testTag(OfficialSkillCatalogTestTags.FILTER_BUTTON),
             ) {
-                Text("筛选")
+                Text("更多")
             }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FilterChip(
+                selected = filters.primaryTypes.isEmpty(),
+                onClick = { onSelectPrimaryType(null) },
+                label = { Text("全部") },
+            )
+            FilterChip(
+                selected = filters.primaryTypes == setOf(OfficialSkillPrimaryType.PROFESSIONAL_ADVISOR),
+                onClick = { onSelectPrimaryType(OfficialSkillPrimaryType.PROFESSIONAL_ADVISOR) },
+                label = { Text("专业顾问") },
+            )
+            FilterChip(
+                selected = filters.primaryTypes == setOf(OfficialSkillPrimaryType.PERSON_PERSPECTIVE),
+                onClick = { onSelectPrimaryType(OfficialSkillPrimaryType.PERSON_PERSPECTIVE) },
+                label = { Text("人物视角") },
+            )
+            FilterChip(
+                selected = filters.primaryTypes == setOf(OfficialSkillPrimaryType.TASK_ASSISTANT),
+                onClick = { onSelectPrimaryType(OfficialSkillPrimaryType.TASK_ASSISTANT) },
+                label = { Text("任务助手") },
+            )
         }
     }
 }
