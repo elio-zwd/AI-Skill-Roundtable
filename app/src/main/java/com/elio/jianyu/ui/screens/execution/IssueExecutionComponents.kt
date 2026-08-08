@@ -19,7 +19,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.elio.jianyu.data.ExecutionParticipantStatus
+import dev.jeziellago.compose.markdowntext.MarkdownText
 
 object IssueExecutionTestTags {
     const val SCREEN = "issue_execution_screen"
@@ -177,10 +179,25 @@ internal fun ExecutionParticipantCard(
             )
         }
         participant.text?.takeIf(String::isNotBlank)?.let { text ->
-            Text(
-                text = text,
-                style = MaterialTheme.typography.bodyLarge,
-            )
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 28.dp),
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                shape = MaterialTheme.shapes.medium,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                tonalElevation = 1.dp,
+            ) {
+                MarkdownText(
+                    markdown = text,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 16.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                )
+            }
         }
         if (participant.isPending) {
             Row(

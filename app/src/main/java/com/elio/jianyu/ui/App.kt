@@ -6,9 +6,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +35,7 @@ import com.elio.jianyu.JianyuAppRuntime
 import com.elio.jianyu.JianyuAppRuntimeProvider
 import com.elio.jianyu.skill.catalog.OfficialSkillUseRequest
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
+import com.elio.jianyu.ui.components.JianyuNavigationIcons
 import com.elio.jianyu.ui.navigation.AppDestination
 import com.elio.jianyu.ui.navigation.AppNavHost
 import com.elio.jianyu.ui.navigation.navigateToIssue
@@ -263,9 +261,9 @@ internal fun AppBottomNavigation(
         AppDestination.topLevelDestinations.forEach { destination ->
             val icon = when (destination) {
                 AppDestination.HOME -> Icons.Default.Home
-                AppDestination.ISSUES -> Icons.Default.List
-                AppDestination.SKILLS -> Icons.Default.Person
-                AppDestination.RESOURCES -> Icons.Default.PlayArrow
+                AppDestination.ISSUES -> JianyuNavigationIcons.Issues
+                AppDestination.SKILLS -> JianyuNavigationIcons.Skills
+                AppDestination.RESOURCES -> JianyuNavigationIcons.Resources
                 else -> error("非一级目的地不能显示在底部导航")
             }
             NavigationBarItem(
