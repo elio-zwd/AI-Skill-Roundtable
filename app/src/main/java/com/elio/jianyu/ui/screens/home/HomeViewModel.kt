@@ -10,6 +10,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.elio.jianyu.data.ContextSourceLifecycle
 import com.elio.jianyu.data.ContextSourceType
 import com.elio.jianyu.data.JianyuRepository
+import com.elio.jianyu.data.IssueThinkingPolicy
 import com.elio.jianyu.data.MaterialFilter
 import com.elio.jianyu.data.PersonalContextFilter
 import com.elio.jianyu.data.RepositoryResult
@@ -426,6 +427,10 @@ class HomeViewModel internal constructor(
         updateExecutionConsent { it.copy(personDisclaimerConfirmed = confirmed) }
     }
 
+    fun setThinkingOverride(policy: IssueThinkingPolicy?) {
+        _uiState.value = _uiState.value.copy(thinkingOverride = policy)
+    }
+
     fun saveIssueOnly() {
         val current = _uiState.value.workflow
         if (!HomeWorkflow.canSaveIssueOnly(current)) return
@@ -482,6 +487,7 @@ class HomeViewModel internal constructor(
             recommendation = recommendation,
             contextSelection = current.contextSelection,
             executionConsent = current.executionConsent,
+            thinkingOverride = _uiState.value.thinkingOverride,
             confirmedAt = confirmedAt,
         )
         setWorkflow(

@@ -164,7 +164,10 @@ class RoomJianyuRepositoryIdempotencyTest {
                 stageId = STAGE_ID,
                 idempotencyKey = "run-key",
                 createdAt = 15L,
-                updatedAt = 15L
+                updatedAt = 15L,
+                actualModelId = "gemini-3.6-flash",
+                actualThinkingLevel = ExecutionThinkingLevel.MEDIUM,
+                thinkingLevelSource = ExecutionThinkingSource.AUTO_ROUTED,
             ),
             participants = listOf(
                 participant("participant-a", SKILL_ID, 0),

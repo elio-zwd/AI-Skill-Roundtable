@@ -157,6 +157,7 @@ class HomeStartCoordinator(
             currentUserInput = confirmation.question,
             roundIndex = 0,
             userConfirmedAt = confirmation.confirmedAt,
+            thinkingOverride = confirmation.thinkingOverride,
             contributions = prepared.preparation.contributions,
             contextUsage = prepared.usage,
         )

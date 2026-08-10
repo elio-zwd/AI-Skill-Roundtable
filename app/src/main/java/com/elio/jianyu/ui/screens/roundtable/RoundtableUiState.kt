@@ -4,7 +4,7 @@ import com.elio.jianyu.data.Character
 import com.elio.jianyu.data.ChatSession
 import com.elio.jianyu.data.Message
 import com.elio.jianyu.viewmodel.RoundActionState
-import com.elio.jianyu.viewmodel.SearchMode
+import com.elio.jianyu.execution.SearchMode
 
 internal const val THINKING_PLACEHOLDER_TEXT = "正在思考中..."
 
@@ -74,7 +74,7 @@ data class RoundtableUiState(
     val hasApiKeys: Boolean = false,
     val isAutoNextEnabled: Boolean = true,
     val isSemanticRoutingEnabled: Boolean = false,
-    val searchMode: SearchMode = SearchMode.SMART,
+    val searchMode: SearchMode = SearchMode.AUTO,
     val roundActionState: RoundActionState = RoundActionState.CONTINUE_ROUND,
     val retryableSessionId: Long? = null,
     val retryableCharacterIds: List<String> = emptyList(),

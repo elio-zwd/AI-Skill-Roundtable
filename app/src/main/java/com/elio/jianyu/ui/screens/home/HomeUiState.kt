@@ -2,6 +2,7 @@ package com.elio.jianyu.ui.screens.home
 
 import com.elio.jianyu.home.HomeWorkflowState
 import com.elio.jianyu.home.HomeWorkflowStep
+import com.elio.jianyu.data.IssueThinkingPolicy
 import com.elio.jianyu.ui.screens.context.ContextConfirmationUiState
 
 data class HomeUiState(
@@ -9,6 +10,7 @@ data class HomeUiState(
     val contextConfirmation: ContextConfirmationUiState? = null,
     val message: String? = null,
     val preferredSkillDisplayName: String? = null,
+    val thinkingOverride: IssueThinkingPolicy? = null,
 ) {
     val question: String
         get() = workflow.draft.question

@@ -13,6 +13,7 @@ import com.elio.jianyu.data.ContextSourceType
 import com.elio.jianyu.data.ExecutionRunStatus
 import com.elio.jianyu.data.ExecutionRuntimeSnapshot
 import com.elio.jianyu.data.IssueRecoverySnapshot
+import com.elio.jianyu.data.IssueThinkingPolicy
 import com.elio.jianyu.data.JianyuRepository
 import com.elio.jianyu.data.MaterialFilter
 import com.elio.jianyu.data.PersonalContextFilter
@@ -20,6 +21,7 @@ import com.elio.jianyu.data.PrepareExecutionContextCommand
 import com.elio.jianyu.data.PreparedExecutionContext
 import com.elio.jianyu.data.RepositoryError
 import com.elio.jianyu.data.RepositoryResult
+import com.elio.jianyu.data.UpdateIssueThinkingPolicyCommand
 import com.elio.jianyu.data.getExecutionRuntime
 import com.elio.jianyu.execution.ExecutionErrorCode
 import com.elio.jianyu.execution.ExecutionRepositoryException
@@ -27,6 +29,7 @@ import com.elio.jianyu.execution.ExecutionRetryCommand
 import com.elio.jianyu.execution.ExecutionRunCoordinator
 import com.elio.jianyu.execution.ExecutionStartCommand
 import com.elio.jianyu.execution.ExecutionStartException
+import com.elio.jianyu.execution.SearchMode
 import com.elio.jianyu.ui.screens.context.ContextCandidateUi
 import com.elio.jianyu.ui.screens.context.ContextConfirmationUiState
 import kotlinx.coroutines.CancellationException
@@ -55,6 +58,43 @@ class IssueExecutionViewModel internal constructor(
     private var latestRecovery: IssueRecoverySnapshot? = null
     private var latestRuntime: ExecutionRuntimeSnapshot? = null
     private var preparedContextForStart: PreparedExecutionContext? = null
+    private var selectedSearchMode: SearchMode = SearchMode.AUTO
+    private var selectedThinkingOverride: IssueThinkingPolicy? = null
+
+    fun setSearchMode(mode: SearchMode) {
+        selectedSearchMode = mode
+        val content = _state.value as? IssueExecutionUiState.Content ?: return
+        _state.value = content.copy(searchMode = mode)
+    }
+
+    fun setThinkingOverride(policy: IssueThinkingPolicy?) {
+        selectedThinkingOverride = policy
+        val content = _state.value as? IssueExecutionUiState.Content ?: return
+        _state.value = content.copy(thinkingOverride = policy)
+    }
+
+    fun setIssueDefaultThinkingPolicy(policy: IssueThinkingPolicy) {
+        val content = _state.value as? IssueExecutionUiState.Content ?: return
+        if (!content.canChangeIssueDefaultThinkingPolicy || content.operationInProgress) return
+        viewModelScope.launch {
+            _state.value = content.copy(operationInProgress = true)
+            when (
+                val result = repository.updateIssueThinkingPolicy(
+                    UpdateIssueThinkingPolicyCommand(
+                        issueId = content.issueId,
+                        policy = policy,
+                        updatedAt = System.currentTimeMillis(),
+                    ),
+                )
+            ) {
+                is RepositoryResult.Success -> refreshInternal()
+                is RepositoryResult.Failure -> _state.value = operationFailure(
+                    "默认思考策略未保存，请刷新后重试。",
+                    result.error is RepositoryError.StorageFailure,
+                )
+            }
+        }
+    }
 
     fun load(issueId: String?, stageId: String?) {
         viewModelScope.launch {
@@ -339,6 +379,8 @@ class IssueExecutionViewModel internal constructor(
                     currentUserInput = confirmation.currentUserInput,
                     roundIndex = nextRound,
                     userConfirmedAt = System.currentTimeMillis(),
+                    thinkingOverride = selectedThinkingOverride,
+                    searchMode = selectedSearchMode,
                     contributions = prepared.preparation.contributions,
                     contextUsage = prepared.usage,
                 ),
@@ -570,6 +612,15 @@ class IssueExecutionViewModel internal constructor(
             canStop = coordinator != null && run?.status in ACTIVE_RUN_STATES,
             canRetry = coordinator != null && run?.status in RETRYABLE_RUN_STATES,
             canRecoverInterrupted = coordinator != null && run?.status in ACTIVE_RUN_STATES,
+            issueDefaultThinkingPolicy = recovery.core.issue.defaultThinkingPolicy,
+            thinkingOverride = selectedThinkingOverride,
+            canChangeIssueDefaultThinkingPolicy = recovery.core.runs.none { existing ->
+                existing.status in ACTIVE_RUN_STATES
+            },
+            actualModelId = run?.actualModelId,
+            actualThinkingLevel = run?.actualThinkingLevel,
+            thinkingLevelSource = run?.thinkingLevelSource,
+            searchMode = selectedSearchMode,
         )
     }
 

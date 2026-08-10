@@ -88,6 +88,7 @@ fun HomeRoute(
         onNetworkAuthorized = viewModel::setNetworkAuthorized,
         onHighStakesConfirmed = viewModel::setHighStakesConfirmed,
         onPersonDisclaimerConfirmed = viewModel::setPersonDisclaimerConfirmed,
+        onThinkingOverrideChanged = viewModel::setThinkingOverride,
         onBrowseSkills = viewModel::browseSkills,
         onStartIssue = viewModel::startIssue,
         onOpenSettings = onOpenSettings,

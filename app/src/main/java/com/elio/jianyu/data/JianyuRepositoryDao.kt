@@ -17,6 +17,16 @@ internal interface JianyuRepositoryDao {
     @Query("SELECT * FROM issues WHERE id = :issueId LIMIT 1")
     suspend fun getIssue(issueId: String): IssueEntity?
 
+    @Query(
+        "UPDATE issues SET defaultThinkingPolicy = :policy, updatedAt = :updatedAt " +
+            "WHERE id = :issueId",
+    )
+    suspend fun updateIssueThinkingPolicy(
+        issueId: String,
+        policy: IssueThinkingPolicy,
+        updatedAt: Long,
+    ): Int
+
     @Query("SELECT * FROM issues ORDER BY updatedAt DESC, id ASC")
     suspend fun getAllIssues(): List<IssueEntity>
 

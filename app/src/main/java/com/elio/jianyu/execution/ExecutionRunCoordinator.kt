@@ -101,6 +101,7 @@ class ExecutionRunCoordinator(
                 currentUserInput = command.currentUserInput,
                 roundIndex = command.roundIndex,
                 model = command.model,
+                searchMode = command.searchMode,
                 contributions = command.contributions,
             )
         }
@@ -138,6 +139,7 @@ class ExecutionRunCoordinator(
                 currentUserInput = command.currentUserInput,
                 roundIndex = command.roundIndex,
                 model = command.model,
+                searchMode = command.searchMode,
                 contributions = command.contributions,
                 additionalRequiredCalls = command.additionalRequiredCalls,
                 keepBudgetOpenOnSuccess = command.keepBudgetOpenOnSuccess,
@@ -237,6 +239,7 @@ class ExecutionRunCoordinator(
                 currentUserInput = command.currentUserInput,
                 roundIndex = command.roundIndex,
                 model = command.model,
+                searchMode = command.searchMode,
                 contributions = command.contributions,
             )
         }
@@ -331,6 +334,7 @@ class ExecutionRunCoordinator(
         currentUserInput: String,
         roundIndex: Int,
         model: String,
+        searchMode: SearchMode,
         contributions: List<ExecutionContextContribution>,
         additionalRequiredCalls: Int = 0,
         keepBudgetOpenOnSuccess: Boolean = false,
@@ -355,6 +359,7 @@ class ExecutionRunCoordinator(
                 currentUserInput = currentUserInput,
                 roundIndex = roundIndex,
                 model = model,
+                searchMode = searchMode,
                 contributions = contributions,
                 remainingRequiredCalls = current.participants.size - index - 1 +
                     additionalRequiredCalls,
@@ -432,6 +437,7 @@ class ExecutionRunCoordinator(
         currentUserInput: String,
         roundIndex: Int,
         model: String,
+        searchMode: SearchMode,
         contributions: List<ExecutionContextContribution>,
         remainingRequiredCalls: Int,
     ): ExecutionFailure? {
@@ -479,6 +485,7 @@ class ExecutionRunCoordinator(
                     }.storageValue,
                     interactionChainKey = "${run.stageId}:${participant.sourceId}",
                     maxOutputTokens = runtime.budget.maxOutputTokensPerAnswer,
+                    searchMode = searchMode,
                 ),
             )
             pendingMessageId = StableExecutionIds.messageId(run.id, participant.id)

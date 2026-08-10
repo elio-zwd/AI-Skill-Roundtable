@@ -8,6 +8,7 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.data.ExecutionParticipantStatus
 import com.elio.jianyu.data.ExecutionRunStatus
+import com.elio.jianyu.execution.SearchMode
 import com.elio.jianyu.ui.theme.SkillRoundtableTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -102,6 +103,40 @@ class IssueExecutionScreenTest {
         composeRule.onNodeWithTag(IssueExecutionTestTags.RETRY).performClick()
 
         assertEquals(1, retryClicks)
+    }
+
+    @Test
+    fun nextRunSearchModeProvidesThreeChoicesAndEmitsSelection() {
+        var selected: SearchMode? = null
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                IssueExecutionScreen(
+                    state = contentState(
+                        phase = IssueExecutionPhase.RETRYABLE,
+                        runStatus = ExecutionRunStatus.RETRYABLE,
+                        canStop = false,
+                        canRetry = true,
+                        canRecover = false,
+                    ),
+                    onBack = {},
+                    onReload = {},
+                    onStop = {},
+                    onRetry = {},
+                    onRecoverInterrupted = {},
+                    onSearchModeChanged = { selected = it },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(IssueExecutionTestTags.SEARCH_MODE).assertIsDisplayed()
+        composeRule.onNodeWithTag(IssueExecutionTestTags.searchMode(SearchMode.OFF))
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag(IssueExecutionTestTags.searchMode(SearchMode.AUTO))
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag(IssueExecutionTestTags.searchMode(SearchMode.ON))
+            .performClick()
+
+        assertEquals(SearchMode.ON, selected)
     }
 
     @Test

@@ -81,6 +81,20 @@ class ExecutionRunCoordinatorTest {
     }
 
     @Test
+    fun searchModeIsFrozenIntoEachNetworkRequest() = runBlocking {
+        val persistence = FakeExecutionPersistence()
+        val network = FakeExecutionNetworkGateway(
+            mutableMapOf("skill-a" to FakeOutcome.Success(listOf("A"))),
+        )
+
+        coordinator(persistence, network).start(
+            startCommand("run-1", "skill-a").copy(searchMode = SearchMode.OFF),
+        )
+
+        assertEquals(SearchMode.OFF, network.requests.single().searchMode)
+    }
+
+    @Test
     fun partialSuccessKeepsSuccessfulMessageAndMarksRunRetryable() = runBlocking {
         val persistence = FakeExecutionPersistence()
         val network = FakeExecutionNetworkGateway(
@@ -230,8 +244,10 @@ class ExecutionRunCoordinatorTest {
         val outcomes: MutableMap<String, FakeOutcome>,
     ) : ExecutionNetworkGateway {
         val calls = mutableListOf<String>()
+        val requests = mutableListOf<ExecutionNetworkRequest>()
 
         override suspend fun prepare(request: ExecutionNetworkRequest): PreparedExecutionNetworkCall {
+            requests += request
             val outcome = outcomes.getValue(request.participant.sourceId)
             if (outcome == FakeOutcome.NoKey) throw NoExecutionApiKeyException()
             return PreparedExecutionNetworkCall { onAttemptStarted, onTextUpdate ->

@@ -29,6 +29,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.data.ContextSourceType
+import com.elio.jianyu.data.ExecutionRunStatus
+import com.elio.jianyu.data.IssueThinkingPolicy
+import com.elio.jianyu.execution.SearchMode
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.components.JianyuStateCard
 import com.elio.jianyu.ui.screens.context.ContextConfirmationDialog
@@ -47,6 +50,9 @@ fun IssueExecutionScreen(
     onStop: () -> Unit,
     onRetry: () -> Unit,
     onRecoverInterrupted: () -> Unit,
+    onSearchModeChanged: (SearchMode) -> Unit = {},
+    onThinkingOverrideChanged: (IssueThinkingPolicy?) -> Unit = {},
+    onIssueDefaultThinkingPolicyChanged: (IssueThinkingPolicy) -> Unit = {},
     onOpenContext: () -> Unit = {},
     onDismissContext: () -> Unit = {},
     onToggleContext: (ContextSourceType, String) -> Unit = { _, _ -> },
@@ -111,6 +117,9 @@ fun IssueExecutionScreen(
                 onStop = onStop,
                 onRetry = onRetry,
                 onRecoverInterrupted = onRecoverInterrupted,
+                onSearchModeChanged = onSearchModeChanged,
+                onThinkingOverrideChanged = onThinkingOverrideChanged,
+                onIssueDefaultThinkingPolicyChanged = onIssueDefaultThinkingPolicyChanged,
                 onOpenContext = onOpenContext,
                 onCollaborationInputChanged = onCollaborationInputChanged,
                 onOpenDirected = onOpenDirected,
@@ -235,6 +244,9 @@ private fun IssueExecutionContent(
     onStop: () -> Unit,
     onRetry: () -> Unit,
     onRecoverInterrupted: () -> Unit,
+    onSearchModeChanged: (SearchMode) -> Unit,
+    onThinkingOverrideChanged: (IssueThinkingPolicy?) -> Unit,
+    onIssueDefaultThinkingPolicyChanged: (IssueThinkingPolicy) -> Unit,
     onOpenContext: () -> Unit,
     onCollaborationInputChanged: (String) -> Unit,
     onOpenDirected: () -> Unit,
@@ -269,6 +281,29 @@ private fun IssueExecutionContent(
                     )
                 }
             }
+        }
+
+        item {
+            ExecutionSearchModeCard(
+                mode = state.searchMode,
+                enabled = !state.operationInProgress && state.runStatus !in setOf(
+                    ExecutionRunStatus.NOT_STARTED,
+                    ExecutionRunStatus.RUNNING,
+                    ExecutionRunStatus.PARTIAL_SUCCESS,
+                ),
+                onModeChanged = onSearchModeChanged,
+            )
+        }
+
+        item {
+            ExecutionThinkingPolicyCard(
+                defaultPolicy = state.issueDefaultThinkingPolicy,
+                overridePolicy = state.thinkingOverride,
+                canChangeDefault = state.canChangeIssueDefaultThinkingPolicy,
+                operationInProgress = state.operationInProgress,
+                onDefaultChanged = onIssueDefaultThinkingPolicyChanged,
+                onOverrideChanged = onThinkingOverrideChanged,
+            )
         }
 
         item {

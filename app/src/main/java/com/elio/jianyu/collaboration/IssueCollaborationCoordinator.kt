@@ -197,6 +197,7 @@ class IssueCollaborationCoordinator(
                 roundIndex = request.roundIndex,
                 userConfirmedAt = request.userConfirmedAt,
                 model = request.model,
+                searchMode = request.searchMode,
                 contributions = request.context.contributions,
             ),
         )
@@ -253,6 +254,7 @@ class IssueCollaborationCoordinator(
                 roundIndex = trigger.roundIndex,
                 userConfirmedAt = run.createdAt,
                 model = request.model,
+                searchMode = request.searchMode,
                 contributions = contributions,
             ),
         )
@@ -337,6 +339,7 @@ class IssueCollaborationCoordinator(
                 roundIndex = request.roundIndex,
                 userConfirmedAt = request.userConfirmedAt,
                 model = request.model,
+                searchMode = request.searchMode,
                 contributions = request.context.contributions,
             ),
         )
@@ -444,6 +447,7 @@ class IssueCollaborationCoordinator(
                 roundIndex = request.roundIndex,
                 userConfirmedAt = request.userConfirmedAt,
                 model = request.model,
+                searchMode = request.searchMode,
                 contributions = request.context.contributions,
                 additionalRequiredCalls = 1,
                 keepBudgetOpenOnSuccess = true,
@@ -469,6 +473,7 @@ class IssueCollaborationCoordinator(
                     userAcceptedPartial = false,
                     context = request.context,
                     model = request.model,
+                    searchMode = request.searchMode,
                 ),
             )
         }
@@ -548,6 +553,7 @@ class IssueCollaborationCoordinator(
                 roundIndex = request.roundIndex,
                 userConfirmedAt = request.userConfirmedAt,
                 model = request.model,
+                searchMode = request.searchMode,
                 contributions = request.context.contributions,
             ),
         )
@@ -592,6 +598,7 @@ class IssueCollaborationCoordinator(
                 roundIndex = request.roundIndex,
                 userConfirmedAt = request.userConfirmedAt,
                 model = request.model,
+                searchMode = request.searchMode,
                 contributions = contributions,
                 additionalRequiredCalls = if (
                     created.runtime.run.runKind == ExecutionRunKind.CROSS_DISCUSSION_RESPONSE

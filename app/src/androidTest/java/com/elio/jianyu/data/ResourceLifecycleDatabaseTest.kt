@@ -487,7 +487,10 @@ class ResourceLifecycleDatabaseTest {
         stageId = stageId,
         idempotencyKey = idempotencyKey,
         createdAt = 120L,
-        updatedAt = 120L
+        updatedAt = 120L,
+        actualModelId = "gemini-3.6-flash",
+        actualThinkingLevel = ExecutionThinkingLevel.MEDIUM,
+        thinkingLevelSource = ExecutionThinkingSource.AUTO_ROUTED,
     )
 
     private fun participantSnapshot() = ExecutionParticipantSnapshotEntity(

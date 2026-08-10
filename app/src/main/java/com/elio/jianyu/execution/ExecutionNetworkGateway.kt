@@ -5,6 +5,7 @@ import com.elio.jianyu.data.ExecutionParticipantSnapshotEntity
 import com.elio.jianyu.network.CreateInteractionRequest
 import com.elio.jianyu.network.InteractionGenerationConfig
 import com.elio.jianyu.network.InteractionStreamingClient
+import com.elio.jianyu.network.Tool
 import com.elio.jianyu.network.keys.ApiKeyScheduler
 import com.elio.jianyu.roundtable.RequestBudgetTracker
 import kotlinx.serialization.json.JsonPrimitive
@@ -18,6 +19,7 @@ data class ExecutionNetworkRequest(
     /** 仅用于进程内的短链索引，不会发送给 Provider。 */
     val interactionChainKey: String,
     val maxOutputTokens: Int,
+    val searchMode: SearchMode,
 ) {
     init {
         require(sessionId > 0L)
@@ -74,7 +76,9 @@ class InteractionExecutionNetworkGateway(
                 request = CreateInteractionRequest(
                     model = request.model,
                     input = JsonPrimitive(request.modelRequest.userContent),
-                    systemInstruction = request.modelRequest.systemInstruction,
+                    systemInstruction = request.modelRequest.systemInstruction +
+                        request.searchMode.instruction,
+                    tools = request.searchMode.googleSearchTool,
                     generationConfig = InteractionGenerationConfig(
                         maxOutputTokens = request.maxOutputTokens,
                         thinkingLevel = request.thinkingLevel,
@@ -104,3 +108,24 @@ class InteractionExecutionNetworkGateway(
         const val TRANSPORT_GUARD_LIMIT = 1_000_000
     }
 }
+
+private val SearchMode.googleSearchTool: List<Tool>?
+    get() = if (this == SearchMode.OFF) null else listOf(Tool(type = "google_search"))
+
+private val SearchMode.instruction: String
+    get() = when (this) {
+        SearchMode.OFF -> """
+
+            本次执行未提供 Google Search 工具。不得声称已经联网检索、实时核验或访问了某个来源。
+        """.trimIndent()
+        SearchMode.AUTO -> """
+
+            本次执行提供了 Google Search 工具。仅在回答依赖时效性或外部可核验事实时使用该工具；
+            未检索的信息不得表述为已核验事实。
+        """.trimIndent()
+        SearchMode.ON -> """
+
+            用户已开启联网搜索。请先使用 Google Search 工具检索或核验，再回答问题；
+            未检索的信息不得表述为已核验事实。
+        """.trimIndent()
+    }

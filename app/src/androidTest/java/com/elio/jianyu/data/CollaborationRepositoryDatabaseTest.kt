@@ -249,6 +249,9 @@ class CollaborationRepositoryDatabaseTest {
             } else {
                 ExecutionHistoryScope.EXPLICIT_MESSAGES
             },
+            actualModelId = "gemini-3.6-flash",
+            actualThinkingLevel = ExecutionThinkingLevel.MEDIUM,
+            thinkingLevelSource = ExecutionThinkingSource.AUTO_ROUTED,
         ),
         participant = participant(DIRECTED_RUN_ID, "study-planner", 0, 150L),
         budget = ExecutionRuntimeBudgetConfig(maxApiCalls = 1),
@@ -272,6 +275,9 @@ class CollaborationRepositoryDatabaseTest {
                 updatedAt = 140L,
                 runKind = ExecutionRunKind.STANDARD,
                 historyScope = ExecutionHistoryScope.FULL_STAGE,
+                actualModelId = "gemini-3.6-flash",
+                actualThinkingLevel = ExecutionThinkingLevel.MEDIUM,
+                thinkingLevelSource = ExecutionThinkingSource.AUTO_ROUTED,
             ),
             participants = listOf(
                 participant(STANDARD_RUN_ID, "study-planner", 0, 140L),
@@ -293,6 +299,9 @@ class CollaborationRepositoryDatabaseTest {
             runKind = ExecutionRunKind.CROSS_DISCUSSION_RESPONSE,
             discussionId = DISCUSSION_ID,
             historyScope = ExecutionHistoryScope.NO_HISTORY,
+            actualModelId = "gemini-3.6-flash",
+            actualThinkingLevel = ExecutionThinkingLevel.HIGH,
+            thinkingLevelSource = ExecutionThinkingSource.AUTO_ROUTED,
         )
         return CreateCrossDiscussionResponseCommand(
             userMessage = userMessage,
@@ -332,6 +341,9 @@ class CollaborationRepositoryDatabaseTest {
                 parentRunId = RESPONSE_RUN_ID,
                 discussionId = DISCUSSION_ID,
                 historyScope = ExecutionHistoryScope.EXPLICIT_MESSAGES,
+                actualModelId = "gemini-3.6-flash",
+                actualThinkingLevel = ExecutionThinkingLevel.HIGH,
+                thinkingLevelSource = ExecutionThinkingSource.AUTO_ROUTED,
             ),
             participant = participant(SYNTHESIS_RUN_ID, "meeting-to-action", 0, 240L),
             userAcceptedPartial = false,

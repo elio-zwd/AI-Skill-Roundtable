@@ -120,6 +120,9 @@ class RoomJianyuRepositoryProcessRecoveryTest {
                 idempotencyKey = "process-recovery-run-key",
                 createdAt = 15L,
                 updatedAt = 15L,
+                actualModelId = "gemini-3.6-flash",
+                actualThinkingLevel = ExecutionThinkingLevel.MEDIUM,
+                thinkingLevelSource = ExecutionThinkingSource.AUTO_ROUTED,
             ),
             participants = listOf(
                 ExecutionParticipantSnapshotEntity(

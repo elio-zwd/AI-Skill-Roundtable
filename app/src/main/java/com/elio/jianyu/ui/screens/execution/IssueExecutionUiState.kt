@@ -2,6 +2,10 @@ package com.elio.jianyu.ui.screens.execution
 
 import com.elio.jianyu.data.ExecutionParticipantStatus
 import com.elio.jianyu.data.ExecutionRunStatus
+import com.elio.jianyu.data.ExecutionThinkingLevel
+import com.elio.jianyu.data.ExecutionThinkingSource
+import com.elio.jianyu.data.IssueThinkingPolicy
+import com.elio.jianyu.execution.SearchMode
 import com.elio.jianyu.ui.screens.context.ContextConfirmationUiState
 
 enum class IssueExecutionPhase {
@@ -68,6 +72,14 @@ sealed interface IssueExecutionUiState {
         val canStop: Boolean,
         val canRetry: Boolean,
         val canRecoverInterrupted: Boolean,
+        val issueDefaultThinkingPolicy: IssueThinkingPolicy = IssueThinkingPolicy.AUTO,
+        val thinkingOverride: IssueThinkingPolicy? = null,
+        val canChangeIssueDefaultThinkingPolicy: Boolean = false,
+        val actualModelId: String? = null,
+        val actualThinkingLevel: ExecutionThinkingLevel? = null,
+        val thinkingLevelSource: ExecutionThinkingSource? = null,
+        /** 仅影响尚未创建的下一次 Run；当前 Run 的请求已经冻结。 */
+        val searchMode: SearchMode = SearchMode.AUTO,
         val contextConfirmation: ContextConfirmationUiState? = null,
         val operationInProgress: Boolean = false,
     ) : IssueExecutionUiState

@@ -197,6 +197,7 @@ data class ExecutionStartCommand(
     val userConfirmedAt: Long,
     val model: String = DEFAULT_EXECUTION_MODEL,
     val thinkingOverride: IssueThinkingPolicy? = null,
+    val searchMode: SearchMode = SearchMode.AUTO,
     val budget: ExecutionRuntimeBudgetConfig = ExecutionRuntimeBudgetConfig(),
     val contributions: List<ExecutionContextContribution> = emptyList(),
     val contextUsage: ContextUsageWriteSet = ContextUsageWriteSet(),
@@ -223,6 +224,7 @@ data class ExecutionRetryCommand(
     val userConfirmedAt: Long,
     val model: String = DEFAULT_EXECUTION_MODEL,
     val thinkingOverride: IssueThinkingPolicy? = null,
+    val searchMode: SearchMode = SearchMode.AUTO,
     val contributions: List<ExecutionContextContribution> = emptyList(),
     val contextUsage: ContextUsageWriteSet = ContextUsageWriteSet(),
 ) {
@@ -250,6 +252,7 @@ data class ExecutionPreparedRunCommand(
     val roundIndex: Int,
     val userConfirmedAt: Long,
     val model: String = DEFAULT_EXECUTION_MODEL,
+    val searchMode: SearchMode = SearchMode.AUTO,
     val contributions: List<ExecutionContextContribution> = emptyList(),
     val additionalRequiredCalls: Int = 0,
     val keepBudgetOpenOnSuccess: Boolean = false,

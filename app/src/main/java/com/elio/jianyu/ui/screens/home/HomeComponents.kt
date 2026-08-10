@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -24,6 +26,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.elio.jianyu.data.IssueThinkingPolicy
 import com.elio.jianyu.home.HomeExecutionConsentSnapshot
 import com.elio.jianyu.home.HomeRecommendation
 import com.elio.jianyu.home.RecommendationMode
@@ -280,10 +283,12 @@ internal fun HomeFinalReviewCard(
     directions: Set<ValueDirection>,
     selectedContextCount: Int,
     executionConsent: HomeExecutionConsentSnapshot,
+    thinkingOverride: IssueThinkingPolicy?,
     consentIssues: List<String>,
     onNetworkAuthorized: (Boolean) -> Unit,
     onHighStakesConfirmed: (Boolean) -> Unit,
     onPersonDisclaimerConfirmed: (Boolean) -> Unit,
+    onThinkingOverrideChanged: (IssueThinkingPolicy?) -> Unit,
     onStart: () -> Unit,
     startEnabled: Boolean,
     modifier: Modifier = Modifier,
@@ -327,11 +332,36 @@ internal fun HomeFinalReviewCard(
             }
             JianyuMetadataRow("资料与个人背景", "已确认 $selectedContextCount 项")
             JianyuMetadataRow("预期输出", recommendation.expectedOutput)
+            Text("本次思考策略", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "仅影响即将创建的初始 Run；议题默认策略保持自动。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                FilterChip(
+                    selected = thinkingOverride == null,
+                    onClick = { onThinkingOverrideChanged(null) },
+                    label = { Text("跟随议题默认") },
+                )
+                IssueThinkingPolicy.entries
+                    .filterNot { it == IssueThinkingPolicy.AUTO }
+                    .forEach { policy ->
+                        FilterChip(
+                            selected = policy == thinkingOverride,
+                            onClick = { onThinkingOverrideChanged(policy) },
+                            label = { Text(policy.displayLabel) },
+                        )
+                    }
+            }
 
             if (needsNetwork) {
                 HomeConsentCheckbox(
                     checked = executionConsent.networkAuthorized,
-                    label = "我同意本次调用云端模型；当前议题执行暂未接入网页搜索，涉及最新事实必须标记为未核验。",
+                    label = "我同意本次调用云端模型；是否使用联网搜索由议题工作区中每次运行的选择决定。",
                     tag = HomeTestTags.NETWORK_AUTHORIZATION,
                     onCheckedChange = onNetworkAuthorized,
                 )
@@ -383,6 +413,15 @@ internal fun HomeFinalReviewCard(
         }
     }
 }
+
+private val IssueThinkingPolicy.displayLabel: String
+    get() = when (this) {
+        IssueThinkingPolicy.AUTO -> "自动"
+        IssueThinkingPolicy.MINIMAL -> "minimal"
+        IssueThinkingPolicy.LOW -> "low"
+        IssueThinkingPolicy.MEDIUM -> "medium"
+        IssueThinkingPolicy.HIGH -> "high"
+    }
 
 @Composable
 private fun HomeConsentCheckbox(
