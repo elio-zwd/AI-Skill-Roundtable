@@ -29,10 +29,12 @@ import com.elio.jianyu.data.ExecutionThinkingLevel
 import com.elio.jianyu.data.ExecutionThinkingSource
 import com.elio.jianyu.data.IssueThinkingPolicy
 import com.elio.jianyu.execution.SearchMode
+import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import dev.jeziellago.compose.markdowntext.MarkdownText
 
 object IssueExecutionTestTags {
     const val SCREEN = "issue_execution_screen"
+    const val CONTENT_LIST = JianyuAutomationTags.Execution.CONTENT_LIST
     const val LOADING = "issue_execution_loading"
     const val FAILURE = "issue_execution_failure"
     const val STATUS = "issue_execution_status"
@@ -399,6 +401,7 @@ internal fun ContextSelectionSummaryCard(
 @Composable
 internal fun ExecutionParticipantCard(
     participant: IssueExecutionParticipantUi,
+    testTag: String = IssueExecutionTestTags.participant(participant.snapshotId),
 ) {
     val statusColor = participant.status.toStatusColor()
     val avatarLabel = participant.displayName.trim().take(1).ifBlank {
@@ -407,7 +410,7 @@ internal fun ExecutionParticipantCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .testTag(IssueExecutionTestTags.participant(participant.snapshotId))
+            .testTag(testTag)
             .padding(vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {

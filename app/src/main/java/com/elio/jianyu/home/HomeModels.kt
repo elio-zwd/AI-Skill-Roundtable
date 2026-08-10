@@ -1,6 +1,7 @@
 package com.elio.jianyu.home
 
 import com.elio.jianyu.data.IssueThinkingPolicy
+import com.elio.jianyu.execution.SearchMode
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -237,6 +238,7 @@ data class HomeFinalConfirmation(
     val contextSelection: HomeContextSelectionSnapshot,
     val executionConsent: HomeExecutionConsentSnapshot = HomeExecutionConsentSnapshot(),
     val thinkingOverride: IssueThinkingPolicy? = null,
+    val searchMode: SearchMode = SearchMode.AUTO,
     val confirmedAt: Long,
 ) {
     init {

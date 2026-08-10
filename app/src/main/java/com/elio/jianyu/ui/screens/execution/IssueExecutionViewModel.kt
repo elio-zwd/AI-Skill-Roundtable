@@ -10,6 +10,7 @@ import com.elio.jianyu.data.ContextContentHasher
 import com.elio.jianyu.data.ContextSelectionDraft
 import com.elio.jianyu.data.ContextSourceLifecycle
 import com.elio.jianyu.data.ContextSourceType
+import com.elio.jianyu.data.ExecutionRunEntity
 import com.elio.jianyu.data.ExecutionRunStatus
 import com.elio.jianyu.data.ExecutionRuntimeSnapshot
 import com.elio.jianyu.data.IssueRecoverySnapshot
@@ -161,6 +162,45 @@ class IssueExecutionViewModel internal constructor(
 
     fun retryFailedParticipants() {
         openContextSelection(retryMode = true)
+    }
+
+    /** 详情只读取既有 Run；不会恢复、重试或改写历史快照。 */
+    fun openRunHistoryDetail(runId: String) {
+        val content = _state.value as? IssueExecutionUiState.Content ?: return
+        if (content.runHistory.none { it.runId == runId }) return
+        val recovery = latestRecovery ?: return
+        viewModelScope.launch {
+            _state.value = content.copy(
+                runDetail = IssueExecutionRunDetailUiState.Loading(runId),
+            )
+            when (val result = repository.getExecutionRuntime(runId)) {
+                is RepositoryResult.Success -> {
+                    val runtime = result.value
+                    replaceRunDetailIfLoading(
+                        runId = runId,
+                        detail = IssueExecutionRunDetailUiState.Content(
+                            run = runtime.run.toRunHistoryUi(
+                                isCurrent = runtime.run.id == latestRuntime?.run?.id,
+                            ),
+                            participants = mapParticipants(runtime, recovery),
+                            budget = runtime.budget.toUi(),
+                        ),
+                    )
+                }
+                is RepositoryResult.Failure -> replaceRunDetailIfLoading(
+                    runId = runId,
+                    detail = IssueExecutionRunDetailUiState.Failure(
+                        runId = runId,
+                        message = "无法读取该 Run 的持久化详情，请刷新后重试。",
+                    ),
+                )
+            }
+        }
+    }
+
+    fun dismissRunHistoryDetail() {
+        val content = _state.value as? IssueExecutionUiState.Content ?: return
+        _state.value = content.copy(runDetail = null)
     }
 
     fun openContextSelection(retryMode: Boolean = false) {
@@ -562,14 +602,59 @@ class IssueExecutionViewModel internal constructor(
         val stage = selectedStageId
             ?.let { id -> recovery.core.stages.firstOrNull { it.id == id } }
             ?: recovery.core.currentStage
+        val participants = runtime?.let { current -> mapParticipants(current, recovery) }.orEmpty()
+        val run = runtime?.run
+        return IssueExecutionUiState.Content(
+            issueId = recovery.core.issue.id,
+            issueTitle = recovery.core.issue.title,
+            stageId = stage?.id,
+            stageTitle = stage?.title,
+            phase = phaseFor(runtime),
+            runId = run?.id,
+            runStatus = run?.status,
+            participants = participants,
+            budget = runtime?.budget?.toUi(),
+            failureCode = run?.failureCode,
+            failureMessage = run?.failureMessage,
+            executionAvailable = coordinator != null,
+            canStop = coordinator != null && run?.status in ACTIVE_RUN_STATES,
+            canRetry = coordinator != null && run?.status in RETRYABLE_RUN_STATES,
+            canRecoverInterrupted = coordinator != null && run?.status in ACTIVE_RUN_STATES,
+            issueDefaultThinkingPolicy = recovery.core.issue.defaultThinkingPolicy,
+            thinkingOverride = selectedThinkingOverride,
+            canChangeIssueDefaultThinkingPolicy = recovery.core.runs.none { existing ->
+                existing.status in ACTIVE_RUN_STATES
+            },
+            actualModelId = run?.actualModelId,
+            actualThinkingLevel = run?.actualThinkingLevel,
+            thinkingLevelSource = run?.thinkingLevelSource,
+            searchMode = selectedSearchMode,
+            runHistory = stage?.let { selected ->
+                recovery.core.runs
+                    .filter { candidate -> candidate.stageId == selected.id }
+                    .sortedWith(
+                        compareByDescending<ExecutionRunEntity> { candidate -> candidate.createdAt }
+                            .thenByDescending { candidate -> candidate.id },
+                    )
+                    .map { candidate ->
+                        candidate.toRunHistoryUi(isCurrent = candidate.id == run?.id)
+                    }
+            }.orEmpty(),
+        )
+    }
+
+    private fun mapParticipants(
+        runtime: ExecutionRuntimeSnapshot,
+        recovery: IssueRecoverySnapshot,
+    ): List<IssueExecutionParticipantUi> {
         val messagesByParticipant = recovery.core.messages
-            .filter { message -> message.stageId == stage?.id }
-            .groupBy { it.participantSnapshotId }
-        val participants = runtime?.participants
-            .orEmpty()
+            .asSequence()
+            .filter { message -> message.executionRunId == runtime.run.id }
+            .groupBy { message -> message.participantSnapshotId }
+        return runtime.participants
             .sortedBy { it.position }
             .map { snapshot ->
-                val runtimeState = runtime?.participantStates?.firstOrNull {
+                val runtimeState = runtime.participantStates.firstOrNull {
                     it.participantSnapshotId == snapshot.id
                 }
                 val message = messagesByParticipant[snapshot.id]
@@ -588,40 +673,39 @@ class IssueExecutionViewModel internal constructor(
                     errorMessage = runtimeState?.lastErrorMessage,
                 )
             }
-        val run = runtime?.run
-        return IssueExecutionUiState.Content(
-            issueId = recovery.core.issue.id,
-            issueTitle = recovery.core.issue.title,
-            stageId = stage?.id,
-            stageTitle = stage?.title,
-            phase = phaseFor(runtime),
-            runId = run?.id,
-            runStatus = run?.status,
-            participants = participants,
-            budget = runtime?.budget?.let { budget ->
-                IssueExecutionBudgetUi(
-                    maxApiCalls = budget.maxApiCalls,
-                    usedApiCalls = budget.usedApiCalls,
-                    reservedRequiredCalls = budget.reservedRequiredCalls,
-                    closed = budget.closed,
-                )
-            },
-            failureCode = run?.failureCode,
-            failureMessage = run?.failureMessage,
-            executionAvailable = coordinator != null,
-            canStop = coordinator != null && run?.status in ACTIVE_RUN_STATES,
-            canRetry = coordinator != null && run?.status in RETRYABLE_RUN_STATES,
-            canRecoverInterrupted = coordinator != null && run?.status in ACTIVE_RUN_STATES,
-            issueDefaultThinkingPolicy = recovery.core.issue.defaultThinkingPolicy,
-            thinkingOverride = selectedThinkingOverride,
-            canChangeIssueDefaultThinkingPolicy = recovery.core.runs.none { existing ->
-                existing.status in ACTIVE_RUN_STATES
-            },
-            actualModelId = run?.actualModelId,
-            actualThinkingLevel = run?.actualThinkingLevel,
-            thinkingLevelSource = run?.thinkingLevelSource,
-            searchMode = selectedSearchMode,
+    }
+
+    private fun com.elio.jianyu.data.ExecutionRunBudgetEntity.toUi() =
+        IssueExecutionBudgetUi(
+            maxApiCalls = maxApiCalls,
+            usedApiCalls = usedApiCalls,
+            reservedRequiredCalls = reservedRequiredCalls,
+            closed = closed,
         )
+
+    private fun ExecutionRunEntity.toRunHistoryUi(
+        isCurrent: Boolean,
+    ) = IssueExecutionRunHistoryUi(
+        runId = id,
+        runKind = runKind,
+        status = status,
+        historyScope = historyScope,
+        retryOfRunId = retryOfRunId,
+        parentRunId = parentRunId,
+        failureMessage = failureMessage,
+        actualModelId = actualModelId,
+        actualThinkingLevel = actualThinkingLevel,
+        thinkingLevelSource = thinkingLevelSource,
+        isCurrent = isCurrent,
+    )
+
+    private fun replaceRunDetailIfLoading(
+        runId: String,
+        detail: IssueExecutionRunDetailUiState,
+    ) {
+        val content = _state.value as? IssueExecutionUiState.Content ?: return
+        if ((content.runDetail as? IssueExecutionRunDetailUiState.Loading)?.runId != runId) return
+        _state.value = content.copy(runDetail = detail)
     }
 
     private fun phaseFor(runtime: ExecutionRuntimeSnapshot?): IssueExecutionPhase {

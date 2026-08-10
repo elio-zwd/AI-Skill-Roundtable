@@ -243,6 +243,8 @@ fun IssueExecutionRoute(
                 onSearchModeChanged = viewModel::setSearchMode,
                 onThinkingOverrideChanged = viewModel::setThinkingOverride,
                 onIssueDefaultThinkingPolicyChanged = viewModel::setIssueDefaultThinkingPolicy,
+                onOpenRunHistoryDetail = viewModel::openRunHistoryDetail,
+                onDismissRunHistoryDetail = viewModel::dismissRunHistoryDetail,
                 onOpenContext = { viewModel.openContextSelection(retryMode = false) },
                 onDismissContext = viewModel::dismissContextSelection,
                 onToggleContext = viewModel::toggleContextCandidate,

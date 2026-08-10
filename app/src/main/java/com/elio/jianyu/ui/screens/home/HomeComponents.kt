@@ -27,6 +27,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.data.IssueThinkingPolicy
+import com.elio.jianyu.execution.SearchMode
 import com.elio.jianyu.home.HomeExecutionConsentSnapshot
 import com.elio.jianyu.home.HomeRecommendation
 import com.elio.jianyu.home.RecommendationMode
@@ -285,11 +286,13 @@ internal fun HomeFinalReviewCard(
     selectedContextCount: Int,
     executionConsent: HomeExecutionConsentSnapshot,
     thinkingOverride: IssueThinkingPolicy?,
+    initialSearchMode: SearchMode,
     consentIssues: List<String>,
     onNetworkAuthorized: (Boolean) -> Unit,
     onHighStakesConfirmed: (Boolean) -> Unit,
     onPersonDisclaimerConfirmed: (Boolean) -> Unit,
     onThinkingOverrideChanged: (IssueThinkingPolicy?) -> Unit,
+    onInitialSearchModeChanged: (SearchMode) -> Unit,
     onStart: () -> Unit,
     startEnabled: Boolean,
     modifier: Modifier = Modifier,
@@ -333,6 +336,32 @@ internal fun HomeFinalReviewCard(
             }
             JianyuMetadataRow("资料与个人背景", "已确认 $selectedContextCount 项")
             JianyuMetadataRow("预期输出", recommendation.expectedOutput)
+            Text("首个 Run 的联网搜索", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "仅影响即将创建的初始 Run；之后可在议题工作区为每次新 Run 重新选择。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            FlowRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag(JianyuAutomationTags.Home.INITIAL_SEARCH_MODE),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                SearchMode.entries.forEach { mode ->
+                    FilterChip(
+                        selected = initialSearchMode == mode,
+                        onClick = { onInitialSearchModeChanged(mode) },
+                        label = { Text(mode.displayLabel) },
+                        modifier = Modifier
+                            .heightIn(min = 48.dp)
+                            .testTag(
+                                JianyuAutomationTags.Home.initialSearchMode(mode.name.lowercase()),
+                            ),
+                    )
+                }
+            }
             Text("本次思考策略", style = MaterialTheme.typography.titleSmall)
             Text(
                 "仅影响即将创建的初始 Run；议题默认策略保持自动。",
@@ -365,7 +394,7 @@ internal fun HomeFinalReviewCard(
             if (needsNetwork) {
                 HomeConsentCheckbox(
                     checked = executionConsent.networkAuthorized,
-                    label = "我同意本次调用云端模型；是否使用联网搜索由议题工作区中每次运行的选择决定。",
+                    label = "我同意本次调用云端模型；首个 Run 将使用上方的联网搜索选择。",
                     tag = HomeTestTags.NETWORK_AUTHORIZATION,
                     onCheckedChange = onNetworkAuthorized,
                 )
@@ -425,6 +454,13 @@ private val IssueThinkingPolicy.displayLabel: String
         IssueThinkingPolicy.LOW -> "low"
         IssueThinkingPolicy.MEDIUM -> "medium"
         IssueThinkingPolicy.HIGH -> "high"
+    }
+
+private val SearchMode.displayLabel: String
+    get() = when (this) {
+        SearchMode.OFF -> "关闭"
+        SearchMode.AUTO -> "自动"
+        SearchMode.ON -> "开启"
     }
 
 @Composable

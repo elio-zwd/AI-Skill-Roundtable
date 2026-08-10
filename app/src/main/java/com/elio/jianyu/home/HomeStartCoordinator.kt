@@ -158,6 +158,7 @@ class HomeStartCoordinator(
             roundIndex = 0,
             userConfirmedAt = confirmation.confirmedAt,
             thinkingOverride = confirmation.thinkingOverride,
+            searchMode = confirmation.searchMode,
             contributions = prepared.preparation.contributions,
             contextUsage = prepared.usage,
         )

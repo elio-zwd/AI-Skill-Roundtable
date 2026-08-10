@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elio.jianyu.data.JianyuRepository
 import com.elio.jianyu.execution.ExecutionRunCoordinator
+import com.elio.jianyu.execution.SearchMode
 import com.elio.jianyu.skill.catalog.OfficialSkillCatalogRuntimeResult
 import com.elio.jianyu.skill.catalog.OfficialSkillUseRequest
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
@@ -29,6 +30,10 @@ object HomeTestTags {
     const val HIGH_STAKES_CONFIRMATION = "home_execution_high_stakes_confirmation"
     const val PERSON_DISCLAIMER_CONFIRMATION = "home_execution_person_disclaimer_confirmation"
     const val RESTRICTED_MATERIAL_BLOCK = "home_execution_restricted_material_block"
+    const val INITIAL_SEARCH_MODE = JianyuAutomationTags.Home.INITIAL_SEARCH_MODE
+
+    fun initialSearchMode(mode: SearchMode): String =
+        JianyuAutomationTags.Home.initialSearchMode(mode.name.lowercase())
 }
 
 @Composable
@@ -89,6 +94,7 @@ fun HomeRoute(
         onHighStakesConfirmed = viewModel::setHighStakesConfirmed,
         onPersonDisclaimerConfirmed = viewModel::setPersonDisclaimerConfirmed,
         onThinkingOverrideChanged = viewModel::setThinkingOverride,
+        onInitialSearchModeChanged = viewModel::setInitialSearchMode,
         onBrowseSkills = viewModel::browseSkills,
         onStartIssue = viewModel::startIssue,
         onOpenSettings = onOpenSettings,

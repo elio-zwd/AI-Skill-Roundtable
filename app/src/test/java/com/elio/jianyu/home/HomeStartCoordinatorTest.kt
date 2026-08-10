@@ -9,6 +9,7 @@ import com.elio.jianyu.data.RepositoryError
 import com.elio.jianyu.data.RepositoryResult
 import com.elio.jianyu.data.SaveIssueCommand
 import com.elio.jianyu.execution.ExecutionStartCommand
+import com.elio.jianyu.execution.SearchMode
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -109,6 +110,7 @@ class HomeStartCoordinatorTest {
         assertEquals("issue-1", command.issueId)
         assertEquals("stage-1", command.stageId)
         assertEquals("run-1", command.runId)
+        assertEquals(SearchMode.ON, command.searchMode)
     }
 
     @Test
@@ -176,6 +178,7 @@ class HomeStartCoordinatorTest {
             source = RecommendationSource.LOCAL_CATALOG,
         ),
         contextSelection = HomeContextSelectionSnapshot(confirmed = true),
+        searchMode = SearchMode.ON,
         confirmedAt = 200L,
     )
 }

@@ -55,6 +55,8 @@ fun IssueExecutionScreen(
     onSearchModeChanged: (SearchMode) -> Unit = {},
     onThinkingOverrideChanged: (IssueThinkingPolicy?) -> Unit = {},
     onIssueDefaultThinkingPolicyChanged: (IssueThinkingPolicy) -> Unit = {},
+    onOpenRunHistoryDetail: (String) -> Unit = {},
+    onDismissRunHistoryDetail: () -> Unit = {},
     onOpenContext: () -> Unit = {},
     onDismissContext: () -> Unit = {},
     onToggleContext: (ContextSourceType, String) -> Unit = { _, _ -> },
@@ -122,6 +124,8 @@ fun IssueExecutionScreen(
                 onSearchModeChanged = onSearchModeChanged,
                 onThinkingOverrideChanged = onThinkingOverrideChanged,
                 onIssueDefaultThinkingPolicyChanged = onIssueDefaultThinkingPolicyChanged,
+                onOpenRunHistoryDetail = onOpenRunHistoryDetail,
+                onDismissRunHistoryDetail = onDismissRunHistoryDetail,
                 onOpenContext = onOpenContext,
                 onCollaborationInputChanged = onCollaborationInputChanged,
                 onOpenDirected = onOpenDirected,
@@ -249,6 +253,8 @@ private fun IssueExecutionContent(
     onSearchModeChanged: (SearchMode) -> Unit,
     onThinkingOverrideChanged: (IssueThinkingPolicy?) -> Unit,
     onIssueDefaultThinkingPolicyChanged: (IssueThinkingPolicy) -> Unit,
+    onOpenRunHistoryDetail: (String) -> Unit,
+    onDismissRunHistoryDetail: () -> Unit,
     onOpenContext: () -> Unit,
     onCollaborationInputChanged: (String) -> Unit,
     onOpenDirected: () -> Unit,
@@ -271,7 +277,9 @@ private fun IssueExecutionContent(
         ExecutionRunStatus.PARTIAL_SUCCESS,
     )
     LazyColumn(
-        modifier = Modifier.padding(paddingValues),
+        modifier = Modifier
+            .padding(paddingValues)
+            .testTag(JianyuAutomationTags.Execution.CONTENT_LIST),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -334,6 +342,17 @@ private fun IssueExecutionContent(
                         message = "当前 Run 无法安全执行，请返回后重新选择 Skill。",
                     )
                 }
+            }
+        }
+
+        if (state.runHistory.isNotEmpty()) {
+            item {
+                ExecutionRunHistorySection(
+                    runs = state.runHistory,
+                    detail = state.runDetail,
+                    onOpenDetail = onOpenRunHistoryDetail,
+                    onDismissDetail = onDismissRunHistoryDetail,
+                )
             }
         }
 
