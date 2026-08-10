@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -20,6 +21,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -48,6 +50,7 @@ internal fun IssueCollaborationSection(
     state: IssueCollaborationUiState,
     contextConfirmed: Boolean,
     onInputChanged: (String) -> Unit,
+    onSubmitStandard: () -> Unit = {},
     onOpenDirected: () -> Unit,
     onOpenCross: () -> Unit,
     onDismissDialog: () -> Unit,
@@ -81,6 +84,7 @@ internal fun IssueCollaborationSection(
                 CollaborationComposer(
                     state = state,
                     onInputChanged = onInputChanged,
+                    onSubmitStandard = onSubmitStandard,
                     onOpenDirected = onOpenDirected,
                     onOpenCross = onOpenCross,
                 )
@@ -124,10 +128,13 @@ internal fun IssueCollaborationSection(
 internal fun WorkspaceComposer(
     state: IssueCollaborationUiState.Content,
     onInputChanged: (String) -> Unit,
+    onSubmitStandard: () -> Unit,
     onOpenDirected: () -> Unit,
     onOpenCross: () -> Unit,
+    executionInProgress: Boolean = false,
 ) {
     var actionsExpanded by remember { mutableStateOf(false) }
+    val busy = state.operationInProgress || executionInProgress
     androidx.compose.material3.Surface(
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 2.dp,
@@ -148,7 +155,11 @@ internal fun WorkspaceComposer(
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    text = if (state.hasRoster) "选择回应方式" else "当前没有可用 Skill",
+                    text = when {
+                        !state.isCurrentStage -> "历史阶段只读"
+                        state.hasRoster -> "默认发送给当前阵容"
+                        else -> "当前没有可用 Skill"
+                    },
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -161,7 +172,7 @@ internal fun WorkspaceComposer(
                 Box {
                     IconButton(
                         onClick = { actionsExpanded = true },
-                        enabled = state.hasRoster && !state.operationInProgress,
+                        enabled = state.isCurrentStage && state.hasRoster && !busy,
                         modifier = Modifier.heightIn(min = 48.dp),
                     ) {
                         Icon(
@@ -220,11 +231,23 @@ internal fun WorkspaceComposer(
                         .weight(1f)
                         .testTag(JianyuAutomationTags.Collaboration.INPUT),
                     label = { Text("向当前阵容追问") },
-                    placeholder = { Text("输入后选择回应方式") },
+                    placeholder = { Text("输入补充、质疑或深入问题") },
                     minLines = 1,
                     maxLines = 4,
-                    enabled = !state.operationInProgress,
+                    enabled = state.isCurrentStage && !busy,
                 )
+                FilledIconButton(
+                    onClick = onSubmitStandard,
+                    enabled = state.canSubmitStandard && !executionInProgress,
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .testTag(JianyuAutomationTags.Collaboration.STANDARD_SEND_BUTTON),
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = "发送给当前阵容",
+                    )
+                }
             }
             state.errorMessage?.let { message ->
                 Text(
@@ -233,9 +256,9 @@ internal fun WorkspaceComposer(
                     color = MaterialTheme.colorScheme.error,
                 )
             }
-            if (state.operationInProgress) {
+            if (busy) {
                 Text(
-                    text = "正在持久化协作事实并执行",
+                    text = "正在保存自由追问并执行当前阵容",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -248,6 +271,7 @@ internal fun WorkspaceComposer(
 private fun CollaborationComposer(
     state: IssueCollaborationUiState.Content,
     onInputChanged: (String) -> Unit,
+    onSubmitStandard: () -> Unit,
     onOpenDirected: () -> Unit,
     onOpenCross: () -> Unit,
 ) {
@@ -288,6 +312,15 @@ private fun CollaborationComposer(
                         Text("${participant.position + 1}. ${participant.displayName} · ${participant.responsibility}")
                     }
                 }
+            }
+            Button(
+                onClick = onSubmitStandard,
+                enabled = state.canSubmitStandard,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag(JianyuAutomationTags.Collaboration.STANDARD_SEND_BUTTON),
+            ) {
+                Text("发送给当前阵容")
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),

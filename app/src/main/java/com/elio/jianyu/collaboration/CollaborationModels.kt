@@ -21,6 +21,31 @@ data class CollaborationContextSelection(
     }
 }
 
+data class StandardFollowUpRequest(
+    val operationId: String,
+    val issueId: String,
+    val stageId: String,
+    val question: String,
+    val roundIndex: Int,
+    val userConfirmedAt: Long,
+    val context: CollaborationContextSelection = CollaborationContextSelection(),
+    val model: String = DEFAULT_EXECUTION_MODEL,
+    val budget: ExecutionRuntimeBudgetConfig = ExecutionRuntimeBudgetConfig(),
+) {
+    init {
+        require(STABLE_OPERATION_ID.matches(operationId))
+        require(issueId.isNotBlank())
+        require(stageId.isNotBlank())
+        require(question.isNotBlank())
+        require(roundIndex >= 0)
+        require(userConfirmedAt > 0L)
+        require(model.isNotBlank())
+        require(context.selectedMessageIds.isEmpty()) {
+            "自由追问使用完整阶段历史，不接受显式消息子集"
+        }
+    }
+}
+
 data class DirectedResponseRequest(
     val operationId: String,
     val issueId: String,
@@ -123,6 +148,12 @@ data class CollaborationExecutionResult(
     val discussion: CrossDiscussionSessionEntity? = null,
 )
 
+data class StandardOperationIds(
+    val runId: String,
+    val userMessageId: Long,
+    val idempotencyKey: String,
+)
+
 data class DirectedOperationIds(
     val runId: String,
     val userMessageId: Long,
@@ -148,6 +179,16 @@ data class CollaborationRetryOperationIds(
 )
 
 object CollaborationOperationIds {
+    fun standard(operationId: String): StandardOperationIds {
+        validate(operationId)
+        val runId = "standard-follow-up-$operationId"
+        return StandardOperationIds(
+            runId = runId,
+            userMessageId = StableExecutionIds.userMessageId(runId),
+            idempotencyKey = runId,
+        )
+    }
+
     fun directed(operationId: String): DirectedOperationIds {
         validate(operationId)
         return DirectedOperationIds(

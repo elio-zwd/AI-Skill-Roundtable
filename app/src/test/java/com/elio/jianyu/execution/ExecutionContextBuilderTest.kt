@@ -136,6 +136,29 @@ class ExecutionContextBuilderTest {
         assertFalse(request.systemInstruction == participant.defaultResponsibility)
     }
 
+    @Test
+    fun everyPromptModeDeclaresThatWebSearchAndRealtimeVerificationAreUnavailable() {
+        ExecutionPromptMode.entries.forEach { mode ->
+            val request = ExecutionContextBuilder().build(
+                ExecutionContextInput(
+                    issue = issue,
+                    stage = stage,
+                    participant = participant,
+                    currentRunId = "run-2",
+                    currentUserInput = "请核验最新政策",
+                    roundIndex = 0,
+                    history = emptyList(),
+                    promptMode = mode,
+                ),
+            )
+
+            assertTrue(request.systemInstruction.contains("平台能力边界"))
+            assertTrue(request.systemInstruction.contains("当前执行没有提供网页搜索工具"))
+            assertTrue(request.systemInstruction.contains("不得声称已经联网检索"))
+            assertTrue(request.systemInstruction.contains("未联网核验"))
+        }
+    }
+
     private fun history(
         id: Long,
         text: String,

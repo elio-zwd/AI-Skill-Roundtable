@@ -52,6 +52,73 @@ class IssueCollaborationScreenTest {
             .assertIsNotEnabled()
         composeRule.onNodeWithTag(JianyuAutomationTags.Collaboration.CROSS_DISCUSSION_BUTTON)
             .assertIsNotEnabled()
+        composeRule.onNodeWithTag(JianyuAutomationTags.Collaboration.STANDARD_SEND_BUTTON)
+            .assertIsNotEnabled()
+    }
+
+    @Test
+    fun standardFollowUpSendsNonBlankQuestionToCurrentRoster() {
+        var submissions = 0
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                IssueCollaborationSection(
+                    state = content(input = "请继续检查这个方案的盲区"),
+                    contextConfirmed = false,
+                    onInputChanged = {},
+                    onSubmitStandard = { submissions++ },
+                    onOpenDirected = {},
+                    onOpenCross = {},
+                    onDismissDialog = {},
+                    onToggleParticipant = {},
+                    onToggleMessage = {},
+                    onOpenContext = {},
+                    onConfirmDirected = {},
+                    onConfirmCross = {},
+                    onRetryFailed = {},
+                    onSynthesize = {},
+                    onRetrySynthesis = {},
+                    onStop = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(JianyuAutomationTags.Collaboration.STANDARD_SEND_BUTTON)
+            .assertIsEnabled()
+            .performClick()
+
+        composeRule.runOnIdle { assertEquals(1, submissions) }
+    }
+
+    @Test
+    fun historicalStageCannotSendStandardFollowUp() {
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                IssueCollaborationSection(
+                    state = content(
+                        input = "这条消息不能写入旧阶段",
+                        isCurrentStage = false,
+                    ),
+                    contextConfirmed = false,
+                    onInputChanged = {},
+                    onSubmitStandard = {},
+                    onOpenDirected = {},
+                    onOpenCross = {},
+                    onDismissDialog = {},
+                    onToggleParticipant = {},
+                    onToggleMessage = {},
+                    onOpenContext = {},
+                    onConfirmDirected = {},
+                    onConfirmCross = {},
+                    onRetryFailed = {},
+                    onSynthesize = {},
+                    onRetrySynthesis = {},
+                    onStop = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(JianyuAutomationTags.Collaboration.STANDARD_SEND_BUTTON)
+            .assertIsNotEnabled()
     }
 
     @Test
@@ -188,6 +255,7 @@ class IssueCollaborationScreenTest {
         dialogMode: CollaborationDialogMode? = null,
         selectedSkillIds: Set<String> = emptySet(),
         sessions: List<CrossDiscussionSessionUi> = emptyList(),
+        isCurrentStage: Boolean = true,
     ): IssueCollaborationUiState.Content = IssueCollaborationUiState.Content(
         issueId = "issue-1",
         stageId = "stage-1",
@@ -206,6 +274,7 @@ class IssueCollaborationScreenTest {
         ),
         dialogMode = dialogMode,
         sessions = sessions,
+        isCurrentStage = isCurrentStage,
     )
 
     private fun participant(

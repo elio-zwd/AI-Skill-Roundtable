@@ -93,6 +93,74 @@ class HomeRecommendationPolicyTest {
     }
 
     @Test
+    fun manuallyPreferredExecutableSkill_isFirstSelectedAndExplainsItsSource() {
+        val preferred = skill(
+            id = "manual-skill",
+            value = OfficialSkillPrimaryValue.REALITY_SUPPORT,
+            order = 99,
+            executable = true,
+        ).copy(
+            availability = OfficialSkillAvailability(
+                v1Target = true,
+                hasAsset = true,
+                discoverable = true,
+                searchable = true,
+                recommendable = false,
+                executable = true,
+            ),
+        )
+        val automatic = skill(
+            id = "automatic-skill",
+            value = OfficialSkillPrimaryValue.REALITY_SUPPORT,
+            order = 1,
+            executable = true,
+            domainTags = listOf("career"),
+        )
+
+        val outcome = HomeRecommendationPolicy.recommend(
+            InMemoryOfficialSkillCatalog(listOf(automatic, preferred)),
+            HomeRecommendationRequest(
+                question = "帮我规划职业转型",
+                directions = setOf(ValueDirection.REALITY_SUPPORT),
+                preferredSkillId = preferred.id,
+            ),
+        ) as HomeRecommendationOutcome.Ready
+
+        val first = outcome.recommendation.skills.first()
+        assertEquals(preferred.id, first.skillId)
+        assertTrue(first.selected)
+        assertTrue(first.reason.contains("你从 Skill 目录选择了此能力"))
+    }
+
+    @Test
+    fun nonExecutablePreferredSkill_neverBypassesExecutionGate() {
+        val outcome = HomeRecommendationPolicy.recommend(
+            InMemoryOfficialSkillCatalog(
+                listOf(
+                    skill("blocked-skill", OfficialSkillPrimaryValue.BOTH, 1, executable = false),
+                    skill("ready-skill", OfficialSkillPrimaryValue.BOTH, 2, executable = true),
+                ),
+            ),
+            HomeRecommendationRequest(
+                question = "分析这个问题",
+                directions = emptySet(),
+                preferredSkillId = "blocked-skill",
+            ),
+        ) as HomeRecommendationOutcome.Ready
+
+        assertFalse(
+            outcome.recommendation.skills
+                .single { it.skillId == "blocked-skill" }
+                .selected,
+        )
+        assertTrue(
+            outcome.recommendation.skills
+                .single { it.skillId == "ready-skill" }
+                .selected,
+        )
+    }
+
+    @Test
     fun unknownDuplicateOrNonExecutableSelectedSkill_isRejectedForStart() {
         val catalog = InMemoryOfficialSkillCatalog(
             listOf(

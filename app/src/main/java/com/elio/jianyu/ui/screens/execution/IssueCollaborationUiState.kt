@@ -74,6 +74,7 @@ sealed interface IssueCollaborationUiState {
     data class Content(
         val issueId: String,
         val stageId: String,
+        val isCurrentStage: Boolean = true,
         val input: String = "",
         val roster: List<CollaborationParticipantUi> = emptyList(),
         val messages: List<CollaborationMessageUi> = emptyList(),
@@ -93,18 +94,21 @@ sealed interface IssueCollaborationUiState {
         val selectedMessageIds: List<Long>
             get() = messages.filter(CollaborationMessageUi::selected).map { it.messageId }
 
+        val canSubmitStandard: Boolean
+            get() = isCurrentStage && hasRoster && input.isNotBlank() && !operationInProgress
+
         val canOpenDirected: Boolean
-            get() = hasRoster && input.isNotBlank() && !operationInProgress
+            get() = isCurrentStage && hasRoster && input.isNotBlank() && !operationInProgress
 
         val canOpenCross: Boolean
-            get() = roster.size >= 2 && input.isNotBlank() && !operationInProgress
+            get() = isCurrentStage && roster.size >= 2 && input.isNotBlank() && !operationInProgress
 
         val canConfirmDirected: Boolean
-            get() = dialogMode == CollaborationDialogMode.DIRECTED &&
+            get() = isCurrentStage && dialogMode == CollaborationDialogMode.DIRECTED &&
                 input.isNotBlank() && selectedParticipants.size == 1 && !operationInProgress
 
         val canConfirmCross: Boolean
-            get() = dialogMode == CollaborationDialogMode.CROSS &&
+            get() = isCurrentStage && dialogMode == CollaborationDialogMode.CROSS &&
                 input.isNotBlank() && selectedParticipants.size >= 2 && !operationInProgress
 
         val estimatedCrossCalls: Int

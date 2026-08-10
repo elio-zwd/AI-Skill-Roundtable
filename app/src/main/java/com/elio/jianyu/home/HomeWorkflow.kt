@@ -33,6 +33,43 @@ object HomeWorkflow {
         )
     }
 
+    fun preselectSkill(
+        state: HomeWorkflowState,
+        skillId: String,
+        intent: String? = null,
+    ): HomeWorkflowState {
+        require(skillId.isNotBlank())
+        val normalizedIntent = intent?.trim()?.takeIf(String::isNotBlank)
+        return state.copy(
+            draft = state.draft.copy(
+                question = normalizedIntent ?: state.draft.question,
+                preferredSkillId = skillId,
+            ),
+            step = HomeWorkflowStep.EDITING_QUESTION,
+            recommendation = null,
+            recommendationConfirmed = false,
+            contextSelection = HomeContextSelectionSnapshot(),
+            executionConsent = HomeExecutionConsentSnapshot(),
+            finalConfirmationReady = false,
+            activeRecommendationToken = null,
+            errorCode = null,
+            operationInFlight = false,
+        )
+    }
+
+    fun clearPreselectedSkill(state: HomeWorkflowState): HomeWorkflowState = state.copy(
+        draft = state.draft.copy(preferredSkillId = null),
+        step = HomeWorkflowStep.EDITING_QUESTION,
+        recommendation = null,
+        recommendationConfirmed = false,
+        contextSelection = HomeContextSelectionSnapshot(),
+        executionConsent = HomeExecutionConsentSnapshot(),
+        finalConfirmationReady = false,
+        activeRecommendationToken = null,
+        errorCode = null,
+        operationInFlight = false,
+    )
+
     fun toggleDirection(
         state: HomeWorkflowState,
         direction: ValueDirection,

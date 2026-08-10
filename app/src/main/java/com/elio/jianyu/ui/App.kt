@@ -29,8 +29,11 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -224,6 +227,14 @@ internal fun MainAppContent(
     val currentSessionId by viewModel.currentSessionId.collectAsState()
 
     val navController = rememberNavController()
+    var pendingSkillId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingSkillIntent by rememberSaveable { mutableStateOf<String?>(null) }
+    val onUseOfficialSkill: (OfficialSkillUseRequest) -> Unit = { request ->
+        pendingSkillId = request.skillId
+        pendingSkillIntent = request.intent
+        onOfficialSkillUseRequested(request)
+        navController.navigateToTopLevel(AppDestination.HOME)
+    }
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoutePattern = backStackEntry?.destination?.route
     val currentDestination = AppDestination.fromRoutePattern(currentRoutePattern)
@@ -274,6 +285,13 @@ internal fun MainAppContent(
                         onOpenSkillCatalog = {
                             navController.navigateToTopLevel(AppDestination.SKILLS)
                         },
+                        skillUseRequest = pendingSkillId?.let { skillId ->
+                            OfficialSkillUseRequest(skillId, pendingSkillIntent)
+                        },
+                        onSkillUseRequestConsumed = {
+                            pendingSkillId = null
+                            pendingSkillIntent = null
+                        },
                     )
                 },
                 issuesContent = {
@@ -306,7 +324,7 @@ internal fun MainAppContent(
                         onOpenSettings = {
                             navController.navigateToSecondary(AppDestination.SETTINGS)
                         },
-                        onUseSkill = onOfficialSkillUseRequested,
+                        onUseSkill = onUseOfficialSkill,
                     )
                 },
                 skillDetailContent = { skillId ->
@@ -318,7 +336,7 @@ internal fun MainAppContent(
                         onOpenSettings = {
                             navController.navigateToSecondary(AppDestination.SETTINGS)
                         },
-                        onUseSkill = onOfficialSkillUseRequested,
+                        onUseSkill = onUseOfficialSkill,
                     )
                 },
                 resourcesContent = { tab ->
@@ -328,6 +346,7 @@ internal fun MainAppContent(
                         onOpenSettings = {
                             navController.navigateToSecondary(AppDestination.SETTINGS)
                         },
+                        onOpenIssue = navController::navigateToIssue,
                     )
                 },
                 settingsContent = {

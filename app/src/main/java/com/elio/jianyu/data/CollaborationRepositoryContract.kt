@@ -1,5 +1,27 @@
 package com.elio.jianyu.data
 
+data class CreateStandardInteractionCommand(
+    val userMessage: AppendDomainMessageCommand,
+    val run: ExecutionRunEntity,
+    val participants: List<ExecutionParticipantSnapshotEntity>,
+    val budget: ExecutionRuntimeBudgetConfig,
+    val contextUsage: ContextUsageWriteSet = ContextUsageWriteSet(),
+) {
+    init {
+        require(run.runKind == ExecutionRunKind.STANDARD)
+        require(run.historyScope == ExecutionHistoryScope.FULL_STAGE)
+        require(run.triggerMessageId == userMessage.messageId)
+        require(run.parentRunId == null)
+        require(run.retryOfRunId == null)
+        require(run.discussionId == null)
+        require(participants.isNotEmpty())
+        require(participants.all { it.runId == run.id })
+        require(participants.map { it.sourceId }.distinct().size == participants.size)
+        require(participants.map { it.position }.distinct().size == participants.size)
+        require(budget.maxApiCalls >= participants.size)
+    }
+}
+
 data class CreateDirectedInteractionCommand(
     val userMessage: AppendDomainMessageCommand,
     val run: ExecutionRunEntity,
@@ -114,6 +136,7 @@ data class StageCollaborationSnapshot(
 )
 
 internal interface JianyuCollaborationRepository {
+    suspend fun createStandardInteraction(command: CreateStandardInteractionCommand): RepositoryResult<CollaborationStartResult>
     suspend fun createDirectedInteraction(command: CreateDirectedInteractionCommand): RepositoryResult<CollaborationStartResult>
     suspend fun createCrossDiscussionResponse(command: CreateCrossDiscussionResponseCommand): RepositoryResult<CollaborationStartResult>
     suspend fun createCrossDiscussionSynthesis(command: CreateCrossDiscussionSynthesisCommand): RepositoryResult<CollaborationStartResult>
@@ -122,6 +145,10 @@ internal interface JianyuCollaborationRepository {
     suspend fun getStageCollaboration(stageId: String): RepositoryResult<StageCollaborationSnapshot>
     suspend fun listExecutionMessageUsage(runId: String): RepositoryResult<List<ExecutionMessageUsageSnapshotEntity>>
 }
+
+suspend fun JianyuRepository.createStandardInteraction(command: CreateStandardInteractionCommand): RepositoryResult<CollaborationStartResult> =
+    collaborationCapability()?.createStandardInteraction(command)
+        ?: missingCollaborationCapability("create_standard_interaction")
 
 suspend fun JianyuRepository.createDirectedInteraction(command: CreateDirectedInteractionCommand): RepositoryResult<CollaborationStartResult> =
     collaborationCapability()?.createDirectedInteraction(command)

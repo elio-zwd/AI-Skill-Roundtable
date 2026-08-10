@@ -48,6 +48,7 @@ fun HomeScreen(
     onBrowseSkills: () -> Unit,
     onStartIssue: () -> Unit,
     onOpenSettings: () -> Unit,
+    onClearPreselectedSkill: () -> Unit = {},
     modifier: Modifier = Modifier,
     examples: List<HomeExampleQuestion> = defaultHomeExampleQuestions,
 ) {
@@ -86,6 +87,30 @@ fun HomeScreen(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                uiState.preferredSkillDisplayName?.let { displayName ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag(JianyuAutomationTags.Home.PREFERRED_SKILL),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = "已预选：$displayName",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(
+                            onClick = onClearPreselectedSkill,
+                            modifier = Modifier.testTag(
+                                JianyuAutomationTags.Home.CLEAR_PREFERRED_SKILL,
+                            ),
+                        ) {
+                            Text("移除")
+                        }
+                    }
+                }
                 OutlinedTextField(
                     value = uiState.question,
                     onValueChange = onQuestionChanged,

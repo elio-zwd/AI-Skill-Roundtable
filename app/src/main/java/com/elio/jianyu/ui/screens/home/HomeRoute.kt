@@ -9,6 +9,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elio.jianyu.data.JianyuRepository
 import com.elio.jianyu.execution.ExecutionRunCoordinator
 import com.elio.jianyu.skill.catalog.OfficialSkillCatalogRuntimeResult
+import com.elio.jianyu.skill.catalog.OfficialSkillUseRequest
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.screens.context.ContextConfirmationDialog
 
@@ -38,6 +39,8 @@ fun HomeRoute(
     onOpenSettings: () -> Unit,
     onNavigateToIssue: (issueId: String, stageId: String) -> Unit,
     onOpenSkillCatalog: () -> Unit,
+    skillUseRequest: OfficialSkillUseRequest? = null,
+    onSkillUseRequestConsumed: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = viewModel(
         factory = HomeViewModel.factory(
@@ -48,6 +51,13 @@ fun HomeRoute(
     ),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(viewModel, skillUseRequest) {
+        skillUseRequest?.let { request ->
+            viewModel.preselectSkillForNewQuestion(request)
+            onSkillUseRequestConsumed()
+        }
+    }
 
     LaunchedEffect(viewModel, onNavigateToIssue, onOpenSkillCatalog) {
         viewModel.navigationEvents.collect { event ->
@@ -81,6 +91,7 @@ fun HomeRoute(
         onBrowseSkills = viewModel::browseSkills,
         onStartIssue = viewModel::startIssue,
         onOpenSettings = onOpenSettings,
+        onClearPreselectedSkill = viewModel::clearPreselectedSkill,
         modifier = modifier,
     )
 

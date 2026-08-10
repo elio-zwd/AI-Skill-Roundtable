@@ -107,6 +107,52 @@ class CollaborationPoliciesTest {
     }
 
     @Test
+    fun standardFollowUpRequiresTheWholeCurrentRosterToRemainExecutable() {
+        val roster = CollaborationRoster(
+            sourceRunId = "standard-root",
+            participants = listOf(
+                participant("standard-root", "study-planner", 0),
+                participant("standard-root", "research-fact-checker", 1),
+            ),
+        )
+
+        assertEquals(
+            CollaborationValidationCode.NO_ROSTER,
+            StandardFollowUpPolicy.validate(
+                roster = null,
+                executableSkillIds = setOf("study-planner", "research-fact-checker"),
+            ).code,
+        )
+        assertEquals(
+            CollaborationValidationCode.SKILL_NOT_EXECUTABLE,
+            StandardFollowUpPolicy.validate(
+                roster = roster,
+                executableSkillIds = setOf("study-planner"),
+            ).code,
+        )
+        assertTrue(
+            StandardFollowUpPolicy.validate(
+                roster = roster,
+                executableSkillIds = setOf("study-planner", "research-fact-checker"),
+            ).valid,
+        )
+    }
+
+    @Test
+    fun standardOperationIdsAreDeterministicAndSeparatedFromOtherModes() {
+        val first = CollaborationOperationIds.standard("operation-12345678")
+        val repeated = CollaborationOperationIds.standard("operation-12345678")
+        val directed = CollaborationOperationIds.directed("operation-12345678")
+
+        assertEquals(first, repeated)
+        assertEquals("standard-follow-up-operation-12345678", first.runId)
+        assertEquals(first.runId, first.idempotencyKey)
+        assertTrue(first.userMessageId > 0L)
+        assertTrue(first.runId != directed.runId)
+        assertTrue(first.userMessageId != directed.userMessageId)
+    }
+
+    @Test
     fun crossDiscussionRequiresTwoDistinctExecutableRosterMembersAndTransparentIntegrator() {
         val roster = CollaborationRoster(
             sourceRunId = "standard-root",

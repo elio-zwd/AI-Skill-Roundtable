@@ -7,6 +7,7 @@ import com.elio.jianyu.data.CreateCollaborationRetryCommand
 import com.elio.jianyu.data.CreateCrossDiscussionResponseCommand
 import com.elio.jianyu.data.CreateCrossDiscussionSynthesisCommand
 import com.elio.jianyu.data.CreateDirectedInteractionCommand
+import com.elio.jianyu.data.CreateStandardInteractionCommand
 import com.elio.jianyu.data.CrossDiscussionSessionEntity
 import com.elio.jianyu.data.CrossDiscussionStatus
 import com.elio.jianyu.data.ExecutionHistoryScope
@@ -26,6 +27,8 @@ import com.elio.jianyu.data.createCollaborationRetry
 import com.elio.jianyu.data.createCrossDiscussionResponse
 import com.elio.jianyu.data.createCrossDiscussionSynthesis
 import com.elio.jianyu.data.createDirectedInteraction
+import com.elio.jianyu.data.createStandardInteraction
+import com.elio.jianyu.data.getExecutionRuntime
 import com.elio.jianyu.data.getStageCollaboration
 import com.elio.jianyu.data.transitionCrossDiscussion
 import com.elio.jianyu.execution.ExecutionContextContribution
@@ -99,6 +102,149 @@ class IssueCollaborationCoordinator(
             ),
             collaboration = repository.getStageCollaboration(stageId).valueOrThrow(),
         )
+    }
+
+    suspend fun startStandardFollowUp(
+        request: StandardFollowUpRequest,
+    ): CollaborationExecutionResult {
+        val snapshot = recover(request.issueId, request.stageId)
+        if (snapshot.issue.core.currentStage?.id != request.stageId) {
+            throw CollaborationStateException("historical_stage_read_only")
+        }
+        val ids = CollaborationOperationIds.standard(request.operationId)
+        existingStandardRuntime(ids.runId)?.let { existing ->
+            return resumeStandardFollowUp(
+                request = request,
+                snapshot = snapshot,
+                runtime = existing,
+                ids = ids,
+            )
+        }
+        val roster = snapshot.roster
+        val executable = roster?.participants.orEmpty()
+            .map { it.sourceId }
+            .filterTo(mutableSetOf(), eligibility::isExecutable)
+        requireValid(StandardFollowUpPolicy.validate(roster, executable))
+        val currentRoster = requireNotNull(roster)
+        require(request.budget.maxApiCalls >= currentRoster.participants.size) {
+            "调用预算不足以覆盖当前正式阵容"
+        }
+
+        val usage = rebindUsage(
+            request.context.usage,
+            request.issueId,
+            request.stageId,
+            ids.runId,
+            request.userConfirmedAt,
+        )
+        requireContext(request.context.contributions, usage)
+        val participants = currentRoster.participants
+            .sortedBy { it.position }
+            .mapIndexed { index, source ->
+                source.copy(
+                    id = "${ids.runId}-participant-$index",
+                    runId = ids.runId,
+                    position = index,
+                    createdAt = request.userConfirmedAt,
+                )
+            }
+        val run = ExecutionRunEntity(
+            id = ids.runId,
+            issueId = request.issueId,
+            stageId = request.stageId,
+            triggerMessageId = ids.userMessageId,
+            idempotencyKey = ids.idempotencyKey,
+            createdAt = request.userConfirmedAt,
+            updatedAt = request.userConfirmedAt,
+            runKind = ExecutionRunKind.STANDARD,
+            historyScope = ExecutionHistoryScope.FULL_STAGE,
+        )
+        val created = repository.createStandardInteraction(
+            CreateStandardInteractionCommand(
+                userMessage = userMessage(
+                    messageId = ids.userMessageId,
+                    issueId = request.issueId,
+                    stageId = request.stageId,
+                    text = request.question,
+                    timestamp = request.userConfirmedAt,
+                    roundIndex = request.roundIndex,
+                    sessionTitle = snapshot.issue.core.issue.title,
+                ),
+                run = run,
+                participants = participants,
+                budget = request.budget,
+                contextUsage = usage,
+            ),
+        ).valueOrThrow()
+        val executed = executionCoordinator.startPrepared(
+            ExecutionPreparedRunCommand(
+                runId = created.runtime.run.id,
+                issueId = request.issueId,
+                stageId = request.stageId,
+                currentUserInput = request.question,
+                roundIndex = request.roundIndex,
+                userConfirmedAt = request.userConfirmedAt,
+                model = request.model,
+                contributions = request.context.contributions,
+            ),
+        )
+        return CollaborationExecutionResult(executed.runtime)
+    }
+
+    private suspend fun existingStandardRuntime(runId: String): ExecutionRuntimeSnapshot? =
+        when (val result = repository.getExecutionRuntime(runId)) {
+            is RepositoryResult.Success -> result.value
+            is RepositoryResult.Failure -> when (result.error) {
+                is RepositoryError.NotFound -> null
+                else -> throw CollaborationRepositoryException(result.error)
+            }
+        }
+
+    private suspend fun resumeStandardFollowUp(
+        request: StandardFollowUpRequest,
+        snapshot: IssueCollaborationSnapshot,
+        runtime: ExecutionRuntimeSnapshot,
+        ids: StandardOperationIds,
+    ): CollaborationExecutionResult {
+        val run = runtime.run
+        val trigger = snapshot.issue.core.messages.singleOrNull { it.id == run.triggerMessageId }
+        val replayMatches = run.id == ids.runId &&
+            run.issueId == request.issueId &&
+            run.stageId == request.stageId &&
+            run.idempotencyKey == ids.idempotencyKey &&
+            run.triggerMessageId == ids.userMessageId &&
+            run.runKind == ExecutionRunKind.STANDARD &&
+            run.historyScope == ExecutionHistoryScope.FULL_STAGE &&
+            run.parentRunId == null &&
+            run.retryOfRunId == null &&
+            run.discussionId == null &&
+            trigger != null &&
+            trigger.issueId == request.issueId &&
+            trigger.stageId == request.stageId &&
+            trigger.senderId == "user" &&
+            trigger.text == request.question
+        if (!replayMatches) {
+            throw CollaborationStateException("standard_replay_conflict")
+        }
+        val contributions = repository.listRunContextUsage(run.id)
+            .valueOrThrow()
+            .map { snapshot ->
+                toContribution(snapshot)
+                    ?: throw CollaborationStateException("standard_replay_context_unavailable")
+            }
+        val executed = executionCoordinator.startPrepared(
+            ExecutionPreparedRunCommand(
+                runId = run.id,
+                issueId = run.issueId,
+                stageId = run.stageId,
+                currentUserInput = requireNotNull(trigger).text,
+                roundIndex = trigger.roundIndex,
+                userConfirmedAt = run.createdAt,
+                model = request.model,
+                contributions = contributions,
+            ),
+        )
+        return CollaborationExecutionResult(executed.runtime)
     }
 
     suspend fun startDirected(

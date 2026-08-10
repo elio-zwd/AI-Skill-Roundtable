@@ -58,6 +58,17 @@ internal class LifecycleGatedRepositoryComponent(
             collaborationRuntime.recoverInterruptedExecution(command)
         }
 
+    suspend fun createStandardInteraction(
+        command: CreateStandardInteractionCommand,
+    ): RepositoryResult<CollaborationStartResult> =
+        gate(
+            command.userMessage.issueId,
+            IssueWriteAction.CREATE_RUN,
+            "create_standard_interaction",
+        ) {
+            collaboration.createStandardInteraction(command)
+        }
+
     suspend fun createDirectedInteraction(
         command: CreateDirectedInteractionCommand,
     ): RepositoryResult<CollaborationStartResult> =

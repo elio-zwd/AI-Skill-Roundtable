@@ -55,6 +55,7 @@ fun IssueExecutionScreen(
     onContextExcerptChanged: (ContextSourceType, String, String) -> Unit = { _, _, _ -> },
     onConfirmContext: () -> Unit = {},
     onCollaborationInputChanged: (String) -> Unit = {},
+    onSubmitStandard: () -> Unit = {},
     onOpenDirected: () -> Unit = {},
     onOpenCross: () -> Unit = {},
     onDismissCollaborationDialog: () -> Unit = {},
@@ -87,8 +88,10 @@ fun IssueExecutionScreen(
                 WorkspaceComposer(
                     state = workspace,
                     onInputChanged = onCollaborationInputChanged,
+                    onSubmitStandard = onSubmitStandard,
                     onOpenDirected = onOpenDirected,
                     onOpenCross = onOpenCross,
+                    executionInProgress = contentState?.operationInProgress == true,
                 )
             }
         },

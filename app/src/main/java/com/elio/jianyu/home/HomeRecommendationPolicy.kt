@@ -14,9 +14,12 @@ object HomeRecommendationPolicy {
         catalog: OfficialSkillCatalog,
         request: HomeRecommendationRequest,
     ): HomeRecommendationOutcome {
-        val ranked = catalog.skills
+        val preferred = request.preferredSkillId
+            ?.let(catalog::findById)
+            ?.takeIf { it.availability.executable }
+        val rankedByMatch = catalog.skills
             .asSequence()
-            .filter { it.availability.recommendable }
+            .filter { it.availability.recommendable && it.id != preferred?.id }
             .map { skill -> skill to score(skill, request) }
             .sortedWith(
                 compareByDescending<Pair<OfficialSkillDefinition, Int>> { it.second }
@@ -25,6 +28,7 @@ object HomeRecommendationPolicy {
             )
             .map(Pair<OfficialSkillDefinition, Int>::first)
             .toList()
+        val ranked = listOfNotNull(preferred) + rankedByMatch
 
         if (ranked.isEmpty()) return HomeRecommendationOutcome.NoSuitableSkill
 
@@ -37,10 +41,15 @@ object HomeRecommendationPolicy {
         } else {
             1
         }
-        val initiallySelected = ranked
-            .filter { it.id in executableIds }
-            .take(desiredCount)
-            .mapTo(linkedSetOf()) { it.id }
+        val initiallySelected = buildList {
+            preferred?.id?.let(::add)
+            addAll(
+                ranked
+                    .filter { it.id in executableIds && it.id != preferred?.id }
+                    .take((desiredCount - size).coerceAtLeast(0))
+                    .map { it.id },
+            )
+        }.toCollection(linkedSetOf())
         val candidates = ranked.take(MAX_CANDIDATES).mapIndexed { index, definition ->
             definition.toRecommendedSkill(
                 position = index,
@@ -169,6 +178,7 @@ object HomeRecommendationPolicy {
             addAll(domainTags.take(2))
         }.distinct().joinToString("、")
         val reason = buildString {
+            if (id == request.preferredSkillId) append("你从 Skill 目录选择了此能力。")
             append(directionReason)
             if (matching.isNotBlank()) append(" 匹配场景：").append(matching).append('。')
             if (!availability.executable) append(" 当前只能查看，尚未通过执行门禁。")
@@ -248,7 +258,7 @@ object HomeRecommendationPolicy {
     private fun OfficialSkillNetworkRequirement.displayName(): String = when (this) {
         OfficialSkillNetworkRequirement.NOT_NEEDED -> "不需要联网"
         OfficialSkillNetworkRequirement.OPTIONAL -> "联网可选"
-        OfficialSkillNetworkRequirement.REQUIRED -> "需要联网核验"
+        OfficialSkillNetworkRequirement.REQUIRED -> "需要联网核验（议题执行暂未接入搜索）"
         OfficialSkillNetworkRequirement.PROHIBITED_FOR_MATERIAL -> "资料正文不得联网发送"
     }
 

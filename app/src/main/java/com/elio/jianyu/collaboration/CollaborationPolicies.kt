@@ -165,6 +165,19 @@ object DirectedResponsePolicy {
     }
 }
 
+object StandardFollowUpPolicy {
+    fun validate(
+        roster: CollaborationRoster?,
+        executableSkillIds: Set<String>,
+    ): CollaborationValidationResult {
+        if (roster == null) return invalid(CollaborationValidationCode.NO_ROSTER)
+        if (roster.participants.any { it.sourceId !in executableSkillIds }) {
+            return invalid(CollaborationValidationCode.SKILL_NOT_EXECUTABLE)
+        }
+        return CollaborationValidationResult.Valid
+    }
+}
+
 object CrossDiscussionPolicy {
     fun validate(
         roster: CollaborationRoster?,

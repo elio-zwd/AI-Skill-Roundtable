@@ -68,6 +68,37 @@ class CollaborationRepositoryDatabaseTest {
     }
 
     @Test
+    fun standardCreationAtomicallyPersistsFullRosterAndSupportsExactReplay() = runBlocking {
+        saveIssue()
+        val command = standardCommand()
+
+        val first = repository.createStandardInteraction(command).successValue()
+        val repeated = repository.createStandardInteraction(command)
+        val conflicting = repository.createStandardInteraction(
+            command.copy(
+                userMessage = command.userMessage.copy(text = "同一操作不能替换原问题"),
+            ),
+        )
+        val recovery = repository.recoverIssue(ISSUE_ID).successValue()
+        val usage = repository.listExecutionMessageUsage(STANDARD_RUN_ID).successValue()
+
+        assertEquals(ExecutionRunKind.STANDARD, first.runtime.run.runKind)
+        assertEquals(ExecutionHistoryScope.FULL_STAGE, first.runtime.run.historyScope)
+        assertEquals(STANDARD_USER_MESSAGE_ID, first.runtime.run.triggerMessageId)
+        assertEquals(
+            listOf("study-planner", "research-fact-checker"),
+            first.runtime.participants.map { it.sourceId },
+        )
+        assertEquals(2, first.runtime.budget.reservedRequiredCalls)
+        assertEquals(STANDARD_RUN_ID, first.runtime.budget.rootRunId)
+        assertEquals(listOf(STANDARD_USER_MESSAGE_ID), recovery.core.messages.map { it.id })
+        assertTrue(usage.isEmpty())
+        assertTrue((repeated as RepositoryResult.Success).idempotent)
+        assertTrue(conflicting is RepositoryResult.Failure)
+        assertEquals(0, foreignKeyViolations())
+    }
+
+    @Test
     fun invalidCrossStageMessageSelectionRollsBackEveryDirectedFact() = runBlocking {
         saveIssue()
         val secondStage = repository.createStage(
@@ -224,6 +255,31 @@ class CollaborationRepositoryDatabaseTest {
         selectedMessageIds = selectedMessageIds,
     )
 
+    private fun standardCommand(): CreateStandardInteractionCommand =
+        CreateStandardInteractionCommand(
+            userMessage = userMessage(
+                id = STANDARD_USER_MESSAGE_ID,
+                text = "继续追问当前阵容",
+                time = 140L,
+            ),
+            run = ExecutionRunEntity(
+                id = STANDARD_RUN_ID,
+                issueId = ISSUE_ID,
+                stageId = STAGE_ID,
+                triggerMessageId = STANDARD_USER_MESSAGE_ID,
+                idempotencyKey = "standard-command",
+                createdAt = 140L,
+                updatedAt = 140L,
+                runKind = ExecutionRunKind.STANDARD,
+                historyScope = ExecutionHistoryScope.FULL_STAGE,
+            ),
+            participants = listOf(
+                participant(STANDARD_RUN_ID, "study-planner", 0, 140L),
+                participant(STANDARD_RUN_ID, "research-fact-checker", 1, 140L),
+            ),
+            budget = ExecutionRuntimeBudgetConfig(maxApiCalls = 2),
+        )
+
     private fun crossResponseCommand(): CreateCrossDiscussionResponseCommand {
         val userMessage = userMessage(CROSS_USER_MESSAGE_ID, "交叉讨论焦点", 180L)
         val run = ExecutionRunEntity(
@@ -377,11 +433,13 @@ class CollaborationRepositoryDatabaseTest {
         const val STAGE_ID = "collaboration-stage"
         const val OTHER_STAGE_ID = "collaboration-stage-other"
         const val DIRECTED_RUN_ID = "directed-run"
+        const val STANDARD_RUN_ID = "standard-run"
         const val RESPONSE_RUN_ID = "response-run"
         const val SYNTHESIS_RUN_ID = "synthesis-run"
         const val DISCUSSION_ID = "discussion-12345678"
         const val MESSAGE_HISTORY_ID = 10_001L
         const val USER_MESSAGE_ID = 10_002L
+        const val STANDARD_USER_MESSAGE_ID = 10_006L
         const val CROSS_USER_MESSAGE_ID = 10_003L
         const val RESPONSE_MESSAGE_A = 10_004L
         const val RESPONSE_MESSAGE_B = 10_005L

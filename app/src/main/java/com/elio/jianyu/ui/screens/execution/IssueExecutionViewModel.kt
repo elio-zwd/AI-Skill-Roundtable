@@ -3,6 +3,8 @@ package com.elio.jianyu.ui.screens.execution
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.elio.jianyu.collaboration.IssueCollaborationCoordinator
+import com.elio.jianyu.collaboration.StandardFollowUpRequest
 import com.elio.jianyu.data.ConfirmedContextItem
 import com.elio.jianyu.data.ContextContentHasher
 import com.elio.jianyu.data.ContextSelectionDraft
@@ -28,19 +30,25 @@ import com.elio.jianyu.execution.ExecutionStartException
 import com.elio.jianyu.ui.screens.context.ContextCandidateUi
 import com.elio.jianyu.ui.screens.context.ContextConfirmationUiState
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class IssueExecutionViewModel internal constructor(
     private val repository: JianyuRepository,
     private val coordinator: ExecutionRunCoordinator?,
+    private val collaborationCoordinator: IssueCollaborationCoordinator? = null,
 ) : ViewModel() {
     private val _state = MutableStateFlow<IssueExecutionUiState>(IssueExecutionUiState.Loading)
     val state: StateFlow<IssueExecutionUiState> = _state.asStateFlow()
+
+    private val _events = Channel<IssueExecutionEvent>(capacity = Channel.BUFFERED)
+    val events = _events.receiveAsFlow()
 
     private var currentIssueId: String? = null
     private var requestedStageId: String? = null
@@ -64,6 +72,21 @@ class IssueExecutionViewModel internal constructor(
             requireNotNull(coordinator) { "官方 Skill 目录不可用，无法开始执行" }
                 .start(command)
         }
+    }
+
+    fun startStandardFollowUp(request: StandardFollowUpRequest): Boolean {
+        if ((_state.value as? IssueExecutionUiState.Content)?.operationInProgress == true) {
+            return false
+        }
+        val target = collaborationCoordinator ?: return false
+        runOperation(
+            onFinished = { succeeded ->
+                _events.trySend(IssueExecutionEvent.StandardFollowUpFinished(succeeded))
+            },
+        ) {
+            target.startStandardFollowUp(request)
+        }
+        return true
     }
 
     /** 停止必须绕过普通操作的忙碌门禁，才能取消正在执行的 Run。 */
@@ -398,7 +421,10 @@ class IssueExecutionViewModel internal constructor(
         else -> "上下文暂时无法确认。"
     }
 
-    private fun runOperation(operation: suspend () -> Unit) {
+    private fun runOperation(
+        onFinished: (Boolean) -> Unit = {},
+        operation: suspend () -> Unit,
+    ) {
         if ((_state.value as? IssueExecutionUiState.Content)?.operationInProgress == true) return
         viewModelScope.launch {
             val content = _state.value as? IssueExecutionUiState.Content
@@ -411,9 +437,11 @@ class IssueExecutionViewModel internal constructor(
                     refreshInternal(operationInProgress = true)
                 }
             }
+            var succeeded = false
             try {
                 operation()
                 refreshInternal()
+                succeeded = true
             } catch (error: CancellationException) {
                 throw error
             } catch (error: ExecutionStartException) {
@@ -432,6 +460,7 @@ class IssueExecutionViewModel internal constructor(
                 )
             } finally {
                 refreshJob.cancel()
+                onFinished(succeeded)
             }
         }
     }
@@ -613,14 +642,23 @@ class IssueExecutionViewModel internal constructor(
         fun factory(
             repository: JianyuRepository,
             coordinator: ExecutionRunCoordinator?,
+            collaborationCoordinator: IssueCollaborationCoordinator? = null,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <VM : ViewModel> create(modelClass: Class<VM>): VM {
                 require(modelClass.isAssignableFrom(IssueExecutionViewModel::class.java)) {
                     "不支持的 ViewModel 类型：${modelClass.name}"
                 }
-                return IssueExecutionViewModel(repository, coordinator) as VM
+                return IssueExecutionViewModel(
+                    repository,
+                    coordinator,
+                    collaborationCoordinator,
+                ) as VM
             }
         }
     }
+}
+
+sealed interface IssueExecutionEvent {
+    data class StandardFollowUpFinished(val succeeded: Boolean) : IssueExecutionEvent
 }

@@ -38,6 +38,7 @@ import com.elio.jianyu.home.UuidHomeIdProvider
 import com.elio.jianyu.home.ValueDirection
 import com.elio.jianyu.skill.catalog.OfficialSkillCatalog
 import com.elio.jianyu.skill.catalog.OfficialSkillCatalogRuntimeResult
+import com.elio.jianyu.skill.catalog.OfficialSkillUseRequest
 import com.elio.jianyu.ui.screens.context.ContextCandidateUi
 import com.elio.jianyu.ui.screens.context.ContextConfirmationUiState
 import kotlinx.coroutines.CancellationException
@@ -74,7 +75,12 @@ class HomeViewModel internal constructor(
         ?.let(HomeWorkflow::restore)
         ?: HomeWorkflow.initial(idProvider.create())
 
-    private val _uiState = MutableStateFlow(HomeUiState(workflow = initialWorkflow))
+    private val _uiState = MutableStateFlow(
+        HomeUiState(
+            workflow = initialWorkflow,
+            preferredSkillDisplayName = preferredSkillName(initialWorkflow),
+        ),
+    )
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     private val _navigationEvents = MutableSharedFlow<HomeNavigationEvent>(extraBufferCapacity = 1)
@@ -94,6 +100,33 @@ class HomeViewModel internal constructor(
 
     fun clearQuestion() {
         onQuestionChanged("")
+    }
+
+    fun preselectSkillForNewQuestion(request: OfficialSkillUseRequest) {
+        val definition = catalog?.findById(request.skillId)
+        if (definition == null) {
+            setWorkflow(_uiState.value.workflow, "无法预选：官方 Skill 不存在或目录不可用。")
+            return
+        }
+        if (!definition.availability.executable) {
+            setWorkflow(
+                _uiState.value.workflow,
+                definition.nonExecutableReason ?: "该 Skill 当前不可执行。",
+            )
+            return
+        }
+        setWorkflow(
+            HomeWorkflow.preselectSkill(
+                state = _uiState.value.workflow,
+                skillId = definition.id,
+                intent = request.intent,
+            ),
+            message = "已预选 ${definition.nameZh}，描述问题后仍会经过完整确认。",
+        )
+    }
+
+    fun clearPreselectedSkill() {
+        setWorkflow(HomeWorkflow.clearPreselectedSkill(_uiState.value.workflow))
     }
 
     fun toggleDirection(direction: ValueDirection) {
@@ -119,6 +152,7 @@ class HomeViewModel internal constructor(
         val request = HomeRecommendationRequest(
             question = transition.state.draft.question.trim(),
             directions = transition.state.draft.directions,
+            preferredSkillId = transition.state.draft.preferredSkillId,
         )
         viewModelScope.launch {
             try {
@@ -535,8 +569,16 @@ class HomeViewModel internal constructor(
         message: String? = null,
     ) {
         persist(workflow)
-        _uiState.value = _uiState.value.copy(workflow = workflow, message = message)
+        _uiState.value = _uiState.value.copy(
+            workflow = workflow,
+            message = message,
+            preferredSkillDisplayName = preferredSkillName(workflow),
+        )
     }
+
+    private fun preferredSkillName(workflow: HomeWorkflowState): String? =
+        workflow.draft.preferredSkillId
+            ?.let { skillId -> catalog?.findById(skillId)?.nameZh ?: skillId }
 
     private fun persist(workflow: HomeWorkflowState) {
         savedStateHandle[WORKFLOW_STATE_KEY] = json.encodeToString(workflow)
