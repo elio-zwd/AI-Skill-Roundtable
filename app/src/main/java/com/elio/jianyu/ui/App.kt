@@ -18,6 +18,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
@@ -52,6 +53,7 @@ import com.elio.jianyu.JianyuAppRuntimeProvider
 import com.elio.jianyu.runtime.JianyuRuntimeState
 import com.elio.jianyu.skill.catalog.OfficialSkillUseRequest
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
+import com.elio.jianyu.ui.components.JianyuNavigationIcons
 import com.elio.jianyu.ui.navigation.AppDestination
 import com.elio.jianyu.ui.navigation.AppNavHost
 import com.elio.jianyu.ui.navigation.navigateToIssue
@@ -239,6 +241,7 @@ internal fun MainAppContent(
             .fillMaxSize()
             .testTag(JianyuAutomationTags.App.CONTENT_ROOT)
             .semantics { testTagsAsResourceId = true },
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = contentWindowInsets,
         bottomBar = {
             if (currentTopLevel != null) {
@@ -388,18 +391,27 @@ internal fun AppBottomNavigation(
 ) {
     NavigationBar(
         modifier = Modifier.testTag(AppTestTags.BOTTOM_NAVIGATION),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
     ) {
         AppDestination.topLevelDestinations.forEach { destination ->
             val icon = when (destination) {
                 AppDestination.HOME -> Icons.Default.Home
-                AppDestination.ISSUES -> Icons.Default.List
-                AppDestination.SKILLS -> Icons.Default.Person
-                AppDestination.RESOURCES -> Icons.Default.PlayArrow
+                AppDestination.ISSUES -> JianyuNavigationIcons.Issues
+                AppDestination.SKILLS -> JianyuNavigationIcons.Skills
+                AppDestination.RESOURCES -> JianyuNavigationIcons.Resources
                 else -> error("非一级目的地不能显示在底部导航")
             }
             NavigationBarItem(
                 selected = currentDestination == destination,
                 onClick = { onDestinationSelected(destination) },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
                 icon = {
                     Icon(
                         imageVector = icon,

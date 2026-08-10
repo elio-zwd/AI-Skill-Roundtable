@@ -1,6 +1,7 @@
 package com.elio.jianyu.ui.screens.execution
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,6 +16,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -480,16 +482,37 @@ private fun ChoiceRow(
     tag: String?,
     onClick: () -> Unit,
 ) {
-    Row(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .then(if (tag != null) Modifier.testTag(tag) else Modifier)
             .semantics { contentDescription = text },
-        verticalAlignment = Alignment.CenterVertically,
+        shape = MaterialTheme.shapes.small,
+        color = if (checked) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerLow
+        },
+        contentColor = if (checked) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        },
+        border = BorderStroke(
+            1.dp,
+            if (checked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+        ),
     ) {
-        Checkbox(checked = checked, onCheckedChange = { onClick() })
-        TextButton(onClick = onClick, modifier = Modifier.weight(1f)) {
-            Text(text, modifier = Modifier.fillMaxWidth())
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(checked = checked, onCheckedChange = { onClick() })
+            TextButton(onClick = onClick, modifier = Modifier.weight(1f)) {
+                Text(text, modifier = Modifier.fillMaxWidth())
+            }
         }
     }
 }

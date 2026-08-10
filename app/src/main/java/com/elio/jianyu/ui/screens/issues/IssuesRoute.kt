@@ -10,12 +10,17 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -41,6 +46,12 @@ object IssuesTestTags {
     const val RECOVERY_FAILURE = "issue_recovery_failure"
 
     fun issue(issueId: String): String = "issue_navigation_$issueId"
+}
+
+private enum class IssueListTab {
+    ACTIVE,
+    ARCHIVED,
+    TRASHED,
 }
 
 @Composable
@@ -129,13 +140,42 @@ fun IssuesScreen(
     onRestoreFromTrash: (String) -> Unit = {},
     onPurge: (String) -> Unit = {},
 ) {
+    var selectedTab by rememberSaveable { mutableStateOf(IssueListTab.ACTIVE) }
     JianyuPageShell(
         title = "议题",
-        subtitle = "活跃、归档与恢复",
+        subtitle = null,
         onOpenSettings = onOpenSettings,
         contentScrollable = true,
         modifier = Modifier.testTag(IssuesTestTags.SCREEN),
     ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text("你的议题", style = MaterialTheme.typography.headlineMedium)
+            Text(
+                "按状态查看，并从原来的阶段继续。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        TabRow(selectedTabIndex = selectedTab.ordinal) {
+            Tab(
+                selected = selectedTab == IssueListTab.ACTIVE,
+                onClick = { selectedTab = IssueListTab.ACTIVE },
+                text = { Text("进行中") },
+            )
+            Tab(
+                selected = selectedTab == IssueListTab.ARCHIVED,
+                onClick = { selectedTab = IssueListTab.ARCHIVED },
+                text = { Text("已归档") },
+            )
+            Tab(
+                selected = selectedTab == IssueListTab.TRASHED,
+                onClick = { selectedTab = IssueListTab.TRASHED },
+                text = { Text("回收站") },
+            )
+        }
         when (state) {
             IssuesUiState.Loading -> Column(
                 modifier = Modifier
@@ -166,37 +206,31 @@ fun IssuesScreen(
             )
 
             is IssuesUiState.Content -> {
+                val section = when (selectedTab) {
+                    IssueListTab.ACTIVE -> IssueSectionSpec(
+                        title = "进行中的议题",
+                        items = state.active,
+                        emptyMessage = "暂无进行中的议题",
+                        testTag = IssuesTestTags.ACTIVE_SECTION,
+                    )
+                    IssueListTab.ARCHIVED -> IssueSectionSpec(
+                        title = "已归档",
+                        items = state.archived,
+                        emptyMessage = "暂无归档议题；归档后仍可恢复继续。",
+                        testTag = IssuesTestTags.ARCHIVED_SECTION,
+                    )
+                    IssueListTab.TRASHED -> IssueSectionSpec(
+                        title = "回收站",
+                        items = state.trashed,
+                        emptyMessage = "回收站为空，不会自动过期或自动清空。",
+                        testTag = IssuesTestTags.TRASHED_SECTION,
+                    )
+                }
                 IssueSection(
-                    title = "活跃议题",
-                    items = state.active,
-                    emptyMessage = "暂无活跃议题",
-                    testTag = IssuesTestTags.ACTIVE_SECTION,
-                    onOpenIssue = onOpenIssue,
-                    onArchive = onArchive,
-                    onResume = onResume,
-                    onRelatedIssue = onRelatedIssue,
-                    onMoveToTrash = onMoveToTrash,
-                    onRestoreFromTrash = onRestoreFromTrash,
-                    onPurge = onPurge,
-                )
-                IssueSection(
-                    title = "已归档",
-                    items = state.archived,
-                    emptyMessage = "暂无归档议题",
-                    testTag = IssuesTestTags.ARCHIVED_SECTION,
-                    onOpenIssue = onOpenIssue,
-                    onArchive = onArchive,
-                    onResume = onResume,
-                    onRelatedIssue = onRelatedIssue,
-                    onMoveToTrash = onMoveToTrash,
-                    onRestoreFromTrash = onRestoreFromTrash,
-                    onPurge = onPurge,
-                )
-                IssueSection(
-                    title = "回收站",
-                    items = state.trashed,
-                    emptyMessage = "回收站为空，不会自动过期或自动清空",
-                    testTag = IssuesTestTags.TRASHED_SECTION,
+                    title = section.title,
+                    items = section.items,
+                    emptyMessage = section.emptyMessage,
+                    testTag = section.testTag,
                     onOpenIssue = onOpenIssue,
                     onArchive = onArchive,
                     onResume = onResume,
@@ -209,6 +243,13 @@ fun IssuesScreen(
         }
     }
 }
+
+private data class IssueSectionSpec(
+    val title: String,
+    val items: List<IssueNavigationUiItem>,
+    val emptyMessage: String,
+    val testTag: String,
+)
 
 @Composable
 private fun IssueSection(
@@ -283,23 +324,38 @@ private fun IssueNavigationCard(
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = item.lifecycleState.toDisplayLabel(),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = when (item.lifecycleState) {
+                        IssueLifecycleState.ACTIVE -> MaterialTheme.colorScheme.secondary
+                        IssueLifecycleState.ARCHIVED -> MaterialTheme.colorScheme.onSurfaceVariant
+                        IssueLifecycleState.TRASHED -> MaterialTheme.colorScheme.error
+                    },
+                )
+            }
             Text(
-                text = item.title,
-                style = MaterialTheme.typography.titleMedium,
-            )
-            JianyuMetadataRow(
-                label = "状态",
-                value = item.lifecycleState.toDisplayLabel(),
-            )
-            JianyuMetadataRow(
-                label = "当前阶段",
-                value = item.currentStageTitle ?: "尚无阶段",
-            )
-            JianyuMetadataRow(
-                label = "可恢复运行",
-                value = item.activeOrRecoverableRunCount.toString(),
+                text = buildString {
+                    append(item.currentStageTitle ?: "尚无阶段")
+                    if (item.activeOrRecoverableRunCount > 0) {
+                        append(" · ")
+                        append(item.activeOrRecoverableRunCount)
+                        append(" 项可恢复运行")
+                    }
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),

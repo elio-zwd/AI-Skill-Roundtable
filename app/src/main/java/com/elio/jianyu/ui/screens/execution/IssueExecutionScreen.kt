@@ -2,20 +2,34 @@ package com.elio.jianyu.ui.screens.execution
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.data.ContextSourceType
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
-import com.elio.jianyu.ui.components.JianyuPageShell
 import com.elio.jianyu.ui.components.JianyuStateCard
 import com.elio.jianyu.ui.screens.context.ContextConfirmationDialog
 import com.elio.jianyu.ui.screens.result.StageDraftResultPanel
@@ -54,156 +68,66 @@ fun IssueExecutionScreen(
     onRetryCrossSynthesis: (String) -> Unit = {},
     onStopCross: (String) -> Unit = {},
 ) {
-    JianyuPageShell(
-        title = when (state) {
-            is IssueExecutionUiState.Content -> state.issueTitle
-            else -> "议题工作区"
-        },
-        subtitle = "执行运行、协作输入、上下文确认、阶段草稿与成果",
-        onBack = onBack,
-        contentScrollable = true,
+    val contentState = state as? IssueExecutionUiState.Content
+    val collaborationContent = collaborationState as? IssueCollaborationUiState.Content
+
+    Scaffold(
         modifier = Modifier.testTag(IssueExecutionTestTags.SCREEN),
-    ) {
-        when (state) {
-            IssueExecutionUiState.Loading -> Column(
-                modifier = Modifier.testTag(IssueExecutionTestTags.LOADING),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                CircularProgressIndicator()
-                Text("正在从数据库恢复议题、阶段与执行状态")
-                Text(
-                    text = "恢复页面只读取持久化事实，不会自动调用模型。",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            is IssueExecutionUiState.Failure -> JianyuStateCard(
-                title = state.title,
-                message = state.message,
-                actionLabel = "重新读取",
-                onAction = onReload,
-                modifier = Modifier.testTag(IssueExecutionTestTags.FAILURE),
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            IssueExecutionTopBar(
+                title = contentState?.issueTitle ?: "议题工作区",
+                stageTitle = contentState?.stageTitle,
+                skillCount = contentState?.participants?.size ?: 0,
+                onBack = onBack,
             )
-
-            is IssueExecutionUiState.Content -> {
-                val currentRunIsCollaboration = collaborationState.isCollaborationRun(state.runId)
-                IssueCollaborationWorkspaceSection(
-                    state = collaborationState,
-                    contextConfirmed = state.contextConfirmation?.confirmedForStart == true,
+        },
+        bottomBar = {
+            collaborationContent?.let { workspace ->
+                WorkspaceComposer(
+                    state = workspace,
                     onInputChanged = onCollaborationInputChanged,
                     onOpenDirected = onOpenDirected,
                     onOpenCross = onOpenCross,
-                    onDismissDialog = onDismissCollaborationDialog,
-                    onToggleParticipant = onToggleCollaborationParticipant,
-                    onToggleMessage = onToggleCollaborationMessage,
-                    onOpenContext = onOpenContext,
-                    onConfirmDirected = onConfirmDirected,
-                    onConfirmCross = onConfirmCross,
-                    onRetryDirected = onRetryDirected,
-                    onRetryFailed = onRetryCrossFailed,
-                    onSynthesize = onSynthesizeCross,
-                    onRetrySynthesis = onRetryCrossSynthesis,
-                    onStop = onStopCross,
                 )
-                ExecutionStatusCard(state)
-                ContextSelectionSummaryCard(
-                    state = state,
-                    onOpenContext = onOpenContext,
-                )
-                stageResultState?.let { resultState ->
-                    StageDraftResultPanel(
-                        state = resultState,
-                        callbacks = stageResultCallbacks,
-                    )
-                }
-                if (state.runId == null) {
-                    JianyuStateCard(
-                        title = "尚未开始执行",
-                        message = "打开工作区不会创建 Run。可以先确认资料与个人背景，再选择点名回应或交叉讨论。",
-                    )
-                }
-                if (state.contextConfirmation?.confirmedForStart == true) {
-                    JianyuStateCard(
-                        title = "上下文已确认",
-                        message = "已生成不可变 Contribution 与 Usage 写入载荷；只有最终确认协作后才会创建 Run 和调用网络。",
-                    )
-                }
-                if (state.canRecoverInterrupted && !currentRunIsCollaboration) {
-                    JianyuStateCard(
-                        title = "运行可能被中断",
-                        message = "仅在确认原网络调用已经停止后执行恢复。恢复只收敛数据库状态，不会自动重发请求。",
-                    )
-                }
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag(JianyuAutomationTags.Execution.PARTICIPANTS),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    state.participants.forEach { participant ->
-                        ExecutionParticipantCard(participant)
-                    }
-                    if (state.participants.isEmpty() && state.runId != null) {
-                        JianyuStateCard(
-                            title = "没有参与者运行快照",
-                            message = "当前 Run 无法安全执行，请返回后重新选择 Skill。",
-                        )
-                    }
-                }
-                if (!currentRunIsCollaboration) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        if (state.canStop) {
-                            OutlinedButton(
-                                onClick = onStop,
-                                enabled = true,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .testTag(IssueExecutionTestTags.STOP),
-                            ) {
-                                Text("停止")
-                            }
-                        }
-                        if (state.canRecoverInterrupted) {
-                            OutlinedButton(
-                                onClick = onRecoverInterrupted,
-                                enabled = !state.operationInProgress,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .testTag(IssueExecutionTestTags.RECOVER),
-                            ) {
-                                Text("收敛中断状态")
-                            }
-                        }
-                        if (state.canRetry) {
-                            Button(
-                                onClick = onRetry,
-                                enabled = !state.operationInProgress,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .testTag(IssueExecutionTestTags.RETRY),
-                            ) {
-                                Text("确认上下文并重试")
-                            }
-                        }
-                    }
-                }
-                if (state.operationInProgress) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        CircularProgressIndicator()
-                        Text("正在持久化操作结果")
-                    }
-                }
             }
+        },
+    ) { paddingValues ->
+        when (state) {
+            IssueExecutionUiState.Loading -> LoadingExecutionContent(paddingValues)
+            is IssueExecutionUiState.Failure -> FailureExecutionContent(
+                state = state,
+                paddingValues = paddingValues,
+                onReload = onReload,
+            )
+            is IssueExecutionUiState.Content -> IssueExecutionContent(
+                state = state,
+                collaborationState = collaborationState,
+                stageResultState = stageResultState,
+                stageResultCallbacks = stageResultCallbacks,
+                paddingValues = paddingValues,
+                onStop = onStop,
+                onRetry = onRetry,
+                onRecoverInterrupted = onRecoverInterrupted,
+                onOpenContext = onOpenContext,
+                onCollaborationInputChanged = onCollaborationInputChanged,
+                onOpenDirected = onOpenDirected,
+                onOpenCross = onOpenCross,
+                onDismissCollaborationDialog = onDismissCollaborationDialog,
+                onToggleCollaborationParticipant = onToggleCollaborationParticipant,
+                onToggleCollaborationMessage = onToggleCollaborationMessage,
+                onConfirmDirected = onConfirmDirected,
+                onConfirmCross = onConfirmCross,
+                onRetryDirected = onRetryDirected,
+                onRetryCrossFailed = onRetryCrossFailed,
+                onSynthesizeCross = onSynthesizeCross,
+                onRetryCrossSynthesis = onRetryCrossSynthesis,
+                onStopCross = onStopCross,
+            )
         }
     }
 
-    val confirmation = (state as? IssueExecutionUiState.Content)?.contextConfirmation
+    val confirmation = contentState?.contextConfirmation
     if (confirmation != null) {
         ContextConfirmationDialog(
             state = confirmation,
@@ -214,6 +138,287 @@ fun IssueExecutionScreen(
             onExcerptChanged = onContextExcerptChanged,
             onConfirm = onConfirmContext,
         )
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun IssueExecutionTopBar(
+    title: String,
+    stageTitle: String?,
+    skillCount: Int,
+    onBack: () -> Unit,
+) {
+    Surface(color = MaterialTheme.colorScheme.surface) {
+        Column {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "返回议题",
+                        )
+                    }
+                },
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 40.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stageTitle ?: "尚未创建阶段",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = "$skillCount 位 Skill",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        }
+    }
+}
+
+@Composable
+private fun LoadingExecutionContent(paddingValues: PaddingValues) {
+    Column(
+        modifier = Modifier
+            .padding(paddingValues)
+            .padding(16.dp)
+            .testTag(IssueExecutionTestTags.LOADING),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        CircularProgressIndicator()
+        Text("正在从数据库恢复议题、阶段与执行状态")
+        Text(
+            text = "恢复页面只读取持久化事实，不会自动调用模型。",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun FailureExecutionContent(
+    state: IssueExecutionUiState.Failure,
+    paddingValues: PaddingValues,
+    onReload: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .padding(paddingValues)
+            .padding(16.dp),
+    ) {
+        JianyuStateCard(
+            title = state.title,
+            message = state.message,
+            actionLabel = "重新读取",
+            onAction = onReload,
+            modifier = Modifier.testTag(IssueExecutionTestTags.FAILURE),
+        )
+    }
+}
+
+@Composable
+private fun IssueExecutionContent(
+    state: IssueExecutionUiState.Content,
+    collaborationState: IssueCollaborationUiState,
+    stageResultState: StageResultUiState?,
+    stageResultCallbacks: StageResultCallbacks,
+    paddingValues: PaddingValues,
+    onStop: () -> Unit,
+    onRetry: () -> Unit,
+    onRecoverInterrupted: () -> Unit,
+    onOpenContext: () -> Unit,
+    onCollaborationInputChanged: (String) -> Unit,
+    onOpenDirected: () -> Unit,
+    onOpenCross: () -> Unit,
+    onDismissCollaborationDialog: () -> Unit,
+    onToggleCollaborationParticipant: (String) -> Unit,
+    onToggleCollaborationMessage: (Long) -> Unit,
+    onConfirmDirected: () -> Unit,
+    onConfirmCross: () -> Unit,
+    onRetryDirected: (String) -> Unit,
+    onRetryCrossFailed: (String) -> Unit,
+    onSynthesizeCross: (String) -> Unit,
+    onRetryCrossSynthesis: (String) -> Unit,
+    onStopCross: (String) -> Unit,
+) {
+    val currentRunIsCollaboration = collaborationState.isCollaborationRun(state.runId)
+    LazyColumn(
+        modifier = Modifier.padding(paddingValues),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        item { ExecutionStatusCard(state) }
+
+        if (state.canStop || state.canRetry || state.canRecoverInterrupted) {
+            item {
+                ExecutionRunActions(
+                    state = state,
+                    onStop = onStop,
+                    onRetry = onRetry,
+                    onRecoverInterrupted = onRecoverInterrupted,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag(JianyuAutomationTags.Execution.PARTICIPANTS),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                state.participants.forEach { participant ->
+                    ExecutionParticipantCard(participant)
+                }
+                if (state.participants.isEmpty() && state.runId != null) {
+                    JianyuStateCard(
+                        title = "没有参与者运行快照",
+                        message = "当前 Run 无法安全执行，请返回后重新选择 Skill。",
+                    )
+                }
+            }
+        }
+
+        item {
+            IssueCollaborationWorkspaceSection(
+                state = collaborationState,
+                contextConfirmed = state.contextConfirmation?.confirmedForStart == true,
+                onInputChanged = onCollaborationInputChanged,
+                onOpenDirected = onOpenDirected,
+                onOpenCross = onOpenCross,
+                onDismissDialog = onDismissCollaborationDialog,
+                onToggleParticipant = onToggleCollaborationParticipant,
+                onToggleMessage = onToggleCollaborationMessage,
+                onOpenContext = onOpenContext,
+                onConfirmDirected = onConfirmDirected,
+                onConfirmCross = onConfirmCross,
+                onRetryDirected = onRetryDirected,
+                onRetryFailed = onRetryCrossFailed,
+                onSynthesize = onSynthesizeCross,
+                onRetrySynthesis = onRetryCrossSynthesis,
+                onStop = onStopCross,
+                showComposer = false,
+            )
+        }
+
+        item { ContextSelectionSummaryCard(state = state, onOpenContext = onOpenContext) }
+
+        stageResultState?.let { resultState ->
+            item {
+                StageDraftResultPanel(
+                    state = resultState,
+                    callbacks = stageResultCallbacks,
+                )
+            }
+        }
+
+        if (state.runId == null) {
+            item {
+                JianyuStateCard(
+                    title = "尚未开始执行",
+                    message = "先确认资料与个人背景，再选择点名回应或交叉讨论。",
+                )
+            }
+        }
+        if (state.contextConfirmation?.confirmedForStart == true) {
+            item {
+                JianyuStateCard(
+                    title = "上下文已确认",
+                    message = "只有最终确认协作后才会创建 Run 和调用网络。",
+                )
+            }
+        }
+        if (state.canRecoverInterrupted && !currentRunIsCollaboration) {
+            item {
+                JianyuStateCard(
+                    title = "运行可能被中断",
+                    message = "恢复只收敛数据库状态，不会自动重发请求。",
+                )
+            }
+        }
+        if (state.operationInProgress) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CircularProgressIndicator()
+                    Text("正在持久化操作结果")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExecutionRunActions(
+    state: IssueExecutionUiState.Content,
+    onStop: () -> Unit,
+    onRetry: () -> Unit,
+    onRecoverInterrupted: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (state.canStop) {
+            OutlinedButton(
+                onClick = onStop,
+                enabled = true,
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp)
+                    .testTag(IssueExecutionTestTags.STOP),
+            ) {
+                Text("停止")
+            }
+        }
+        if (state.canRecoverInterrupted) {
+            OutlinedButton(
+                onClick = onRecoverInterrupted,
+                enabled = !state.operationInProgress,
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp)
+                    .testTag(IssueExecutionTestTags.RECOVER),
+            ) {
+                Text("收敛中断状态")
+            }
+        }
+        if (state.canRetry) {
+            Button(
+                onClick = onRetry,
+                enabled = !state.operationInProgress,
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp)
+                    .testTag(IssueExecutionTestTags.RETRY),
+            ) {
+                Text("确认上下文并重试")
+            }
+        }
     }
 }
 

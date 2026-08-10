@@ -1,9 +1,11 @@
 package com.elio.jianyu.ui.screens.skills
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
@@ -14,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.elio.jianyu.ui.components.JianyuStateCard
 
 @Composable
 internal fun OfficialSkillCatalogScreen(
@@ -25,7 +28,6 @@ internal fun OfficialSkillCatalogScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 16.dp, vertical = 12.dp)
             .testTag(OfficialSkillCatalogTestTags.ROOT),
     ) {
         when {
@@ -39,77 +41,83 @@ internal fun OfficialSkillCatalogScreen(
                 Spacer(Modifier.weight(1f))
             }
             uiState.catalogError != null -> {
-                Spacer(Modifier.weight(1f))
-                Text(
-                    text = "官方 Skill 目录无法加载",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.error,
+                Spacer(Modifier.height(24.dp))
+                JianyuStateCard(
+                    title = "Skill 目录暂不可用",
+                    message = uiState.catalogError,
                     modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
+                        .padding(horizontal = 16.dp)
                         .testTag(OfficialSkillCatalogTestTags.ERROR),
                 )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = uiState.catalogError,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                )
-                Spacer(Modifier.weight(1f))
             }
             else -> {
-                OfficialSkillCatalogHeader(
-                    query = uiState.query,
-                    totalSkillCount = uiState.totalSkillCount,
-                    onQueryChanged = {
-                        onEvent(OfficialSkillCatalogEvent.SearchChanged(it))
-                    },
-                    onOpenFilters = {
-                        onEvent(OfficialSkillCatalogEvent.FilterDialogChanged(true))
-                    },
-                )
-                OfficialSkillCatalogSectionTabs(
-                    selected = uiState.section,
-                    favoriteCount = uiState.favoriteIds.size,
-                    recentCount = uiState.recentUses.size,
-                    combinationCount = uiState.combinations.size,
-                    onSelected = {
-                        onEvent(OfficialSkillCatalogEvent.SectionChanged(it))
-                    },
-                )
-                Spacer(Modifier.height(8.dp))
-
-                if (uiState.section == OfficialSkillCatalogSection.COMBINATIONS) {
-                    OfficialSkillCombinationList(
-                        combinations = uiState.combinations,
-                        catalogSkills = uiState.allSkills.ifEmpty { uiState.visibleSkills },
-                        isLoading = uiState.combinationsLoading,
-                        error = uiState.combinationError,
-                        onCreate = {
-                            onEvent(OfficialSkillCatalogEvent.CreateCombination())
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    OfficialSkillCatalogHeader(
+                        query = uiState.query,
+                        totalSkillCount = uiState.totalSkillCount,
+                        filters = uiState.filters,
+                        onQueryChanged = {
+                            onEvent(OfficialSkillCatalogEvent.SearchChanged(it))
                         },
-                        onEdit = {
-                            onEvent(OfficialSkillCatalogEvent.EditCombination(it))
+                        onSelectPrimaryType = { type ->
+                            onEvent(OfficialSkillCatalogEvent.ClearFilters)
+                            type?.let {
+                                onEvent(OfficialSkillCatalogEvent.TogglePrimaryType(it))
+                            }
                         },
-                        onDelete = {
-                            onEvent(OfficialSkillCatalogEvent.DeleteCombination(it))
+                        onOpenFilters = {
+                            onEvent(OfficialSkillCatalogEvent.FilterDialogChanged(true))
                         },
                     )
-                } else {
-                    OfficialSkillCatalogList(
-                        skills = uiState.visibleSkills,
-                        favoriteIds = uiState.favoriteIds,
-                        emptyMessage = when (uiState.section) {
-                            OfficialSkillCatalogSection.FAVORITES -> "还没有收藏的官方 Skill"
-                            OfficialSkillCatalogSection.RECENT -> "还没有真正进入过使用流程"
-                            else -> "没有符合搜索和筛选条件的 Skill"
-                        },
-                        onOpenDetail = {
-                            onEvent(OfficialSkillCatalogEvent.OpenDetail(it))
-                        },
-                        onToggleFavorite = {
-                            onEvent(OfficialSkillCatalogEvent.ToggleFavorite(it))
+                    OfficialSkillCatalogSectionTabs(
+                        selected = uiState.section,
+                        favoriteCount = uiState.favoriteIds.size,
+                        recentCount = uiState.recentUses.size,
+                        combinationCount = uiState.combinations.size,
+                        onSelected = {
+                            onEvent(OfficialSkillCatalogEvent.SectionChanged(it))
                         },
                     )
+                }
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                ) {
+                    if (uiState.section == OfficialSkillCatalogSection.COMBINATIONS) {
+                        OfficialSkillCombinationList(
+                            combinations = uiState.combinations,
+                            catalogSkills = uiState.allSkills.ifEmpty { uiState.visibleSkills },
+                            isLoading = uiState.combinationsLoading,
+                            error = uiState.combinationError,
+                            onCreate = {
+                                onEvent(OfficialSkillCatalogEvent.CreateCombination())
+                            },
+                            onEdit = {
+                                onEvent(OfficialSkillCatalogEvent.EditCombination(it))
+                            },
+                            onDelete = {
+                                onEvent(OfficialSkillCatalogEvent.DeleteCombination(it))
+                            },
+                        )
+                    } else {
+                        OfficialSkillCatalogList(
+                            skills = uiState.visibleSkills,
+                            favoriteIds = uiState.favoriteIds,
+                            emptyMessage = when (uiState.section) {
+                                OfficialSkillCatalogSection.FAVORITES -> "还没有收藏的 Skill"
+                                OfficialSkillCatalogSection.RECENT -> "还没有真正进入过使用流程"
+                                else -> "没有符合搜索和筛选条件的 Skill；可缩短关键词或清除筛选。"
+                            },
+                            onOpenDetail = {
+                                onEvent(OfficialSkillCatalogEvent.OpenDetail(it))
+                            },
+                            onToggleFavorite = {
+                                onEvent(OfficialSkillCatalogEvent.ToggleFavorite(it))
+                            },
+                        )
+                    }
                 }
             }
         }

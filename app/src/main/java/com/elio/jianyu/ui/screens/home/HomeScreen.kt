@@ -4,7 +4,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -64,22 +67,43 @@ fun HomeScreen(
             )
         }
 
-        OutlinedTextField(
-            value = uiState.question,
-            onValueChange = onQuestionChanged,
-            label = { Text("你现在想解决什么问题？") },
-            supportingText = { Text("可以是疑问、目标、选择或需要完成的任务") },
-            minLines = 4,
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag(HomeTestTags.QUESTION_INPUT),
-        )
-        if (uiState.question.isNotEmpty()) {
-            TextButton(
-                onClick = onClearQuestion,
-                modifier = Modifier.testTag(JianyuAutomationTags.Home.QUESTION_CLEAR_BUTTON),
+        if (!uiState.recommendationVisible) {
+            HomePageIntroduction(
+                eyebrow = "今天想推进什么？",
+                title = "让不同视角，帮你看清下一步。",
+                copy = "输入问题，选择你需要的支持方向。两种方向可以同时选择。",
+            )
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+            ),
+            shape = MaterialTheme.shapes.medium,
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("清空问题")
+                OutlinedTextField(
+                    value = uiState.question,
+                    onValueChange = onQuestionChanged,
+                    label = { Text("你想推进什么问题？") },
+                    supportingText = { Text("可以先保存为议题，不会自动调用模型。") },
+                    minLines = 3,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(HomeTestTags.QUESTION_INPUT),
+                )
+                if (uiState.question.isNotEmpty()) {
+                    TextButton(
+                        onClick = onClearQuestion,
+                        modifier = Modifier.testTag(JianyuAutomationTags.Home.QUESTION_CLEAR_BUTTON),
+                    ) {
+                        Text("清空问题")
+                    }
+                }
             }
         }
 
@@ -97,15 +121,6 @@ fun HomeScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            OutlinedButton(
-                onClick = onSaveIssueOnly,
-                enabled = uiState.canSaveIssueOnly,
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag(JianyuAutomationTags.Home.SAVE_ISSUE_ONLY_BUTTON),
-            ) {
-                Text("仅保存议题")
-            }
             Button(
                 onClick = onRequestRecommendation,
                 enabled = uiState.canRequestRecommendation,
@@ -114,6 +129,15 @@ fun HomeScreen(
                     .testTag(HomeTestTags.RECOMMENDATION_REQUEST_BUTTON),
             ) {
                 Text("获取建议")
+            }
+            OutlinedButton(
+                onClick = onSaveIssueOnly,
+                enabled = uiState.canSaveIssueOnly,
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag(JianyuAutomationTags.Home.SAVE_ISSUE_ONLY_BUTTON),
+            ) {
+                Text("仅保存议题")
             }
         }
 
@@ -132,6 +156,11 @@ fun HomeScreen(
                     .testTag(HomeTestTags.RECOMMENDATION_RESULT),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                HomePageIntroduction(
+                    eyebrow = "有理由的建议",
+                    title = "推荐适合这次的阵容",
+                    copy = "你可以调整成员与职责；系统不会替你决定。",
+                )
                 when (workflow.step) {
                     HomeWorkflowStep.RECOMMENDATION_LOADING -> Row(
                         modifier = Modifier.testTag(

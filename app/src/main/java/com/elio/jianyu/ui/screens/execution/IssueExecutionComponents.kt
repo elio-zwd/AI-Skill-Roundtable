@@ -1,20 +1,27 @@
 package com.elio.jianyu.ui.screens.execution
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.elio.jianyu.data.ExecutionParticipantStatus
-import com.elio.jianyu.ui.components.JianyuMetadataRow
+import dev.jeziellago.compose.markdowntext.MarkdownText
 
 object IssueExecutionTestTags {
     const val SCREEN = "issue_execution_screen"
@@ -33,41 +40,58 @@ object IssueExecutionTestTags {
 internal fun ExecutionStatusCard(
     state: IssueExecutionUiState.Content,
 ) {
-    Card(
+    val statusColor = state.phase.toStatusColor()
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .testTag(IssueExecutionTestTags.STATUS),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = MaterialTheme.shapes.small,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text(
-                text = state.phase.toDisplayLabel(),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            JianyuMetadataRow("Run", state.runId ?: "尚未创建")
-            JianyuMetadataRow("阶段", state.stageTitle ?: "尚无阶段")
-            state.budget?.let { budget ->
-                JianyuMetadataRow(
-                    label = "调用预算",
-                    value = "已用 ${budget.usedApiCalls} / ${budget.maxApiCalls}，剩余 ${budget.remainingApiCalls}",
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = state.phase.toDisplayLabel(),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = statusColor,
+                    modifier = Modifier.weight(1f),
                 )
+                state.budget?.let { budget ->
+                    Text(
+                        text = "已用 ${budget.usedApiCalls} / ${budget.maxApiCalls}，剩余 ${budget.remainingApiCalls}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
+            Text(
+                text = listOfNotNull(
+                    state.stageTitle?.takeIf(String::isNotBlank),
+                    state.runId?.let { "运行已创建" } ?: "尚未创建运行",
+                ).joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             state.failureMessage?.takeIf(String::isNotBlank)?.let { message ->
                 Text(
                     text = message,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )
             }
             if (!state.executionAvailable) {
                 Text(
                     text = "官方 Skill 目录未能加载，当前工作区保持只读，不会调用模型。",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )
             }
@@ -75,39 +99,40 @@ internal fun ExecutionStatusCard(
     }
 }
 
-
 @Composable
 internal fun ContextSelectionSummaryCard(
     state: IssueExecutionUiState.Content,
     onOpenContext: () -> Unit,
 ) {
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .testTag(IssueExecutionTestTags.CONTEXT),
+        color = MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            Text(text = "执行上下文", style = MaterialTheme.typography.titleSmall)
             Text(
-                text = "执行上下文",
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                text = "资料和个人背景默认不发送。执行或重试前需查看精确摘录、字符占用、联网授权与敏感提示。",
+                text = "资料和个人背景默认不发送。执行或重试前可查看精确摘录与授权范围。",
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             state.contextConfirmation?.let { confirmation ->
-                JianyuMetadataRow("已选来源", confirmation.selectedItems.size.toString())
-                JianyuMetadataRow(
-                    "预计字符",
-                    "${confirmation.totalCharacters} / 24000",
+                Text(
+                    text = "已选 ${confirmation.selectedItems.size} 项 · 预计 ${confirmation.totalCharacters} / 24000 字符",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            androidx.compose.material3.OutlinedButton(
+            OutlinedButton(
                 onClick = onOpenContext,
                 enabled = !state.operationInProgress,
+                modifier = Modifier.heightIn(min = 48.dp),
             ) {
                 Text("添加或查看上下文")
             }
@@ -119,58 +144,92 @@ internal fun ContextSelectionSummaryCard(
 internal fun ExecutionParticipantCard(
     participant: IssueExecutionParticipantUi,
 ) {
-    Card(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .testTag(IssueExecutionTestTags.participant(participant.snapshotId)),
+            .testTag(IssueExecutionTestTags.participant(participant.snapshotId))
+            .padding(vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top,
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
+            Text(
+                text = "${participant.position + 1}",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "${participant.position + 1}. ${participant.displayName}",
-                    style = MaterialTheme.typography.titleMedium,
+                    text = participant.displayName,
+                    style = MaterialTheme.typography.titleSmall,
                 )
                 Text(
-                    text = participant.status.toDisplayLabel(),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = participant.status.toStatusColor(),
-                )
-            }
-            JianyuMetadataRow("尝试次数", participant.attemptCount.toString())
-            participant.text?.takeIf(String::isNotBlank)?.let { text ->
-                Text(
-                    text = text,
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            }
-            if (participant.isPending) {
-                Text(
-                    text = "正在流式生成…",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-            if (participant.hasIncompleteOutput) {
-                Text(
-                    text = "以上内容未完整生成，已保留用于恢复和审计。",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.tertiary,
-                )
-            }
-            participant.errorMessage?.takeIf(String::isNotBlank)?.let { error ->
-                Text(
-                    text = error,
+                    text = "第 ${participant.attemptCount} 次尝试",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                text = participant.status.toDisplayLabel(),
+                style = MaterialTheme.typography.labelMedium,
+                color = participant.status.toStatusColor(),
+            )
+        }
+        participant.text?.takeIf(String::isNotBlank)?.let { text ->
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 28.dp),
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                shape = MaterialTheme.shapes.medium,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                tonalElevation = 1.dp,
+            ) {
+                MarkdownText(
+                    markdown = text,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 16.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
                 )
             }
         }
+        if (participant.isPending) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    strokeWidth = 2.dp,
+                )
+                Text(
+                    text = "正在流式生成",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+        if (participant.hasIncompleteOutput) {
+            Text(
+                text = "以上内容未完整生成，已保留用于恢复和审计。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        participant.errorMessage?.takeIf(String::isNotBlank)?.let { error ->
+            Text(
+                text = error,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 
@@ -190,6 +249,21 @@ private fun IssueExecutionPhase.toDisplayLabel(): String = when (this) {
     IssueExecutionPhase.BUDGET_EXHAUSTED -> "调用预算已用完"
 }
 
+@Composable
+private fun IssueExecutionPhase.toStatusColor() = when (this) {
+    IssueExecutionPhase.SUCCEEDED -> MaterialTheme.colorScheme.secondary
+    IssueExecutionPhase.RUNNING,
+    IssueExecutionPhase.PARTIAL_SUCCESS,
+    IssueExecutionPhase.RECOVERING -> MaterialTheme.colorScheme.primary
+    IssueExecutionPhase.RETRYABLE,
+    IssueExecutionPhase.NO_API_KEY,
+    IssueExecutionPhase.OFFLINE,
+    IssueExecutionPhase.RATE_LIMITED,
+    IssueExecutionPhase.BUDGET_EXHAUSTED -> MaterialTheme.colorScheme.tertiary
+    IssueExecutionPhase.FAILED -> MaterialTheme.colorScheme.error
+    else -> MaterialTheme.colorScheme.onSurfaceVariant
+}
+
 private fun ExecutionParticipantStatus.toDisplayLabel(): String = when (this) {
     ExecutionParticipantStatus.QUEUED -> "排队中"
     ExecutionParticipantStatus.RUNNING -> "准备请求"
@@ -203,10 +277,11 @@ private fun ExecutionParticipantStatus.toDisplayLabel(): String = when (this) {
 
 @Composable
 private fun ExecutionParticipantStatus.toStatusColor() = when (this) {
-    ExecutionParticipantStatus.SUCCEEDED -> MaterialTheme.colorScheme.primary
+    ExecutionParticipantStatus.SUCCEEDED -> MaterialTheme.colorScheme.secondary
     ExecutionParticipantStatus.RUNNING,
-    ExecutionParticipantStatus.STREAMING -> MaterialTheme.colorScheme.tertiary
+    ExecutionParticipantStatus.STREAMING -> MaterialTheme.colorScheme.primary
     ExecutionParticipantStatus.FAILED,
     ExecutionParticipantStatus.TIMED_OUT -> MaterialTheme.colorScheme.error
+    ExecutionParticipantStatus.RETRYABLE -> MaterialTheme.colorScheme.tertiary
     else -> MaterialTheme.colorScheme.onSurfaceVariant
 }

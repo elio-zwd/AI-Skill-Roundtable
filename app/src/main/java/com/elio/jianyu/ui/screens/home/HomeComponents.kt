@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -29,6 +31,32 @@ import com.elio.jianyu.home.RecommendedSkill
 import com.elio.jianyu.home.ValueDirection
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.components.JianyuMetadataRow
+import com.elio.jianyu.ui.theme.skillRoundtableColors
+
+@Composable
+internal fun HomePageIntroduction(
+    eyebrow: String,
+    title: String,
+    copy: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            text = eyebrow,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Text(text = title, style = MaterialTheme.typography.headlineMedium)
+        Text(
+            text = copy,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
 
 @Composable
 internal fun HomeDirectionSelector(
@@ -40,26 +68,75 @@ internal fun HomeDirectionSelector(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("价值方向（可跳过或同时选择）", style = MaterialTheme.typography.titleSmall)
+        Text("这次希望获得什么？", style = MaterialTheme.typography.titleSmall)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            FilterChip(
+            HomeDirectionCard(
                 selected = ValueDirection.REALITY_SUPPORT in selected,
+                title = "现实支持",
+                description = "明确下一步、计划、阻碍与检查点",
+                accent = MaterialTheme.skillRoundtableColors.practicalDirection,
                 onClick = { onToggle(ValueDirection.REALITY_SUPPORT) },
-                label = { Text("现实支持") },
                 modifier = Modifier
                     .weight(1f)
                     .testTag(JianyuAutomationTags.Home.DIRECTION_REALITY_SUPPORT),
             )
-            FilterChip(
+            HomeDirectionCard(
                 selected = ValueDirection.THINKING_EXPANSION in selected,
+                title = "思维拓展",
+                description = "反方、假设、遗漏视角与立场比较",
+                accent = MaterialTheme.skillRoundtableColors.perspectiveDirection,
                 onClick = { onToggle(ValueDirection.THINKING_EXPANSION) },
-                label = { Text("思维拓展") },
                 modifier = Modifier
                     .weight(1f)
                     .testTag(JianyuAutomationTags.Home.DIRECTION_THINKING_EXPANSION),
+            )
+        }
+    }
+}
+
+@Composable
+private fun HomeDirectionCard(
+    selected: Boolean,
+    title: String,
+    description: String,
+    accent: androidx.compose.ui.graphics.Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier
+            .heightIn(min = 104.dp)
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) {
+                MaterialTheme.colorScheme.surfaceVariant
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
+        ),
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                color = accent,
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = if (selected) "已选择" else "点击选择",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

@@ -56,11 +56,22 @@ fun ResourcesScreen(
 ) {
     JianyuPageShell(
         title = "资料与成果",
-        subtitle = "保留来源，回到对应议题与阶段",
+        subtitle = null,
         onOpenSettings = onOpenSettings,
         contentScrollable = true,
         modifier = Modifier.testTag(ResourcesTestTags.SCREEN),
     ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text("让判断可回看", style = MaterialTheme.typography.headlineMedium)
+            Text(
+                "资料、个人背景和成果保持不同对象语义。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         TabRow(selectedTabIndex = selectedTab.ordinal) {
             Tab(
                 selected = selectedTab == ResourceTab.MATERIALS,
@@ -154,22 +165,22 @@ private fun ResourceLibraryContent(
             onAction = onRetry,
         )
         is ResourcesUiState.Content -> {
-            Row(
+            TabRow(
+                selectedTabIndex = state.section.ordinal,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Button(
+                Tab(
+                    selected = state.section == ResourceLibrarySection.MATERIALS,
                     onClick = { onSelectSection(ResourceLibrarySection.MATERIALS) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag(ResourcesTestTags.MATERIAL_LIBRARY),
-                ) { Text("资料库") }
-                Button(
+                    text = { Text("资料") },
+                    modifier = Modifier.testTag(ResourcesTestTags.MATERIAL_LIBRARY),
+                )
+                Tab(
+                    selected = state.section == ResourceLibrarySection.PERSONAL_CONTEXTS,
                     onClick = { onSelectSection(ResourceLibrarySection.PERSONAL_CONTEXTS) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag(ResourcesTestTags.PERSONAL_CONTEXT_LIBRARY),
-                ) { Text("个人背景") }
+                    text = { Text("个人背景") },
+                    modifier = Modifier.testTag(ResourcesTestTags.PERSONAL_CONTEXT_LIBRARY),
+                )
             }
             Text(
                 if (state.section == ResourceLibrarySection.MATERIALS) {
