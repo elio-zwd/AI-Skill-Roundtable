@@ -4,23 +4,23 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -55,6 +55,7 @@ fun IssueExecutionScreen(
     onContextExcerptChanged: (ContextSourceType, String, String) -> Unit = { _, _, _ -> },
     onConfirmContext: () -> Unit = {},
     onCollaborationInputChanged: (String) -> Unit = {},
+    onSubmitStandard: () -> Unit = {},
     onOpenDirected: () -> Unit = {},
     onOpenCross: () -> Unit = {},
     onDismissCollaborationDialog: () -> Unit = {},
@@ -77,7 +78,6 @@ fun IssueExecutionScreen(
         topBar = {
             IssueExecutionTopBar(
                 title = contentState?.issueTitle ?: "议题工作区",
-                stageTitle = contentState?.stageTitle,
                 skillCount = contentState?.participants?.size ?: 0,
                 onBack = onBack,
             )
@@ -87,8 +87,10 @@ fun IssueExecutionScreen(
                 WorkspaceComposer(
                     state = workspace,
                     onInputChanged = onCollaborationInputChanged,
+                    onSubmitStandard = onSubmitStandard,
                     onOpenDirected = onOpenDirected,
                     onOpenCross = onOpenCross,
+                    executionInProgress = contentState?.operationInProgress == true,
                 )
             }
         },
@@ -145,7 +147,6 @@ fun IssueExecutionScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 private fun IssueExecutionTopBar(
     title: String,
-    stageTitle: String?,
     skillCount: Int,
     onBack: () -> Unit,
 ) {
@@ -168,29 +169,18 @@ private fun IssueExecutionTopBar(
                         )
                     }
                 },
+                actions = {
+                    if (skillCount > 0) {
+                        Text(
+                            text = "$skillCount 位 Skill",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(end = 16.dp),
+                        )
+                    }
+                },
+                windowInsets = WindowInsets(0, 0, 0, 0),
             )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 40.dp)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stageTitle ?: "尚未创建阶段",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = "$skillCount 位 Skill",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
     }
@@ -266,17 +256,18 @@ private fun IssueExecutionContent(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item { ExecutionStatusCard(state) }
-
-        if (state.canStop || state.canRetry || state.canRecoverInterrupted) {
-            item {
-                ExecutionRunActions(
-                    state = state,
-                    onStop = onStop,
-                    onRetry = onRetry,
-                    onRecoverInterrupted = onRecoverInterrupted,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                ExecutionStatusCard(state)
+                if (state.canStop || state.canRetry || state.canRecoverInterrupted) {
+                    ExecutionRunActions(
+                        state = state,
+                        onStop = onStop,
+                        onRetry = onRetry,
+                        onRecoverInterrupted = onRecoverInterrupted,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
         }
 
@@ -381,14 +372,13 @@ private fun ExecutionRunActions(
 ) {
     Row(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         if (state.canStop) {
-            OutlinedButton(
+            TextButton(
                 onClick = onStop,
                 enabled = true,
                 modifier = Modifier
-                    .weight(1f)
                     .heightIn(min = 48.dp)
                     .testTag(IssueExecutionTestTags.STOP),
             ) {
@@ -396,11 +386,10 @@ private fun ExecutionRunActions(
             }
         }
         if (state.canRecoverInterrupted) {
-            OutlinedButton(
+            TextButton(
                 onClick = onRecoverInterrupted,
                 enabled = !state.operationInProgress,
                 modifier = Modifier
-                    .weight(1f)
                     .heightIn(min = 48.dp)
                     .testTag(IssueExecutionTestTags.RECOVER),
             ) {
@@ -408,15 +397,14 @@ private fun ExecutionRunActions(
             }
         }
         if (state.canRetry) {
-            Button(
+            TextButton(
                 onClick = onRetry,
                 enabled = !state.operationInProgress,
                 modifier = Modifier
-                    .weight(1f)
                     .heightIn(min = 48.dp)
                     .testTag(IssueExecutionTestTags.RETRY),
             ) {
-                Text("确认上下文并重试")
+                Text("查看上下文并重试")
             }
         }
     }

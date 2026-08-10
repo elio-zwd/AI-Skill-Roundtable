@@ -43,6 +43,7 @@ fun JianyuPageShell(
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
     onOpenSettings: (() -> Unit)? = null,
+    compactHeader: Boolean = false,
     contentScrollable: Boolean = false,
     content: @Composable () -> Unit,
 ) {
@@ -53,8 +54,11 @@ fun JianyuPageShell(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 56.dp)
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    .heightIn(min = if (compactHeader) 48.dp else 56.dp)
+                    .padding(
+                        horizontal = 8.dp,
+                        vertical = if (compactHeader) 0.dp else 4.dp,
+                    ),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (onBack != null) {
@@ -76,7 +80,11 @@ fun JianyuPageShell(
                 ) {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.titleLarge,
+                        style = if (compactHeader) {
+                            MaterialTheme.typography.titleMedium
+                        } else {
+                            MaterialTheme.typography.titleLarge
+                        },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
