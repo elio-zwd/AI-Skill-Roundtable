@@ -11,6 +11,7 @@ $CurrentPackage = 'com.elio.jianyu'
 $LegacyPackage = 'com.elio.skillroundtable'
 $LegacySchema = 'app/schemas/com.elio.skillroundtable.data.RoundtableDatabase/5.json'
 $CurrentIdentitySchema = 'app/schemas/com.elio.jianyu.data.RoundtableDatabase/5.json'
+$CurrentExecutionSchema = 'app/schemas/com.elio.jianyu.data.RoundtableDatabase/13.json'
 $MoveManifest = 'docs/testing/pr-09-01-package-move-manifest.txt'
 
 function Pass {
@@ -250,16 +251,18 @@ try {
     $collaborationMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/CollaborationMigration.kt' -Raw
     $stageAdvancementMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/StageAdvancementMigration.kt' -Raw
     $issueLifecycleMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/IssueLifecycleV12Migration.kt' -Raw
-    if ($databaseSource -match 'version\s*=\s*12' -and
+    if ($databaseSource -match 'version\s*=\s*13' -and
         $missingMigrations.Count -eq 0 -and
         $databaseSource -match '"roundtable_database"' -and
+        $databaseSource -notmatch 'MIGRATION_12_13' -and
+        (Test-Path $CurrentExecutionSchema -PathType Leaf) -and
         $materialContextMigration -match 'Migration\(8,\s*9\)' -and
         $collaborationMigration -match 'Migration\(9,\s*10\)' -and
         $stageAdvancementMigration -match 'Migration\(10,\s*11\)' -and
         $issueLifecycleMigration -match 'Migration\(11,\s*12\)') {
-        Pass 'Room Runtime Contract' 'Room 已连续升级到 v12，v1→v12 迁移链和数据库名保持完整'
+        Pass 'Room Runtime Contract' 'Room v13 Schema 与数据库名保持完整，且未提供 v12→v13 兼容迁移'
     } else {
-        Fail 'Room Runtime Contract' "Room v12、连续迁移链或数据库名异常；缺失迁移=$($missingMigrations -join ', ')"
+        Fail 'Room Runtime Contract' "Room v13 Schema、无 v12→v13 迁移或数据库名异常；缺失迁移=$($missingMigrations -join ', ')"
     }
 
     $keyStoreSource = Get-Content 'app/src/main/java/com/elio/jianyu/network/EncryptedApiKeyStore.kt' -Raw
