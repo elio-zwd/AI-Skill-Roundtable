@@ -2,6 +2,8 @@ package com.elio.jianyu.ui.screens.execution
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -263,6 +265,11 @@ private fun IssueExecutionContent(
     onStopCross: (String) -> Unit,
 ) {
     val currentRunIsCollaboration = collaborationState.isCollaborationRun(state.runId)
+    val canConfigureNextRun = !state.operationInProgress && state.runStatus !in setOf(
+        ExecutionRunStatus.NOT_STARTED,
+        ExecutionRunStatus.RUNNING,
+        ExecutionRunStatus.PARTIAL_SUCCESS,
+    )
     LazyColumn(
         modifier = Modifier.padding(paddingValues),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
@@ -284,26 +291,31 @@ private fun IssueExecutionContent(
         }
 
         item {
-            ExecutionSearchModeCard(
-                mode = state.searchMode,
-                enabled = !state.operationInProgress && state.runStatus !in setOf(
-                    ExecutionRunStatus.NOT_STARTED,
-                    ExecutionRunStatus.RUNNING,
-                    ExecutionRunStatus.PARTIAL_SUCCESS,
-                ),
-                onModeChanged = onSearchModeChanged,
-            )
-        }
-
-        item {
-            ExecutionThinkingPolicyCard(
+            ExecutionRunConfigurationCard(
+                searchMode = state.searchMode,
                 defaultPolicy = state.issueDefaultThinkingPolicy,
                 overridePolicy = state.thinkingOverride,
                 canChangeDefault = state.canChangeIssueDefaultThinkingPolicy,
-                operationInProgress = state.operationInProgress,
+                canConfigureNextRun = canConfigureNextRun,
                 onDefaultChanged = onIssueDefaultThinkingPolicyChanged,
                 onOverrideChanged = onThinkingOverrideChanged,
+                onSearchModeChanged = onSearchModeChanged,
             )
+        }
+
+        item { ContextSelectionSummaryCard(state = state, onOpenContext = onOpenContext) }
+
+        if (state.participants.isNotEmpty() || state.runId != null) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("本轮输出", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = "每位 Skill 的回应与执行状态会在这里保留。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
 
         item {
@@ -346,8 +358,6 @@ private fun IssueExecutionContent(
                 showComposer = false,
             )
         }
-
-        item { ContextSelectionSummaryCard(state = state, onOpenContext = onOpenContext) }
 
         stageResultState?.let { resultState ->
             item {
@@ -398,6 +408,7 @@ private fun IssueExecutionContent(
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun ExecutionRunActions(
     state: IssueExecutionUiState.Content,
     onStop: () -> Unit,
@@ -405,9 +416,10 @@ private fun ExecutionRunActions(
     onRecoverInterrupted: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    FlowRow(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (state.canStop) {
             TextButton(

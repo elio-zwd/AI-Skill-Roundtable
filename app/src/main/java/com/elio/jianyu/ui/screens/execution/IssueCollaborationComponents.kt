@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -23,7 +25,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -170,15 +171,17 @@ internal fun WorkspaceComposer(
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
                 Box {
-                    IconButton(
+                    OutlinedButton(
                         onClick = { actionsExpanded = true },
                         enabled = state.isCurrentStage && state.hasRoster && !busy,
                         modifier = Modifier.heightIn(min = 48.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
-                            contentDescription = "选择回应方式",
+                            contentDescription = null,
                         )
+                        Spacer(Modifier.width(4.dp))
+                        Text("方式")
                     }
                     DropdownMenu(
                         expanded = actionsExpanded,

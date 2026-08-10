@@ -1,9 +1,10 @@
 package com.elio.jianyu.ui.screens.execution
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -12,12 +13,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -55,14 +56,18 @@ object IssueExecutionTestTags {
 }
 
 @Composable
-internal fun ExecutionThinkingPolicyCard(
+@OptIn(ExperimentalLayoutApi::class)
+internal fun ExecutionRunConfigurationCard(
+    searchMode: SearchMode,
     defaultPolicy: IssueThinkingPolicy,
     overridePolicy: IssueThinkingPolicy?,
     canChangeDefault: Boolean,
-    operationInProgress: Boolean,
+    canConfigureNextRun: Boolean,
     onDefaultChanged: (IssueThinkingPolicy) -> Unit,
     onOverrideChanged: (IssueThinkingPolicy?) -> Unit,
+    onSearchModeChanged: (SearchMode) -> Unit,
 ) {
+    val canEditIssueDefault = canChangeDefault && canConfigureNextRun
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surface,
@@ -71,53 +76,61 @@ internal fun ExecutionThinkingPolicyCard(
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("议题默认思考策略", style = MaterialTheme.typography.titleSmall)
+            Text("下一次执行配置", style = MaterialTheme.typography.titleMedium)
             Text(
-                text = if (canChangeDefault) {
-                    "仅影响之后创建的 Run；历史与当前 Run 不回写。"
+                text = if (canConfigureNextRun) {
+                    "选择会在创建新 Run 时写入快照；不会改写历史或当前 Interaction。"
                 } else {
-                    "有进行中的 Run 时不可修改默认策略。"
+                    "当前 Interaction 正在运行，以下本次选择已锁定。"
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Row(
-                modifier = Modifier
-                    .testTag(IssueExecutionTestTags.THINKING_DEFAULT)
-                    .horizontalScroll(rememberScrollState()),
+
+            ConfigurationLabel(
+                title = "联网搜索",
+                detail = searchMode.selectionDescription,
+            )
+            FlowRow(
+                modifier = Modifier.testTag(IssueExecutionTestTags.SEARCH_MODE),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                IssueThinkingPolicy.entries.forEach { candidate ->
+                SearchMode.entries.forEach { candidate ->
                     FilterChip(
-                        selected = candidate == defaultPolicy,
-                        onClick = { onDefaultChanged(candidate) },
-                        enabled = canChangeDefault && !operationInProgress,
+                        selected = candidate == searchMode,
+                        onClick = { onSearchModeChanged(candidate) },
+                        enabled = canConfigureNextRun,
                         label = { Text(candidate.displayLabel) },
-                        modifier = Modifier.testTag(IssueExecutionTestTags.thinkingDefault(candidate)),
+                        modifier = Modifier
+                            .heightIn(min = 48.dp)
+                            .testTag(IssueExecutionTestTags.searchMode(candidate)),
                     )
                 }
             }
 
-            Text("本次思考策略", style = MaterialTheme.typography.titleSmall)
-            Text(
-                text = "仅影响下一次创建或重试的 Run，不会改写议题默认策略。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            ConfigurationLabel(
+                title = "本次思考策略",
+                detail = overridePolicy.overrideDescription(defaultPolicy),
             )
-            Row(
+            FlowRow(
                 modifier = Modifier
-                    .testTag(IssueExecutionTestTags.THINKING_OVERRIDE)
-                    .horizontalScroll(rememberScrollState()),
+                    .testTag(IssueExecutionTestTags.THINKING_OVERRIDE),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 FilterChip(
                     selected = overridePolicy == null,
                     onClick = { onOverrideChanged(null) },
-                    enabled = !operationInProgress,
+                    enabled = canConfigureNextRun,
                     label = { Text("跟随议题默认") },
-                    modifier = Modifier.testTag(IssueExecutionTestTags.thinkingOverride(null)),
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .testTag(IssueExecutionTestTags.thinkingOverride(null)),
                 )
                 IssueThinkingPolicy.entries
                     .filterNot { it == IssueThinkingPolicy.AUTO }
@@ -125,15 +138,58 @@ internal fun ExecutionThinkingPolicyCard(
                         FilterChip(
                             selected = candidate == overridePolicy,
                             onClick = { onOverrideChanged(candidate) },
-                            enabled = !operationInProgress,
+                            enabled = canConfigureNextRun,
                             label = { Text(candidate.displayLabel) },
-                            modifier = Modifier.testTag(
-                                IssueExecutionTestTags.thinkingOverride(candidate),
-                            ),
+                            modifier = Modifier
+                                .heightIn(min = 48.dp)
+                                .testTag(IssueExecutionTestTags.thinkingOverride(candidate)),
                         )
                     }
             }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            ConfigurationLabel(
+                title = "议题默认策略",
+                detail = if (canEditIssueDefault) {
+                    "影响之后创建的 Run；本轮固定选择优先于此默认值。"
+                } else {
+                    "有进行中的 Run 或正在保存时，默认策略暂时锁定。"
+                },
+            )
+            FlowRow(
+                modifier = Modifier.testTag(IssueExecutionTestTags.THINKING_DEFAULT),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                IssueThinkingPolicy.entries.forEach { candidate ->
+                    FilterChip(
+                        selected = candidate == defaultPolicy,
+                        onClick = { onDefaultChanged(candidate) },
+                        enabled = canEditIssueDefault,
+                        label = { Text(candidate.displayLabel) },
+                        modifier = Modifier
+                            .heightIn(min = 48.dp)
+                            .testTag(IssueExecutionTestTags.thinkingDefault(candidate)),
+                    )
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun ConfigurationLabel(
+    title: String,
+    detail: String,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(title, style = MaterialTheme.typography.titleSmall)
+        Text(
+            text = detail,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -146,45 +202,6 @@ private val IssueThinkingPolicy.displayLabel: String
         IssueThinkingPolicy.HIGH -> "high"
     }
 
-@Composable
-internal fun ExecutionSearchModeCard(
-    mode: SearchMode,
-    enabled: Boolean,
-    onModeChanged: (SearchMode) -> Unit,
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag(IssueExecutionTestTags.SEARCH_MODE),
-        color = MaterialTheme.colorScheme.surface,
-        shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text("联网搜索", style = MaterialTheme.typography.titleSmall)
-            Text(
-                text = "仅影响下一次 Interaction。创建后的当前 Interaction 不可更改。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SearchMode.entries.forEach { candidate ->
-                    FilterChip(
-                        selected = candidate == mode,
-                        onClick = { onModeChanged(candidate) },
-                        enabled = enabled,
-                        label = { Text(candidate.displayLabel) },
-                        modifier = Modifier.testTag(IssueExecutionTestTags.searchMode(candidate)),
-                    )
-                }
-            }
-        }
-    }
-}
-
 private val SearchMode.displayLabel: String
     get() = when (this) {
         SearchMode.OFF -> "关闭"
@@ -192,7 +209,23 @@ private val SearchMode.displayLabel: String
         SearchMode.ON -> "开启"
     }
 
+private val SearchMode.selectionDescription: String
+    get() = when (this) {
+        SearchMode.OFF -> "关闭：只基于已确认的上下文回答。"
+        SearchMode.AUTO -> "自动：仅在需要时允许 Google Search。"
+        SearchMode.ON -> "开启：要求先使用 Google Search 再回答。"
+    }
+
+private fun IssueThinkingPolicy?.overrideDescription(
+    defaultPolicy: IssueThinkingPolicy,
+): String = if (this == null) {
+    "跟随议题默认（${defaultPolicy.displayLabel}）。"
+} else {
+    "本轮固定为 ${displayLabel}，优先于议题默认。"
+}
+
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 internal fun ExecutionStatusCard(
     state: IssueExecutionUiState.Content,
 ) {
@@ -207,56 +240,108 @@ internal fun ExecutionStatusCard(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Surface(
-                color = statusColor.copy(alpha = 0.12f),
-                contentColor = statusColor,
-                shape = MaterialTheme.shapes.small,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = state.phase.toDisplayLabel(),
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("当前执行", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = state.stageTitle ?: "当前阶段",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Surface(
+                    color = statusColor.copy(alpha = 0.12f),
+                    contentColor = statusColor,
+                    shape = MaterialTheme.shapes.small,
+                ) {
+                    Text(
+                        text = state.phase.toDisplayLabel(),
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                    )
+                }
             }
             state.budget?.let { budget ->
-                Text(
-                    text = "调用额度：已用 ${budget.usedApiCalls} / ${budget.maxApiCalls}，剩余 ${budget.remainingApiCalls}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = MaterialTheme.shapes.small,
+                ) {
+                    Text(
+                        text = "调用额度：已用 ${budget.usedApiCalls} / ${budget.maxApiCalls}，剩余 ${budget.remainingApiCalls}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    )
+                }
             }
-            state.actualModelId?.let { model ->
-                Text(
-                    text = "实际模型：$model",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            state.actualThinkingLevel?.let { level ->
-                Text(
-                    text = "实际思考强度：${level.displayLabel}（${state.thinkingLevelSource?.displayLabel.orEmpty()}）",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            if (state.actualModelId != null || state.actualThinkingLevel != null) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    state.actualModelId?.let { model ->
+                        ExecutionMetadataPill("模型", model)
+                    }
+                    state.actualThinkingLevel?.let { level ->
+                        ExecutionMetadataPill(
+                            "思考",
+                            "${level.displayLabel} · ${state.thinkingLevelSource?.displayLabel.orEmpty()}",
+                        )
+                    }
+                }
             }
             state.failureMessage?.takeIf(String::isNotBlank)?.let { message ->
-                Text(
-                    text = message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    shape = MaterialTheme.shapes.small,
+                ) {
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(12.dp),
+                    )
+                }
             }
             if (!state.executionAvailable) {
-                Text(
-                    text = "官方 Skill 目录未能加载，当前工作区保持只读，不会调用模型。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    shape = MaterialTheme.shapes.small,
+                ) {
+                    Text(
+                        text = "官方 Skill 目录未能加载，当前工作区保持只读，不会调用模型。",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(12.dp),
+                    )
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun ExecutionMetadataPill(
+    label: String,
+    value: String,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        shape = MaterialTheme.shapes.small,
+    ) {
+        Text(
+            text = "$label：$value",
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+        )
     }
 }
 

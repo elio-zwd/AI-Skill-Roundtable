@@ -1,6 +1,7 @@
 package com.elio.jianyu.ui.screens.execution
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -8,6 +9,7 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.data.ExecutionParticipantStatus
 import com.elio.jianyu.data.ExecutionRunStatus
+import com.elio.jianyu.data.IssueThinkingPolicy
 import com.elio.jianyu.execution.SearchMode
 import com.elio.jianyu.ui.theme.SkillRoundtableTheme
 import org.junit.Assert.assertEquals
@@ -137,6 +139,35 @@ class IssueExecutionScreenTest {
             .performClick()
 
         assertEquals(SearchMode.ON, selected)
+    }
+
+    @Test
+    fun runningStateLocksNextRunConfiguration() {
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                IssueExecutionScreen(
+                    state = contentState(
+                        phase = IssueExecutionPhase.RUNNING,
+                        runStatus = ExecutionRunStatus.RUNNING,
+                        canStop = true,
+                        canRetry = false,
+                        canRecover = false,
+                    ),
+                    onBack = {},
+                    onReload = {},
+                    onStop = {},
+                    onRetry = {},
+                    onRecoverInterrupted = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("当前 Interaction 正在运行，以下本次选择已锁定。")
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag(IssueExecutionTestTags.searchMode(SearchMode.ON))
+            .assertIsNotEnabled()
+        composeRule.onNodeWithTag(IssueExecutionTestTags.thinkingOverride(IssueThinkingPolicy.HIGH))
+            .assertIsNotEnabled()
     }
 
     @Test

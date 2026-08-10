@@ -2,12 +2,12 @@ package com.elio.jianyu.ui.screens.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -278,6 +278,7 @@ private fun HomeRecommendedSkillCard(
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 internal fun HomeFinalReviewCard(
     recommendation: HomeRecommendation,
     directions: Set<ValueDirection>,
@@ -338,14 +339,16 @@ internal fun HomeFinalReviewCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
             )
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 FilterChip(
                     selected = thinkingOverride == null,
                     onClick = { onThinkingOverrideChanged(null) },
                     label = { Text("跟随议题默认") },
+                    modifier = Modifier.heightIn(min = 48.dp),
                 )
                 IssueThinkingPolicy.entries
                     .filterNot { it == IssueThinkingPolicy.AUTO }
@@ -354,6 +357,7 @@ internal fun HomeFinalReviewCard(
                             selected = policy == thinkingOverride,
                             onClick = { onThinkingOverrideChanged(policy) },
                             label = { Text(policy.displayLabel) },
+                            modifier = Modifier.heightIn(min = 48.dp),
                         )
                     }
             }
