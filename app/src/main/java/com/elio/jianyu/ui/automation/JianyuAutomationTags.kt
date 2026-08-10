@@ -42,6 +42,8 @@ object JianyuAutomationTags {
     object Home {
         const val QUESTION_INPUT = "home_question_input"
         const val QUESTION_CLEAR_BUTTON = "home_question_clear_button"
+        const val PREFERRED_SKILL = "home_preferred_skill"
+        const val CLEAR_PREFERRED_SKILL = "home_clear_preferred_skill"
         const val DIRECTION_REALITY_SUPPORT = "home_direction_reality_support"
         const val DIRECTION_THINKING_EXPANSION = "home_direction_thinking_expansion"
         const val SAVE_ISSUE_ONLY_BUTTON = "home_save_issue_only_button"
@@ -128,6 +130,7 @@ object JianyuAutomationTags {
 
     object Collaboration {
         const val INPUT = "issue_collaboration_input"
+        const val STANDARD_SEND_BUTTON = "issue_standard_follow_up_send"
         const val DIRECTED_RESPONSE_BUTTON = "issue_directed_response_button"
         const val CROSS_DISCUSSION_BUTTON = "issue_cross_discussion_button"
         const val ROSTER = "issue_collaboration_roster"

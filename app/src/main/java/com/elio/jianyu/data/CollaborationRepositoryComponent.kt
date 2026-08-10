@@ -8,6 +8,59 @@ internal class CollaborationRepositoryComponent(
 ) {
     private val json = Json
 
+    suspend fun createStandardInteraction(
+        command: CreateStandardInteractionCommand,
+    ): RepositoryResult<CollaborationStartResult> = transactions.collaborationTransaction(
+        "create_standard_interaction",
+    ) {
+        validateUserMessage(command.userMessage, command.run)
+
+        val existingRun = core.getExecutionRunByIdempotencyKey(command.run.idempotencyKey)
+        if (existingRun != null) {
+            val existing = loadIdempotentRuntime(
+                command.run,
+                command.participants,
+                command.contextUsage,
+            )
+            val existingMessage = core.getMessage(command.userMessage.messageId)
+            val usage = collaboration.getMessageUsageSnapshotsForRun(existingRun.id)
+            if (
+                existing != null &&
+                existingMessage != null &&
+                messageMatches(existingMessage, command.userMessage) &&
+                usage.isEmpty()
+            ) {
+                return@collaborationTransaction RepositoryResult.Success(
+                    CollaborationStartResult(existing),
+                    idempotent = true,
+                )
+            }
+            return@collaborationTransaction idempotencyConflict(
+                "create_standard_interaction",
+                command.run.idempotencyKey,
+            )
+        }
+
+        validateStageAndActiveRun(command.run)?.let {
+            return@collaborationTransaction RepositoryResult.Failure(it)
+        }
+        validateContextUsage(command.run, command.contextUsage)?.let {
+            return@collaborationTransaction RepositoryResult.Failure(it)
+        }
+
+        insertUserMessage(command.userMessage)
+        val runtime = insertRuntime(
+            run = command.run,
+            participants = command.participants,
+            budgetRootRunId = command.run.id,
+            budget = command.budget,
+            requiredReserve = command.participants.size,
+            contextUsage = command.contextUsage,
+            messageUsage = emptyList(),
+        )
+        RepositoryResult.Success(CollaborationStartResult(runtime))
+    }
+
     suspend fun createDirectedInteraction(
         command: CreateDirectedInteractionCommand,
     ): RepositoryResult<CollaborationStartResult> = transactions.collaborationTransaction(

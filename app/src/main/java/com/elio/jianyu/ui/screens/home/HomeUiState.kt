@@ -8,6 +8,7 @@ data class HomeUiState(
     val workflow: HomeWorkflowState,
     val contextConfirmation: ContextConfirmationUiState? = null,
     val message: String? = null,
+    val preferredSkillDisplayName: String? = null,
 ) {
     val question: String
         get() = workflow.draft.question

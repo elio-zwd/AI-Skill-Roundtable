@@ -40,7 +40,11 @@ fun IssueExecutionRoute(
     onBack: () -> Unit,
     onOpenStage: (String, String) -> Unit = { _, _ -> },
     viewModel: IssueExecutionViewModel = composeViewModel(
-        factory = IssueExecutionViewModel.factory(repository, coordinator),
+        factory = IssueExecutionViewModel.factory(
+            repository,
+            coordinator,
+            collaborationCoordinator,
+        ),
     ),
     collaborationViewModel: IssueCollaborationViewModel = composeViewModel(
         factory = IssueCollaborationViewModel.factory(collaborationCoordinator),
@@ -71,6 +75,19 @@ fun IssueExecutionRoute(
         collaborationViewModel.load(issueId, stageId)
         advanceIssueViewModel.load(issueId, stageId)
         stageResultViewModel?.load()
+    }
+    LaunchedEffect(viewModel, collaborationViewModel, stageResultViewModel) {
+        viewModel.events.collectLatest { event ->
+            when (event) {
+                is IssueExecutionEvent.StandardFollowUpFinished -> {
+                    collaborationViewModel.finishStandardFollowUp(event.succeeded)
+                    if (event.succeeded) {
+                        advanceIssueViewModel.load(issueId, stageId)
+                        stageResultViewModel?.load()
+                    }
+                }
+            }
+        }
     }
     LaunchedEffect(advanceIssueViewModel) {
         advanceIssueViewModel.events.collectLatest { event ->
@@ -228,6 +245,14 @@ fun IssueExecutionRoute(
                 onContextExcerptChanged = viewModel::updateContextExcerpt,
                 onConfirmContext = viewModel::confirmContextSelection,
                 onCollaborationInputChanged = collaborationViewModel::updateInput,
+                onSubmitStandard = {
+                    val request = collaborationViewModel.prepareStandardFollowUp(
+                        viewModel.peekPreparedContextForStart(),
+                    )
+                    if (request != null && !viewModel.startStandardFollowUp(request)) {
+                        collaborationViewModel.finishStandardFollowUp(succeeded = false)
+                    }
+                },
                 onOpenDirected = collaborationViewModel::openDirected,
                 onOpenCross = collaborationViewModel::openCross,
                 onDismissCollaborationDialog = collaborationViewModel::dismissDialog,

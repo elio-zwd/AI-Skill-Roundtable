@@ -331,7 +331,7 @@ internal fun HomeFinalReviewCard(
             if (needsNetwork) {
                 HomeConsentCheckbox(
                     checked = executionConsent.networkAuthorized,
-                    label = "我同意本次为核验当前事实使用联网能力；没有真实来源时不得声称已检索。",
+                    label = "我同意本次调用云端模型；当前议题执行暂未接入网页搜索，涉及最新事实必须标记为未核验。",
                     tag = HomeTestTags.NETWORK_AUTHORIZATION,
                     onCheckedChange = onNetworkAuthorized,
                 )

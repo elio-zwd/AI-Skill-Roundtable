@@ -84,12 +84,14 @@ data class HomeWorkflowIds(
 data class HomeQuestionDraft(
     val question: String = "",
     val directions: Set<ValueDirection> = emptySet(),
+    val preferredSkillId: String? = null,
 )
 
 @Serializable
 data class HomeRecommendationRequest(
     val question: String,
     val directions: Set<ValueDirection>,
+    val preferredSkillId: String? = null,
 ) {
     init {
         require(question.isNotBlank())

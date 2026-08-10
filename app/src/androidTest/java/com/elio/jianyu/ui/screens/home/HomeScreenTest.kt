@@ -78,6 +78,28 @@ class HomeScreenTest {
     }
 
     @Test
+    fun preferredSkill_isVisibleAndCanBeExplicitlyCleared() {
+        var clearClicks = 0
+        val workflow = HomeWorkflow.preselectSkill(
+            state = HomeWorkflow.initial(ids),
+            skillId = "study-planner",
+            intent = "制定学习计划",
+        )
+        setHomeContent(
+            uiState = HomeUiState(
+                workflow = workflow,
+                preferredSkillDisplayName = "学习规划助手",
+            ),
+            onClearPreselectedSkill = { clearClicks++ },
+        )
+
+        composeRule.onNodeWithTag(JianyuAutomationTags.Home.PREFERRED_SKILL).assertExists()
+        composeRule.onNodeWithTag(JianyuAutomationTags.Home.CLEAR_PREFERRED_SKILL)
+            .performClick()
+        composeRule.runOnIdle { assertEquals(1, clearClicks) }
+    }
+
+    @Test
     fun recommendationReady_showsReasonSkillBoundaryAndConfirmAction() {
         val recommendation = recommendation()
         val state = HomeWorkflow.initial(ids).copy(
@@ -208,6 +230,7 @@ class HomeScreenTest {
         uiState: HomeUiState,
         examples: List<HomeExampleQuestion> = defaultHomeExampleQuestions,
         onUseExample: (HomeExampleQuestion) -> Unit = {},
+        onClearPreselectedSkill: () -> Unit = {},
     ) {
         composeRule.setContent {
             SkillRoundtableTheme {
@@ -231,6 +254,7 @@ class HomeScreenTest {
                     onBrowseSkills = {},
                     onStartIssue = {},
                     onOpenSettings = {},
+                    onClearPreselectedSkill = onClearPreselectedSkill,
                     examples = examples,
                 )
             }

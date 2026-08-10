@@ -48,6 +48,31 @@ class HomeWorkflowTest {
     }
 
     @Test
+    fun preselectedSkillSurvivesQuestionAndDirectionEditsUntilExplicitlyCleared() {
+        val preselected = HomeWorkflow.preselectSkill(
+            state = HomeWorkflow.initial(ids),
+            skillId = "study-planner",
+            intent = "规划三个月学习路线",
+        )
+        val edited = HomeWorkflow.toggleDirection(
+            HomeWorkflow.onQuestionChanged(preselected, "规划六个月学习路线"),
+            ValueDirection.REALITY_SUPPORT,
+        )
+
+        assertEquals("study-planner", edited.draft.preferredSkillId)
+        assertEquals("规划六个月学习路线", edited.draft.question)
+        assertEquals(setOf(ValueDirection.REALITY_SUPPORT), edited.draft.directions)
+
+        val cleared = HomeWorkflow.clearPreselectedSkill(edited)
+
+        assertNull(cleared.draft.preferredSkillId)
+        assertEquals("规划六个月学习路线", cleared.draft.question)
+        assertEquals(HomeWorkflowStep.EDITING_QUESTION, cleared.step)
+        assertNull(cleared.recommendation)
+        assertFalse(cleared.recommendationConfirmed)
+    }
+
+    @Test
     fun blankQuestion_cannotBeginRecommendationOrSave() {
         val state = HomeWorkflow.initial(ids)
 

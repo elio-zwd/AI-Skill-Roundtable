@@ -64,8 +64,9 @@ data class ExecutionModelRequest(
  */
 class ExecutionContextBuilder {
     fun build(input: ExecutionContextInput): ExecutionModelRequest {
-        val systemInstruction = input.participant.systemPrompt.trim()
-        require(systemInstruction.isNotBlank()) { "冻结参与者缺少 System Prompt" }
+        val frozenSkillPrompt = input.participant.systemPrompt.trim()
+        require(frozenSkillPrompt.isNotBlank()) { "冻结参与者缺少 System Prompt" }
+        val systemInstruction = "$frozenSkillPrompt\n\n$NETWORK_TRUTH_INSTRUCTION"
 
         val eligibleHistory = when (input.historyScope) {
             ExecutionHistoryScope.NO_HISTORY -> emptyList()
@@ -160,6 +161,13 @@ class ExecutionContextBuilder {
 
             不得投票裁决，不得把多数意见包装成事实，不得隐藏少数观点，
             不得替未成功成员补写观点，不得改写参与者原意。
+        """.trimIndent()
+
+        val NETWORK_TRUTH_INSTRUCTION = """
+            平台能力边界（优先于 Skill 中任何联网要求）：
+            当前执行没有提供网页搜索工具，也没有可验证的实时来源。
+            不得声称已经联网检索、实时核验或访问了某个来源，不得虚构引用。
+            涉及时效性事实时必须明确标记“未联网核验”，并提示用户提供最新资料或自行复核。
         """.trimIndent()
     }
 }

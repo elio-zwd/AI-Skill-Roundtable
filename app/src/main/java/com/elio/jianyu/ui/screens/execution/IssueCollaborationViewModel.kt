@@ -15,6 +15,7 @@ import com.elio.jianyu.collaboration.CrossDiscussionSynthesisRequest
 import com.elio.jianyu.collaboration.DirectedResponseRequest
 import com.elio.jianyu.collaboration.IssueCollaborationCoordinator
 import com.elio.jianyu.collaboration.IssueCollaborationSnapshot
+import com.elio.jianyu.collaboration.StandardFollowUpRequest
 import com.elio.jianyu.data.CrossDiscussionStatus
 import com.elio.jianyu.data.ExecutionRunEntity
 import com.elio.jianyu.data.ExecutionRunKind
@@ -64,8 +65,51 @@ class IssueCollaborationViewModel internal constructor(
     }
 
     fun updateInput(value: String) = updateContent { current ->
+        if (value != current.input) {
+            savedStateHandle.remove<String>(KEY_OPERATION_ID)
+            savedStateHandle.remove<Long>(KEY_OPERATION_CONFIRMED_AT)
+            savedStateHandle.remove<Int>(KEY_OPERATION_ROUND_INDEX)
+        }
         savedStateHandle[KEY_INPUT] = value
         current.copy(input = value, errorMessage = null)
+    }
+
+    fun prepareStandardFollowUp(
+        preparedContext: PreparedExecutionContext?,
+    ): StandardFollowUpRequest? {
+        val current = contentOrNull() ?: return null
+        if (!current.canSubmitStandard || coordinator == null) return null
+        val request = StandardFollowUpRequest(
+            operationId = operationId(),
+            issueId = current.issueId,
+            stageId = current.stageId,
+            question = current.input.trim(),
+            roundIndex = operationRoundIndex(),
+            userConfirmedAt = operationConfirmedAt(),
+            context = contextSelection(
+                current = current,
+                prepared = preparedContext,
+                includeSelectedMessages = false,
+            ),
+        )
+        _state.value = current.copy(operationInProgress = true, errorMessage = null)
+        return request
+    }
+
+    fun finishStandardFollowUp(succeeded: Boolean) {
+        val current = contentOrNull() ?: return
+        if (!succeeded) {
+            _state.value = current.copy(
+                operationInProgress = false,
+                errorMessage = "自由追问未完成，输入内容已保留。",
+            )
+            return
+        }
+        clearDraft()
+        val target = coordinator ?: return
+        viewModelScope.launch {
+            refresh(target, current.issueId, current.stageId)
+        }
     }
 
     fun openDirected() = updateContent { current ->
@@ -93,6 +137,8 @@ class IssueCollaborationViewModel internal constructor(
     fun dismissDialog() = updateContent { current ->
         savedStateHandle.remove<String>(KEY_DIALOG)
         savedStateHandle.remove<String>(KEY_OPERATION_ID)
+        savedStateHandle.remove<Long>(KEY_OPERATION_CONFIRMED_AT)
+        savedStateHandle.remove<Int>(KEY_OPERATION_ROUND_INDEX)
         saveSkillIds(emptySet())
         current.copy(
             dialogMode = null,
@@ -362,6 +408,7 @@ class IssueCollaborationViewModel internal constructor(
         return IssueCollaborationUiState.Content(
             issueId = recovered.issue.core.issue.id,
             stageId = stableStageId,
+            isCurrentStage = recovered.issue.core.currentStage?.id == stableStageId,
             input = savedStateHandle.get<String>(KEY_INPUT).orEmpty(),
             roster = recovered.roster?.participants.orEmpty().map { participant ->
                 CollaborationParticipantUi(
@@ -410,8 +457,9 @@ class IssueCollaborationViewModel internal constructor(
     private fun contextSelection(
         current: IssueCollaborationUiState.Content,
         prepared: PreparedExecutionContext?,
+        includeSelectedMessages: Boolean = true,
     ) = CollaborationContextSelection(
-        selectedMessageIds = current.selectedMessageIds,
+        selectedMessageIds = if (includeSelectedMessages) current.selectedMessageIds else emptyList(),
         contributions = prepared?.preparation?.contributions.orEmpty(),
         usage = prepared?.usage ?: com.elio.jianyu.data.ContextUsageWriteSet(),
     )
@@ -424,9 +472,23 @@ class IssueCollaborationViewModel internal constructor(
     private fun operationId(): String = savedStateHandle.get<String>(KEY_OPERATION_ID)
         ?: newOperationId().also { savedStateHandle[KEY_OPERATION_ID] = it }
 
+    private fun operationConfirmedAt(): Long =
+        savedStateHandle.get<Long>(KEY_OPERATION_CONFIRMED_AT)
+            ?: System.currentTimeMillis().also {
+                savedStateHandle[KEY_OPERATION_CONFIRMED_AT] = it
+            }
+
+    private fun operationRoundIndex(): Int =
+        savedStateHandle.get<Int>(KEY_OPERATION_ROUND_INDEX)
+            ?: nextRoundIndex().also {
+                savedStateHandle[KEY_OPERATION_ROUND_INDEX] = it
+            }
+
     private fun persistSelection(mode: CollaborationDialogMode, selected: Set<String>) {
         savedStateHandle[KEY_DIALOG] = mode.name
         savedStateHandle[KEY_OPERATION_ID] = newOperationId()
+        savedStateHandle.remove<Long>(KEY_OPERATION_CONFIRMED_AT)
+        savedStateHandle.remove<Int>(KEY_OPERATION_ROUND_INDEX)
         saveSkillIds(selected)
     }
 
@@ -438,6 +500,8 @@ class IssueCollaborationViewModel internal constructor(
         savedStateHandle[KEY_INPUT] = ""
         savedStateHandle.remove<String>(KEY_DIALOG)
         savedStateHandle.remove<String>(KEY_OPERATION_ID)
+        savedStateHandle.remove<Long>(KEY_OPERATION_CONFIRMED_AT)
+        savedStateHandle.remove<Int>(KEY_OPERATION_ROUND_INDEX)
         savedStateHandle[KEY_SKILL_IDS] = arrayListOf<String>()
         savedStateHandle[KEY_MESSAGE_IDS] = arrayListOf<Long>()
     }
@@ -470,6 +534,9 @@ class IssueCollaborationViewModel internal constructor(
 
     private fun stateMessage(code: String): String = when (code) {
         "no_roster" -> "当前阶段尚无正式 Skill 阵容。"
+        "historical_stage_read_only" -> "历史阶段保持只读，请返回当前阶段继续追问。"
+        "standard_replay_conflict" -> "这条自由追问的恢复数据不一致，请修改输入后重新发送。"
+        "standard_replay_context_unavailable" -> "原追问使用的上下文已不可用，未自动降级执行。"
         "skill_not_executable" -> "所选 Skill 当前不可执行。"
         "integrator_not_executable",
         "integrator_not_eligible_for_synthesis" -> "会议行动助手当前不具备透明整合资格。"
@@ -486,6 +553,8 @@ class IssueCollaborationViewModel internal constructor(
         private const val KEY_INPUT = "issue_collaboration_input"
         private const val KEY_DIALOG = "issue_collaboration_dialog"
         private const val KEY_OPERATION_ID = "issue_collaboration_operation_id"
+        private const val KEY_OPERATION_CONFIRMED_AT = "issue_collaboration_operation_confirmed_at"
+        private const val KEY_OPERATION_ROUND_INDEX = "issue_collaboration_operation_round_index"
         private const val KEY_SKILL_IDS = "issue_collaboration_skill_ids"
         private const val KEY_MESSAGE_IDS = "issue_collaboration_message_ids"
         private const val MESSAGE_PREVIEW_LENGTH = 120

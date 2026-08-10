@@ -88,6 +88,9 @@ class RoomJianyuRepository(
     override suspend fun recoverInterruptedExecution(command: RecoverInterruptedExecutionCommand) =
         lifecycleWrites.recoverInterruptedExecution(command)
 
+    override suspend fun createStandardInteraction(command: CreateStandardInteractionCommand) =
+        lifecycleWrites.createStandardInteraction(command)
+
     override suspend fun createDirectedInteraction(command: CreateDirectedInteractionCommand) =
         lifecycleWrites.createDirectedInteraction(command)
 
