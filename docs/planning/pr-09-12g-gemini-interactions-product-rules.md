@@ -83,14 +83,14 @@ AUTO | minimal | low | medium | high
 
 ### 5.1 主文本链路
 
-主文本链路的目标协议为 Gemini Interactions API，并采用：
+主文本链路的目标协议为 Gemini Interactions API。只有用户已显式开启既有“云端会话链优化”并完成其隐私提示确认时，才可以采用：
 
 ~~~text
 store=true
 + 已完成且仍可用的 previous_interaction_id
 ~~~
 
-它用于短期连续讨论中的服务端上下文、Thought 关联及更高的隐式缓存命中机会。每次新 Interaction 仍须显式携带本次需要的工具、系统指令与生成配置；这些参数是 Interaction 级别的，而不是由 `previous_interaction_id` 永久继承。
+该用户开关未启用或未确认时，请求必须使用 `store=false`，且不得传入 `previous_interaction_id`。启用后的链仅用于短期连续讨论中的服务端上下文、Thought 关联及更高的隐式缓存命中机会；它不是长期恢复机制，也不改变 Room 的事实源地位。每次新 Interaction 仍须显式携带本次需要的工具、系统指令与生成配置；这些参数是 Interaction 级别的，而不是由 `previous_interaction_id` 永久继承。
 
 ### 5.2 缓存边界
 
