@@ -14,11 +14,16 @@ data class ExecutionNetworkRequest(
     val participant: ExecutionParticipantSnapshotEntity,
     val modelRequest: ExecutionModelRequest,
     val model: String,
+    val thinkingLevel: String,
+    /** 仅用于进程内的短链索引，不会发送给 Provider。 */
+    val interactionChainKey: String,
     val maxOutputTokens: Int,
 ) {
     init {
         require(sessionId > 0L)
         require(model.isNotBlank())
+        require(thinkingLevel in setOf("minimal", "low", "medium", "high"))
+        require(interactionChainKey.isNotBlank())
         require(maxOutputTokens > 0)
     }
 }
@@ -26,6 +31,7 @@ data class ExecutionNetworkRequest(
 data class ExecutionNetworkResult(
     val providerInteractionId: String,
     val outputText: String,
+    val providerModel: String? = null,
 )
 
 fun interface PreparedExecutionNetworkCall {
@@ -71,12 +77,15 @@ class InteractionExecutionNetworkGateway(
                     systemInstruction = request.modelRequest.systemInstruction,
                     generationConfig = InteractionGenerationConfig(
                         maxOutputTokens = request.maxOutputTokens,
+                        thinkingLevel = request.thinkingLevel,
                     ),
+                    store = true,
                 ),
                 sessionId = request.sessionId,
                 attemptPlan = attemptPlan,
                 tracker = RequestBudgetTracker(TRANSPORT_GUARD_LIMIT),
                 operationName = OPERATION_NAME,
+                interactionChainKey = request.interactionChainKey,
                 isRequired = true,
                 reserveForRequired = 0,
                 onAttemptStarted = onAttemptStarted,
@@ -85,6 +94,7 @@ class InteractionExecutionNetworkGateway(
             ExecutionNetworkResult(
                 providerInteractionId = response.id,
                 outputText = response.outputText,
+                providerModel = response.model,
             )
         }
     }

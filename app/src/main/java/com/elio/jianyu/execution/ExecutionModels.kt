@@ -2,7 +2,11 @@ package com.elio.jianyu.execution
 
 import com.elio.jianyu.data.ContextUsageWriteSet
 import com.elio.jianyu.data.ExecutionRunStatus
+import com.elio.jianyu.data.ExecutionRunKind
+import com.elio.jianyu.data.ExecutionThinkingLevel
+import com.elio.jianyu.data.ExecutionThinkingSource
 import com.elio.jianyu.data.ExecutionRuntimeBudgetConfig
+import com.elio.jianyu.data.IssueThinkingPolicy
 import com.elio.jianyu.data.ExecutionRuntimeSnapshot
 import java.nio.ByteBuffer
 import java.security.MessageDigest
@@ -48,6 +52,50 @@ class NoExecutionApiKeyException : IllegalStateException("No imported API key is
 class ExecutionBudgetExhaustedException : IllegalStateException("Execution budget is exhausted")
 class ExecutionSafetyBlockedException : IllegalStateException("Provider blocked the request")
 class ExecutionEmptyResponseException : IllegalStateException("Provider returned no model text")
+class ExecutionModelMismatchException : IllegalStateException("Provider returned an unexpected model")
+
+data class ResolvedExecutionThinking(
+    val level: ExecutionThinkingLevel,
+    val source: ExecutionThinkingSource,
+)
+
+object ExecutionThinkingPolicyResolver {
+    fun resolve(
+        issueDefault: IssueThinkingPolicy,
+        roundOverride: IssueThinkingPolicy?,
+        runKind: ExecutionRunKind,
+    ): ResolvedExecutionThinking {
+        val selected = roundOverride ?: issueDefault
+        if (roundOverride != null && roundOverride != IssueThinkingPolicy.AUTO) {
+            return ResolvedExecutionThinking(
+                level = selected.toExecutionThinkingLevel(),
+                source = ExecutionThinkingSource.ROUND_USER_OVERRIDE,
+            )
+        }
+        if (roundOverride == null && selected != IssueThinkingPolicy.AUTO) {
+            return ResolvedExecutionThinking(
+                level = selected.toExecutionThinkingLevel(),
+                source = ExecutionThinkingSource.ISSUE_USER_DEFAULT,
+            )
+        }
+        return ResolvedExecutionThinking(
+            level = when (runKind) {
+                ExecutionRunKind.CROSS_DISCUSSION_RESPONSE,
+                ExecutionRunKind.CROSS_DISCUSSION_SYNTHESIS -> ExecutionThinkingLevel.HIGH
+                else -> ExecutionThinkingLevel.MEDIUM
+            },
+            source = ExecutionThinkingSource.AUTO_ROUTED,
+        )
+    }
+
+    private fun IssueThinkingPolicy.toExecutionThinkingLevel(): ExecutionThinkingLevel = when (this) {
+        IssueThinkingPolicy.MINIMAL -> ExecutionThinkingLevel.MINIMAL
+        IssueThinkingPolicy.LOW -> ExecutionThinkingLevel.LOW
+        IssueThinkingPolicy.MEDIUM -> ExecutionThinkingLevel.MEDIUM
+        IssueThinkingPolicy.HIGH -> ExecutionThinkingLevel.HIGH
+        IssueThinkingPolicy.AUTO -> error("AUTO 必须先经过自动路由")
+    }
+}
 
 data class ExecutionBudgetSnapshot(
     val rootRunId: String,
@@ -148,6 +196,7 @@ data class ExecutionStartCommand(
     val roundIndex: Int,
     val userConfirmedAt: Long,
     val model: String = DEFAULT_EXECUTION_MODEL,
+    val thinkingOverride: IssueThinkingPolicy? = null,
     val budget: ExecutionRuntimeBudgetConfig = ExecutionRuntimeBudgetConfig(),
     val contributions: List<ExecutionContextContribution> = emptyList(),
     val contextUsage: ContextUsageWriteSet = ContextUsageWriteSet(),
@@ -173,6 +222,7 @@ data class ExecutionRetryCommand(
     val roundIndex: Int,
     val userConfirmedAt: Long,
     val model: String = DEFAULT_EXECUTION_MODEL,
+    val thinkingOverride: IssueThinkingPolicy? = null,
     val contributions: List<ExecutionContextContribution> = emptyList(),
     val contextUsage: ContextUsageWriteSet = ContextUsageWriteSet(),
 ) {
@@ -248,4 +298,4 @@ object StableExecutionIds {
     }
 }
 
-const val DEFAULT_EXECUTION_MODEL = "gemini-3.1-flash-lite"
+const val DEFAULT_EXECUTION_MODEL = "gemini-3.6-flash"

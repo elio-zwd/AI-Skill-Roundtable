@@ -12,8 +12,9 @@ class JianyuRepositoryArchitectureTest {
     }
 
     @Test
-    fun roomUsesContinuousVersionTwelveLifecycleSchema() {
+    fun roomUsesVersionThirteenThinkingSchema() {
         val databaseSource = source("app/src/main/java/com/elio/jianyu/data/RoundtableDatabase.kt")
+        val coreDomainSource = source("app/src/main/java/com/elio/jianyu/data/CoreDomain.kt")
         val executionMigrationSource = source(
             "app/src/main/java/com/elio/jianyu/data/ExecutionRuntimeMigration.kt",
         )
@@ -30,8 +31,8 @@ class JianyuRepositoryArchitectureTest {
             "app/src/main/java/com/elio/jianyu/data/IssueLifecycleV12Migration.kt",
         )
 
-        assertTrue(databaseSource.contains("version = 12"))
-        assertFalse(databaseSource.contains("version = 13"))
+        assertTrue(databaseSource.contains("version = 13"))
+        assertFalse(databaseSource.contains("MIGRATION_12_13"))
         assertTrue(databaseSource.contains("MIGRATION_7_8"))
         assertTrue(databaseSource.contains("MIGRATION_8_9"))
         assertTrue(databaseSource.contains("MIGRATION_9_10"))
@@ -47,6 +48,8 @@ class JianyuRepositoryArchitectureTest {
         assertTrue(databaseSource.contains("IssueResumeEventEntity::class"))
         assertTrue(databaseSource.contains("IssueRelationEntity::class"))
         assertTrue(databaseSource.contains("IssuePurgeOperationEntity::class"))
+        assertTrue(coreDomainSource.contains("defaultThinkingPolicy"))
+        assertTrue(coreDomainSource.contains("actualThinkingLevel"))
         assertTrue(executionMigrationSource.contains("Migration(7, 8)"))
         assertTrue(executionMigrationSource.contains("execution_participant_states"))
         assertTrue(executionMigrationSource.contains("execution_run_budgets"))

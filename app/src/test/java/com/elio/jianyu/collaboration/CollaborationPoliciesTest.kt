@@ -6,6 +6,8 @@ import com.elio.jianyu.data.ExecutionParticipantStatus
 import com.elio.jianyu.data.ExecutionRunEntity
 import com.elio.jianyu.data.ExecutionRunKind
 import com.elio.jianyu.data.ExecutionRunStatus
+import com.elio.jianyu.data.ExecutionThinkingLevel
+import com.elio.jianyu.data.ExecutionThinkingSource
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -243,6 +245,9 @@ class CollaborationPoliciesTest {
         triggerMessageId = 1,
         idempotencyKey = "key-$id",
         status = ExecutionRunStatus.SUCCEEDED,
+        actualModelId = "gemini-3.6-flash",
+        actualThinkingLevel = ExecutionThinkingLevel.MEDIUM,
+        thinkingLevelSource = ExecutionThinkingSource.AUTO_ROUTED,
         retryOfRunId = retryOfRunId,
         runKind = kind,
         createdAt = createdAt,

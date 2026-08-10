@@ -22,7 +22,30 @@ data class IssueEntity(
     val createdAt: Long,
     val updatedAt: Long,
     val legacyChatSessionId: Long? = null,
+    @ColumnInfo(defaultValue = "'auto'")
+    val defaultThinkingPolicy: IssueThinkingPolicy = IssueThinkingPolicy.AUTO,
 )
+
+enum class IssueThinkingPolicy(val storageValue: String) {
+    AUTO("auto"),
+    MINIMAL("minimal"),
+    LOW("low"),
+    MEDIUM("medium"),
+    HIGH("high"),
+}
+
+enum class ExecutionThinkingLevel(val storageValue: String) {
+    MINIMAL("minimal"),
+    LOW("low"),
+    MEDIUM("medium"),
+    HIGH("high"),
+}
+
+enum class ExecutionThinkingSource(val storageValue: String) {
+    ROUND_USER_OVERRIDE("round_user_override"),
+    ISSUE_USER_DEFAULT("issue_user_default"),
+    AUTO_ROUTED("auto_routed"),
+}
 
 @Entity(
     tableName = "stages",
@@ -98,6 +121,30 @@ class CoreDomainConverters {
     fun storageValueToExecutionHistoryScope(value: String): ExecutionHistoryScope =
         ExecutionHistoryScope.entries.firstOrNull { it.storageValue == value }
             ?: throw IllegalArgumentException("Unknown execution history scope: $value")
+
+    @TypeConverter
+    fun issueThinkingPolicyToStorageValue(policy: IssueThinkingPolicy): String = policy.storageValue
+
+    @TypeConverter
+    fun storageValueToIssueThinkingPolicy(value: String): IssueThinkingPolicy =
+        IssueThinkingPolicy.entries.firstOrNull { it.storageValue == value }
+            ?: throw IllegalArgumentException("Unknown issue thinking policy: $value")
+
+    @TypeConverter
+    fun executionThinkingLevelToStorageValue(level: ExecutionThinkingLevel): String = level.storageValue
+
+    @TypeConverter
+    fun storageValueToExecutionThinkingLevel(value: String): ExecutionThinkingLevel =
+        ExecutionThinkingLevel.entries.firstOrNull { it.storageValue == value }
+            ?: throw IllegalArgumentException("Unknown execution thinking level: $value")
+
+    @TypeConverter
+    fun executionThinkingSourceToStorageValue(source: ExecutionThinkingSource): String = source.storageValue
+
+    @TypeConverter
+    fun storageValueToExecutionThinkingSource(value: String): ExecutionThinkingSource =
+        ExecutionThinkingSource.entries.firstOrNull { it.storageValue == value }
+            ?: throw IllegalArgumentException("Unknown execution thinking source: $value")
 }
 
 @Entity(
@@ -150,6 +197,9 @@ data class ExecutionRunEntity(
     val discussionId: String? = null,
     @ColumnInfo(defaultValue = "'full_stage'")
     val historyScope: ExecutionHistoryScope = ExecutionHistoryScope.FULL_STAGE,
+    val actualModelId: String,
+    val actualThinkingLevel: ExecutionThinkingLevel,
+    val thinkingLevelSource: ExecutionThinkingSource,
 )
 
 @Entity(

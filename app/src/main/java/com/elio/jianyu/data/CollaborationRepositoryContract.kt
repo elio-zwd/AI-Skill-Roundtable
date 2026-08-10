@@ -93,6 +93,9 @@ data class CreateCollaborationRetryCommand(
     val newRunId: String,
     val idempotencyKey: String,
     val createdAt: Long,
+    val actualModelId: String,
+    val actualThinkingLevel: ExecutionThinkingLevel,
+    val thinkingLevelSource: ExecutionThinkingSource,
 ) {
     init {
         require(previousRunId.isNotBlank())

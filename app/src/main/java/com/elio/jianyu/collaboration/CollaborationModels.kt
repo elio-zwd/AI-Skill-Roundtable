@@ -6,6 +6,7 @@ import com.elio.jianyu.data.ExecutionRuntimeBudgetConfig
 import com.elio.jianyu.data.ExecutionRuntimeSnapshot
 import com.elio.jianyu.execution.DEFAULT_EXECUTION_MODEL
 import com.elio.jianyu.execution.ExecutionContextContribution
+import com.elio.jianyu.data.IssueThinkingPolicy
 import com.elio.jianyu.execution.StableExecutionIds
 
 private val STABLE_OPERATION_ID = Regex("^[A-Za-z0-9._-]{8,160}$")
@@ -30,6 +31,7 @@ data class StandardFollowUpRequest(
     val userConfirmedAt: Long,
     val context: CollaborationContextSelection = CollaborationContextSelection(),
     val model: String = DEFAULT_EXECUTION_MODEL,
+    val thinkingOverride: IssueThinkingPolicy? = null,
     val budget: ExecutionRuntimeBudgetConfig = ExecutionRuntimeBudgetConfig(),
 ) {
     init {
@@ -56,6 +58,7 @@ data class DirectedResponseRequest(
     val userConfirmedAt: Long,
     val context: CollaborationContextSelection = CollaborationContextSelection(),
     val model: String = DEFAULT_EXECUTION_MODEL,
+    val thinkingOverride: IssueThinkingPolicy? = null,
     val budget: ExecutionRuntimeBudgetConfig = CollaborationExecutionBudgetPolicy.directed(),
 ) {
     init {
@@ -81,6 +84,7 @@ data class CrossDiscussionRequest(
     val userConfirmedAt: Long,
     val context: CollaborationContextSelection = CollaborationContextSelection(),
     val model: String = DEFAULT_EXECUTION_MODEL,
+    val thinkingOverride: IssueThinkingPolicy? = null,
     val budget: ExecutionRuntimeBudgetConfig = CollaborationExecutionBudgetPolicy.cross(
         selectedSkillIds.size,
     ),
@@ -112,6 +116,7 @@ data class CrossDiscussionSynthesisRequest(
     val userAcceptedPartial: Boolean,
     val context: CollaborationContextSelection = CollaborationContextSelection(),
     val model: String = DEFAULT_EXECUTION_MODEL,
+    /** 综合必须继承交叉讨论主文本快照，不能单独覆盖。 */
 ) {
     init {
         require(STABLE_OPERATION_ID.matches(operationId))
@@ -132,6 +137,7 @@ data class CollaborationRetryRequest(
     val roundIndex: Int,
     val userConfirmedAt: Long,
     val model: String = DEFAULT_EXECUTION_MODEL,
+    val thinkingOverride: IssueThinkingPolicy? = null,
 ) {
     init {
         require(STABLE_OPERATION_ID.matches(operationId))

@@ -104,6 +104,9 @@ class JianyuRecoveryContractTest {
             idempotencyKey = "run-key",
             status = status,
             createdAt = 15L,
+            actualModelId = "gemini-3.6-flash",
+            actualThinkingLevel = ExecutionThinkingLevel.MEDIUM,
+            thinkingLevelSource = ExecutionThinkingSource.AUTO_ROUTED,
             updatedAt = 20L
         )
     }

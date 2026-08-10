@@ -42,6 +42,9 @@ internal class CollaborationRetryRepositoryComponent(
             stoppedAt = null,
             failureCode = null,
             failureMessage = null,
+            actualModelId = command.actualModelId,
+            actualThinkingLevel = command.actualThinkingLevel,
+            thinkingLevelSource = command.thinkingLevelSource,
         )
         val requestedParticipants = retrySources.mapIndexed { index, participant ->
             participant.copy(

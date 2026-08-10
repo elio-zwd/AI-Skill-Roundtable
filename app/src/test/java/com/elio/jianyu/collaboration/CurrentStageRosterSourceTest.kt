@@ -4,6 +4,8 @@ import com.elio.jianyu.data.ExecutionParticipantSnapshotEntity
 import com.elio.jianyu.data.ExecutionRunEntity
 import com.elio.jianyu.data.ExecutionRunKind
 import com.elio.jianyu.data.ExecutionRunStatus
+import com.elio.jianyu.data.ExecutionThinkingLevel
+import com.elio.jianyu.data.ExecutionThinkingSource
 import com.elio.jianyu.data.StageAdvancementSkillMemberEntity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -77,6 +79,9 @@ class CurrentStageRosterSourceTest {
             triggerMessageId = 1L,
             idempotencyKey = "key-$id",
             status = ExecutionRunStatus.SUCCEEDED,
+            actualModelId = "gemini-3.6-flash",
+            actualThinkingLevel = ExecutionThinkingLevel.MEDIUM,
+            thinkingLevelSource = ExecutionThinkingSource.AUTO_ROUTED,
             runKind = kind,
             createdAt = createdAt,
             updatedAt = createdAt,

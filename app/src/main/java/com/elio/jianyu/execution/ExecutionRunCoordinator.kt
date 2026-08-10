@@ -47,6 +47,11 @@ class ExecutionRunCoordinator(
         return withRunRegistration(command.runId) {
             val issueRecovery = persistence.recoverIssue(command.issueId)
             val stage = requireStage(issueRecovery, command.stageId)
+            val thinking = ExecutionThinkingPolicyResolver.resolve(
+                issueDefault = issueRecovery.core.issue.defaultThinkingPolicy,
+                roundOverride = command.thinkingOverride,
+                runKind = ExecutionRunKind.STANDARD,
+            )
             val participants = try {
                 skillResolver.resolve(
                     runId = command.runId,
@@ -75,6 +80,9 @@ class ExecutionRunCoordinator(
                         idempotencyKey = command.idempotencyKey,
                         createdAt = command.userConfirmedAt,
                         updatedAt = command.userConfirmedAt,
+                        actualModelId = command.model,
+                        actualThinkingLevel = thinking.level,
+                        thinkingLevelSource = thinking.source,
                     ),
                     participants = participants,
                     budgetRootRunId = command.runId,
@@ -171,6 +179,11 @@ class ExecutionRunCoordinator(
 
             val issueRecovery = persistence.recoverIssue(previous.run.issueId)
             val stage = requireStage(issueRecovery, previous.run.stageId)
+            val thinking = ExecutionThinkingPolicyResolver.resolve(
+                issueDefault = issueRecovery.core.issue.defaultThinkingPolicy,
+                roundOverride = command.thinkingOverride,
+                runKind = previous.run.runKind,
+            )
             val budgetConfig = ExecutionRuntimeBudgetConfig(
                 maxApiCalls = previous.budget.maxApiCalls,
                 maxCharacters = previous.budget.maxCharacters,
@@ -192,6 +205,9 @@ class ExecutionRunCoordinator(
                         parentRunId = previous.run.parentRunId,
                         discussionId = previous.run.discussionId,
                         historyScope = previous.run.historyScope,
+                        actualModelId = command.model,
+                        actualThinkingLevel = thinking.level,
+                        thinkingLevelSource = thinking.source,
                     ),
                     participants = retryParticipants,
                     budgetRootRunId = previous.budget.rootRunId,
@@ -457,7 +473,11 @@ class ExecutionRunCoordinator(
                     sessionId = StableExecutionIds.sessionId(run.issueId),
                     participant = participant,
                     modelRequest = modelRequest,
-                    model = model,
+                    model = run.actualModelId ?: model,
+                    thinkingLevel = requireNotNull(run.actualThinkingLevel) {
+                        "新执行 Run 必须在发起请求前保存思考强度快照"
+                    }.storageValue,
+                    interactionChainKey = "${run.stageId}:${participant.sourceId}",
                     maxOutputTokens = runtime.budget.maxOutputTokensPerAnswer,
                 ),
             )
@@ -547,6 +567,9 @@ class ExecutionRunCoordinator(
                     )
                 },
             )
+            if (networkResult.providerModel != null && networkResult.providerModel != run.actualModelId) {
+                throw ExecutionModelMismatchException()
+            }
             val finalText = networkResult.outputText.trim()
             if (finalText.isBlank()) throw ExecutionEmptyResponseException()
             ensureAcceptsWrites(run.id, participant.id)

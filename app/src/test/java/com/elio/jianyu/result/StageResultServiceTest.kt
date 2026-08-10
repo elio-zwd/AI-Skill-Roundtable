@@ -9,6 +9,8 @@ import com.elio.jianyu.data.ExecutionHistoryScope
 import com.elio.jianyu.data.ExecutionRunEntity
 import com.elio.jianyu.data.ExecutionRunKind
 import com.elio.jianyu.data.ExecutionRunStatus
+import com.elio.jianyu.data.ExecutionThinkingLevel
+import com.elio.jianyu.data.ExecutionThinkingSource
 import com.elio.jianyu.data.IssueEntity
 import com.elio.jianyu.data.IssueLifecycleEntity
 import com.elio.jianyu.data.IssueLifecycleState
@@ -415,6 +417,9 @@ class StageResultServiceTest {
         stageId = "stage-1",
         idempotencyKey = "key-$id",
         status = ExecutionRunStatus.SUCCEEDED,
+        actualModelId = "gemini-3.6-flash",
+        actualThinkingLevel = ExecutionThinkingLevel.MEDIUM,
+        thinkingLevelSource = ExecutionThinkingSource.AUTO_ROUTED,
         createdAt = 1,
         updatedAt = 2,
         runKind = kind,

@@ -9,6 +9,8 @@ import com.elio.jianyu.data.ExecutionParticipantStateEntity
 import com.elio.jianyu.data.ExecutionRunBudgetEntity
 import com.elio.jianyu.data.ExecutionRunEntity
 import com.elio.jianyu.data.ExecutionRunKind
+import com.elio.jianyu.data.ExecutionThinkingLevel
+import com.elio.jianyu.data.ExecutionThinkingSource
 import com.elio.jianyu.data.ExecutionRuntimeBudgetConfig
 import com.elio.jianyu.data.ExecutionRuntimeSnapshot
 import com.elio.jianyu.data.IssueEntity
@@ -53,6 +55,9 @@ class IssueCollaborationCoordinatorReplayTest {
             triggerMessageId = ids.userMessageId,
             idempotencyKey = ids.idempotencyKey,
             createdAt = PERSISTED_TIME,
+            actualModelId = "gemini-3.6-flash",
+            actualThinkingLevel = ExecutionThinkingLevel.MEDIUM,
+            thinkingLevelSource = ExecutionThinkingSource.AUTO_ROUTED,
             updatedAt = PERSISTED_TIME,
             runKind = ExecutionRunKind.STANDARD,
             historyScope = ExecutionHistoryScope.FULL_STAGE,
