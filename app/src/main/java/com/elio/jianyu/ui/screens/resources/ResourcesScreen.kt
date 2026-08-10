@@ -1,6 +1,7 @@
 package com.elio.jianyu.ui.screens.resources
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -72,18 +73,38 @@ fun ResourcesScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        TabRow(selectedTabIndex = selectedTab.ordinal) {
+        val selectedLibraryTab = when {
+            selectedTab == ResourceTab.ARTIFACTS -> 1
+            state is ResourcesUiState.Content &&
+                state.section == ResourceLibrarySection.PERSONAL_CONTEXTS -> 2
+            else -> 0
+        }
+        TabRow(selectedTabIndex = selectedLibraryTab) {
+            Box(modifier = Modifier.testTag(ResourcesTestTags.MATERIAL_LIBRARY)) {
+                Tab(
+                    selected = selectedLibraryTab == 0,
+                    onClick = {
+                        onSelectTab(ResourceTab.MATERIALS)
+                        onSelectSection(ResourceLibrarySection.MATERIALS)
+                    },
+                    text = { Text("资料") },
+                    modifier = Modifier.testTag(ResourcesTestTags.MATERIALS_TAB),
+                )
+            }
             Tab(
-                selected = selectedTab == ResourceTab.MATERIALS,
-                onClick = { onSelectTab(ResourceTab.MATERIALS) },
-                text = { Text("资料") },
-                modifier = Modifier.testTag(ResourcesTestTags.MATERIALS_TAB),
-            )
-            Tab(
-                selected = selectedTab == ResourceTab.ARTIFACTS,
+                selected = selectedLibraryTab == 1,
                 onClick = { onSelectTab(ResourceTab.ARTIFACTS) },
                 text = { Text("成果") },
                 modifier = Modifier.testTag(ResourcesTestTags.ARTIFACTS_TAB),
+            )
+            Tab(
+                selected = selectedLibraryTab == 2,
+                onClick = {
+                    onSelectTab(ResourceTab.MATERIALS)
+                    onSelectSection(ResourceLibrarySection.PERSONAL_CONTEXTS)
+                },
+                text = { Text("个人背景") },
+                modifier = Modifier.testTag(ResourcesTestTags.PERSONAL_CONTEXT_LIBRARY),
             )
         }
 
@@ -165,23 +186,6 @@ private fun ResourceLibraryContent(
             onAction = onRetry,
         )
         is ResourcesUiState.Content -> {
-            TabRow(
-                selectedTabIndex = state.section.ordinal,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Tab(
-                    selected = state.section == ResourceLibrarySection.MATERIALS,
-                    onClick = { onSelectSection(ResourceLibrarySection.MATERIALS) },
-                    text = { Text("资料") },
-                    modifier = Modifier.testTag(ResourcesTestTags.MATERIAL_LIBRARY),
-                )
-                Tab(
-                    selected = state.section == ResourceLibrarySection.PERSONAL_CONTEXTS,
-                    onClick = { onSelectSection(ResourceLibrarySection.PERSONAL_CONTEXTS) },
-                    text = { Text("个人背景") },
-                    modifier = Modifier.testTag(ResourcesTestTags.PERSONAL_CONTEXT_LIBRARY),
-                )
-            }
             Text(
                 if (state.section == ResourceLibrarySection.MATERIALS) {
                     "资料必须关联议题，可选关联阶段；已关联不等于自动发送。"

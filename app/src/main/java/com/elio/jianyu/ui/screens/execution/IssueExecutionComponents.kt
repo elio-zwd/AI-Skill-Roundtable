@@ -8,8 +8,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -45,42 +45,33 @@ internal fun ExecutionStatusCard(
         modifier = Modifier
             .fillMaxWidth()
             .testTag(IssueExecutionTestTags.STATUS),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
-        shape = MaterialTheme.shapes.small,
+        shape = MaterialTheme.shapes.medium,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            Surface(
+                color = statusColor.copy(alpha = 0.12f),
+                contentColor = statusColor,
+                shape = MaterialTheme.shapes.small,
             ) {
                 Text(
                     text = state.phase.toDisplayLabel(),
                     style = MaterialTheme.typography.labelLarge,
-                    color = statusColor,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                 )
-                state.budget?.let { budget ->
-                    Text(
-                        text = "已用 ${budget.usedApiCalls} / ${budget.maxApiCalls}，剩余 ${budget.remainingApiCalls}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
             }
-            Text(
-                text = listOfNotNull(
-                    state.stageTitle?.takeIf(String::isNotBlank),
-                    state.runId?.let { "运行已创建" } ?: "尚未创建运行",
-                ).joinToString(" · "),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            state.budget?.let { budget ->
+                Text(
+                    text = "调用额度：已用 ${budget.usedApiCalls} / ${budget.maxApiCalls}，剩余 ${budget.remainingApiCalls}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             state.failureMessage?.takeIf(String::isNotBlank)?.let { message ->
                 Text(
                     text = message,
@@ -144,6 +135,10 @@ internal fun ContextSelectionSummaryCard(
 internal fun ExecutionParticipantCard(
     participant: IssueExecutionParticipantUi,
 ) {
+    val statusColor = participant.status.toStatusColor()
+    val avatarLabel = participant.displayName.trim().take(1).ifBlank {
+        "${participant.position + 1}"
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -153,49 +148,67 @@ internal fun ExecutionParticipantCard(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.Top,
         ) {
-            Text(
-                text = "${participant.position + 1}",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Column(modifier = Modifier.weight(1f)) {
+            Surface(
+                modifier = Modifier.size(40.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                shape = CircleShape,
+            ) {
                 Text(
-                    text = participant.displayName,
+                    text = avatarLabel,
                     style = MaterialTheme.typography.titleSmall,
-                )
-                Text(
-                    text = "第 ${participant.attemptCount} 次尝试",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(10.dp),
                 )
             }
-            Text(
-                text = participant.status.toDisplayLabel(),
-                style = MaterialTheme.typography.labelMedium,
-                color = participant.status.toStatusColor(),
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = participant.displayName,
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        Text(
+                            text = "Skill 回应 · 第 ${participant.attemptCount} 次尝试",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Surface(
+                        color = statusColor.copy(alpha = 0.12f),
+                        contentColor = statusColor,
+                        shape = MaterialTheme.shapes.small,
+                    ) {
+                        Text(
+                            text = participant.status.toDisplayLabel(),
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                    }
+                }
+            }
         }
         participant.text?.takeIf(String::isNotBlank)?.let { text ->
             Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 28.dp),
+                modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.surface,
                 contentColor = MaterialTheme.colorScheme.onSurface,
-                shape = MaterialTheme.shapes.medium,
+                shape = MaterialTheme.shapes.large,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                tonalElevation = 1.dp,
             ) {
                 MarkdownText(
                     markdown = text,
                     color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(14.dp),
                 )
             }
         }
@@ -217,7 +230,7 @@ internal fun ExecutionParticipantCard(
         }
         if (participant.hasIncompleteOutput) {
             Text(
-                text = "以上内容未完整生成，已保留用于恢复和审计。",
+                text = "内容未完整生成，已保留用于恢复和审计。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -229,7 +242,6 @@ internal fun ExecutionParticipantCard(
                 color = MaterialTheme.colorScheme.error,
             )
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 

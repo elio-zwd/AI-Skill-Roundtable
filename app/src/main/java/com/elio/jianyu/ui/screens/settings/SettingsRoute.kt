@@ -37,6 +37,7 @@ fun SettingsScreen(
         title = "设置",
         subtitle = null,
         onBack = onBack,
+        compactHeader = true,
         contentScrollable = true,
         modifier = Modifier.testTag(SettingsShellTestTags.SCREEN),
     ) {
