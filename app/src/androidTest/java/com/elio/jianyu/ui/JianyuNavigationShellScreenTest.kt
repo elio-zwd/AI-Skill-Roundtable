@@ -4,6 +4,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.data.IssueLifecycleState
@@ -111,8 +112,11 @@ class JianyuNavigationShellScreenTest {
         }
 
         composeRule.onNodeWithTag(IssuesTestTags.ACTIVE_SECTION).assertExists()
+        composeRule.onNodeWithText("已归档").performClick()
         composeRule.onNodeWithTag(IssuesTestTags.ARCHIVED_SECTION).assertExists()
+        composeRule.onNodeWithText("回收站").performClick()
         composeRule.onNodeWithTag(IssuesTestTags.TRASHED_SECTION).assertExists()
+        composeRule.onNodeWithText("已归档").performClick()
         composeRule.onNodeWithTag(IssuesTestTags.issue("issue-42")).performClick()
         composeRule.runOnIdle {
             assertEquals("issue-42" to "stage-3", openedIssue)
