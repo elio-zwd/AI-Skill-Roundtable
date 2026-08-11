@@ -5,8 +5,17 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import okhttp3.HttpUrl.Companion.toHttpUrl
 
 class InteractionSseAccumulatorTest {
+
+    @Test
+    fun streamingEndpointRequestsSseResponseFormat() {
+        val endpoint = InteractionStreamingClient.STREAMING_ENDPOINT.toHttpUrl()
+
+        assertEquals("/v1beta/interactions", endpoint.encodedPath)
+        assertEquals("sse", endpoint.queryParameter("alt"))
+    }
 
     @Test
     fun modelOutputDeltasAreAccumulatedWhileThoughtDeltasAreIgnored() {

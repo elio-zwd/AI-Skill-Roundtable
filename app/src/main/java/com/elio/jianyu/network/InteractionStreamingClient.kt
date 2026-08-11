@@ -48,7 +48,8 @@ data class StreamedInteraction(
  */
 object InteractionStreamingClient {
     private const val TAG = "InteractionStreaming"
-    private const val ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/interactions"
+    internal const val STREAMING_ENDPOINT =
+        "https://generativelanguage.googleapis.com/v1beta/interactions?alt=sse"
     private const val API_REVISION = "2026-05-20"
     private const val MAIN_ANSWER_PREFIX = "MainAnswer-"
     private const val CONTINUE_ANSWER_PREFIX = "ContinueAnswer-"
@@ -253,7 +254,7 @@ object InteractionStreamingClient {
         val body = json.encodeToString(request)
             .toRequestBody("application/json; charset=utf-8".toMediaType())
         val httpRequest = Request.Builder()
-            .url(ENDPOINT)
+            .url(STREAMING_ENDPOINT)
             .header("x-goog-api-key", apiKey)
             .header("Api-Revision", API_REVISION)
             .header("Accept", "text/event-stream")
