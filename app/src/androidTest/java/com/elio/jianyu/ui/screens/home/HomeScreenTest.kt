@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.home.HomeContextSelectionSnapshot
 import com.elio.jianyu.home.HomeExecutionConsentSnapshot
@@ -17,6 +18,7 @@ import com.elio.jianyu.home.RecommendationRisk
 import com.elio.jianyu.home.RecommendationSource
 import com.elio.jianyu.home.RecommendedSkill
 import com.elio.jianyu.home.ValueDirection
+import com.elio.jianyu.execution.SearchMode
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.theme.SkillRoundtableTheme
 import org.junit.Assert.assertEquals
@@ -146,6 +148,33 @@ class HomeScreenTest {
     }
 
     @Test
+    fun finalReview_exposesInitialRunSearchModeAndEmitsChoice() {
+        val recommendation = recommendation()
+        val state = HomeWorkflow.initial(ids).copy(
+            draft = com.elio.jianyu.home.HomeQuestionDraft(recommendation.questionSummary),
+            step = HomeWorkflowStep.FINAL_REVIEW,
+            recommendation = recommendation,
+            recommendationConfirmed = true,
+            contextSelection = HomeContextSelectionSnapshot(confirmed = true),
+            finalConfirmationReady = true,
+        )
+        var selected: SearchMode? = null
+        setHomeContent(
+            uiState = HomeUiState(state),
+            onInitialSearchModeChanged = { selected = it },
+        )
+
+        composeRule.onNodeWithTag(HomeTestTags.INITIAL_SEARCH_MODE).performScrollTo()
+        composeRule.onNodeWithTag(HomeTestTags.initialSearchMode(SearchMode.OFF)).assertExists()
+        composeRule.onNodeWithTag(HomeTestTags.initialSearchMode(SearchMode.AUTO)).assertExists()
+        composeRule.onNodeWithTag(HomeTestTags.initialSearchMode(SearchMode.ON))
+            .performScrollTo()
+            .performClick()
+
+        composeRule.runOnIdle { assertEquals(SearchMode.ON, selected) }
+    }
+
+    @Test
     fun personHighStakesNetworkSkillShowsThreeExplicitConfirmationsAndDisablesStart() {
         val recommendation = recommendation(
             skill = RecommendedSkill(
@@ -231,6 +260,7 @@ class HomeScreenTest {
         examples: List<HomeExampleQuestion> = defaultHomeExampleQuestions,
         onUseExample: (HomeExampleQuestion) -> Unit = {},
         onClearPreselectedSkill: () -> Unit = {},
+        onInitialSearchModeChanged: (SearchMode) -> Unit = {},
     ) {
         composeRule.setContent {
             SkillRoundtableTheme {
@@ -251,6 +281,7 @@ class HomeScreenTest {
                     onNetworkAuthorized = {},
                     onHighStakesConfirmed = {},
                     onPersonDisclaimerConfirmed = {},
+                    onInitialSearchModeChanged = onInitialSearchModeChanged,
                     onBrowseSkills = {},
                     onStartIssue = {},
                     onOpenSettings = {},

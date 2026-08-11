@@ -21,6 +21,7 @@ import com.elio.jianyu.data.CrossDiscussionStatus
 import com.elio.jianyu.data.ExecutionRunStatus
 import com.elio.jianyu.data.JianyuRepository
 import com.elio.jianyu.execution.ExecutionRunCoordinator
+import com.elio.jianyu.execution.SearchMode
 import com.elio.jianyu.result.StageResultService
 import com.elio.jianyu.ui.screens.result.StageDraftSaveStatus
 import com.elio.jianyu.ui.screens.result.StageResultCallbacks
@@ -67,6 +68,8 @@ fun IssueExecutionRoute(
     val advanceIssueState by advanceIssueViewModel.state.collectAsState()
     val advanceWorkspace by advanceIssueViewModel.workspace.collectAsState()
     val stageResultState = stageResultViewModel?.state?.collectAsState()?.value
+    val searchMode = (state as? IssueExecutionUiState.Content)?.searchMode ?: SearchMode.AUTO
+    val thinkingOverride = (state as? IssueExecutionUiState.Content)?.thinkingOverride
     var unsavedChoiceVisible by remember { mutableStateOf(false) }
     var pendingDraftAction by remember { mutableStateOf<PendingDraftAction?>(null) }
 
@@ -237,6 +240,11 @@ fun IssueExecutionRoute(
                 onStop = viewModel::stop,
                 onRetry = viewModel::retryFailedParticipants,
                 onRecoverInterrupted = viewModel::recoverInterrupted,
+                onSearchModeChanged = viewModel::setSearchMode,
+                onThinkingOverrideChanged = viewModel::setThinkingOverride,
+                onIssueDefaultThinkingPolicyChanged = viewModel::setIssueDefaultThinkingPolicy,
+                onOpenRunHistoryDetail = viewModel::openRunHistoryDetail,
+                onDismissRunHistoryDetail = viewModel::dismissRunHistoryDetail,
                 onOpenContext = { viewModel.openContextSelection(retryMode = false) },
                 onDismissContext = viewModel::dismissContextSelection,
                 onToggleContext = viewModel::toggleContextCandidate,
@@ -248,6 +256,8 @@ fun IssueExecutionRoute(
                 onSubmitStandard = {
                     val request = collaborationViewModel.prepareStandardFollowUp(
                         viewModel.peekPreparedContextForStart(),
+                        thinkingOverride,
+                        searchMode,
                     )
                     if (request != null && !viewModel.startStandardFollowUp(request)) {
                         collaborationViewModel.finishStandardFollowUp(succeeded = false)
@@ -259,20 +269,35 @@ fun IssueExecutionRoute(
                 onToggleCollaborationParticipant = collaborationViewModel::toggleParticipant,
                 onToggleCollaborationMessage = collaborationViewModel::toggleMessage,
                 onConfirmDirected = {
-                    collaborationViewModel.confirmDirected(viewModel.peekPreparedContextForStart())
+                    collaborationViewModel.confirmDirected(
+                        viewModel.peekPreparedContextForStart(),
+                        thinkingOverride,
+                        searchMode,
+                    )
                 },
                 onConfirmCross = {
-                    collaborationViewModel.confirmCross(viewModel.peekPreparedContextForStart())
+                    collaborationViewModel.confirmCross(
+                        viewModel.peekPreparedContextForStart(),
+                        thinkingOverride,
+                        searchMode,
+                    )
                 },
-                onRetryDirected = collaborationViewModel::retryDirected,
-                onRetryCrossFailed = collaborationViewModel::retryFailed,
+                onRetryDirected = { runId ->
+                    collaborationViewModel.retryDirected(runId, thinkingOverride, searchMode)
+                },
+                onRetryCrossFailed = { sessionId ->
+                    collaborationViewModel.retryFailed(sessionId, thinkingOverride, searchMode)
+                },
                 onSynthesizeCross = { sessionId ->
                     collaborationViewModel.synthesize(
                         sessionId,
                         viewModel.peekPreparedContextForStart(),
+                        searchMode,
                     )
                 },
-                onRetryCrossSynthesis = collaborationViewModel::retrySynthesis,
+                onRetryCrossSynthesis = { sessionId ->
+                    collaborationViewModel.retrySynthesis(sessionId, thinkingOverride, searchMode)
+                },
                 onStopCross = collaborationViewModel::stop,
             )
         }

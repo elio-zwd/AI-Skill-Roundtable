@@ -472,7 +472,10 @@ class RoomJianyuRepositoryDatabaseTest {
             stageId = STAGE_ID,
             idempotencyKey = idempotencyKey,
             createdAt = 15L,
-            updatedAt = 15L
+            updatedAt = 15L,
+            actualModelId = "gemini-3.6-flash",
+            actualThinkingLevel = ExecutionThinkingLevel.MEDIUM,
+            thinkingLevelSource = ExecutionThinkingSource.AUTO_ROUTED,
         )
         val participantIdPrefix = if (runId == RUN_ID) "participant" else "$runId-participant"
         return CreateExecutionRunCommand(

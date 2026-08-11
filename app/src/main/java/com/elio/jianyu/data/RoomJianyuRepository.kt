@@ -51,6 +51,9 @@ class RoomJianyuRepository(
         return issueExecution.saveIssue(command)
     }
 
+    override suspend fun updateIssueThinkingPolicy(command: UpdateIssueThinkingPolicyCommand) =
+        issueExecution.updateIssueThinkingPolicy(command)
+
     override suspend fun createStage(command: CreateStageCommand) = lifecycleWrites.createStage(command)
 
     override suspend fun undoLatestUnrunStage(issueId: String, stageId: String) =

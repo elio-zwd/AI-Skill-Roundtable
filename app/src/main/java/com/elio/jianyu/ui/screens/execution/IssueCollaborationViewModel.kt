@@ -21,7 +21,9 @@ import com.elio.jianyu.data.ExecutionRunEntity
 import com.elio.jianyu.data.ExecutionRunKind
 import com.elio.jianyu.collaboration.CollaborationExecutionBudgetPolicy
 import com.elio.jianyu.data.Message
+import com.elio.jianyu.data.IssueThinkingPolicy
 import com.elio.jianyu.data.PreparedExecutionContext
+import com.elio.jianyu.execution.SearchMode
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -76,6 +78,8 @@ class IssueCollaborationViewModel internal constructor(
 
     fun prepareStandardFollowUp(
         preparedContext: PreparedExecutionContext?,
+        thinkingOverride: IssueThinkingPolicy?,
+        searchMode: SearchMode,
     ): StandardFollowUpRequest? {
         val current = contentOrNull() ?: return null
         if (!current.canSubmitStandard || coordinator == null) return null
@@ -91,6 +95,8 @@ class IssueCollaborationViewModel internal constructor(
                 prepared = preparedContext,
                 includeSelectedMessages = false,
             ),
+            thinkingOverride = thinkingOverride,
+            searchMode = searchMode,
         )
         _state.value = current.copy(operationInProgress = true, errorMessage = null)
         return request
@@ -176,7 +182,11 @@ class IssueCollaborationViewModel internal constructor(
         )
     }
 
-    fun confirmDirected(preparedContext: PreparedExecutionContext?) {
+    fun confirmDirected(
+        preparedContext: PreparedExecutionContext?,
+        thinkingOverride: IssueThinkingPolicy?,
+        searchMode: SearchMode,
+    ) {
         val current = contentOrNull() ?: return
         val participant = current.selectedParticipants.singleOrNull() ?: return
         if (!current.canConfirmDirected) return
@@ -191,13 +201,19 @@ class IssueCollaborationViewModel internal constructor(
                     roundIndex = nextRoundIndex(),
                     userConfirmedAt = System.currentTimeMillis(),
                     context = contextSelection(current, preparedContext),
+                    thinkingOverride = thinkingOverride,
+                    searchMode = searchMode,
                     budget = CollaborationExecutionBudgetPolicy.directed(),
                 ),
             )
         }
     }
 
-    fun confirmCross(preparedContext: PreparedExecutionContext?) {
+    fun confirmCross(
+        preparedContext: PreparedExecutionContext?,
+        thinkingOverride: IssueThinkingPolicy?,
+        searchMode: SearchMode,
+    ) {
         val current = contentOrNull() ?: return
         val selected = current.selectedParticipants.map { it.skillId }
         if (!current.canConfirmCross) return
@@ -212,6 +228,8 @@ class IssueCollaborationViewModel internal constructor(
                     roundIndex = nextRoundIndex(),
                     userConfirmedAt = System.currentTimeMillis(),
                     context = contextSelection(current, preparedContext),
+                    thinkingOverride = thinkingOverride,
+                    searchMode = searchMode,
                     budget = CollaborationExecutionBudgetPolicy.cross(selected.size),
                     autoStartSynthesisOnFullSuccess = true,
                 ),
@@ -219,15 +237,23 @@ class IssueCollaborationViewModel internal constructor(
         }
     }
 
-    fun retryDirected(runId: String) {
+    fun retryDirected(
+        runId: String,
+        thinkingOverride: IssueThinkingPolicy?,
+        searchMode: SearchMode,
+    ) {
         val current = contentOrNull() ?: return
         val directed = current.directedRuns.singleOrNull { it.runId == runId } ?: return
         if (directed.canRetry && !current.operationInProgress) {
-            retryRun(directed.runId, directed.question)
+            retryRun(directed.runId, directed.question, thinkingOverride, searchMode)
         }
     }
 
-    fun synthesize(sessionId: String, preparedContext: PreparedExecutionContext?) {
+    fun synthesize(
+        sessionId: String,
+        preparedContext: PreparedExecutionContext?,
+        searchMode: SearchMode,
+    ) {
         val current = contentOrNull() ?: return
         val session = current.sessions.singleOrNull { it.sessionId == sessionId } ?: return
         if (!session.canSynthesize || current.operationInProgress) return
@@ -243,22 +269,35 @@ class IssueCollaborationViewModel internal constructor(
                     userConfirmedAt = System.currentTimeMillis(),
                     userAcceptedPartial = session.status == CrossDiscussionStatus.PARTIAL_SUCCESS,
                     context = contextSelection(current, preparedContext),
+                    searchMode = searchMode,
                 ),
             )
         }
     }
 
-    fun retryFailed(sessionId: String) {
+    fun retryFailed(
+        sessionId: String,
+        thinkingOverride: IssueThinkingPolicy?,
+        searchMode: SearchMode,
+    ) {
         val current = contentOrNull() ?: return
         val session = current.sessions.singleOrNull { it.sessionId == sessionId } ?: return
-        if (session.canRetryFailed) retryRun(session.responseRunId, session.focus)
+        if (session.canRetryFailed) {
+            retryRun(session.responseRunId, session.focus, thinkingOverride, searchMode)
+        }
     }
 
-    fun retrySynthesis(sessionId: String) {
+    fun retrySynthesis(
+        sessionId: String,
+        thinkingOverride: IssueThinkingPolicy?,
+        searchMode: SearchMode,
+    ) {
         val current = contentOrNull() ?: return
         val session = current.sessions.singleOrNull { it.sessionId == sessionId } ?: return
         val runId = session.synthesisRunId ?: return
-        if (session.canRetrySynthesis) retryRun(runId, session.focus)
+        if (session.canRetrySynthesis) {
+            retryRun(runId, session.focus, thinkingOverride, searchMode)
+        }
     }
 
     fun stop(sessionId: String) {
@@ -272,7 +311,12 @@ class IssueCollaborationViewModel internal constructor(
         runOperation(clearDraft = false) { it.stop(runId) }
     }
 
-    private fun retryRun(previousRunId: String, input: String) {
+    private fun retryRun(
+        previousRunId: String,
+        input: String,
+        thinkingOverride: IssueThinkingPolicy?,
+        searchMode: SearchMode,
+    ) {
         runOperation(clearDraft = false) { target ->
             target.retry(
                 CollaborationRetryRequest(
@@ -281,6 +325,8 @@ class IssueCollaborationViewModel internal constructor(
                     currentUserInput = input,
                     roundIndex = nextRoundIndex(),
                     userConfirmedAt = System.currentTimeMillis(),
+                    thinkingOverride = thinkingOverride,
+                    searchMode = searchMode,
                 ),
             )
         }

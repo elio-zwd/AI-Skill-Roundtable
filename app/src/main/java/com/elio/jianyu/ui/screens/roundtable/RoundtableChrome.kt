@@ -80,7 +80,7 @@ import com.elio.jianyu.ui.TextSecondary
 import com.elio.jianyu.ui.components.CharacterAvatar
 import com.elio.jianyu.ui.components.MinimalistPulseIndicator
 import com.elio.jianyu.ui.components.bounceClick
-import com.elio.jianyu.viewmodel.SearchMode
+import com.elio.jianyu.execution.SearchMode
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -217,8 +217,8 @@ internal fun RoundtableSeatingBar(
             SearchMode.values().forEach { mode ->
                 val isSelected = searchMode == mode
                 val text = when (mode) {
-                    SearchMode.SMART -> "智能"
-                    SearchMode.FORCE -> "强制"
+                    SearchMode.AUTO -> "自动"
+                    SearchMode.ON -> "开启"
                     SearchMode.OFF -> "关闭"
                 }
                 Box(

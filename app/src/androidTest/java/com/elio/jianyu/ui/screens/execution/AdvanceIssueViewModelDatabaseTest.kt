@@ -9,6 +9,8 @@ import com.elio.jianyu.data.CreateExecutionRunCommand
 import com.elio.jianyu.data.ExecutionParticipantSnapshotEntity
 import com.elio.jianyu.data.ExecutionRunEntity
 import com.elio.jianyu.data.ExecutionRunStatus
+import com.elio.jianyu.data.ExecutionThinkingLevel
+import com.elio.jianyu.data.ExecutionThinkingSource
 import com.elio.jianyu.data.JianyuRepository
 import com.elio.jianyu.data.OfficialSkillIdValidator
 import com.elio.jianyu.data.RepositoryResult
@@ -210,6 +212,9 @@ class AdvanceIssueViewModelDatabaseTest {
                     idempotencyKey = "source-run-key",
                     createdAt = 15L,
                     updatedAt = 15L,
+                    actualModelId = "gemini-3.6-flash",
+                    actualThinkingLevel = ExecutionThinkingLevel.MEDIUM,
+                    thinkingLevelSource = ExecutionThinkingSource.AUTO_ROUTED,
                 ),
                 participants = listOf(
                     participant("participant-a", "skill-a", 0, "形成执行步骤"),

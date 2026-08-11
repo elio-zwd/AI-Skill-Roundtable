@@ -367,6 +367,9 @@ class MaterialContextRepositoryTest {
             retryOfRunId = null,
             createdAt = 220L,
             updatedAt = 220L,
+            actualModelId = "gemini-3.6-flash",
+            actualThinkingLevel = ExecutionThinkingLevel.MEDIUM,
+            thinkingLevelSource = ExecutionThinkingSource.AUTO_ROUTED,
         )
         val participant = ExecutionParticipantSnapshotEntity(
             id = "$RUN_ID-participant-0",

@@ -258,7 +258,7 @@ object HomeRecommendationPolicy {
     private fun OfficialSkillNetworkRequirement.displayName(): String = when (this) {
         OfficialSkillNetworkRequirement.NOT_NEEDED -> "不需要联网"
         OfficialSkillNetworkRequirement.OPTIONAL -> "联网可选"
-        OfficialSkillNetworkRequirement.REQUIRED -> "需要联网核验（议题执行暂未接入搜索）"
+        OfficialSkillNetworkRequirement.REQUIRED -> "需要联网核验（启动或重试时可选择联网搜索）"
         OfficialSkillNetworkRequirement.PROHIBITED_FOR_MATERIAL -> "资料正文不得联网发送"
     }
 

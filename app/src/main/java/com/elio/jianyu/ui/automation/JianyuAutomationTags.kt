@@ -58,6 +58,7 @@ object JianyuAutomationTags {
         const val CONTEXT_CONFIRMATION_BUTTON = "home_context_confirmation_button"
         const val CONTEXT_CONFIRMED_SUMMARY = "home_context_confirmed_summary"
         const val FINAL_REVIEW = "home_final_review"
+        const val INITIAL_SEARCH_MODE = "home_initial_search_mode"
         const val START_ISSUE_BUTTON = "home_start_issue_button"
         const val DRAFT_RECOVERY = "home_draft_recovery"
 
@@ -66,6 +67,9 @@ object JianyuAutomationTags {
 
         fun exampleQuestion(exampleId: String): String =
             "home_example_question_${normalizedStableId(exampleId)}"
+
+        fun initialSearchMode(modeId: String): String =
+            "home_initial_search_mode_${normalizedStableId(modeId)}"
     }
 
     object Issues {
@@ -118,6 +122,7 @@ object JianyuAutomationTags {
     }
 
     object Execution {
+        const val CONTENT_LIST = "issue_execution_content_list"
         const val LOADING = "issue_execution_loading"
         const val FAILURE = "issue_execution_failure"
         const val STATUS = "issue_execution_status"
@@ -126,9 +131,18 @@ object JianyuAutomationTags {
         const val RETRY = "issue_execution_retry"
         const val RECOVER = "issue_execution_recover"
         const val CONTEXT = "issue_execution_context"
+        const val RUN_HISTORY = "issue_execution_run_history"
+        const val RUN_HISTORY_DETAIL = "issue_execution_run_history_detail"
 
         fun participant(snapshotId: String): String =
             "issue_execution_participant_${normalizedStableId(snapshotId)}"
+
+        fun runHistoryItem(runId: String): String =
+            "issue_execution_run_history_item_${normalizedStableId(runId)}"
+
+        fun runHistoryParticipant(runId: String, snapshotId: String): String =
+            "issue_execution_run_history_participant_${normalizedStableId(runId)}_" +
+                normalizedStableId(snapshotId)
     }
 
     object Collaboration {
@@ -278,6 +292,7 @@ object JianyuAutomationTags {
         Home.CONTEXT_CONFIRMATION_BUTTON,
         Home.CONTEXT_CONFIRMED_SUMMARY,
         Home.FINAL_REVIEW,
+        Home.INITIAL_SEARCH_MODE,
         Home.START_ISSUE_BUTTON,
         Home.DRAFT_RECOVERY,
         Issues.LOADING,
@@ -308,6 +323,7 @@ object JianyuAutomationTags {
         Artifacts.DETAIL,
         Artifacts.SOURCES,
         Artifacts.OPEN_ISSUE,
+        Execution.CONTENT_LIST,
         Execution.LOADING,
         Execution.FAILURE,
         Execution.STATUS,
@@ -316,6 +332,8 @@ object JianyuAutomationTags {
         Execution.RETRY,
         Execution.RECOVER,
         Execution.CONTEXT,
+        Execution.RUN_HISTORY,
+        Execution.RUN_HISTORY_DETAIL,
         Collaboration.INPUT,
         Collaboration.DIRECTED_RESPONSE_BUTTON,
         Collaboration.CROSS_DISCUSSION_BUTTON,

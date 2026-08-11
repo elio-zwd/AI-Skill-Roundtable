@@ -244,6 +244,9 @@ class ExecutionRuntimeDatabaseTest {
             retryOfRunId = retryOfRunId,
             createdAt = 150L,
             updatedAt = 150L,
+            actualModelId = "gemini-3.6-flash",
+            actualThinkingLevel = ExecutionThinkingLevel.MEDIUM,
+            thinkingLevelSource = ExecutionThinkingSource.AUTO_ROUTED,
         )
         val participants = listOf("skill-a", "skill-b").mapIndexed { index, skillId ->
             ExecutionParticipantSnapshotEntity(

@@ -23,6 +23,8 @@ import com.elio.jianyu.home.HomeWorkflow
 import com.elio.jianyu.home.HomeWorkflowStep
 import com.elio.jianyu.home.RecommendationMode
 import com.elio.jianyu.home.ValueDirection
+import com.elio.jianyu.data.IssueThinkingPolicy
+import com.elio.jianyu.execution.SearchMode
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.components.JianyuPageShell
 import com.elio.jianyu.ui.components.JianyuStateCard
@@ -45,6 +47,8 @@ fun HomeScreen(
     onNetworkAuthorized: (Boolean) -> Unit,
     onHighStakesConfirmed: (Boolean) -> Unit,
     onPersonDisclaimerConfirmed: (Boolean) -> Unit,
+    onThinkingOverrideChanged: (IssueThinkingPolicy?) -> Unit = {},
+    onInitialSearchModeChanged: (SearchMode) -> Unit = {},
     onBrowseSkills: () -> Unit,
     onStartIssue: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -270,10 +274,14 @@ fun HomeScreen(
                     directions = workflow.draft.directions,
                     selectedContextCount = workflow.contextSelection.items.count { it.selected },
                     executionConsent = workflow.executionConsent,
+                    thinkingOverride = uiState.thinkingOverride,
+                    initialSearchMode = uiState.initialSearchMode,
                     consentIssues = HomeWorkflow.executionConsentIssues(workflow),
                     onNetworkAuthorized = onNetworkAuthorized,
                     onHighStakesConfirmed = onHighStakesConfirmed,
                     onPersonDisclaimerConfirmed = onPersonDisclaimerConfirmed,
+                    onThinkingOverrideChanged = onThinkingOverrideChanged,
+                    onInitialSearchModeChanged = onInitialSearchModeChanged,
                     onStart = onStartIssue,
                     startEnabled = workflow.finalConfirmationReady && !workflow.operationInFlight,
                 )

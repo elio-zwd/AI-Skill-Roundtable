@@ -36,7 +36,8 @@ import okhttp3.Response
 
 data class StreamedInteraction(
     val id: String,
-    val outputText: String
+    val outputText: String,
+    val model: String? = null,
 )
 
 /**
@@ -47,7 +48,8 @@ data class StreamedInteraction(
  */
 object InteractionStreamingClient {
     private const val TAG = "InteractionStreaming"
-    private const val ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/interactions"
+    internal const val STREAMING_ENDPOINT =
+        "https://generativelanguage.googleapis.com/v1beta/interactions?alt=sse"
     private const val API_REVISION = "2026-05-20"
     private const val MAIN_ANSWER_PREFIX = "MainAnswer-"
     private const val CONTINUE_ANSWER_PREFIX = "ContinueAnswer-"
@@ -67,6 +69,7 @@ object InteractionStreamingClient {
         attemptPlan: List<ApiKeyLease>,
         tracker: RequestBudgetTracker,
         operationName: String,
+        interactionChainKey: String? = null,
         delayProvider: DelayProvider = DefaultDelayProvider,
         isRequired: Boolean = true,
         reserveForRequired: Int = 0,
@@ -75,10 +78,11 @@ object InteractionStreamingClient {
     ): StreamedInteraction {
         TelemetryRepository.init(context)
         val cloudEnabled = CloudInteractionSettings.isEnabled(context)
-        val characterId = interactionCharacterId(operationName)
+        val characterId = interactionChainKey?.takeIf(String::isNotBlank)
+            ?: interactionCharacterId(operationName)
         val requestedPreviousId = request.previousInteractionId
             ?.takeIf(String::isNotBlank)
-            ?: if (cloudEnabled && operationName.startsWith(MAIN_ANSWER_PREFIX) && characterId != null) {
+            ?: if (cloudEnabled && characterId != null) {
                 InteractionChainStore.get(sessionId, characterId)
             } else {
                 null
@@ -250,7 +254,7 @@ object InteractionStreamingClient {
         val body = json.encodeToString(request)
             .toRequestBody("application/json; charset=utf-8".toMediaType())
         val httpRequest = Request.Builder()
-            .url(ENDPOINT)
+            .url(STREAMING_ENDPOINT)
             .header("x-goog-api-key", apiKey)
             .header("Api-Revision", API_REVISION)
             .header("Accept", "text/event-stream")
@@ -293,7 +297,7 @@ object InteractionStreamingClient {
         val interactionId = accumulator.interactionId
             ?.takeIf(String::isNotBlank)
             ?: throw SerializationException("Interaction stream returned no interaction id")
-        return StreamedInteraction(interactionId, outputText)
+        return StreamedInteraction(interactionId, outputText, accumulator.interactionModel)
     }
 
     private fun streamFrames(request: Request): Flow<String> = callbackFlow {
@@ -413,6 +417,8 @@ internal class InteractionSseAccumulator {
 
     var interactionId: String? = null
         private set
+    var interactionModel: String? = null
+        private set
     var completed: Boolean = false
         private set
     val outputText: String
@@ -421,6 +427,7 @@ internal class InteractionSseAccumulator {
     fun accept(data: String): InteractionStreamProgress {
         val envelope = json.decodeFromString<InteractionSseEnvelope>(data)
         interactionId = envelope.interaction?.id?.takeIf(String::isNotBlank) ?: interactionId
+        interactionModel = envelope.interaction?.model?.takeIf(String::isNotBlank) ?: interactionModel
         var textChanged = false
         var flushSuggested = false
 
@@ -487,6 +494,7 @@ private data class InteractionSseDelta(
 @Serializable
 private data class InteractionSseInteraction(
     val id: String? = null,
+    val model: String? = null,
     val status: String? = null
 )
 

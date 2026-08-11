@@ -1,0 +1,4566 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 13,
+    "identityHash": "5b3f47c9e520967518dd05b0bfc868b7",
+    "entities": [
+      {
+        "tableName": "characters",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `avatar` TEXT NOT NULL, `tagline` TEXT NOT NULL, `systemPrompt` TEXT NOT NULL, `skillAssetPath` TEXT NOT NULL, `order` INTEGER NOT NULL, `isActive` INTEGER NOT NULL, `skillDescriptionVector` TEXT NOT NULL, `voiceConfig` TEXT NOT NULL DEFAULT 'Aoede', PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "avatar",
+            "columnName": "avatar",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tagline",
+            "columnName": "tagline",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "systemPrompt",
+            "columnName": "systemPrompt",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "skillAssetPath",
+            "columnName": "skillAssetPath",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "order",
+            "columnName": "order",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isActive",
+            "columnName": "isActive",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "skillDescriptionVector",
+            "columnName": "skillDescriptionVector",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "voiceConfig",
+            "columnName": "voiceConfig",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'Aoede'"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "chat_sessions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `createdAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "messages",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `chatId` INTEGER NOT NULL, `senderId` TEXT NOT NULL, `senderName` TEXT NOT NULL, `avatar` TEXT NOT NULL, `text` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, `isPending` INTEGER NOT NULL, `roundIndex` INTEGER NOT NULL DEFAULT 0, `audioFilePath` TEXT, `audioFormat` TEXT, `audioSizeBytes` INTEGER NOT NULL DEFAULT 0, `issueId` TEXT, `stageId` TEXT, `executionRunId` TEXT, `participantSnapshotId` TEXT, FOREIGN KEY(`issueId`) REFERENCES `issues`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`stageId`, `issueId`) REFERENCES `stages`(`id`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`executionRunId`, `issueId`, `stageId`) REFERENCES `execution_runs`(`id`, `issueId`, `stageId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`participantSnapshotId`, `executionRunId`) REFERENCES `execution_participant_snapshots`(`id`, `runId`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chatId",
+            "columnName": "chatId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "senderId",
+            "columnName": "senderId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "senderName",
+            "columnName": "senderName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "avatar",
+            "columnName": "avatar",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "text",
+            "columnName": "text",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isPending",
+            "columnName": "isPending",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "roundIndex",
+            "columnName": "roundIndex",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "audioFilePath",
+            "columnName": "audioFilePath",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "audioFormat",
+            "columnName": "audioFormat",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "audioSizeBytes",
+            "columnName": "audioSizeBytes",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "stageId",
+            "columnName": "stageId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "executionRunId",
+            "columnName": "executionRunId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "participantSnapshotId",
+            "columnName": "participantSnapshotId",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_messages_id_issueId",
+            "unique": true,
+            "columnNames": [
+              "id",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_messages_id_issueId` ON `${TABLE_NAME}` (`id`, `issueId`)"
+          },
+          {
+            "name": "index_messages_id_issueId_stageId",
+            "unique": true,
+            "columnNames": [
+              "id",
+              "issueId",
+              "stageId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_messages_id_issueId_stageId` ON `${TABLE_NAME}` (`id`, `issueId`, `stageId`)"
+          },
+          {
+            "name": "index_messages_issueId",
+            "unique": false,
+            "columnNames": [
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_messages_issueId` ON `${TABLE_NAME}` (`issueId`)"
+          },
+          {
+            "name": "index_messages_stageId_issueId",
+            "unique": false,
+            "columnNames": [
+              "stageId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_messages_stageId_issueId` ON `${TABLE_NAME}` (`stageId`, `issueId`)"
+          },
+          {
+            "name": "index_messages_executionRunId_issueId_stageId",
+            "unique": false,
+            "columnNames": [
+              "executionRunId",
+              "issueId",
+              "stageId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_messages_executionRunId_issueId_stageId` ON `${TABLE_NAME}` (`executionRunId`, `issueId`, `stageId`)"
+          },
+          {
+            "name": "index_messages_participantSnapshotId_executionRunId",
+            "unique": false,
+            "columnNames": [
+              "participantSnapshotId",
+              "executionRunId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_messages_participantSnapshotId_executionRunId` ON `${TABLE_NAME}` (`participantSnapshotId`, `executionRunId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "issues",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "stages",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "stageId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId"
+            ]
+          },
+          {
+            "table": "execution_runs",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "executionRunId",
+              "issueId",
+              "stageId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId",
+              "stageId"
+            ]
+          },
+          {
+            "table": "execution_participant_snapshots",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "participantSnapshotId",
+              "executionRunId"
+            ],
+            "referencedColumns": [
+              "id",
+              "runId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "character_groups",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `characterIds` TEXT NOT NULL, `isPreset` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "characterIds",
+            "columnName": "characterIds",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isPreset",
+            "columnName": "isPreset",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "issues",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `legacyChatSessionId` INTEGER, `defaultThinkingPolicy` TEXT NOT NULL DEFAULT 'auto', PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "legacyChatSessionId",
+            "columnName": "legacyChatSessionId",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "defaultThinkingPolicy",
+            "columnName": "defaultThinkingPolicy",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'auto'"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_issues_legacyChatSessionId",
+            "unique": true,
+            "columnNames": [
+              "legacyChatSessionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_issues_legacyChatSessionId` ON `${TABLE_NAME}` (`legacyChatSessionId`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "stages",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `issueId` TEXT NOT NULL, `sequenceIndex` INTEGER NOT NULL, `title` TEXT NOT NULL, `objective` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`issueId`) REFERENCES `issues`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sequenceIndex",
+            "columnName": "sequenceIndex",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "objective",
+            "columnName": "objective",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_stages_issueId",
+            "unique": false,
+            "columnNames": [
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_stages_issueId` ON `${TABLE_NAME}` (`issueId`)"
+          },
+          {
+            "name": "index_stages_issueId_sequenceIndex",
+            "unique": true,
+            "columnNames": [
+              "issueId",
+              "sequenceIndex"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_stages_issueId_sequenceIndex` ON `${TABLE_NAME}` (`issueId`, `sequenceIndex`)"
+          },
+          {
+            "name": "index_stages_id_issueId",
+            "unique": true,
+            "columnNames": [
+              "id",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_stages_id_issueId` ON `${TABLE_NAME}` (`id`, `issueId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "issues",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "execution_runs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `issueId` TEXT NOT NULL, `stageId` TEXT NOT NULL, `triggerMessageId` INTEGER, `idempotencyKey` TEXT NOT NULL, `status` TEXT NOT NULL DEFAULT 'not_started', `retryOfRunId` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `startedAt` INTEGER, `finishedAt` INTEGER, `stoppedAt` INTEGER, `failureCode` TEXT, `failureMessage` TEXT, `runKind` TEXT NOT NULL DEFAULT 'standard', `parentRunId` TEXT, `discussionId` TEXT, `historyScope` TEXT NOT NULL DEFAULT 'full_stage', `actualModelId` TEXT NOT NULL, `actualThinkingLevel` TEXT NOT NULL, `thinkingLevelSource` TEXT NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`stageId`, `issueId`) REFERENCES `stages`(`id`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`retryOfRunId`) REFERENCES `execution_runs`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stageId",
+            "columnName": "stageId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "triggerMessageId",
+            "columnName": "triggerMessageId",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "idempotencyKey",
+            "columnName": "idempotencyKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'not_started'"
+          },
+          {
+            "fieldPath": "retryOfRunId",
+            "columnName": "retryOfRunId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startedAt",
+            "columnName": "startedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "finishedAt",
+            "columnName": "finishedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "stoppedAt",
+            "columnName": "stoppedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "failureCode",
+            "columnName": "failureCode",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "failureMessage",
+            "columnName": "failureMessage",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "runKind",
+            "columnName": "runKind",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'standard'"
+          },
+          {
+            "fieldPath": "parentRunId",
+            "columnName": "parentRunId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "discussionId",
+            "columnName": "discussionId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "historyScope",
+            "columnName": "historyScope",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'full_stage'"
+          },
+          {
+            "fieldPath": "actualModelId",
+            "columnName": "actualModelId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actualThinkingLevel",
+            "columnName": "actualThinkingLevel",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "thinkingLevelSource",
+            "columnName": "thinkingLevelSource",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_execution_runs_stageId_issueId",
+            "unique": false,
+            "columnNames": [
+              "stageId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_execution_runs_stageId_issueId` ON `${TABLE_NAME}` (`stageId`, `issueId`)"
+          },
+          {
+            "name": "index_execution_runs_idempotencyKey",
+            "unique": true,
+            "columnNames": [
+              "idempotencyKey"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_execution_runs_idempotencyKey` ON `${TABLE_NAME}` (`idempotencyKey`)"
+          },
+          {
+            "name": "index_execution_runs_id_issueId",
+            "unique": true,
+            "columnNames": [
+              "id",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_execution_runs_id_issueId` ON `${TABLE_NAME}` (`id`, `issueId`)"
+          },
+          {
+            "name": "index_execution_runs_id_issueId_stageId",
+            "unique": true,
+            "columnNames": [
+              "id",
+              "issueId",
+              "stageId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_execution_runs_id_issueId_stageId` ON `${TABLE_NAME}` (`id`, `issueId`, `stageId`)"
+          },
+          {
+            "name": "index_execution_runs_triggerMessageId",
+            "unique": false,
+            "columnNames": [
+              "triggerMessageId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_execution_runs_triggerMessageId` ON `${TABLE_NAME}` (`triggerMessageId`)"
+          },
+          {
+            "name": "index_execution_runs_retryOfRunId",
+            "unique": false,
+            "columnNames": [
+              "retryOfRunId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_execution_runs_retryOfRunId` ON `${TABLE_NAME}` (`retryOfRunId`)"
+          },
+          {
+            "name": "index_execution_runs_parentRunId",
+            "unique": false,
+            "columnNames": [
+              "parentRunId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_execution_runs_parentRunId` ON `${TABLE_NAME}` (`parentRunId`)"
+          },
+          {
+            "name": "index_execution_runs_discussionId",
+            "unique": false,
+            "columnNames": [
+              "discussionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_execution_runs_discussionId` ON `${TABLE_NAME}` (`discussionId`)"
+          },
+          {
+            "name": "index_execution_runs_stageId_runKind",
+            "unique": false,
+            "columnNames": [
+              "stageId",
+              "runKind"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_execution_runs_stageId_runKind` ON `${TABLE_NAME}` (`stageId`, `runKind`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stages",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "stageId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId"
+            ]
+          },
+          {
+            "table": "execution_runs",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "retryOfRunId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "execution_participant_snapshots",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `runId` TEXT NOT NULL, `sourceType` TEXT NOT NULL, `sourceId` TEXT NOT NULL, `displayName` TEXT NOT NULL, `avatar` TEXT NOT NULL, `skillAssetPath` TEXT NOT NULL, `systemPrompt` TEXT NOT NULL, `configurationJson` TEXT NOT NULL, `defaultResponsibility` TEXT NOT NULL, `position` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`runId`) REFERENCES `execution_runs`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "runId",
+            "columnName": "runId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceType",
+            "columnName": "sourceType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceId",
+            "columnName": "sourceId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "displayName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "avatar",
+            "columnName": "avatar",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "skillAssetPath",
+            "columnName": "skillAssetPath",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "systemPrompt",
+            "columnName": "systemPrompt",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "configurationJson",
+            "columnName": "configurationJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "defaultResponsibility",
+            "columnName": "defaultResponsibility",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_execution_participant_snapshots_runId",
+            "unique": false,
+            "columnNames": [
+              "runId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_execution_participant_snapshots_runId` ON `${TABLE_NAME}` (`runId`)"
+          },
+          {
+            "name": "index_execution_participant_snapshots_runId_position",
+            "unique": true,
+            "columnNames": [
+              "runId",
+              "position"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_execution_participant_snapshots_runId_position` ON `${TABLE_NAME}` (`runId`, `position`)"
+          },
+          {
+            "name": "index_execution_participant_snapshots_runId_sourceType_sourceId",
+            "unique": true,
+            "columnNames": [
+              "runId",
+              "sourceType",
+              "sourceId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_execution_participant_snapshots_runId_sourceType_sourceId` ON `${TABLE_NAME}` (`runId`, `sourceType`, `sourceId`)"
+          },
+          {
+            "name": "index_execution_participant_snapshots_id_runId",
+            "unique": true,
+            "columnNames": [
+              "id",
+              "runId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_execution_participant_snapshots_id_runId` ON `${TABLE_NAME}` (`id`, `runId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "execution_runs",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "runId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "execution_participant_states",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`participantSnapshotId` TEXT NOT NULL, `runId` TEXT NOT NULL, `status` TEXT NOT NULL DEFAULT 'queued', `attemptCount` INTEGER NOT NULL DEFAULT 0, `outputMessageId` INTEGER, `startedAt` INTEGER, `finishedAt` INTEGER, `lastErrorCode` TEXT, `lastErrorMessage` TEXT, `hasIncompleteOutput` INTEGER NOT NULL DEFAULT 0, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`participantSnapshotId`), FOREIGN KEY(`participantSnapshotId`, `runId`) REFERENCES `execution_participant_snapshots`(`id`, `runId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`outputMessageId`) REFERENCES `messages`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "participantSnapshotId",
+            "columnName": "participantSnapshotId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "runId",
+            "columnName": "runId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'queued'"
+          },
+          {
+            "fieldPath": "attemptCount",
+            "columnName": "attemptCount",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "outputMessageId",
+            "columnName": "outputMessageId",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "startedAt",
+            "columnName": "startedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "finishedAt",
+            "columnName": "finishedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lastErrorCode",
+            "columnName": "lastErrorCode",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lastErrorMessage",
+            "columnName": "lastErrorMessage",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "hasIncompleteOutput",
+            "columnName": "hasIncompleteOutput",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "participantSnapshotId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_execution_participant_states_participantSnapshotId_runId",
+            "unique": false,
+            "columnNames": [
+              "participantSnapshotId",
+              "runId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_execution_participant_states_participantSnapshotId_runId` ON `${TABLE_NAME}` (`participantSnapshotId`, `runId`)"
+          },
+          {
+            "name": "index_execution_participant_states_runId",
+            "unique": false,
+            "columnNames": [
+              "runId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_execution_participant_states_runId` ON `${TABLE_NAME}` (`runId`)"
+          },
+          {
+            "name": "index_execution_participant_states_runId_status",
+            "unique": false,
+            "columnNames": [
+              "runId",
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_execution_participant_states_runId_status` ON `${TABLE_NAME}` (`runId`, `status`)"
+          },
+          {
+            "name": "index_execution_participant_states_outputMessageId",
+            "unique": false,
+            "columnNames": [
+              "outputMessageId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_execution_participant_states_outputMessageId` ON `${TABLE_NAME}` (`outputMessageId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "execution_participant_snapshots",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "participantSnapshotId",
+              "runId"
+            ],
+            "referencedColumns": [
+              "id",
+              "runId"
+            ]
+          },
+          {
+            "table": "messages",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "outputMessageId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "execution_run_budgets",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`rootRunId` TEXT NOT NULL, `maxApiCalls` INTEGER NOT NULL, `usedApiCalls` INTEGER NOT NULL DEFAULT 0, `reservedRequiredCalls` INTEGER NOT NULL DEFAULT 0, `maxCharacters` INTEGER NOT NULL, `maxSearchQueriesPerCharacter` INTEGER NOT NULL, `maxOutputTokensPerAnswer` INTEGER NOT NULL, `closed` INTEGER NOT NULL DEFAULT 0, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`rootRunId`), FOREIGN KEY(`rootRunId`) REFERENCES `execution_runs`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "rootRunId",
+            "columnName": "rootRunId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxApiCalls",
+            "columnName": "maxApiCalls",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "usedApiCalls",
+            "columnName": "usedApiCalls",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "reservedRequiredCalls",
+            "columnName": "reservedRequiredCalls",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "maxCharacters",
+            "columnName": "maxCharacters",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxSearchQueriesPerCharacter",
+            "columnName": "maxSearchQueriesPerCharacter",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxOutputTokensPerAnswer",
+            "columnName": "maxOutputTokensPerAnswer",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "closed",
+            "columnName": "closed",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "rootRunId"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": [
+          {
+            "table": "execution_runs",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "rootRunId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "material_references",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `issueId` TEXT NOT NULL, `stageId` TEXT, `title` TEXT NOT NULL, `sourceType` TEXT NOT NULL, `sourceLocator` TEXT, `content` TEXT NOT NULL, `contentHash` TEXT NOT NULL, `sourcePublishedAt` INTEGER, `sourceCapturedAt` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `lifecycleState` TEXT NOT NULL DEFAULT 'active', `sensitive` INTEGER NOT NULL DEFAULT 0, `disabledAt` INTEGER, `archivedAt` INTEGER, `deletedAt` INTEGER, `purgeRequestedAt` INTEGER, `purgedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`issueId`) REFERENCES `issues`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`stageId`, `issueId`) REFERENCES `stages`(`id`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stageId",
+            "columnName": "stageId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceType",
+            "columnName": "sourceType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceLocator",
+            "columnName": "sourceLocator",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "content",
+            "columnName": "content",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentHash",
+            "columnName": "contentHash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourcePublishedAt",
+            "columnName": "sourcePublishedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "sourceCapturedAt",
+            "columnName": "sourceCapturedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lifecycleState",
+            "columnName": "lifecycleState",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'active'"
+          },
+          {
+            "fieldPath": "sensitive",
+            "columnName": "sensitive",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "disabledAt",
+            "columnName": "disabledAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "archivedAt",
+            "columnName": "archivedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "purgeRequestedAt",
+            "columnName": "purgeRequestedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "purgedAt",
+            "columnName": "purgedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_material_references_id_issueId",
+            "unique": true,
+            "columnNames": [
+              "id",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_material_references_id_issueId` ON `${TABLE_NAME}` (`id`, `issueId`)"
+          },
+          {
+            "name": "index_material_references_issueId",
+            "unique": false,
+            "columnNames": [
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_material_references_issueId` ON `${TABLE_NAME}` (`issueId`)"
+          },
+          {
+            "name": "index_material_references_stageId_issueId",
+            "unique": false,
+            "columnNames": [
+              "stageId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_material_references_stageId_issueId` ON `${TABLE_NAME}` (`stageId`, `issueId`)"
+          },
+          {
+            "name": "index_material_references_sourceLocator",
+            "unique": false,
+            "columnNames": [
+              "sourceLocator"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_material_references_sourceLocator` ON `${TABLE_NAME}` (`sourceLocator`)"
+          },
+          {
+            "name": "index_material_references_lifecycleState",
+            "unique": false,
+            "columnNames": [
+              "lifecycleState"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_material_references_lifecycleState` ON `${TABLE_NAME}` (`lifecycleState`)"
+          },
+          {
+            "name": "index_material_references_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_material_references_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "issues",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "stages",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "stageId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "material_usage_snapshots",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `issueId` TEXT NOT NULL, `stageId` TEXT NOT NULL, `runId` TEXT, `materialReferenceId` TEXT, `titleSnapshot` TEXT NOT NULL, `sourceTypeSnapshot` TEXT NOT NULL, `sourceLocatorSnapshot` TEXT, `contentSnapshot` TEXT, `contentHash` TEXT NOT NULL, `contentState` TEXT NOT NULL DEFAULT 'available', `sourcePublishedAtSnapshot` INTEGER, `sourceCapturedAtSnapshot` INTEGER, `userConfirmedAt` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `networkAllowed` INTEGER NOT NULL DEFAULT 0, `sensitive` INTEGER NOT NULL DEFAULT 1, PRIMARY KEY(`id`), FOREIGN KEY(`issueId`) REFERENCES `issues`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`stageId`, `issueId`) REFERENCES `stages`(`id`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`runId`, `issueId`, `stageId`) REFERENCES `execution_runs`(`id`, `issueId`, `stageId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`materialReferenceId`) REFERENCES `material_references`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stageId",
+            "columnName": "stageId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "runId",
+            "columnName": "runId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "materialReferenceId",
+            "columnName": "materialReferenceId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "titleSnapshot",
+            "columnName": "titleSnapshot",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceTypeSnapshot",
+            "columnName": "sourceTypeSnapshot",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceLocatorSnapshot",
+            "columnName": "sourceLocatorSnapshot",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "contentSnapshot",
+            "columnName": "contentSnapshot",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "contentHash",
+            "columnName": "contentHash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentState",
+            "columnName": "contentState",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'available'"
+          },
+          {
+            "fieldPath": "sourcePublishedAtSnapshot",
+            "columnName": "sourcePublishedAtSnapshot",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "sourceCapturedAtSnapshot",
+            "columnName": "sourceCapturedAtSnapshot",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "userConfirmedAt",
+            "columnName": "userConfirmedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "networkAllowed",
+            "columnName": "networkAllowed",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "sensitive",
+            "columnName": "sensitive",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "1"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_material_usage_snapshots_id_issueId",
+            "unique": true,
+            "columnNames": [
+              "id",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_material_usage_snapshots_id_issueId` ON `${TABLE_NAME}` (`id`, `issueId`)"
+          },
+          {
+            "name": "index_material_usage_snapshots_issueId",
+            "unique": false,
+            "columnNames": [
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_material_usage_snapshots_issueId` ON `${TABLE_NAME}` (`issueId`)"
+          },
+          {
+            "name": "index_material_usage_snapshots_stageId_issueId",
+            "unique": false,
+            "columnNames": [
+              "stageId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_material_usage_snapshots_stageId_issueId` ON `${TABLE_NAME}` (`stageId`, `issueId`)"
+          },
+          {
+            "name": "index_material_usage_snapshots_runId_issueId_stageId",
+            "unique": false,
+            "columnNames": [
+              "runId",
+              "issueId",
+              "stageId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_material_usage_snapshots_runId_issueId_stageId` ON `${TABLE_NAME}` (`runId`, `issueId`, `stageId`)"
+          },
+          {
+            "name": "index_material_usage_snapshots_materialReferenceId",
+            "unique": false,
+            "columnNames": [
+              "materialReferenceId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_material_usage_snapshots_materialReferenceId` ON `${TABLE_NAME}` (`materialReferenceId`)"
+          },
+          {
+            "name": "index_material_usage_snapshots_runId_materialReferenceId",
+            "unique": true,
+            "columnNames": [
+              "runId",
+              "materialReferenceId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_material_usage_snapshots_runId_materialReferenceId` ON `${TABLE_NAME}` (`runId`, `materialReferenceId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "issues",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "stages",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "stageId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId"
+            ]
+          },
+          {
+            "table": "execution_runs",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "runId",
+              "issueId",
+              "stageId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId",
+              "stageId"
+            ]
+          },
+          {
+            "table": "material_references",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "materialReferenceId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "personal_context_entries",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `content` TEXT NOT NULL, `contentHash` TEXT NOT NULL, `isEnabled` INTEGER NOT NULL DEFAULT 1, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `lifecycleState` TEXT NOT NULL DEFAULT 'active', `sensitive` INTEGER NOT NULL DEFAULT 0, `disabledAt` INTEGER, `archivedAt` INTEGER, `deletedAt` INTEGER, `purgeRequestedAt` INTEGER, `purgedAt` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "content",
+            "columnName": "content",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentHash",
+            "columnName": "contentHash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isEnabled",
+            "columnName": "isEnabled",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "1"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lifecycleState",
+            "columnName": "lifecycleState",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'active'"
+          },
+          {
+            "fieldPath": "sensitive",
+            "columnName": "sensitive",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "disabledAt",
+            "columnName": "disabledAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "archivedAt",
+            "columnName": "archivedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "purgeRequestedAt",
+            "columnName": "purgeRequestedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "purgedAt",
+            "columnName": "purgedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_personal_context_entries_contentHash",
+            "unique": false,
+            "columnNames": [
+              "contentHash"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_personal_context_entries_contentHash` ON `${TABLE_NAME}` (`contentHash`)"
+          },
+          {
+            "name": "index_personal_context_entries_lifecycleState",
+            "unique": false,
+            "columnNames": [
+              "lifecycleState"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_personal_context_entries_lifecycleState` ON `${TABLE_NAME}` (`lifecycleState`)"
+          },
+          {
+            "name": "index_personal_context_entries_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_personal_context_entries_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "personal_context_usage_snapshots",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `issueId` TEXT NOT NULL, `stageId` TEXT NOT NULL, `runId` TEXT, `personalContextEntryId` TEXT, `titleSnapshot` TEXT NOT NULL, `contentSnapshot` TEXT, `contentHash` TEXT NOT NULL, `contentState` TEXT NOT NULL DEFAULT 'available', `userConfirmedAt` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `networkAllowed` INTEGER NOT NULL DEFAULT 0, `sensitive` INTEGER NOT NULL DEFAULT 1, PRIMARY KEY(`id`), FOREIGN KEY(`issueId`) REFERENCES `issues`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`stageId`, `issueId`) REFERENCES `stages`(`id`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`runId`, `issueId`, `stageId`) REFERENCES `execution_runs`(`id`, `issueId`, `stageId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`personalContextEntryId`) REFERENCES `personal_context_entries`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stageId",
+            "columnName": "stageId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "runId",
+            "columnName": "runId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "personalContextEntryId",
+            "columnName": "personalContextEntryId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "titleSnapshot",
+            "columnName": "titleSnapshot",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentSnapshot",
+            "columnName": "contentSnapshot",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "contentHash",
+            "columnName": "contentHash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentState",
+            "columnName": "contentState",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'available'"
+          },
+          {
+            "fieldPath": "userConfirmedAt",
+            "columnName": "userConfirmedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "networkAllowed",
+            "columnName": "networkAllowed",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "sensitive",
+            "columnName": "sensitive",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "1"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_personal_context_usage_snapshots_id_issueId",
+            "unique": true,
+            "columnNames": [
+              "id",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_personal_context_usage_snapshots_id_issueId` ON `${TABLE_NAME}` (`id`, `issueId`)"
+          },
+          {
+            "name": "index_personal_context_usage_snapshots_issueId",
+            "unique": false,
+            "columnNames": [
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_personal_context_usage_snapshots_issueId` ON `${TABLE_NAME}` (`issueId`)"
+          },
+          {
+            "name": "index_personal_context_usage_snapshots_stageId_issueId",
+            "unique": false,
+            "columnNames": [
+              "stageId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_personal_context_usage_snapshots_stageId_issueId` ON `${TABLE_NAME}` (`stageId`, `issueId`)"
+          },
+          {
+            "name": "index_personal_context_usage_snapshots_runId_issueId_stageId",
+            "unique": false,
+            "columnNames": [
+              "runId",
+              "issueId",
+              "stageId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_personal_context_usage_snapshots_runId_issueId_stageId` ON `${TABLE_NAME}` (`runId`, `issueId`, `stageId`)"
+          },
+          {
+            "name": "index_personal_context_usage_snapshots_personalContextEntryId",
+            "unique": false,
+            "columnNames": [
+              "personalContextEntryId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_personal_context_usage_snapshots_personalContextEntryId` ON `${TABLE_NAME}` (`personalContextEntryId`)"
+          },
+          {
+            "name": "index_personal_context_usage_snapshots_runId_personalContextEntryId",
+            "unique": true,
+            "columnNames": [
+              "runId",
+              "personalContextEntryId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_personal_context_usage_snapshots_runId_personalContextEntryId` ON `${TABLE_NAME}` (`runId`, `personalContextEntryId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "issues",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "stages",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "stageId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId"
+            ]
+          },
+          {
+            "table": "execution_runs",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "runId",
+              "issueId",
+              "stageId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId",
+              "stageId"
+            ]
+          },
+          {
+            "table": "personal_context_entries",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "personalContextEntryId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "stage_summary_drafts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `issueId` TEXT NOT NULL, `stageId` TEXT NOT NULL, `content` TEXT NOT NULL, `revisionNumber` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`stageId`, `issueId`) REFERENCES `stages`(`id`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stageId",
+            "columnName": "stageId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "content",
+            "columnName": "content",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revisionNumber",
+            "columnName": "revisionNumber",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_stage_summary_drafts_issueId_stageId",
+            "unique": true,
+            "columnNames": [
+              "issueId",
+              "stageId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_stage_summary_drafts_issueId_stageId` ON `${TABLE_NAME}` (`issueId`, `stageId`)"
+          },
+          {
+            "name": "index_stage_summary_drafts_stageId_issueId",
+            "unique": false,
+            "columnNames": [
+              "stageId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_stage_summary_drafts_stageId_issueId` ON `${TABLE_NAME}` (`stageId`, `issueId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stages",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "stageId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "stage_summary_draft_revisions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `issueId` TEXT NOT NULL, `stageId` TEXT NOT NULL, `draftIdSnapshot` TEXT NOT NULL, `revisionNumber` INTEGER NOT NULL, `contentSnapshot` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`stageId`, `issueId`) REFERENCES `stages`(`id`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stageId",
+            "columnName": "stageId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "draftIdSnapshot",
+            "columnName": "draftIdSnapshot",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revisionNumber",
+            "columnName": "revisionNumber",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentSnapshot",
+            "columnName": "contentSnapshot",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_stage_summary_draft_revisions_id_issueId",
+            "unique": true,
+            "columnNames": [
+              "id",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_stage_summary_draft_revisions_id_issueId` ON `${TABLE_NAME}` (`id`, `issueId`)"
+          },
+          {
+            "name": "index_stage_summary_draft_revisions_stageId_issueId",
+            "unique": false,
+            "columnNames": [
+              "stageId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_stage_summary_draft_revisions_stageId_issueId` ON `${TABLE_NAME}` (`stageId`, `issueId`)"
+          },
+          {
+            "name": "index_stage_summary_draft_revisions_issueId_stageId_revisionNumber",
+            "unique": true,
+            "columnNames": [
+              "issueId",
+              "stageId",
+              "revisionNumber"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_stage_summary_draft_revisions_issueId_stageId_revisionNumber` ON `${TABLE_NAME}` (`issueId`, `stageId`, `revisionNumber`)"
+          },
+          {
+            "name": "index_stage_summary_draft_revisions_draftIdSnapshot",
+            "unique": false,
+            "columnNames": [
+              "draftIdSnapshot"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_stage_summary_draft_revisions_draftIdSnapshot` ON `${TABLE_NAME}` (`draftIdSnapshot`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stages",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "stageId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "confirmed_artifacts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `issueId` TEXT NOT NULL, `stageId` TEXT NOT NULL, `title` TEXT NOT NULL, `content` TEXT NOT NULL, `artifactType` TEXT NOT NULL, `contentFormat` TEXT NOT NULL, `confirmedAt` INTEGER NOT NULL, `revisionOfArtifactId` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`stageId`, `issueId`) REFERENCES `stages`(`id`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`revisionOfArtifactId`) REFERENCES `confirmed_artifacts`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stageId",
+            "columnName": "stageId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "content",
+            "columnName": "content",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "artifactType",
+            "columnName": "artifactType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentFormat",
+            "columnName": "contentFormat",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confirmedAt",
+            "columnName": "confirmedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revisionOfArtifactId",
+            "columnName": "revisionOfArtifactId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_confirmed_artifacts_id_issueId",
+            "unique": true,
+            "columnNames": [
+              "id",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_confirmed_artifacts_id_issueId` ON `${TABLE_NAME}` (`id`, `issueId`)"
+          },
+          {
+            "name": "index_confirmed_artifacts_id_issueId_stageId",
+            "unique": true,
+            "columnNames": [
+              "id",
+              "issueId",
+              "stageId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_confirmed_artifacts_id_issueId_stageId` ON `${TABLE_NAME}` (`id`, `issueId`, `stageId`)"
+          },
+          {
+            "name": "index_confirmed_artifacts_stageId_issueId",
+            "unique": false,
+            "columnNames": [
+              "stageId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_confirmed_artifacts_stageId_issueId` ON `${TABLE_NAME}` (`stageId`, `issueId`)"
+          },
+          {
+            "name": "index_confirmed_artifacts_revisionOfArtifactId",
+            "unique": false,
+            "columnNames": [
+              "revisionOfArtifactId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_confirmed_artifacts_revisionOfArtifactId` ON `${TABLE_NAME}` (`revisionOfArtifactId`)"
+          },
+          {
+            "name": "index_confirmed_artifacts_confirmedAt",
+            "unique": false,
+            "columnNames": [
+              "confirmedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_confirmed_artifacts_confirmedAt` ON `${TABLE_NAME}` (`confirmedAt`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stages",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "stageId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId"
+            ]
+          },
+          {
+            "table": "confirmed_artifacts",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "revisionOfArtifactId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "artifact_message_sources",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`artifactId` TEXT NOT NULL, `issueId` TEXT NOT NULL, `messageId` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`artifactId`, `messageId`), FOREIGN KEY(`artifactId`, `issueId`) REFERENCES `confirmed_artifacts`(`id`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`messageId`, `issueId`) REFERENCES `messages`(`id`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "artifactId",
+            "columnName": "artifactId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "messageId",
+            "columnName": "messageId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "artifactId",
+            "messageId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_artifact_message_sources_artifactId_issueId",
+            "unique": false,
+            "columnNames": [
+              "artifactId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_artifact_message_sources_artifactId_issueId` ON `${TABLE_NAME}` (`artifactId`, `issueId`)"
+          },
+          {
+            "name": "index_artifact_message_sources_messageId_issueId",
+            "unique": false,
+            "columnNames": [
+              "messageId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_artifact_message_sources_messageId_issueId` ON `${TABLE_NAME}` (`messageId`, `issueId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "confirmed_artifacts",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "artifactId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId"
+            ]
+          },
+          {
+            "table": "messages",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "messageId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "artifact_run_sources",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`artifactId` TEXT NOT NULL, `issueId` TEXT NOT NULL, `runId` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`artifactId`, `runId`), FOREIGN KEY(`artifactId`, `issueId`) REFERENCES `confirmed_artifacts`(`id`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`runId`, `issueId`) REFERENCES `execution_runs`(`id`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "artifactId",
+            "columnName": "artifactId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "runId",
+            "columnName": "runId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "artifactId",
+            "runId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_artifact_run_sources_artifactId_issueId",
+            "unique": false,
+            "columnNames": [
+              "artifactId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_artifact_run_sources_artifactId_issueId` ON `${TABLE_NAME}` (`artifactId`, `issueId`)"
+          },
+          {
+            "name": "index_artifact_run_sources_runId_issueId",
+            "unique": false,
+            "columnNames": [
+              "runId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_artifact_run_sources_runId_issueId` ON `${TABLE_NAME}` (`runId`, `issueId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "confirmed_artifacts",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "artifactId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId"
+            ]
+          },
+          {
+            "table": "execution_runs",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "runId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "artifact_draft_sources",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`artifactId` TEXT NOT NULL, `issueId` TEXT NOT NULL, `draftRevisionId` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`artifactId`, `draftRevisionId`), FOREIGN KEY(`artifactId`, `issueId`) REFERENCES `confirmed_artifacts`(`id`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`draftRevisionId`, `issueId`) REFERENCES `stage_summary_draft_revisions`(`id`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "artifactId",
+            "columnName": "artifactId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "draftRevisionId",
+            "columnName": "draftRevisionId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "artifactId",
+            "draftRevisionId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_artifact_draft_sources_artifactId_issueId",
+            "unique": false,
+            "columnNames": [
+              "artifactId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_artifact_draft_sources_artifactId_issueId` ON `${TABLE_NAME}` (`artifactId`, `issueId`)"
+          },
+          {
+            "name": "index_artifact_draft_sources_draftRevisionId_issueId",
+            "unique": false,
+            "columnNames": [
+              "draftRevisionId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_artifact_draft_sources_draftRevisionId_issueId` ON `${TABLE_NAME}` (`draftRevisionId`, `issueId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "confirmed_artifacts",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "artifactId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId"
+            ]
+          },
+          {
+            "table": "stage_summary_draft_revisions",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "draftRevisionId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "artifact_material_sources",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`artifactId` TEXT NOT NULL, `issueId` TEXT NOT NULL, `materialUsageSnapshotId` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`artifactId`, `materialUsageSnapshotId`), FOREIGN KEY(`artifactId`, `issueId`) REFERENCES `confirmed_artifacts`(`id`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`materialUsageSnapshotId`, `issueId`) REFERENCES `material_usage_snapshots`(`id`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "artifactId",
+            "columnName": "artifactId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "materialUsageSnapshotId",
+            "columnName": "materialUsageSnapshotId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "artifactId",
+            "materialUsageSnapshotId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_artifact_material_sources_artifactId_issueId",
+            "unique": false,
+            "columnNames": [
+              "artifactId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_artifact_material_sources_artifactId_issueId` ON `${TABLE_NAME}` (`artifactId`, `issueId`)"
+          },
+          {
+            "name": "index_artifact_material_sources_materialUsageSnapshotId_issueId",
+            "unique": false,
+            "columnNames": [
+              "materialUsageSnapshotId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_artifact_material_sources_materialUsageSnapshotId_issueId` ON `${TABLE_NAME}` (`materialUsageSnapshotId`, `issueId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "confirmed_artifacts",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "artifactId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId"
+            ]
+          },
+          {
+            "table": "material_usage_snapshots",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "materialUsageSnapshotId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "audio_assets",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `issueId` TEXT NOT NULL, `stageId` TEXT NOT NULL, `sourceMessageId` INTEGER, `sourceArtifactId` TEXT, `storagePath` TEXT NOT NULL, `mimeType` TEXT NOT NULL, `format` TEXT NOT NULL, `sizeBytes` INTEGER NOT NULL, `fileState` TEXT NOT NULL DEFAULT 'pending', `generationKey` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, `purgeRequestedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`stageId`, `issueId`) REFERENCES `stages`(`id`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`sourceMessageId`, `issueId`, `stageId`) REFERENCES `messages`(`id`, `issueId`, `stageId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`sourceArtifactId`, `issueId`, `stageId`) REFERENCES `confirmed_artifacts`(`id`, `issueId`, `stageId`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stageId",
+            "columnName": "stageId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceMessageId",
+            "columnName": "sourceMessageId",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "sourceArtifactId",
+            "columnName": "sourceArtifactId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "storagePath",
+            "columnName": "storagePath",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mimeType",
+            "columnName": "mimeType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "format",
+            "columnName": "format",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sizeBytes",
+            "columnName": "sizeBytes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fileState",
+            "columnName": "fileState",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'pending'"
+          },
+          {
+            "fieldPath": "generationKey",
+            "columnName": "generationKey",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "purgeRequestedAt",
+            "columnName": "purgeRequestedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_audio_assets_stageId_issueId",
+            "unique": false,
+            "columnNames": [
+              "stageId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_audio_assets_stageId_issueId` ON `${TABLE_NAME}` (`stageId`, `issueId`)"
+          },
+          {
+            "name": "index_audio_assets_sourceMessageId_issueId_stageId",
+            "unique": false,
+            "columnNames": [
+              "sourceMessageId",
+              "issueId",
+              "stageId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_audio_assets_sourceMessageId_issueId_stageId` ON `${TABLE_NAME}` (`sourceMessageId`, `issueId`, `stageId`)"
+          },
+          {
+            "name": "index_audio_assets_sourceArtifactId_issueId_stageId",
+            "unique": false,
+            "columnNames": [
+              "sourceArtifactId",
+              "issueId",
+              "stageId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_audio_assets_sourceArtifactId_issueId_stageId` ON `${TABLE_NAME}` (`sourceArtifactId`, `issueId`, `stageId`)"
+          },
+          {
+            "name": "index_audio_assets_storagePath",
+            "unique": true,
+            "columnNames": [
+              "storagePath"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_audio_assets_storagePath` ON `${TABLE_NAME}` (`storagePath`)"
+          },
+          {
+            "name": "index_audio_assets_generationKey",
+            "unique": true,
+            "columnNames": [
+              "generationKey"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_audio_assets_generationKey` ON `${TABLE_NAME}` (`generationKey`)"
+          },
+          {
+            "name": "index_audio_assets_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_audio_assets_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stages",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "stageId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId"
+            ]
+          },
+          {
+            "table": "messages",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "sourceMessageId",
+              "issueId",
+              "stageId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId",
+              "stageId"
+            ]
+          },
+          {
+            "table": "confirmed_artifacts",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "sourceArtifactId",
+              "issueId",
+              "stageId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId",
+              "stageId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "official_skill_combinations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `isEnabled` INTEGER NOT NULL DEFAULT 1, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isEnabled",
+            "columnName": "isEnabled",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "1"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_official_skill_combinations_name",
+            "unique": false,
+            "columnNames": [
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_official_skill_combinations_name` ON `${TABLE_NAME}` (`name`)"
+          },
+          {
+            "name": "index_official_skill_combinations_deletedAt",
+            "unique": false,
+            "columnNames": [
+              "deletedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_official_skill_combinations_deletedAt` ON `${TABLE_NAME}` (`deletedAt`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "official_skill_combination_members",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`combinationId` TEXT NOT NULL, `officialSkillId` TEXT NOT NULL, `position` INTEGER NOT NULL, `defaultResponsibility` TEXT, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`combinationId`, `officialSkillId`), FOREIGN KEY(`combinationId`) REFERENCES `official_skill_combinations`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "combinationId",
+            "columnName": "combinationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "officialSkillId",
+            "columnName": "officialSkillId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "defaultResponsibility",
+            "columnName": "defaultResponsibility",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "combinationId",
+            "officialSkillId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_official_skill_combination_members_combinationId",
+            "unique": false,
+            "columnNames": [
+              "combinationId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_official_skill_combination_members_combinationId` ON `${TABLE_NAME}` (`combinationId`)"
+          },
+          {
+            "name": "index_official_skill_combination_members_combinationId_position",
+            "unique": true,
+            "columnNames": [
+              "combinationId",
+              "position"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_official_skill_combination_members_combinationId_position` ON `${TABLE_NAME}` (`combinationId`, `position`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "official_skill_combinations",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "combinationId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "issue_lifecycle",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`issueId` TEXT NOT NULL, `state` TEXT NOT NULL DEFAULT 'active', `previousState` TEXT, `stateChangedAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `archivedAt` INTEGER, `trashedAt` INTEGER, `purgeRequestedAt` INTEGER, PRIMARY KEY(`issueId`), FOREIGN KEY(`issueId`) REFERENCES `issues`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'active'"
+          },
+          {
+            "fieldPath": "previousState",
+            "columnName": "previousState",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "stateChangedAt",
+            "columnName": "stateChangedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "archivedAt",
+            "columnName": "archivedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "trashedAt",
+            "columnName": "trashedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "purgeRequestedAt",
+            "columnName": "purgeRequestedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "issueId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_issue_lifecycle_state",
+            "unique": false,
+            "columnNames": [
+              "state"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_issue_lifecycle_state` ON `${TABLE_NAME}` (`state`)"
+          },
+          {
+            "name": "index_issue_lifecycle_purgeRequestedAt",
+            "unique": false,
+            "columnNames": [
+              "purgeRequestedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_issue_lifecycle_purgeRequestedAt` ON `${TABLE_NAME}` (`purgeRequestedAt`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "issues",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "issue_archive_events",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `issueId` TEXT NOT NULL, `archiveOperationId` TEXT NOT NULL, `payloadHash` TEXT NOT NULL, `summaryMarkdown` TEXT NOT NULL, `currentStageIdSnapshot` TEXT, `stageCountSnapshot` INTEGER NOT NULL, `runCountSnapshot` INTEGER NOT NULL, `draftCountSnapshot` INTEGER NOT NULL, `artifactCountSnapshot` INTEGER NOT NULL, `audioAssetCountSnapshot` INTEGER NOT NULL, `archivedAt` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`issueId`) REFERENCES `issues`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "archiveOperationId",
+            "columnName": "archiveOperationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "payloadHash",
+            "columnName": "payloadHash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "summaryMarkdown",
+            "columnName": "summaryMarkdown",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "currentStageIdSnapshot",
+            "columnName": "currentStageIdSnapshot",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "stageCountSnapshot",
+            "columnName": "stageCountSnapshot",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "runCountSnapshot",
+            "columnName": "runCountSnapshot",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "draftCountSnapshot",
+            "columnName": "draftCountSnapshot",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "artifactCountSnapshot",
+            "columnName": "artifactCountSnapshot",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "audioAssetCountSnapshot",
+            "columnName": "audioAssetCountSnapshot",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "archivedAt",
+            "columnName": "archivedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_issue_archive_events_issueId",
+            "unique": false,
+            "columnNames": [
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_issue_archive_events_issueId` ON `${TABLE_NAME}` (`issueId`)"
+          },
+          {
+            "name": "index_issue_archive_events_archiveOperationId",
+            "unique": true,
+            "columnNames": [
+              "archiveOperationId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_issue_archive_events_archiveOperationId` ON `${TABLE_NAME}` (`archiveOperationId`)"
+          },
+          {
+            "name": "index_issue_archive_events_issueId_archivedAt",
+            "unique": false,
+            "columnNames": [
+              "issueId",
+              "archivedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_issue_archive_events_issueId_archivedAt` ON `${TABLE_NAME}` (`issueId`, `archivedAt`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "issues",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "issue_resume_events",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `issueId` TEXT NOT NULL, `archiveEventId` TEXT NOT NULL, `resumeOperationId` TEXT NOT NULL, `payloadHash` TEXT NOT NULL, `changeNote` TEXT NOT NULL, `resumedAt` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`issueId`) REFERENCES `issues`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`archiveEventId`) REFERENCES `issue_archive_events`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "archiveEventId",
+            "columnName": "archiveEventId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "resumeOperationId",
+            "columnName": "resumeOperationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "payloadHash",
+            "columnName": "payloadHash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "changeNote",
+            "columnName": "changeNote",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "resumedAt",
+            "columnName": "resumedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_issue_resume_events_issueId",
+            "unique": false,
+            "columnNames": [
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_issue_resume_events_issueId` ON `${TABLE_NAME}` (`issueId`)"
+          },
+          {
+            "name": "index_issue_resume_events_archiveEventId",
+            "unique": false,
+            "columnNames": [
+              "archiveEventId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_issue_resume_events_archiveEventId` ON `${TABLE_NAME}` (`archiveEventId`)"
+          },
+          {
+            "name": "index_issue_resume_events_resumeOperationId",
+            "unique": true,
+            "columnNames": [
+              "resumeOperationId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_issue_resume_events_resumeOperationId` ON `${TABLE_NAME}` (`resumeOperationId`)"
+          },
+          {
+            "name": "index_issue_resume_events_issueId_resumedAt",
+            "unique": false,
+            "columnNames": [
+              "issueId",
+              "resumedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_issue_resume_events_issueId_resumedAt` ON `${TABLE_NAME}` (`issueId`, `resumedAt`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "issues",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "issue_archive_events",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "archiveEventId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "issue_relations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `sourceIssueId` TEXT, `targetIssueId` TEXT NOT NULL, `sourceArchiveEventId` TEXT, `operationId` TEXT NOT NULL, `payloadHash` TEXT NOT NULL, `relationType` TEXT NOT NULL DEFAULT 'continuation', `createdAt` INTEGER NOT NULL, `sourcePurgedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`sourceIssueId`) REFERENCES `issues`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`targetIssueId`) REFERENCES `issues`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`sourceArchiveEventId`) REFERENCES `issue_archive_events`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceIssueId",
+            "columnName": "sourceIssueId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "targetIssueId",
+            "columnName": "targetIssueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceArchiveEventId",
+            "columnName": "sourceArchiveEventId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "operationId",
+            "columnName": "operationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "payloadHash",
+            "columnName": "payloadHash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "relationType",
+            "columnName": "relationType",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'continuation'"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourcePurgedAt",
+            "columnName": "sourcePurgedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_issue_relations_sourceIssueId",
+            "unique": false,
+            "columnNames": [
+              "sourceIssueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_issue_relations_sourceIssueId` ON `${TABLE_NAME}` (`sourceIssueId`)"
+          },
+          {
+            "name": "index_issue_relations_targetIssueId",
+            "unique": false,
+            "columnNames": [
+              "targetIssueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_issue_relations_targetIssueId` ON `${TABLE_NAME}` (`targetIssueId`)"
+          },
+          {
+            "name": "index_issue_relations_sourceArchiveEventId",
+            "unique": false,
+            "columnNames": [
+              "sourceArchiveEventId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_issue_relations_sourceArchiveEventId` ON `${TABLE_NAME}` (`sourceArchiveEventId`)"
+          },
+          {
+            "name": "index_issue_relations_operationId",
+            "unique": true,
+            "columnNames": [
+              "operationId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_issue_relations_operationId` ON `${TABLE_NAME}` (`operationId`)"
+          },
+          {
+            "name": "index_issue_relations_sourceIssueId_targetIssueId_relationType",
+            "unique": false,
+            "columnNames": [
+              "sourceIssueId",
+              "targetIssueId",
+              "relationType"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_issue_relations_sourceIssueId_targetIssueId_relationType` ON `${TABLE_NAME}` (`sourceIssueId`, `targetIssueId`, `relationType`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "issues",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "sourceIssueId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "issues",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "targetIssueId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "issue_archive_events",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "sourceArchiveEventId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "issue_purge_operations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `issueId` TEXT NOT NULL, `operationId` TEXT NOT NULL, `payloadHash` TEXT NOT NULL, `impactHash` TEXT, `state` TEXT NOT NULL DEFAULT 'requested', `requestedAt` INTEGER NOT NULL, `startedAt` INTEGER, `updatedAt` INTEGER NOT NULL, `failedAt` INTEGER, `failureCode` TEXT, `failurePhase` TEXT, `retryCount` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`id`), FOREIGN KEY(`issueId`) REFERENCES `issues`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "operationId",
+            "columnName": "operationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "payloadHash",
+            "columnName": "payloadHash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "impactHash",
+            "columnName": "impactHash",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'requested'"
+          },
+          {
+            "fieldPath": "requestedAt",
+            "columnName": "requestedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startedAt",
+            "columnName": "startedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "failedAt",
+            "columnName": "failedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "failureCode",
+            "columnName": "failureCode",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "failurePhase",
+            "columnName": "failurePhase",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "retryCount",
+            "columnName": "retryCount",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_issue_purge_operations_issueId",
+            "unique": true,
+            "columnNames": [
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_issue_purge_operations_issueId` ON `${TABLE_NAME}` (`issueId`)"
+          },
+          {
+            "name": "index_issue_purge_operations_operationId",
+            "unique": true,
+            "columnNames": [
+              "operationId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_issue_purge_operations_operationId` ON `${TABLE_NAME}` (`operationId`)"
+          },
+          {
+            "name": "index_issue_purge_operations_state",
+            "unique": false,
+            "columnNames": [
+              "state"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_issue_purge_operations_state` ON `${TABLE_NAME}` (`state`)"
+          },
+          {
+            "name": "index_issue_purge_operations_updatedAt",
+            "unique": false,
+            "columnNames": [
+              "updatedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_issue_purge_operations_updatedAt` ON `${TABLE_NAME}` (`updatedAt`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "issues",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "cross_discussion_sessions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `issueId` TEXT NOT NULL, `stageId` TEXT NOT NULL, `triggerMessageId` INTEGER NOT NULL, `responseRunId` TEXT NOT NULL, `synthesisRunId` TEXT, `integratorSkillId` TEXT NOT NULL, `status` TEXT NOT NULL, `idempotencyKey` TEXT NOT NULL, `successfulParticipantIdsJson` TEXT NOT NULL DEFAULT '[]', `failedParticipantIdsJson` TEXT NOT NULL DEFAULT '[]', `partialSynthesisConfirmedAt` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `failureCode` TEXT, PRIMARY KEY(`id`), FOREIGN KEY(`stageId`, `issueId`) REFERENCES `stages`(`id`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`triggerMessageId`) REFERENCES `messages`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`responseRunId`) REFERENCES `execution_runs`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`synthesisRunId`) REFERENCES `execution_runs`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stageId",
+            "columnName": "stageId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "triggerMessageId",
+            "columnName": "triggerMessageId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "responseRunId",
+            "columnName": "responseRunId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "synthesisRunId",
+            "columnName": "synthesisRunId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "integratorSkillId",
+            "columnName": "integratorSkillId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "idempotencyKey",
+            "columnName": "idempotencyKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "successfulParticipantIdsJson",
+            "columnName": "successfulParticipantIdsJson",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'[]'"
+          },
+          {
+            "fieldPath": "failedParticipantIdsJson",
+            "columnName": "failedParticipantIdsJson",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'[]'"
+          },
+          {
+            "fieldPath": "partialSynthesisConfirmedAt",
+            "columnName": "partialSynthesisConfirmedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "failureCode",
+            "columnName": "failureCode",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_cross_discussion_sessions_stageId_issueId",
+            "unique": false,
+            "columnNames": [
+              "stageId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_cross_discussion_sessions_stageId_issueId` ON `${TABLE_NAME}` (`stageId`, `issueId`)"
+          },
+          {
+            "name": "index_cross_discussion_sessions_triggerMessageId",
+            "unique": false,
+            "columnNames": [
+              "triggerMessageId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_cross_discussion_sessions_triggerMessageId` ON `${TABLE_NAME}` (`triggerMessageId`)"
+          },
+          {
+            "name": "index_cross_discussion_sessions_responseRunId",
+            "unique": true,
+            "columnNames": [
+              "responseRunId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_cross_discussion_sessions_responseRunId` ON `${TABLE_NAME}` (`responseRunId`)"
+          },
+          {
+            "name": "index_cross_discussion_sessions_synthesisRunId",
+            "unique": true,
+            "columnNames": [
+              "synthesisRunId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_cross_discussion_sessions_synthesisRunId` ON `${TABLE_NAME}` (`synthesisRunId`)"
+          },
+          {
+            "name": "index_cross_discussion_sessions_idempotencyKey",
+            "unique": true,
+            "columnNames": [
+              "idempotencyKey"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_cross_discussion_sessions_idempotencyKey` ON `${TABLE_NAME}` (`idempotencyKey`)"
+          },
+          {
+            "name": "index_cross_discussion_sessions_stageId_status",
+            "unique": false,
+            "columnNames": [
+              "stageId",
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_cross_discussion_sessions_stageId_status` ON `${TABLE_NAME}` (`stageId`, `status`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stages",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "stageId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId"
+            ]
+          },
+          {
+            "table": "messages",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "triggerMessageId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "execution_runs",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "responseRunId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "execution_runs",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "synthesisRunId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "execution_message_usage_snapshots",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `runId` TEXT NOT NULL, `sourceMessageId` INTEGER NOT NULL, `sourceExecutionRunId` TEXT, `sourceParticipantSnapshotId` TEXT, `senderIdSnapshot` TEXT NOT NULL, `senderNameSnapshot` TEXT NOT NULL, `contentSnapshot` TEXT NOT NULL, `contentHash` TEXT NOT NULL, `usageOrder` INTEGER NOT NULL, `usedAt` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`runId`) REFERENCES `execution_runs`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`sourceMessageId`) REFERENCES `messages`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "runId",
+            "columnName": "runId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceMessageId",
+            "columnName": "sourceMessageId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceExecutionRunId",
+            "columnName": "sourceExecutionRunId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "sourceParticipantSnapshotId",
+            "columnName": "sourceParticipantSnapshotId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "senderIdSnapshot",
+            "columnName": "senderIdSnapshot",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "senderNameSnapshot",
+            "columnName": "senderNameSnapshot",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentSnapshot",
+            "columnName": "contentSnapshot",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentHash",
+            "columnName": "contentHash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "usageOrder",
+            "columnName": "usageOrder",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "usedAt",
+            "columnName": "usedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_execution_message_usage_snapshots_runId",
+            "unique": false,
+            "columnNames": [
+              "runId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_execution_message_usage_snapshots_runId` ON `${TABLE_NAME}` (`runId`)"
+          },
+          {
+            "name": "index_execution_message_usage_snapshots_sourceMessageId",
+            "unique": false,
+            "columnNames": [
+              "sourceMessageId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_execution_message_usage_snapshots_sourceMessageId` ON `${TABLE_NAME}` (`sourceMessageId`)"
+          },
+          {
+            "name": "index_execution_message_usage_snapshots_runId_sourceMessageId",
+            "unique": true,
+            "columnNames": [
+              "runId",
+              "sourceMessageId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_execution_message_usage_snapshots_runId_sourceMessageId` ON `${TABLE_NAME}` (`runId`, `sourceMessageId`)"
+          },
+          {
+            "name": "index_execution_message_usage_snapshots_runId_usageOrder",
+            "unique": true,
+            "columnNames": [
+              "runId",
+              "usageOrder"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_execution_message_usage_snapshots_runId_usageOrder` ON `${TABLE_NAME}` (`runId`, `usageOrder`)"
+          },
+          {
+            "name": "index_execution_message_usage_snapshots_sourceExecutionRunId",
+            "unique": false,
+            "columnNames": [
+              "sourceExecutionRunId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_execution_message_usage_snapshots_sourceExecutionRunId` ON `${TABLE_NAME}` (`sourceExecutionRunId`)"
+          },
+          {
+            "name": "index_execution_message_usage_snapshots_sourceParticipantSnapshotId",
+            "unique": false,
+            "columnNames": [
+              "sourceParticipantSnapshotId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_execution_message_usage_snapshots_sourceParticipantSnapshotId` ON `${TABLE_NAME}` (`sourceParticipantSnapshotId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "execution_runs",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "runId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "messages",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "sourceMessageId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "stage_advancements",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`stageId` TEXT NOT NULL, `issueId` TEXT NOT NULL, `sourceStageId` TEXT NOT NULL, `operationId` TEXT NOT NULL, `payloadHash` TEXT NOT NULL, `realitySupport` INTEGER NOT NULL, `thinkingExpansion` INTEGER NOT NULL, `objective` TEXT NOT NULL, `expectedOutput` TEXT NOT NULL, `confirmedAt` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`stageId`), FOREIGN KEY(`stageId`, `issueId`) REFERENCES `stages`(`id`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`sourceStageId`, `issueId`) REFERENCES `stages`(`id`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "stageId",
+            "columnName": "stageId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceStageId",
+            "columnName": "sourceStageId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "operationId",
+            "columnName": "operationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "payloadHash",
+            "columnName": "payloadHash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "realitySupport",
+            "columnName": "realitySupport",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "thinkingExpansion",
+            "columnName": "thinkingExpansion",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "objective",
+            "columnName": "objective",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "expectedOutput",
+            "columnName": "expectedOutput",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confirmedAt",
+            "columnName": "confirmedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "stageId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_stage_advancements_stageId_issueId",
+            "unique": true,
+            "columnNames": [
+              "stageId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_stage_advancements_stageId_issueId` ON `${TABLE_NAME}` (`stageId`, `issueId`)"
+          },
+          {
+            "name": "index_stage_advancements_sourceStageId_issueId",
+            "unique": false,
+            "columnNames": [
+              "sourceStageId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_stage_advancements_sourceStageId_issueId` ON `${TABLE_NAME}` (`sourceStageId`, `issueId`)"
+          },
+          {
+            "name": "index_stage_advancements_operationId",
+            "unique": true,
+            "columnNames": [
+              "operationId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_stage_advancements_operationId` ON `${TABLE_NAME}` (`operationId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stages",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "stageId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId"
+            ]
+          },
+          {
+            "table": "stages",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "sourceStageId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "stage_advancement_measures",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`stageId` TEXT NOT NULL, `issueId` TEXT NOT NULL, `measure` TEXT NOT NULL, `position` INTEGER NOT NULL, PRIMARY KEY(`stageId`, `measure`), FOREIGN KEY(`stageId`, `issueId`) REFERENCES `stage_advancements`(`stageId`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "stageId",
+            "columnName": "stageId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "measure",
+            "columnName": "measure",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "stageId",
+            "measure"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_stage_advancement_measures_stageId_issueId",
+            "unique": false,
+            "columnNames": [
+              "stageId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_stage_advancement_measures_stageId_issueId` ON `${TABLE_NAME}` (`stageId`, `issueId`)"
+          },
+          {
+            "name": "index_stage_advancement_measures_stageId_position",
+            "unique": true,
+            "columnNames": [
+              "stageId",
+              "position"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_stage_advancement_measures_stageId_position` ON `${TABLE_NAME}` (`stageId`, `position`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stage_advancements",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "stageId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "stageId",
+              "issueId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "stage_advancement_skill_members",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`stageId` TEXT NOT NULL, `issueId` TEXT NOT NULL, `officialSkillId` TEXT NOT NULL, `position` INTEGER NOT NULL, `responsibility` TEXT NOT NULL, `sourceRunId` TEXT, `sourceParticipantSnapshotId` TEXT, `catalogVersionBasis` TEXT, `confirmedAt` INTEGER NOT NULL, PRIMARY KEY(`stageId`, `officialSkillId`), FOREIGN KEY(`stageId`, `issueId`) REFERENCES `stage_advancements`(`stageId`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "stageId",
+            "columnName": "stageId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "officialSkillId",
+            "columnName": "officialSkillId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "responsibility",
+            "columnName": "responsibility",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceRunId",
+            "columnName": "sourceRunId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "sourceParticipantSnapshotId",
+            "columnName": "sourceParticipantSnapshotId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "catalogVersionBasis",
+            "columnName": "catalogVersionBasis",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "confirmedAt",
+            "columnName": "confirmedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "stageId",
+            "officialSkillId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_stage_advancement_skill_members_stageId_issueId",
+            "unique": false,
+            "columnNames": [
+              "stageId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_stage_advancement_skill_members_stageId_issueId` ON `${TABLE_NAME}` (`stageId`, `issueId`)"
+          },
+          {
+            "name": "index_stage_advancement_skill_members_stageId_position",
+            "unique": true,
+            "columnNames": [
+              "stageId",
+              "position"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_stage_advancement_skill_members_stageId_position` ON `${TABLE_NAME}` (`stageId`, `position`)"
+          },
+          {
+            "name": "index_stage_advancement_skill_members_sourceRunId",
+            "unique": false,
+            "columnNames": [
+              "sourceRunId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_stage_advancement_skill_members_sourceRunId` ON `${TABLE_NAME}` (`sourceRunId`)"
+          },
+          {
+            "name": "index_stage_advancement_skill_members_sourceParticipantSnapshotId",
+            "unique": false,
+            "columnNames": [
+              "sourceParticipantSnapshotId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_stage_advancement_skill_members_sourceParticipantSnapshotId` ON `${TABLE_NAME}` (`sourceParticipantSnapshotId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stage_advancements",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "stageId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "stageId",
+              "issueId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "stage_advancement_materials",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`stageId` TEXT NOT NULL, `issueId` TEXT NOT NULL, `materialReferenceId` TEXT NOT NULL, `position` INTEGER NOT NULL, `inheritedAt` INTEGER NOT NULL, PRIMARY KEY(`stageId`, `materialReferenceId`), FOREIGN KEY(`stageId`, `issueId`) REFERENCES `stage_advancements`(`stageId`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`materialReferenceId`, `issueId`) REFERENCES `material_references`(`id`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "stageId",
+            "columnName": "stageId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "materialReferenceId",
+            "columnName": "materialReferenceId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "inheritedAt",
+            "columnName": "inheritedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "stageId",
+            "materialReferenceId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_stage_advancement_materials_stageId_issueId",
+            "unique": false,
+            "columnNames": [
+              "stageId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_stage_advancement_materials_stageId_issueId` ON `${TABLE_NAME}` (`stageId`, `issueId`)"
+          },
+          {
+            "name": "index_stage_advancement_materials_materialReferenceId_issueId",
+            "unique": false,
+            "columnNames": [
+              "materialReferenceId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_stage_advancement_materials_materialReferenceId_issueId` ON `${TABLE_NAME}` (`materialReferenceId`, `issueId`)"
+          },
+          {
+            "name": "index_stage_advancement_materials_stageId_position",
+            "unique": true,
+            "columnNames": [
+              "stageId",
+              "position"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_stage_advancement_materials_stageId_position` ON `${TABLE_NAME}` (`stageId`, `position`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stage_advancements",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "stageId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "stageId",
+              "issueId"
+            ]
+          },
+          {
+            "table": "material_references",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "materialReferenceId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "stage_advancement_artifacts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`stageId` TEXT NOT NULL, `issueId` TEXT NOT NULL, `artifactId` TEXT NOT NULL, `position` INTEGER NOT NULL, `inheritedAt` INTEGER NOT NULL, PRIMARY KEY(`stageId`, `artifactId`), FOREIGN KEY(`stageId`, `issueId`) REFERENCES `stage_advancements`(`stageId`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`artifactId`, `issueId`) REFERENCES `confirmed_artifacts`(`id`, `issueId`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "stageId",
+            "columnName": "stageId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "issueId",
+            "columnName": "issueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "artifactId",
+            "columnName": "artifactId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "inheritedAt",
+            "columnName": "inheritedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "stageId",
+            "artifactId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_stage_advancement_artifacts_stageId_issueId",
+            "unique": false,
+            "columnNames": [
+              "stageId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_stage_advancement_artifacts_stageId_issueId` ON `${TABLE_NAME}` (`stageId`, `issueId`)"
+          },
+          {
+            "name": "index_stage_advancement_artifacts_artifactId_issueId",
+            "unique": false,
+            "columnNames": [
+              "artifactId",
+              "issueId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_stage_advancement_artifacts_artifactId_issueId` ON `${TABLE_NAME}` (`artifactId`, `issueId`)"
+          },
+          {
+            "name": "index_stage_advancement_artifacts_stageId_position",
+            "unique": true,
+            "columnNames": [
+              "stageId",
+              "position"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_stage_advancement_artifacts_stageId_position` ON `${TABLE_NAME}` (`stageId`, `position`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stage_advancements",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "stageId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "stageId",
+              "issueId"
+            ]
+          },
+          {
+            "table": "confirmed_artifacts",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "artifactId",
+              "issueId"
+            ],
+            "referencedColumns": [
+              "id",
+              "issueId"
+            ]
+          }
+        ]
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '5b3f47c9e520967518dd05b0bfc868b7')"
+    ]
+  }
+}

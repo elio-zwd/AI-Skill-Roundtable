@@ -232,6 +232,9 @@ class StageAdvancementRepositoryDatabaseTest {
             idempotencyKey = idempotencyKey,
             createdAt = 15L,
             updatedAt = 15L,
+            actualModelId = "gemini-3.6-flash",
+            actualThinkingLevel = ExecutionThinkingLevel.MEDIUM,
+            thinkingLevelSource = ExecutionThinkingSource.AUTO_ROUTED,
         ),
         participants = listOf(
             participant("$runId-participant-a", runId, "skill-a", 0, "形成执行步骤"),

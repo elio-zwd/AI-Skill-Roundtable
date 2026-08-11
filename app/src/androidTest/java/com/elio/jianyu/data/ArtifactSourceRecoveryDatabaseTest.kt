@@ -58,6 +58,9 @@ class ArtifactSourceRecoveryDatabaseTest {
                     runKind = ExecutionRunKind.CROSS_DISCUSSION_SYNTHESIS,
                     discussionId = "discussion-1",
                     historyScope = ExecutionHistoryScope.EXPLICIT_MESSAGES,
+                    actualModelId = "gemini-3.6-flash",
+                    actualThinkingLevel = ExecutionThinkingLevel.HIGH,
+                    thinkingLevelSource = ExecutionThinkingSource.AUTO_ROUTED,
                 ),
                 participants = listOf(
                     ExecutionParticipantSnapshotEntity(

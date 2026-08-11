@@ -65,6 +65,17 @@ data class SaveIssueCommand(
     val createdAt: Long
 )
 
+data class UpdateIssueThinkingPolicyCommand(
+    val issueId: String,
+    val policy: IssueThinkingPolicy,
+    val updatedAt: Long,
+) {
+    init {
+        require(issueId.isNotBlank())
+        require(updatedAt > 0L)
+    }
+}
+
 data class SavedIssue(
     val issue: IssueEntity,
     val initialStage: StageEntity,
@@ -202,6 +213,10 @@ data class IssueNavigationItem(
 
 interface JianyuRepository {
     suspend fun saveIssue(command: SaveIssueCommand): RepositoryResult<SavedIssue>
+
+    suspend fun updateIssueThinkingPolicy(
+        command: UpdateIssueThinkingPolicyCommand,
+    ): RepositoryResult<IssueEntity>
 
     suspend fun createStage(command: CreateStageCommand): RepositoryResult<StageEntity>
 

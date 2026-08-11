@@ -137,7 +137,7 @@ class ExecutionContextBuilderTest {
     }
 
     @Test
-    fun everyPromptModeDeclaresThatWebSearchAndRealtimeVerificationAreUnavailable() {
+    fun everyPromptModeRequiresExplicitToolPermissionForRealtimeClaims() {
         ExecutionPromptMode.entries.forEach { mode ->
             val request = ExecutionContextBuilder().build(
                 ExecutionContextInput(
@@ -153,8 +153,8 @@ class ExecutionContextBuilderTest {
             )
 
             assertTrue(request.systemInstruction.contains("平台能力边界"))
-            assertTrue(request.systemInstruction.contains("当前执行没有提供网页搜索工具"))
-            assertTrue(request.systemInstruction.contains("不得声称已经联网检索"))
+            assertTrue(request.systemInstruction.contains("本次是否提供网页搜索工具由执行请求的权限说明决定"))
+            assertTrue(request.systemInstruction.contains("未提供工具时不得声称已经联网检索"))
             assertTrue(request.systemInstruction.contains("未联网核验"))
         }
     }

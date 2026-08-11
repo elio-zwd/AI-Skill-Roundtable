@@ -52,7 +52,7 @@ import kotlinx.coroutines.launch
         StageAdvancementMaterialEntity::class,
         StageAdvancementArtifactEntity::class,
     ],
-    version = 12,
+    version = 13,
     exportSchema = true,
 )
 @TypeConverters(

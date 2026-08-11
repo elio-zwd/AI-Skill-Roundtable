@@ -24,6 +24,7 @@ import com.elio.jianyu.network.keys.ApiKeyScheduler
 import com.elio.jianyu.roundtable.RoundtableBudget
 import com.elio.jianyu.roundtable.RequestBudgetTracker
 import com.elio.jianyu.roundtable.RoundtableOrchestrator
+import com.elio.jianyu.execution.SearchMode
 import com.elio.jianyu.roundtable.RoundtableDatabaseGateway
 import com.elio.jianyu.roundtable.CharacterAnswerGateway
 import com.elio.jianyu.roundtable.RoundtableBudgetManager
@@ -180,7 +181,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         prefs.edit().putBoolean("is_semantic_routing_enabled", enabled).apply()
     }
 
-    private val _searchMode = MutableStateFlow(SearchMode.SMART)
+    private val _searchMode = MutableStateFlow(SearchMode.AUTO)
     val searchMode: StateFlow<SearchMode> = _searchMode.asStateFlow()
 
     fun setSearchMode(mode: SearchMode) {
@@ -308,11 +309,11 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
         _isAutoNextEnabled.value = prefs.getBoolean("is_auto_next_enabled", true)
         _isSemanticRoutingEnabled.value = prefs.getBoolean("is_semantic_routing_enabled", false)
-        val savedSearchModeStr = prefs.getString("search_mode", SearchMode.SMART.name)
+        val savedSearchModeStr = prefs.getString("search_mode", SearchMode.AUTO.name)
         _searchMode.value = try {
-            SearchMode.valueOf(savedSearchModeStr ?: SearchMode.SMART.name)
+            SearchMode.valueOf(savedSearchModeStr ?: SearchMode.AUTO.name)
         } catch (_: Exception) {
-            SearchMode.SMART
+            SearchMode.AUTO
         }
 
         ensureCoreCharactersExist()
@@ -885,7 +886,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     }
                 """.trimIndent()
 
-                SearchMode.SMART -> """
+                SearchMode.AUTO -> """
                     你是一个知识检索与联网决策代理 (Broker)。
                     请分析当前的会议脑暴上下文，并作出以下两项决策：
                     1. 本地资料加载决策：从下方的【候选本地资料文件列表】中，选择回答当前问题最紧密相关、最必要的参考文件（如果列表为空，则返回空数组）。
@@ -908,7 +909,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     }
                 """.trimIndent()
 
-                SearchMode.FORCE -> """
+                SearchMode.ON -> """
                     你是一个知识检索与联网决策代理 (Broker)。
                     当前系统已【强制开启联网搜索】，你必须进行联网接地。
                     请分析当前的会议脑暴上下文，并作出以下两项决策：
@@ -1006,7 +1007,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 .take(budget.maxSearchQueriesPerCharacter)
                 .toMutableList()
 
-            if (mode == SearchMode.FORCE) {
+            if (mode == SearchMode.ON) {
                 finalNeedSearch = true
                 if (finalQueries.isEmpty()) {
                     val lastUserMsg = prompt.lineSequence()
@@ -1336,12 +1337,6 @@ enum class RoundActionState {
     CONTINUE_ROUND,
     START_NEXT_ROUND,
     BUDGET_EXCEEDED
-}
-
-enum class SearchMode {
-    SMART,
-    FORCE,
-    OFF
 }
 
 @kotlinx.serialization.Serializable

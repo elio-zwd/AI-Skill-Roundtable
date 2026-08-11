@@ -2,6 +2,8 @@ package com.elio.jianyu.ui.screens.execution
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -29,6 +31,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.data.ContextSourceType
+import com.elio.jianyu.data.ExecutionRunStatus
+import com.elio.jianyu.data.IssueThinkingPolicy
+import com.elio.jianyu.execution.SearchMode
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.components.JianyuStateCard
 import com.elio.jianyu.ui.screens.context.ContextConfirmationDialog
@@ -47,6 +52,11 @@ fun IssueExecutionScreen(
     onStop: () -> Unit,
     onRetry: () -> Unit,
     onRecoverInterrupted: () -> Unit,
+    onSearchModeChanged: (SearchMode) -> Unit = {},
+    onThinkingOverrideChanged: (IssueThinkingPolicy?) -> Unit = {},
+    onIssueDefaultThinkingPolicyChanged: (IssueThinkingPolicy) -> Unit = {},
+    onOpenRunHistoryDetail: (String) -> Unit = {},
+    onDismissRunHistoryDetail: () -> Unit = {},
     onOpenContext: () -> Unit = {},
     onDismissContext: () -> Unit = {},
     onToggleContext: (ContextSourceType, String) -> Unit = { _, _ -> },
@@ -111,6 +121,11 @@ fun IssueExecutionScreen(
                 onStop = onStop,
                 onRetry = onRetry,
                 onRecoverInterrupted = onRecoverInterrupted,
+                onSearchModeChanged = onSearchModeChanged,
+                onThinkingOverrideChanged = onThinkingOverrideChanged,
+                onIssueDefaultThinkingPolicyChanged = onIssueDefaultThinkingPolicyChanged,
+                onOpenRunHistoryDetail = onOpenRunHistoryDetail,
+                onDismissRunHistoryDetail = onDismissRunHistoryDetail,
                 onOpenContext = onOpenContext,
                 onCollaborationInputChanged = onCollaborationInputChanged,
                 onOpenDirected = onOpenDirected,
@@ -235,6 +250,11 @@ private fun IssueExecutionContent(
     onStop: () -> Unit,
     onRetry: () -> Unit,
     onRecoverInterrupted: () -> Unit,
+    onSearchModeChanged: (SearchMode) -> Unit,
+    onThinkingOverrideChanged: (IssueThinkingPolicy?) -> Unit,
+    onIssueDefaultThinkingPolicyChanged: (IssueThinkingPolicy) -> Unit,
+    onOpenRunHistoryDetail: (String) -> Unit,
+    onDismissRunHistoryDetail: () -> Unit,
     onOpenContext: () -> Unit,
     onCollaborationInputChanged: (String) -> Unit,
     onOpenDirected: () -> Unit,
@@ -251,8 +271,15 @@ private fun IssueExecutionContent(
     onStopCross: (String) -> Unit,
 ) {
     val currentRunIsCollaboration = collaborationState.isCollaborationRun(state.runId)
+    val canConfigureNextRun = !state.operationInProgress && state.runStatus !in setOf(
+        ExecutionRunStatus.NOT_STARTED,
+        ExecutionRunStatus.RUNNING,
+        ExecutionRunStatus.PARTIAL_SUCCESS,
+    )
     LazyColumn(
-        modifier = Modifier.padding(paddingValues),
+        modifier = Modifier
+            .padding(paddingValues)
+            .testTag(JianyuAutomationTags.Execution.CONTENT_LIST),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -266,6 +293,34 @@ private fun IssueExecutionContent(
                         onRetry = onRetry,
                         onRecoverInterrupted = onRecoverInterrupted,
                         modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        }
+
+        item {
+            ExecutionRunConfigurationCard(
+                searchMode = state.searchMode,
+                defaultPolicy = state.issueDefaultThinkingPolicy,
+                overridePolicy = state.thinkingOverride,
+                canChangeDefault = state.canChangeIssueDefaultThinkingPolicy,
+                canConfigureNextRun = canConfigureNextRun,
+                onDefaultChanged = onIssueDefaultThinkingPolicyChanged,
+                onOverrideChanged = onThinkingOverrideChanged,
+                onSearchModeChanged = onSearchModeChanged,
+            )
+        }
+
+        item { ContextSelectionSummaryCard(state = state, onOpenContext = onOpenContext) }
+
+        if (state.participants.isNotEmpty() || state.runId != null) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("本轮输出", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = "每位 Skill 的回应与执行状态会在这里保留。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -290,6 +345,17 @@ private fun IssueExecutionContent(
             }
         }
 
+        if (state.runHistory.isNotEmpty()) {
+            item {
+                ExecutionRunHistorySection(
+                    runs = state.runHistory,
+                    detail = state.runDetail,
+                    onOpenDetail = onOpenRunHistoryDetail,
+                    onDismissDetail = onDismissRunHistoryDetail,
+                )
+            }
+        }
+
         item {
             IssueCollaborationWorkspaceSection(
                 state = collaborationState,
@@ -311,8 +377,6 @@ private fun IssueExecutionContent(
                 showComposer = false,
             )
         }
-
-        item { ContextSelectionSummaryCard(state = state, onOpenContext = onOpenContext) }
 
         stageResultState?.let { resultState ->
             item {
@@ -363,6 +427,7 @@ private fun IssueExecutionContent(
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun ExecutionRunActions(
     state: IssueExecutionUiState.Content,
     onStop: () -> Unit,
@@ -370,9 +435,10 @@ private fun ExecutionRunActions(
     onRecoverInterrupted: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    FlowRow(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (state.canStop) {
             TextButton(

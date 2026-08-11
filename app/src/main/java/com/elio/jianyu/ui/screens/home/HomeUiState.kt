@@ -2,6 +2,8 @@ package com.elio.jianyu.ui.screens.home
 
 import com.elio.jianyu.home.HomeWorkflowState
 import com.elio.jianyu.home.HomeWorkflowStep
+import com.elio.jianyu.data.IssueThinkingPolicy
+import com.elio.jianyu.execution.SearchMode
 import com.elio.jianyu.ui.screens.context.ContextConfirmationUiState
 
 data class HomeUiState(
@@ -9,6 +11,9 @@ data class HomeUiState(
     val contextConfirmation: ContextConfirmationUiState? = null,
     val message: String? = null,
     val preferredSkillDisplayName: String? = null,
+    val thinkingOverride: IssueThinkingPolicy? = null,
+    /** 仅影响即将创建的初始 Run，不写回议题默认。 */
+    val initialSearchMode: SearchMode = SearchMode.AUTO,
 ) {
     val question: String
         get() = workflow.draft.question

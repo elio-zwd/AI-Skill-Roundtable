@@ -1,7 +1,13 @@
 package com.elio.jianyu.ui.screens.execution
 
 import com.elio.jianyu.data.ExecutionParticipantStatus
+import com.elio.jianyu.data.ExecutionHistoryScope
+import com.elio.jianyu.data.ExecutionRunKind
 import com.elio.jianyu.data.ExecutionRunStatus
+import com.elio.jianyu.data.ExecutionThinkingLevel
+import com.elio.jianyu.data.ExecutionThinkingSource
+import com.elio.jianyu.data.IssueThinkingPolicy
+import com.elio.jianyu.execution.SearchMode
 import com.elio.jianyu.ui.screens.context.ContextConfirmationUiState
 
 enum class IssueExecutionPhase {
@@ -43,6 +49,36 @@ data class IssueExecutionBudgetUi(
         get() = (maxApiCalls - usedApiCalls).coerceAtLeast(0)
 }
 
+/** 已持久化的阶段 Run 摘要；只展示数据库中实际冻结的执行快照。 */
+data class IssueExecutionRunHistoryUi(
+    val runId: String,
+    val runKind: ExecutionRunKind,
+    val status: ExecutionRunStatus,
+    val historyScope: ExecutionHistoryScope,
+    val retryOfRunId: String?,
+    val parentRunId: String?,
+    val failureMessage: String?,
+    val actualModelId: String,
+    val actualThinkingLevel: ExecutionThinkingLevel,
+    val thinkingLevelSource: ExecutionThinkingSource,
+    val isCurrent: Boolean,
+)
+
+sealed interface IssueExecutionRunDetailUiState {
+    data class Loading(val runId: String) : IssueExecutionRunDetailUiState
+
+    data class Content(
+        val run: IssueExecutionRunHistoryUi,
+        val participants: List<IssueExecutionParticipantUi>,
+        val budget: IssueExecutionBudgetUi,
+    ) : IssueExecutionRunDetailUiState
+
+    data class Failure(
+        val runId: String,
+        val message: String,
+    ) : IssueExecutionRunDetailUiState
+}
+
 sealed interface IssueExecutionUiState {
     data object Loading : IssueExecutionUiState
 
@@ -68,6 +104,16 @@ sealed interface IssueExecutionUiState {
         val canStop: Boolean,
         val canRetry: Boolean,
         val canRecoverInterrupted: Boolean,
+        val issueDefaultThinkingPolicy: IssueThinkingPolicy = IssueThinkingPolicy.AUTO,
+        val thinkingOverride: IssueThinkingPolicy? = null,
+        val canChangeIssueDefaultThinkingPolicy: Boolean = false,
+        val actualModelId: String? = null,
+        val actualThinkingLevel: ExecutionThinkingLevel? = null,
+        val thinkingLevelSource: ExecutionThinkingSource? = null,
+        /** 仅影响尚未创建的下一次 Run；当前 Run 的请求已经冻结。 */
+        val searchMode: SearchMode = SearchMode.AUTO,
+        val runHistory: List<IssueExecutionRunHistoryUi> = emptyList(),
+        val runDetail: IssueExecutionRunDetailUiState? = null,
         val contextConfirmation: ContextConfirmationUiState? = null,
         val operationInProgress: Boolean = false,
     ) : IssueExecutionUiState

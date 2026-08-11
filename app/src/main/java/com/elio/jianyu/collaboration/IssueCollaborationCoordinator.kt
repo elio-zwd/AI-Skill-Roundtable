@@ -37,6 +37,7 @@ import com.elio.jianyu.execution.ExecutionPreparedRunCommand
 import com.elio.jianyu.execution.ExecutionRunCoordinator
 import com.elio.jianyu.execution.ExecutionSkillResolver
 import com.elio.jianyu.execution.ExecutionSkillSelection
+import com.elio.jianyu.execution.ExecutionThinkingPolicyResolver
 import com.elio.jianyu.skill.catalog.OfficialSkillCatalog
 import com.elio.jianyu.skill.catalog.OfficialSkillExecutionEligibility
 import java.nio.charset.StandardCharsets
@@ -158,6 +159,17 @@ class IssueCollaborationCoordinator(
             updatedAt = request.userConfirmedAt,
             runKind = ExecutionRunKind.STANDARD,
             historyScope = ExecutionHistoryScope.FULL_STAGE,
+            actualModelId = request.model,
+            actualThinkingLevel = ExecutionThinkingPolicyResolver.resolve(
+                snapshot.issue.core.issue.defaultThinkingPolicy,
+                request.thinkingOverride,
+                ExecutionRunKind.STANDARD,
+            ).level,
+            thinkingLevelSource = ExecutionThinkingPolicyResolver.resolve(
+                snapshot.issue.core.issue.defaultThinkingPolicy,
+                request.thinkingOverride,
+                ExecutionRunKind.STANDARD,
+            ).source,
         )
         val created = repository.createStandardInteraction(
             CreateStandardInteractionCommand(
@@ -185,6 +197,7 @@ class IssueCollaborationCoordinator(
                 roundIndex = request.roundIndex,
                 userConfirmedAt = request.userConfirmedAt,
                 model = request.model,
+                searchMode = request.searchMode,
                 contributions = request.context.contributions,
             ),
         )
@@ -241,6 +254,7 @@ class IssueCollaborationCoordinator(
                 roundIndex = trigger.roundIndex,
                 userConfirmedAt = run.createdAt,
                 model = request.model,
+                searchMode = request.searchMode,
                 contributions = contributions,
             ),
         )
@@ -286,6 +300,17 @@ class IssueCollaborationCoordinator(
             updatedAt = request.userConfirmedAt,
             runKind = ExecutionRunKind.DIRECTED_RESPONSE,
             historyScope = historyScope(request.context.selectedMessageIds),
+            actualModelId = request.model,
+            actualThinkingLevel = ExecutionThinkingPolicyResolver.resolve(
+                snapshot.issue.core.issue.defaultThinkingPolicy,
+                request.thinkingOverride,
+                ExecutionRunKind.DIRECTED_RESPONSE,
+            ).level,
+            thinkingLevelSource = ExecutionThinkingPolicyResolver.resolve(
+                snapshot.issue.core.issue.defaultThinkingPolicy,
+                request.thinkingOverride,
+                ExecutionRunKind.DIRECTED_RESPONSE,
+            ).source,
         )
         val created = repository.createDirectedInteraction(
             CreateDirectedInteractionCommand(
@@ -314,6 +339,7 @@ class IssueCollaborationCoordinator(
                 roundIndex = request.roundIndex,
                 userConfirmedAt = request.userConfirmedAt,
                 model = request.model,
+                searchMode = request.searchMode,
                 contributions = request.context.contributions,
             ),
         )
@@ -369,6 +395,17 @@ class IssueCollaborationCoordinator(
             runKind = ExecutionRunKind.CROSS_DISCUSSION_RESPONSE,
             discussionId = ids.discussionId,
             historyScope = historyScope(request.context.selectedMessageIds),
+            actualModelId = request.model,
+            actualThinkingLevel = ExecutionThinkingPolicyResolver.resolve(
+                snapshot.issue.core.issue.defaultThinkingPolicy,
+                request.thinkingOverride,
+                ExecutionRunKind.CROSS_DISCUSSION_RESPONSE,
+            ).level,
+            thinkingLevelSource = ExecutionThinkingPolicyResolver.resolve(
+                snapshot.issue.core.issue.defaultThinkingPolicy,
+                request.thinkingOverride,
+                ExecutionRunKind.CROSS_DISCUSSION_RESPONSE,
+            ).source,
         )
         val session = CrossDiscussionSessionEntity(
             id = ids.discussionId,
@@ -410,6 +447,7 @@ class IssueCollaborationCoordinator(
                 roundIndex = request.roundIndex,
                 userConfirmedAt = request.userConfirmedAt,
                 model = request.model,
+                searchMode = request.searchMode,
                 contributions = request.context.contributions,
                 additionalRequiredCalls = 1,
                 keepBudgetOpenOnSuccess = true,
@@ -435,6 +473,7 @@ class IssueCollaborationCoordinator(
                     userAcceptedPartial = false,
                     context = request.context,
                     model = request.model,
+                    searchMode = request.searchMode,
                 ),
             )
         }
@@ -477,6 +516,7 @@ class IssueCollaborationCoordinator(
             request.userConfirmedAt,
         )
         requireContext(request.context.contributions, usage)
+        val responseRun = repository.getExecutionRuntime(session.responseRunId).valueOrThrow().run
         val run = ExecutionRunEntity(
             id = ids.runId,
             issueId = request.issueId,
@@ -489,6 +529,9 @@ class IssueCollaborationCoordinator(
             parentRunId = session.responseRunId,
             discussionId = session.id,
             historyScope = ExecutionHistoryScope.EXPLICIT_MESSAGES,
+            actualModelId = requireNotNull(responseRun.actualModelId),
+            actualThinkingLevel = requireNotNull(responseRun.actualThinkingLevel),
+            thinkingLevelSource = requireNotNull(responseRun.thinkingLevelSource),
         )
         val created = repository.createCrossDiscussionSynthesis(
             CreateCrossDiscussionSynthesisCommand(
@@ -510,6 +553,7 @@ class IssueCollaborationCoordinator(
                 roundIndex = request.roundIndex,
                 userConfirmedAt = request.userConfirmedAt,
                 model = request.model,
+                searchMode = request.searchMode,
                 contributions = request.context.contributions,
             ),
         )
@@ -524,12 +568,22 @@ class IssueCollaborationCoordinator(
         request: CollaborationRetryRequest,
     ): CollaborationExecutionResult {
         val ids = CollaborationOperationIds.retry(request.operationId)
+        val previous = repository.getExecutionRuntime(request.previousRunId).valueOrThrow().run
+        val issue = repository.recoverIssue(previous.issueId).valueOrThrow().core.issue
+        val thinking = ExecutionThinkingPolicyResolver.resolve(
+            issueDefault = issue.defaultThinkingPolicy,
+            roundOverride = request.thinkingOverride,
+            runKind = previous.runKind,
+        )
         val created = repository.createCollaborationRetry(
             CreateCollaborationRetryCommand(
                 previousRunId = request.previousRunId,
                 newRunId = ids.runId,
                 idempotencyKey = ids.idempotencyKey,
                 createdAt = request.userConfirmedAt,
+                actualModelId = request.model,
+                actualThinkingLevel = thinking.level,
+                thinkingLevelSource = thinking.source,
             ),
         ).valueOrThrow()
         val contributions = repository.listRunContextUsage(created.runtime.run.id)
@@ -544,6 +598,7 @@ class IssueCollaborationCoordinator(
                 roundIndex = request.roundIndex,
                 userConfirmedAt = request.userConfirmedAt,
                 model = request.model,
+                searchMode = request.searchMode,
                 contributions = contributions,
                 additionalRequiredCalls = if (
                     created.runtime.run.runKind == ExecutionRunKind.CROSS_DISCUSSION_RESPONSE

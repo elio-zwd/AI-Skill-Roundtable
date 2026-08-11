@@ -75,6 +75,49 @@ internal class IssueExecutionRepositoryComponent(
         }
     }
 
+    suspend fun updateIssueThinkingPolicy(
+        command: UpdateIssueThinkingPolicyCommand,
+    ): RepositoryResult<IssueEntity> = transactions.transaction("update_issue_thinking_policy") {
+        val issue = getIssue(command.issueId) ?: return@transaction RepositoryResult.Failure(
+            RepositoryError.NotFound("issue", command.issueId),
+        )
+        val lifecycle = getIssueLifecycle(command.issueId)
+            ?: return@transaction RepositoryResult.Failure(
+                RepositoryError.NotFound("issue_lifecycle", command.issueId),
+            )
+        if (lifecycle.state != IssueLifecycleState.ACTIVE) {
+            return@transaction RepositoryResult.Failure(
+                RepositoryError.InvalidState("update_issue_thinking_policy", "issue_not_active"),
+            )
+        }
+        if (getExecutionRunsForIssue(command.issueId).any { run ->
+                run.status in setOf(
+                    ExecutionRunStatus.NOT_STARTED,
+                    ExecutionRunStatus.RUNNING,
+                    ExecutionRunStatus.PARTIAL_SUCCESS,
+                )
+            }
+        ) {
+            return@transaction RepositoryResult.Failure(
+                RepositoryError.InvalidState("update_issue_thinking_policy", "run_in_progress"),
+            )
+        }
+        if (issue.defaultThinkingPolicy == command.policy) {
+            return@transaction RepositoryResult.Success(issue, idempotent = true)
+        }
+        if (updateIssueThinkingPolicy(command.issueId, command.policy, command.updatedAt) != 1) {
+            return@transaction RepositoryResult.Failure(
+                RepositoryError.StorageFailure("update_issue_thinking_policy", retryable = true),
+            )
+        }
+        RepositoryResult.Success(
+            issue.copy(
+                defaultThinkingPolicy = command.policy,
+                updatedAt = command.updatedAt,
+            ),
+        )
+    }
+
     suspend fun createStage(command: CreateStageCommand): RepositoryResult<StageEntity> {
         return transactions.transaction("create_stage") {
             require(command.stageId.isNotBlank() && command.issueId.isNotBlank())

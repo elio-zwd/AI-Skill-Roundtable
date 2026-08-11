@@ -335,7 +335,10 @@ class CoreDomainDatabaseTest {
         finishedAt = null,
         stoppedAt = null,
         failureCode = null,
-        failureMessage = null
+        failureMessage = null,
+        actualModelId = "gemini-3.6-flash",
+        actualThinkingLevel = ExecutionThinkingLevel.MEDIUM,
+        thinkingLevelSource = ExecutionThinkingSource.AUTO_ROUTED,
     )
 
     private fun participantSnapshot(

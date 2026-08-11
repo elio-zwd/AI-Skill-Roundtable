@@ -109,7 +109,7 @@ internal fun CloudInteractionCard(
             Column(Modifier.weight(1f)) {
                 Text("云端会话链优化", fontWeight = FontWeight.Bold, color = TextPrimary)
                 Text(
-                    "默认关闭。关闭不会阻止模型请求发送给 Gemini，只是不额外启用持久化 Interaction 链。",
+                    "默认关闭。开启后仅在当前进程内保存成功 Interaction 的短期连续上下文标识；不会写入 Room。",
                     fontSize = 11.sp,
                     color = TextSecondary,
                 )
@@ -261,7 +261,7 @@ internal fun TelemetryConfirmationDialogs(
             title = { Text("启用云端会话链优化？") },
             text = {
                 Text(
-                    "开启后，请求上下文会继续发送给 Google Gemini，并允许服务商使用持久化 Interaction 链维持续写。服务商侧保留受其政策约束，本应用无法控制远端保留或保证远端删除。",
+                    "开启后，成功请求可把当前进程内的上一 Interaction 标识用于同一议题阶段和 Skill 的短期连续上下文。关闭、应用重启或链失效后不会续接，系统会由 Room 内容重建必要上下文。不会创建显式 Cache，也不承诺 Cache 或 TTL。服务商侧存储仍受其政策约束。",
                 )
             },
             confirmButton = {
