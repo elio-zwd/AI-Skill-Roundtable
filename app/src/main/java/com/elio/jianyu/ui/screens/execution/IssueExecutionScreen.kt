@@ -1,5 +1,8 @@
 package com.elio.jianyu.ui.screens.execution
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -9,20 +12,30 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -37,6 +50,7 @@ import com.elio.jianyu.ui.screens.result.StageResultCallbacks
 import com.elio.jianyu.ui.screens.result.StageResultUiState
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun IssueExecutionScreen(
     state: IssueExecutionUiState,
     collaborationState: IssueCollaborationUiState = IssueCollaborationUiState.Loading,
@@ -71,6 +85,7 @@ fun IssueExecutionScreen(
 ) {
     val contentState = state as? IssueExecutionUiState.Content
     val collaborationContent = collaborationState as? IssueCollaborationUiState.Content
+    var drawerOpen by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.testTag(IssueExecutionTestTags.SCREEN),
@@ -80,6 +95,7 @@ fun IssueExecutionScreen(
                 title = contentState?.issueTitle ?: "议题工作区",
                 skillCount = contentState?.participants?.size ?: 0,
                 onBack = onBack,
+                onOpenDrawer = { drawerOpen = true },
             )
         },
         bottomBar = {
@@ -108,6 +124,7 @@ fun IssueExecutionScreen(
                 stageResultState = stageResultState,
                 stageResultCallbacks = stageResultCallbacks,
                 paddingValues = paddingValues,
+                onOpenDrawer = { drawerOpen = true },
                 onStop = onStop,
                 onRetry = onRetry,
                 onRecoverInterrupted = onRecoverInterrupted,
@@ -127,6 +144,19 @@ fun IssueExecutionScreen(
                 onStopCross = onStopCross,
             )
         }
+    }
+
+    if (drawerOpen && contentState != null) {
+        WorkspaceControlsBottomSheet(
+            state = contentState,
+            stageResultState = stageResultState,
+            stageResultCallbacks = stageResultCallbacks,
+            onDismiss = { drawerOpen = false },
+            onStop = onStop,
+            onRetry = onRetry,
+            onRecoverInterrupted = onRecoverInterrupted,
+            onOpenContext = onOpenContext,
+        )
     }
 
     val confirmation = contentState?.contextConfirmation
@@ -149,6 +179,7 @@ private fun IssueExecutionTopBar(
     title: String,
     skillCount: Int,
     onBack: () -> Unit,
+    onOpenDrawer: () -> Unit,
 ) {
     Surface(color = MaterialTheme.colorScheme.surface) {
         Column {
@@ -170,14 +201,17 @@ private fun IssueExecutionTopBar(
                     }
                 },
                 actions = {
-                    if (skillCount > 0) {
-                        Text(
-                            text = "$skillCount 位 Skill",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(end = 16.dp),
-                        )
-                    }
+                    AssistChip(
+                        onClick = onOpenDrawer,
+                        label = { Text("助手与成果") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "展开工作区控制面板",
+                            )
+                        },
+                        modifier = Modifier.padding(end = 12.dp),
+                    )
                 },
                 windowInsets = WindowInsets(0, 0, 0, 0),
             )
@@ -232,6 +266,7 @@ private fun IssueExecutionContent(
     stageResultState: StageResultUiState?,
     stageResultCallbacks: StageResultCallbacks,
     paddingValues: PaddingValues,
+    onOpenDrawer: () -> Unit,
     onStop: () -> Unit,
     onRetry: () -> Unit,
     onRecoverInterrupted: () -> Unit,
@@ -257,16 +292,18 @@ private fun IssueExecutionContent(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                ExecutionStatusCard(state)
-                if (state.canStop || state.canRetry || state.canRecoverInterrupted) {
-                    ExecutionRunActions(
-                        state = state,
-                        onStop = onStop,
-                        onRetry = onRetry,
-                        onRecoverInterrupted = onRecoverInterrupted,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "对话与协作记录",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                TextButton(onClick = onOpenDrawer) {
+                    Text("控制与成果面板 ➔")
                 }
             }
         }
@@ -312,17 +349,6 @@ private fun IssueExecutionContent(
             )
         }
 
-        item { ContextSelectionSummaryCard(state = state, onOpenContext = onOpenContext) }
-
-        stageResultState?.let { resultState ->
-            item {
-                StageDraftResultPanel(
-                    state = resultState,
-                    callbacks = stageResultCallbacks,
-                )
-            }
-        }
-
         if (state.runId == null) {
             item {
                 JianyuStateCard(
@@ -357,6 +383,67 @@ private fun IssueExecutionContent(
                     CircularProgressIndicator()
                     Text("正在持久化操作结果")
                 }
+            }
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun WorkspaceControlsBottomSheet(
+    state: IssueExecutionUiState.Content,
+    stageResultState: StageResultUiState?,
+    stageResultCallbacks: StageResultCallbacks,
+    onDismiss: () -> Unit,
+    onStop: () -> Unit,
+    onRetry: () -> Unit,
+    onRecoverInterrupted: () -> Unit,
+    onOpenContext: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "工作区控制与成果",
+                    style = MaterialTheme.typography.titleLarge,
+                )
+                TextButton(onClick = onDismiss) { Text("完成") }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                ExecutionStatusCard(state)
+                if (state.canStop || state.canRetry || state.canRecoverInterrupted) {
+                    ExecutionRunActions(
+                        state = state,
+                        onStop = onStop,
+                        onRetry = onRetry,
+                        onRecoverInterrupted = onRecoverInterrupted,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+
+            ContextSelectionSummaryCard(state = state, onOpenContext = onOpenContext)
+
+            stageResultState?.let { resultState ->
+                StageDraftResultPanel(
+                    state = resultState,
+                    callbacks = stageResultCallbacks,
+                )
             }
         }
     }

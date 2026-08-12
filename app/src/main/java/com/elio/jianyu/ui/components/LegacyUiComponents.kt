@@ -199,7 +199,7 @@ fun MarkdownRender(text: String) {
                     text = content,
                     fontSize = fontSize,
                     fontWeight = FontWeight.Bold,
-                    color = PrimaryAccent,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                 )
             } else if (trimmed.startsWith("-") || trimmed.startsWith("*")) {
@@ -208,10 +208,10 @@ fun MarkdownRender(text: String) {
                     modifier = Modifier.padding(start = 8.dp),
                     horizontalArrangement = Arrangement.Start
                 ) {
-                    Text("• ", color = SecondaryAccent, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("• ", color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     Text(
                         text = content,
-                        color = TextPrimary,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 14.sp,
                         lineHeight = 20.sp
                     )
@@ -219,7 +219,7 @@ fun MarkdownRender(text: String) {
             } else if (trimmed.isNotEmpty()) {
                 Text(
                     text = trimmed,
-                    color = TextPrimary,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 14.sp,
                     lineHeight = 22.sp
                 )
