@@ -30,9 +30,12 @@ class JianyuRepositoryArchitectureTest {
         val lifecycleMigrationSource = source(
             "app/src/main/java/com/elio/jianyu/data/IssueLifecycleV12Migration.kt",
         )
+        val thinkingMigrationSource = source(
+            "app/src/main/java/com/elio/jianyu/data/ExecutionThinkingPolicyMigration.kt",
+        )
 
         assertTrue(databaseSource.contains("version = 13"))
-        assertFalse(databaseSource.contains("MIGRATION_12_13"))
+        assertTrue(databaseSource.contains("MIGRATION_12_13"))
         assertTrue(databaseSource.contains("MIGRATION_7_8"))
         assertTrue(databaseSource.contains("MIGRATION_8_9"))
         assertTrue(databaseSource.contains("MIGRATION_9_10"))
@@ -67,6 +70,9 @@ class JianyuRepositoryArchitectureTest {
         assertTrue(lifecycleMigrationSource.contains("issue_resume_events"))
         assertTrue(lifecycleMigrationSource.contains("issue_relations"))
         assertTrue(lifecycleMigrationSource.contains("issue_purge_operations"))
+        assertTrue(thinkingMigrationSource.contains("Migration(12, 13)"))
+        assertTrue(thinkingMigrationSource.contains("defaultThinkingPolicy"))
+        assertTrue(thinkingMigrationSource.contains("actualThinkingLevel"))
     }
 
     @Test

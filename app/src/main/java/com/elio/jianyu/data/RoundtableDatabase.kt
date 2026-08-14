@@ -171,6 +171,7 @@ abstract class RoundtableDatabase : RoomDatabase() {
         val MIGRATION_9_10: Migration = CollaborationMigration.MIGRATION_9_10
         val MIGRATION_10_11: Migration = StageAdvancementMigration.MIGRATION_10_11
         val MIGRATION_11_12: Migration = IssueLifecycleV12Migration.MIGRATION_11_12
+        val MIGRATION_12_13: Migration = ExecutionThinkingPolicyMigration.MIGRATION_12_13
 
         val ALL_MIGRATIONS: Array<Migration> = arrayOf(
             MIGRATION_1_2,
@@ -184,6 +185,7 @@ abstract class RoundtableDatabase : RoomDatabase() {
             MIGRATION_9_10,
             MIGRATION_10_11,
             MIGRATION_11_12,
+            MIGRATION_12_13,
         )
 
         fun getDatabase(context: Context, scope: CoroutineScope): RoundtableDatabase {

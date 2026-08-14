@@ -34,7 +34,7 @@ class ExecutionRuntimeMigrationTest {
     }
 
     @Test
-    fun allMigrationsRemainContinuousFromVersion1ToVersion12() {
+    fun allMigrationsRemainContinuousFromVersion1ToVersion13() {
         assertEquals(
             listOf(
                 1 to 2,
@@ -48,6 +48,7 @@ class ExecutionRuntimeMigrationTest {
                 9 to 10,
                 10 to 11,
                 11 to 12,
+                12 to 13,
             ),
             RoundtableDatabase.ALL_MIGRATIONS.map { it.startVersion to it.endVersion },
         )

@@ -38,19 +38,19 @@ class IssueLifecycleV12MigrationTest {
     }
 
     @Test
-    fun legacyVersionsOneToFourMigrateContinuouslyTo12() {
+    fun legacyVersionsOneToFourMigrateContinuouslyTo13() {
         for (startVersion in 1..4) {
             val name = databaseName(startVersion)
             createLegacyDatabase(name, startVersion).close()
 
             val migrated = migrationHelper.runMigrationsAndValidate(
                 name,
-                12,
+                13,
                 true,
                 *RoundtableDatabase.ALL_MIGRATIONS,
             )
             assertEquals(
-                "v$startVersion→v12 foreign_key_check",
+                "v$startVersion→v13 foreign_key_check",
                 0,
                 migrated.query("PRAGMA foreign_key_check").use { it.count },
             )
@@ -59,18 +59,18 @@ class IssueLifecycleV12MigrationTest {
     }
 
     @Test
-    fun committedSchemaVersionsFiveToElevenMigrateContinuouslyTo12() {
-        for (startVersion in 5..11) {
+    fun committedSchemaVersionsFiveToTwelveMigrateContinuouslyTo13() {
+        for (startVersion in 5..12) {
             val name = databaseName(startVersion)
             migrationHelper.createDatabase(name, startVersion).close()
             val migrated = migrationHelper.runMigrationsAndValidate(
                 name,
-                12,
+                13,
                 true,
                 *RoundtableDatabase.ALL_MIGRATIONS,
             )
             assertEquals(
-                "v$startVersion→v12 foreign_key_check",
+                "v$startVersion→v13 foreign_key_check",
                 0,
                 migrated.query("PRAGMA foreign_key_check").use { it.count },
             )
@@ -298,7 +298,7 @@ class IssueLifecycleV12MigrationTest {
         ).use { cursor -> assertTrue("缺失索引 $index", cursor.moveToFirst()) }
     }
 
-    private fun databaseNames(): List<String> = (1..11).map(::databaseName) + DIRECT_DATABASE
+    private fun databaseNames(): List<String> = (1..12).map(::databaseName) + DIRECT_DATABASE
 
     private fun databaseName(version: Int): String = "issue-lifecycle-v$version-to-v12"
 
