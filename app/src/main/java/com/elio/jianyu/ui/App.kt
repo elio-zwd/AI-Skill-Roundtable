@@ -247,53 +247,54 @@ internal fun MainAppContent(
         WindowInsets(0, 0, 0, 0)
     }
 
-    Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .testTag(JianyuAutomationTags.App.CONTENT_ROOT)
-            .semantics { testTagsAsResourceId = true },
-        containerColor = MaterialTheme.colorScheme.background,
-        contentWindowInsets = contentWindowInsets,
-        bottomBar = {
-            if (currentTopLevel != null) {
-                AppBottomNavigation(
-                    currentDestination = currentTopLevel,
-                    onDestinationSelected = navController::navigateToTopLevel,
-                )
-            }
-        },
-    ) { paddingValues ->
-        Box(
+    com.elio.jianyu.ui.components.JianyuBackgroundAtmosphere {
+        Scaffold(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
-        ) {
-            AppNavHost(
-                navController = navController,
-                modifier = Modifier.fillMaxSize(),
-                homeContent = {
-                    HomeRoute(
-                        repository = appRuntime.repository,
-                        catalogRuntimeResult = appRuntime.officialSkillCatalogRuntimeResult,
-                        executionCoordinator = appRuntime.executionCoordinator,
-                        onOpenSettings = {
-                            navController.navigateToSecondary(AppDestination.SETTINGS)
-                        },
-                        onNavigateToIssue = { issueId, stageId ->
-                            navController.navigateToIssue(issueId, stageId)
-                        },
-                        onOpenSkillCatalog = {
-                            navController.navigateToTopLevel(AppDestination.SKILLS)
-                        },
-                        skillUseRequest = pendingSkillId?.let { skillId ->
-                            OfficialSkillUseRequest(skillId, pendingSkillIntent)
-                        },
-                        onSkillUseRequestConsumed = {
-                            pendingSkillId = null
-                            pendingSkillIntent = null
-                        },
+                .testTag(JianyuAutomationTags.App.CONTENT_ROOT)
+                .semantics { testTagsAsResourceId = true },
+            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+            contentWindowInsets = contentWindowInsets,
+            bottomBar = {
+                if (currentTopLevel != null) {
+                    AppBottomNavigation(
+                        currentDestination = currentTopLevel,
+                        onDestinationSelected = navController::navigateToTopLevel,
                     )
-                },
+                }
+            },
+        ) { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+            ) {
+                AppNavHost(
+                    navController = navController,
+                    modifier = Modifier.fillMaxSize(),
+                    homeContent = {
+                        HomeRoute(
+                            repository = appRuntime.repository,
+                            catalogRuntimeResult = appRuntime.officialSkillCatalogRuntimeResult,
+                            executionCoordinator = appRuntime.executionCoordinator,
+                            onOpenSettings = {
+                                navController.navigateToSecondary(AppDestination.SETTINGS)
+                            },
+                            onNavigateToIssue = { issueId, stageId ->
+                                navController.navigateToIssue(issueId, stageId)
+                            },
+                            onOpenSkillCatalog = {
+                                navController.navigateToTopLevel(AppDestination.SKILLS)
+                            },
+                            skillUseRequest = pendingSkillId?.let { skillId ->
+                                OfficialSkillUseRequest(skillId, pendingSkillIntent)
+                            },
+                            onSkillUseRequestConsumed = {
+                                pendingSkillId = null
+                                pendingSkillIntent = null
+                            },
+                        )
+                    },
                 issuesContent = {
                     IssuesRoute(
                         repository = appRuntime.repository,
@@ -402,53 +403,60 @@ internal fun MainAppContent(
         }
     }
 }
+}
 
 @Composable
 internal fun AppBottomNavigation(
     currentDestination: AppDestination,
     onDestinationSelected: (AppDestination) -> Unit,
 ) {
-    NavigationBar(
-        modifier = Modifier.testTag(AppTestTags.BOTTOM_NAVIGATION),
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 0.dp,
+    androidx.compose.material3.Surface(
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 2.dp,
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        AppDestination.topLevelDestinations.forEach { destination ->
-            val icon = when (destination) {
-                AppDestination.HOME -> Icons.Default.Home
-                AppDestination.ISSUES -> JianyuNavigationIcons.Issues
-                AppDestination.SKILLS -> JianyuNavigationIcons.Skills
-                AppDestination.RESOURCES -> JianyuNavigationIcons.Resources
-                else -> error("非一级目的地不能显示在底部导航")
+        NavigationBar(
+            modifier = Modifier.testTag(AppTestTags.BOTTOM_NAVIGATION),
+            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+            tonalElevation = 0.dp,
+        ) {
+            AppDestination.topLevelDestinations.forEach { destination ->
+                val icon = when (destination) {
+                    AppDestination.HOME -> Icons.Default.Home
+                    AppDestination.ISSUES -> JianyuNavigationIcons.Issues
+                    AppDestination.SKILLS -> JianyuNavigationIcons.Skills
+                    AppDestination.RESOURCES -> JianyuNavigationIcons.Resources
+                    else -> error("非一级目的地不能显示在底部导航")
+                }
+                NavigationBarItem(
+                    selected = currentDestination == destination,
+                    onClick = { onDestinationSelected(destination) },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                    icon = {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = destination.label,
+                            maxLines = 2,
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    },
+                    modifier = Modifier
+                        .semantics { contentDescription = destination.label }
+                        .testTag(AppTestTags.destination(destination)),
+                )
             }
-            NavigationBarItem(
-                selected = currentDestination == destination,
-                onClick = { onDestinationSelected(destination) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.primary,
-                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                ),
-                icon = {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                    )
-                },
-                label = {
-                    Text(
-                        text = destination.label,
-                        maxLines = 2,
-                        textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.labelSmall,
-                    )
-                },
-                modifier = Modifier
-                    .semantics { contentDescription = destination.label }
-                    .testTag(AppTestTags.destination(destination)),
-            )
         }
     }
 }

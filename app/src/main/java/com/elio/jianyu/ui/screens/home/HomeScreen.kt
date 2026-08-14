@@ -191,15 +191,21 @@ fun HomeScreen(
                     copy = "你可以调整成员与职责；系统不会替你决定。",
                 )
                 when (workflow.step) {
-                    HomeWorkflowStep.RECOMMENDATION_LOADING -> Row(
-                        modifier = Modifier.testTag(
-                            JianyuAutomationTags.Home.RECOMMENDATION_LOADING,
-                        ),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    HomeWorkflowStep.RECOMMENDATION_LOADING -> Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag(JianyuAutomationTags.Home.RECOMMENDATION_LOADING),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        CircularProgressIndicator()
-                        Text("正在根据官方 Skill Catalog 生成本地建议…")
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            CircularProgressIndicator()
+                            Text("正在根据官方 Skill Catalog 生成本地建议…")
+                        }
+                        com.elio.jianyu.ui.components.JianyuSkeletonShimmer(height = 64.dp)
+                        com.elio.jianyu.ui.components.JianyuSkeletonShimmer(height = 48.dp)
                     }
                     HomeWorkflowStep.RECOMMENDATION_FAILURE -> JianyuStateCard(
                         title = "推荐失败",
