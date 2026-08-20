@@ -541,9 +541,9 @@ class RoundtableOrchestratorTest {
     }
 
     @Test
-    fun seventhParticipantIsNeverAddedToSameQuestion() = runBlocking {
+    fun sixteenthParticipantIsNeverAddedToSameQuestion() = runBlocking {
         val context = mock(Context::class.java)
-        val activeChars = (1..8).map { i ->
+        val activeChars = (1..16).map { i ->
             Character(id = "char_$i", name = "智囊$i", avatar = "A", tagline = "", systemPrompt = "", order = i)
         }
         val messagesList = mutableListOf(
@@ -563,21 +563,18 @@ class RoundtableOrchestratorTest {
             createAttemptPlan = testAttemptPlan
         )
 
-        // 第一次触发：只取前 6 位进行固化
+        // 第一次触发：只取前 15 位进行固化
         val result1 = orchestrator.runRoundtableSequence(sessionId = 1L, questionRunId = 1001L, isSemanticRoutingEnabled = false)
-        assertEquals(6, result1.completedCharacters.size)
+        assertEquals(15, result1.completedCharacters.size)
+        assertTrue("前 15 位角色应参与首轮", result1.completedCharacters.contains("char_15"))
+        assertFalse("第 16 位角色不应参与首轮", result1.completedCharacters.contains("char_16"))
 
-        // 模拟这 6 人发言入库
-        (1..6).forEach { i ->
-            messagesList.add(Message(id = 1001L + i, chatId = 1L, senderId = "char_$i", senderName = "智囊$i", avatar = "A", text = "回复", roundIndex = 1))
-        }
-
-        // 第二次触发（仍然绑定相同的 1001L 提问）：即使 activeChars 包含 8 个人，也只能在这 6 个人的范围进行，绝对不会混入 char_7 或 char_8
+        // 第二次触发（仍然绑定相同的 1001L 提问）：只复用首次锁定的 15 位角色。
         val result2 = orchestrator.runRoundtableSequence(sessionId = 1L, questionRunId = 1001L, isSemanticRoutingEnabled = false)
 
-        assertEquals(6, result2.completedCharacters.size)
-        assertFalse("绝对不包含第 7 位角色", result2.completedCharacters.contains("char_7"))
-        assertFalse("绝对不包含第 8 位角色", result2.completedCharacters.contains("char_8"))
+        assertEquals(15, result2.completedCharacters.size)
+        assertTrue("后续轮次应继续包含第 15 位角色", result2.completedCharacters.contains("char_15"))
+        assertFalse("后续轮次不得混入第 16 位角色", result2.completedCharacters.contains("char_16"))
     }
 
     @Test
@@ -739,7 +736,7 @@ class RoundtableOrchestratorTest {
     }
 
     @Test
-    fun semanticRoutingSelectsTopSixBeforeParticipantLock() = runBlocking {
+    fun semanticRoutingSelectsTopCandidatesBeforeParticipantLock() = runBlocking {
         val context = mock(Context::class.java)
         val budget = RoundtableBudget(maxCharactersPerQuestion = 3) // 设上限为 3 位角色
         val budgetManager = RoundtableBudgetManager(budget)

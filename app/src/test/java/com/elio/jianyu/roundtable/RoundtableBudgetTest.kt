@@ -10,10 +10,28 @@ class RoundtableBudgetTest {
     @Test
     fun testDefaultBudgets() {
         val budget = RoundtableBudget()
-        assertEquals("角色上限应为 6", 6, budget.maxCharactersPerQuestion)
+        assertEquals("角色上限应为 15", 15, budget.maxCharactersPerQuestion)
         assertEquals("搜索限制应为 3", 3, budget.maxSearchQueriesPerCharacter)
         assertEquals("输出 Token 限制应为 4096", 4096, budget.maxOutputTokensPerAnswer)
         assertEquals("总 API 调用预算应为 30", 30, budget.maxApiCallsPerQuestion)
+    }
+
+    @Test
+    fun defaultBudgetSelectsAndLocksFifteenParticipants() {
+        val participantIds = (1..16).map { "skill_$it" }
+        val manager = RoundtableBudgetManager()
+
+        assertEquals(
+            participantIds.take(15),
+            manager.getOrSetSelectedParticipants(questionRunId = 1L, activeCharIds = participantIds)
+        )
+        assertEquals(
+            participantIds.take(15),
+            manager.getOrSetSelectedParticipants(
+                questionRunId = 1L,
+                activeCharIds = participantIds.reversed()
+            )
+        )
     }
 
     @Test

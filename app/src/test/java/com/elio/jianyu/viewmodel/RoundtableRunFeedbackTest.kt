@@ -7,7 +7,7 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class RoundtableRunFeedbackTest {
-    private val budget = RoundtableBudget(maxCharactersPerQuestion = 6, maxApiCallsPerQuestion = 30)
+    private val budget = RoundtableBudget()
 
     @Test
     fun noFailuresProducesNoFeedback() {

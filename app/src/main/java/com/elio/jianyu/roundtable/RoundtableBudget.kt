@@ -4,7 +4,7 @@ package com.elio.jianyu.roundtable
  * 圆桌脑暴提问预算设置。
  */
 data class RoundtableBudget(
-    val maxCharactersPerQuestion: Int = 6,
+    val maxCharactersPerQuestion: Int = 15,
     val maxSearchQueriesPerCharacter: Int = 3,
     val maxApiCallsPerQuestion: Int = 30,
     val maxOutputTokensPerAnswer: Int = 4096

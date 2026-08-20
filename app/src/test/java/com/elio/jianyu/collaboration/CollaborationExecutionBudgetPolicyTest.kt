@@ -18,7 +18,7 @@ class CollaborationExecutionBudgetPolicyTest {
     fun crossBudgetCoversResponsesFailedMemberRetriesAndSynthesisRetry() {
         assertEquals(8, CollaborationExecutionBudgetPolicy.cross(participantCount = 2).maxApiCalls)
         assertEquals(10, CollaborationExecutionBudgetPolicy.cross(participantCount = 4).maxApiCalls)
-        assertEquals(14, CollaborationExecutionBudgetPolicy.cross(participantCount = 6).maxApiCalls)
+        assertEquals(32, CollaborationExecutionBudgetPolicy.cross(participantCount = 15).maxApiCalls)
     }
 
     @Test
