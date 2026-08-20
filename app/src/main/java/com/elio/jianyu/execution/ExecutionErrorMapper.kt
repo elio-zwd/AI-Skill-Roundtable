@@ -16,10 +16,6 @@ object ExecutionErrorMapper {
                 ExecutionErrorCode.NO_API_KEY,
                 "尚未配置可用的 API Key，请先前往设置。",
             )
-            is ExecutionBudgetExhaustedException -> failure(
-                ExecutionErrorCode.BUDGET_EXHAUSTED,
-                "本次执行的调用预算已用完。",
-            )
             is ExecutionSafetyBlockedException -> failure(
                 ExecutionErrorCode.SAFETY_BLOCKED,
                 "服务商因安全规则拒绝了本次请求。",

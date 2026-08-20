@@ -18,7 +18,6 @@ data class CreateStandardInteractionCommand(
         require(participants.all { it.runId == run.id })
         require(participants.map { it.sourceId }.distinct().size == participants.size)
         require(participants.map { it.position }.distinct().size == participants.size)
-        require(budget.maxApiCalls >= participants.size)
     }
 }
 
@@ -60,7 +59,6 @@ data class CreateCrossDiscussionResponseCommand(
         require(participants.all { it.runId == run.id })
         require(participants.map { it.sourceId }.distinct().size == participants.size)
         require(selectedMessageIds.distinct().size == selectedMessageIds.size)
-        require(budget.maxApiCalls >= participants.size + 1)
     }
 }
 

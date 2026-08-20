@@ -306,9 +306,9 @@ object RetrofitClient {
         val reserveForOtherRequired = (reserveForRequired - 1).coerceAtLeast(0)
         for (lease in attemptPlan) {
             val consumed = if (isRequired) {
-                tracker.tryConsumeRequired(1, reserveForOtherRequired)
+                tracker.tryConsumeRequired()
             } else {
-                tracker.tryConsumeOptional(1, reserveForRequired)
+                tracker.tryConsumeOptional()
             }
             if (!consumed) {
                 val failure = ApiCallFailure.Unknown(Exception("Request budget unavailable"))
@@ -365,9 +365,9 @@ object RetrofitClient {
                             delayProvider.delay(backoffMs)
 
                             val retryConsumed = if (isRequired) {
-                                tracker.tryConsumeRequired(1, reserveForOtherRequired)
+                                tracker.tryConsumeRequired()
                             } else {
-                                tracker.tryConsumeOptional(1, reserveForRequired)
+                                tracker.tryConsumeOptional()
                             }
                             if (!retryConsumed) {
                                 val budgetFailure = ApiCallFailure.Unknown(

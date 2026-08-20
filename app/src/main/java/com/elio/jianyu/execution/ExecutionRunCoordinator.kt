@@ -1,7 +1,6 @@
 package com.elio.jianyu.execution
 
 import com.elio.jianyu.data.AppendDomainMessageCommand
-import com.elio.jianyu.data.ConsumeExecutionBudgetCommand
 import com.elio.jianyu.data.CreateExecutionRuntimeCommand
 import com.elio.jianyu.data.ExecutionHistoryScope
 import com.elio.jianyu.data.ExecutionParticipantSnapshotEntity
@@ -13,8 +12,7 @@ import com.elio.jianyu.data.ExecutionRuntimeBudgetConfig
 import com.elio.jianyu.data.ExecutionRuntimeSnapshot
 import com.elio.jianyu.data.IssueRecoverySnapshot
 import com.elio.jianyu.data.RecoverInterruptedExecutionCommand
-import com.elio.jianyu.data.RepositoryError
-import com.elio.jianyu.data.SetExecutionBudgetReserveCommand
+import com.elio.jianyu.data.RecordExecutionApiCallCommand
 import com.elio.jianyu.data.StageEntity
 import com.elio.jianyu.data.TransitionExecutionParticipantCommand
 import com.elio.jianyu.data.TransitionRunCommand
@@ -67,9 +65,6 @@ class ExecutionRunCoordinator(
                     error,
                 )
             }
-            require(command.budget.maxApiCalls >= participants.size) {
-                "调用预算不足以覆盖每位参与者的一次必需调用"
-            }
             val runtime = persistence.createRuntime(
                 CreateExecutionRuntimeCommand(
                     run = ExecutionRunEntity(
@@ -119,18 +114,6 @@ class ExecutionRunCoordinator(
             if (runtime.run.status != ExecutionRunStatus.NOT_STARTED) {
                 return@withRunRegistration ExecutionRunResult(runtime)
             }
-            val requiredCalls = runtime.participants.size + command.additionalRequiredCalls
-            val remainingCalls = runtime.budget.maxApiCalls - runtime.budget.usedApiCalls
-            if (remainingCalls < requiredCalls) {
-                return@withRunRegistration markBudgetExhausted(runtime)
-            }
-            persistence.setBudgetReserve(
-                SetExecutionBudgetReserveCommand(
-                    rootRunId = runtime.budget.rootRunId,
-                    reservedRequiredCalls = requiredCalls,
-                    updatedAt = clock.nowMillis(),
-                ),
-            )
             transitionRunToRunning(runtime.run.id)
             executeRuntime(
                 runtime = persistence.getRuntime(runtime.run.id),
@@ -141,7 +124,6 @@ class ExecutionRunCoordinator(
                 model = command.model,
                 searchMode = command.searchMode,
                 contributions = command.contributions,
-                additionalRequiredCalls = command.additionalRequiredCalls,
                 keepBudgetOpenOnSuccess = command.keepBudgetOpenOnSuccess,
             )
         }
@@ -187,7 +169,6 @@ class ExecutionRunCoordinator(
                 runKind = previous.run.runKind,
             )
             val budgetConfig = ExecutionRuntimeBudgetConfig(
-                maxApiCalls = previous.budget.maxApiCalls,
                 maxCharacters = previous.budget.maxCharacters,
                 maxSearchQueriesPerCharacter = previous.budget.maxSearchQueriesPerCharacter,
                 maxOutputTokensPerAnswer = previous.budget.maxOutputTokensPerAnswer,
@@ -220,17 +201,6 @@ class ExecutionRunCoordinator(
             if (child.run.status != ExecutionRunStatus.NOT_STARTED) {
                 return@withRunRegistration ExecutionRunResult(child)
             }
-            val remaining = child.budget.maxApiCalls - child.budget.usedApiCalls
-            if (remaining < retryParticipants.size) {
-                return@withRunRegistration markBudgetExhausted(child)
-            }
-            persistence.setBudgetReserve(
-                SetExecutionBudgetReserveCommand(
-                    rootRunId = child.budget.rootRunId,
-                    reservedRequiredCalls = retryParticipants.size,
-                    updatedAt = clock.nowMillis(),
-                ),
-            )
             transitionRunToRunning(child.run.id)
             executeRuntime(
                 runtime = persistence.getRuntime(child.run.id),
@@ -336,19 +306,18 @@ class ExecutionRunCoordinator(
         model: String,
         searchMode: SearchMode,
         contributions: List<ExecutionContextContribution>,
-        additionalRequiredCalls: Int = 0,
         keepBudgetOpenOnSuccess: Boolean = false,
     ): ExecutionRunResult {
         val failures = linkedMapOf<String, ExecutionFailure>()
         val history = historyFor(runtime, issueRecovery, stage)
-        runtime.participants.sortedBy { it.position }.forEachIndexed { index, participant ->
+        runtime.participants.sortedBy { it.position }.forEach { participant ->
             val current = persistence.getRuntime(runtime.run.id)
-            if (current.run.status == ExecutionRunStatus.STOPPED) return@forEachIndexed
+            if (current.run.status == ExecutionRunStatus.STOPPED) return@forEach
             val currentState = current.participantStates.first { state ->
                 state.participantSnapshotId == participant.id
             }
             if (currentState.status == ExecutionParticipantStatus.SUCCEEDED) {
-                return@forEachIndexed
+                return@forEach
             }
             val failure = executeParticipant(
                 runtime = current,
@@ -361,8 +330,6 @@ class ExecutionRunCoordinator(
                 model = model,
                 searchMode = searchMode,
                 contributions = contributions,
-                remainingRequiredCalls = current.participants.size - index - 1 +
-                    additionalRequiredCalls,
             )
             if (failure != null) failures[participant.id] = failure
             aggregateRun(runtime.run.id, failures.values.firstOrNull())
@@ -439,7 +406,6 @@ class ExecutionRunCoordinator(
         model: String,
         searchMode: SearchMode,
         contributions: List<ExecutionContextContribution>,
-        remainingRequiredCalls: Int,
     ): ExecutionFailure? {
         val run = runtime.run
         val now = clock.nowMillis()
@@ -520,26 +486,13 @@ class ExecutionRunCoordinator(
             val networkResult = preparedCall.execute(
                 onAttemptStarted = {
                     ensureAcceptsWrites(run.id, participant.id)
-                    try {
-                        persistence.consumeBudget(
-                            ConsumeExecutionBudgetCommand(
-                                rootRunId = runtime.budget.rootRunId,
-                                kind = ExecutionBudgetCallKind.REQUIRED,
-                                count = 1,
-                                reserveForRequired = remainingRequiredCalls,
-                                updatedAt = clock.nowMillis(),
-                            ),
-                        )
-                    } catch (error: ExecutionRepositoryException) {
-                        val repositoryError = error.repositoryError
-                        if (
-                            repositoryError is RepositoryError.InvalidState &&
-                            repositoryError.stateCode == "budget_exhausted"
-                        ) {
-                            throw ExecutionBudgetExhaustedException()
-                        }
-                        throw error
-                    }
+                    persistence.recordApiCall(
+                        RecordExecutionApiCallCommand(
+                            rootRunId = runtime.budget.rootRunId,
+                            count = 1,
+                            updatedAt = clock.nowMillis(),
+                        ),
+                    )
                     val currentState = persistence.getRuntime(run.id).participantStates
                         .first { it.participantSnapshotId == participant.id }
                     persistence.transitionParticipant(
@@ -696,44 +649,6 @@ class ExecutionRunCoordinator(
             ),
         )
         return persistence.getRuntime(runId)
-    }
-
-    private suspend fun markBudgetExhausted(
-        runtime: ExecutionRuntimeSnapshot,
-    ): ExecutionRunResult {
-        val failure = ExecutionFailure(
-            ExecutionErrorCode.BUDGET_EXHAUSTED,
-            "本次执行的调用预算已用完。",
-        )
-        runtime.participantStates.forEach { state ->
-            persistence.transitionParticipant(
-                TransitionExecutionParticipantCommand(
-                    participantSnapshotId = state.participantSnapshotId,
-                    runId = state.runId,
-                    expectedStatuses = setOf(ExecutionParticipantStatus.QUEUED),
-                    newStatus = ExecutionParticipantStatus.RETRYABLE,
-                    finishedAt = clock.nowMillis(),
-                    lastErrorCode = failure.code.storageValue,
-                    lastErrorMessage = failure.safeMessage,
-                    updatedAt = clock.nowMillis(),
-                ),
-            )
-        }
-        persistence.transitionRun(
-            TransitionRunCommand(
-                runId = runtime.run.id,
-                expectedStatuses = setOf(ExecutionRunStatus.NOT_STARTED),
-                newStatus = ExecutionRunStatus.FAILED,
-                updatedAt = clock.nowMillis(),
-                finishedAt = clock.nowMillis(),
-                failureCode = failure.code.storageValue,
-                failureMessage = failure.safeMessage,
-            ),
-        )
-        return ExecutionRunResult(
-            runtime = persistence.getRuntime(runtime.run.id),
-            participantFailures = runtime.participants.associate { it.id to failure },
-        )
     }
 
     private suspend fun ensureAcceptsWrites(runId: String, participantId: String) {

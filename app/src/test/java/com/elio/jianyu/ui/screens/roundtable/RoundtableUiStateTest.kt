@@ -63,16 +63,6 @@ class RoundtableUiStateTest {
             ),
         )
         assertEquals(
-            RoundActionUiState.BUDGET_EXCEEDED,
-            resolveRoundActionUiState(
-                session,
-                messages,
-                activeCharacters,
-                isRoundtableRunning = false,
-                roundActionState = RoundActionState.BUDGET_EXCEEDED,
-            ),
-        )
-        assertEquals(
             RoundActionUiState.HIDDEN,
             resolveRoundActionUiState(
                 session,

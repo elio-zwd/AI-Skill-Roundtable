@@ -52,7 +52,7 @@ import kotlinx.coroutines.launch
         StageAdvancementMaterialEntity::class,
         StageAdvancementArtifactEntity::class,
     ],
-    version = 13,
+    version = 14,
     exportSchema = true,
 )
 @TypeConverters(
@@ -172,6 +172,7 @@ abstract class RoundtableDatabase : RoomDatabase() {
         val MIGRATION_10_11: Migration = StageAdvancementMigration.MIGRATION_10_11
         val MIGRATION_11_12: Migration = IssueLifecycleV12Migration.MIGRATION_11_12
         val MIGRATION_12_13: Migration = ExecutionThinkingPolicyMigration.MIGRATION_12_13
+        val MIGRATION_13_14: Migration = ExecutionApiUsageMigration.MIGRATION_13_14
 
         val ALL_MIGRATIONS: Array<Migration> = arrayOf(
             MIGRATION_1_2,
@@ -186,6 +187,7 @@ abstract class RoundtableDatabase : RoomDatabase() {
             MIGRATION_10_11,
             MIGRATION_11_12,
             MIGRATION_12_13,
+            MIGRATION_13_14,
         )
 
         fun getDatabase(context: Context, scope: CoroutineScope): RoundtableDatabase {

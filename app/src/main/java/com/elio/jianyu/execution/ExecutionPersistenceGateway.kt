@@ -1,7 +1,6 @@
 package com.elio.jianyu.execution
 
 import com.elio.jianyu.data.AppendDomainMessageCommand
-import com.elio.jianyu.data.ConsumeExecutionBudgetCommand
 import com.elio.jianyu.data.CreateExecutionRuntimeCommand
 import com.elio.jianyu.data.ExecutionMessageUsageSnapshotEntity
 import com.elio.jianyu.data.ExecutionParticipantStateEntity
@@ -15,17 +14,16 @@ import com.elio.jianyu.data.Message
 import com.elio.jianyu.data.RecoverInterruptedExecutionCommand
 import com.elio.jianyu.data.RepositoryError
 import com.elio.jianyu.data.RepositoryResult
-import com.elio.jianyu.data.SetExecutionBudgetReserveCommand
 import com.elio.jianyu.data.TransitionExecutionParticipantCommand
 import com.elio.jianyu.data.TransitionRunCommand
 import com.elio.jianyu.data.UpdatePendingDomainMessageCommand
 import com.elio.jianyu.data.closeExecutionBudget
-import com.elio.jianyu.data.consumeExecutionBudget
 import com.elio.jianyu.data.createExecutionRuntime
 import com.elio.jianyu.data.getExecutionRuntime
 import com.elio.jianyu.data.listExecutionMessageUsage
 import com.elio.jianyu.data.recoverInterruptedExecution
-import com.elio.jianyu.data.setExecutionBudgetReserve
+import com.elio.jianyu.data.RecordExecutionApiCallCommand
+import com.elio.jianyu.data.recordExecutionApiCall
 import com.elio.jianyu.data.transitionExecutionParticipant
 
 interface ExecutionPersistenceGateway {
@@ -43,13 +41,7 @@ interface ExecutionPersistenceGateway {
         command: TransitionExecutionParticipantCommand,
     ): ExecutionParticipantStateEntity
 
-    suspend fun consumeBudget(
-        command: ConsumeExecutionBudgetCommand,
-    ): ExecutionRunBudgetEntity
-
-    suspend fun setBudgetReserve(
-        command: SetExecutionBudgetReserveCommand,
-    ): ExecutionRunBudgetEntity
+    suspend fun recordApiCall(command: RecordExecutionApiCallCommand): ExecutionRunBudgetEntity
 
     suspend fun closeBudget(rootRunId: String, updatedAt: Long): ExecutionRunBudgetEntity
 
@@ -87,13 +79,9 @@ class JianyuExecutionPersistenceGateway(
     ): ExecutionParticipantStateEntity =
         repository.transitionExecutionParticipant(command).valueOrThrow()
 
-    override suspend fun consumeBudget(
-        command: ConsumeExecutionBudgetCommand,
-    ): ExecutionRunBudgetEntity = repository.consumeExecutionBudget(command).valueOrThrow()
-
-    override suspend fun setBudgetReserve(
-        command: SetExecutionBudgetReserveCommand,
-    ): ExecutionRunBudgetEntity = repository.setExecutionBudgetReserve(command).valueOrThrow()
+    override suspend fun recordApiCall(
+        command: RecordExecutionApiCallCommand,
+    ): ExecutionRunBudgetEntity = repository.recordExecutionApiCall(command).valueOrThrow()
 
     override suspend fun closeBudget(
         rootRunId: String,

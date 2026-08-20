@@ -169,37 +169,10 @@ internal interface JianyuRepositoryDao {
     @Query(
         "UPDATE execution_run_budgets SET " +
             "usedApiCalls = usedApiCalls + :count, " +
-            "reservedRequiredCalls = MIN(reservedRequiredCalls, :reserveAfter), " +
             "updatedAt = :updatedAt " +
-            "WHERE rootRunId = :rootRunId AND closed = 0 " +
-            "AND usedApiCalls + :count + :reserveAfter <= maxApiCalls"
+            "WHERE rootRunId = :rootRunId AND closed = 0"
     )
-    suspend fun consumeRequiredBudget(
-        rootRunId: String,
-        count: Int,
-        reserveAfter: Int,
-        updatedAt: Long
-    ): Int
-
-    @Query(
-        "UPDATE execution_run_budgets SET " +
-            "usedApiCalls = usedApiCalls + :count, updatedAt = :updatedAt " +
-            "WHERE rootRunId = :rootRunId AND closed = 0 " +
-            "AND usedApiCalls + :count + MAX(reservedRequiredCalls, :reserveForRequired) " +
-            "<= maxApiCalls"
-    )
-    suspend fun consumeOptionalBudget(
-        rootRunId: String,
-        count: Int,
-        reserveForRequired: Int,
-        updatedAt: Long
-    ): Int
-
-    @Query(
-        "UPDATE execution_run_budgets SET reservedRequiredCalls = :count, " +
-            "updatedAt = :updatedAt WHERE rootRunId = :rootRunId AND closed = 0"
-    )
-    suspend fun setRequiredBudgetReserve(
+    suspend fun recordExecutionApiCall(
         rootRunId: String,
         count: Int,
         updatedAt: Long

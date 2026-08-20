@@ -456,11 +456,6 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch(Dispatchers.IO) {
             val context = getApplication<Application>().applicationContext
             val tracker = budgetManager.getTracker(questionRunId)
-            val budget = budgetManager.budget
-            if (tracker.isExceeded() || tracker.getUsed() + 2 >= budget.maxApiCallsPerQuestion) {
-                PrivacySafeLogger.w("RoundtableViewModel", "Skipping title generation because of budget")
-                return@launch
-            }
 
             val prompt = """
                 你是一个对话标题提炼助手。
@@ -844,9 +839,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         val selectedExamples = mutableListOf<String>()
         val selectedReferences = mutableListOf<String>()
 
-        if ((totalFiles.isNotEmpty() || mode != SearchMode.OFF) &&
-            (tracker.getRemaining() - reserveForRequired > 0)
-        ) {
+        if (totalFiles.isNotEmpty() || mode != SearchMode.OFF) {
             val summariesMap = loadSkillsSummariesOnce(context)
             val formatFileList = {
                 if (totalFiles.isEmpty()) {
@@ -1151,8 +1144,6 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         if (maxTokensLimitation) {
             if (!CloudInteractionSettings.isEnabled(context)) {
                 PrivacySafeLogger.w("RoundtableViewModel", "Continuation skipped: cloud chain disabled")
-            } else if (tracker.isExceeded() || tracker.getRemaining() - reserveForRequired <= 0) {
-                PrivacySafeLogger.w("RoundtableViewModel", "Continuation skipped: budget unavailable")
             } else {
                 PrivacySafeLogger.d("RoundtableViewModel", "Starting interaction continuation")
                 val continueRequest = CreateInteractionRequest(
@@ -1273,11 +1264,6 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             }
 
             val questionRunId = lastUserMsg.id
-            val tracker = budgetManager.getTracker(questionRunId)
-            val budget = budgetManager.budget
-            val isBudgetExceeded = tracker.isExceeded() ||
-                tracker.getUsed() >= budget.maxApiCallsPerQuestion
-
             val activeChars = charRepo.getActiveCharacters()
             if (activeChars.isEmpty()) {
                 _roundActionState.value = RoundActionState.CONTINUE_ROUND
@@ -1297,7 +1283,6 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             _roundActionState.value = com.elio.jianyu.roundtable.RoundActionStateResolver.resolve(
                 selectedParticipantIds = selectedParticipantIds,
                 messagesSinceRun = messagesSinceRun,
-                isBudgetExceeded = isBudgetExceeded
             )
         }
     }
@@ -1309,12 +1294,8 @@ internal fun buildRoundtableFeedback(
 ): String? {
     val notices = mutableListOf<String>()
     if (result.isLimitExceeded) {
-        notices += "本问题按安全预算已执行前 ${budget.maxCharactersPerQuestion} 位智囊角色。"
+        notices += "本问题最多执行 ${budget.maxCharactersPerQuestion} 位智囊角色。"
     }
-    if (result.isStoppedByBudget) {
-        notices += "已达到总 API 请求预算上限（${budget.maxApiCallsPerQuestion} 次），停止后续智囊发言。"
-    }
-
     val completedCount = result.completedCharacters.size
     val failedCount = result.failedCharacters.size
     val timedOutCount = result.timedOutCharacters.size
@@ -1336,7 +1317,6 @@ internal fun buildRoundtableFeedback(
 enum class RoundActionState {
     CONTINUE_ROUND,
     START_NEXT_ROUND,
-    BUDGET_EXCEEDED
 }
 
 @kotlinx.serialization.Serializable

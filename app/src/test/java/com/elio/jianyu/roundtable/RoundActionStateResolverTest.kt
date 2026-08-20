@@ -18,7 +18,6 @@ class RoundActionStateResolverTest {
         val state = RoundActionStateResolver.resolve(
             selectedParticipantIds = selected,
             messagesSinceRun = messages,
-            isBudgetExceeded = false
         )
         assertEquals("有人未答，返回 CONTINUE_ROUND", RoundActionState.CONTINUE_ROUND, state)
     }
@@ -34,7 +33,6 @@ class RoundActionStateResolverTest {
         val state = RoundActionStateResolver.resolve(
             selectedParticipantIds = selected,
             messagesSinceRun = messages,
-            isBudgetExceeded = false
         )
         assertEquals("当轮全部作答完毕，返回 START_NEXT_ROUND", RoundActionState.START_NEXT_ROUND, state)
     }
@@ -49,20 +47,8 @@ class RoundActionStateResolverTest {
         val state = RoundActionStateResolver.resolve(
             selectedParticipantIds = selected,
             messagesSinceRun = messages,
-            isBudgetExceeded = false
         )
         assertEquals("6人限制不限制其开启下一轮，完成仍应返回 START_NEXT_ROUND", RoundActionState.START_NEXT_ROUND, state)
     }
 
-    @Test
-    fun testExhaustedRequestBudgetReturnsBudgetExceeded() {
-        val selected = listOf("char_a")
-        val messages = emptyList<Message>()
-        val state = RoundActionStateResolver.resolve(
-            selectedParticipantIds = selected,
-            messagesSinceRun = messages,
-            isBudgetExceeded = true
-        )
-        assertEquals("API预算耗尽直接返回 BUDGET_EXCEEDED", RoundActionState.BUDGET_EXCEEDED, state)
-    }
 }

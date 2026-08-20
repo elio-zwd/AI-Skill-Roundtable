@@ -7,11 +7,7 @@ object RoundActionStateResolver {
     fun resolve(
         selectedParticipantIds: List<String>,
         messagesSinceRun: List<Message>,
-        isBudgetExceeded: Boolean
     ): RoundActionState {
-        if (isBudgetExceeded) {
-            return RoundActionState.BUDGET_EXCEEDED
-        }
         if (selectedParticipantIds.isEmpty()) {
             return RoundActionState.CONTINUE_ROUND
         }

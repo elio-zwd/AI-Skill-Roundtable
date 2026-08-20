@@ -1,15 +1,11 @@
 package com.elio.jianyu.data
 
-import com.elio.jianyu.execution.ExecutionBudgetCallKind
-
 data class ExecutionRuntimeBudgetConfig(
-    val maxApiCalls: Int = 30,
-    val maxCharacters: Int = 6,
+    val maxCharacters: Int = 15,
     val maxSearchQueriesPerCharacter: Int = 3,
     val maxOutputTokensPerAnswer: Int = 4096,
 ) {
     init {
-        require(maxApiCalls > 0)
         require(maxCharacters > 0)
         require(maxSearchQueriesPerCharacter >= 0)
         require(maxOutputTokensPerAnswer > 0)
@@ -46,17 +42,9 @@ data class TransitionExecutionParticipantCommand(
     val updatedAt: Long,
 )
 
-data class ConsumeExecutionBudgetCommand(
+data class RecordExecutionApiCallCommand(
     val rootRunId: String,
-    val kind: ExecutionBudgetCallKind,
     val count: Int = 1,
-    val reserveForRequired: Int = 0,
-    val updatedAt: Long,
-)
-
-data class SetExecutionBudgetReserveCommand(
-    val rootRunId: String,
-    val reservedRequiredCalls: Int,
     val updatedAt: Long,
 )
 
@@ -78,12 +66,8 @@ internal interface JianyuExecutionRuntimeRepository {
         command: TransitionExecutionParticipantCommand,
     ): RepositoryResult<ExecutionParticipantStateEntity>
 
-    suspend fun consumeExecutionBudget(
-        command: ConsumeExecutionBudgetCommand,
-    ): RepositoryResult<ExecutionRunBudgetEntity>
-
-    suspend fun setExecutionBudgetReserve(
-        command: SetExecutionBudgetReserveCommand,
+    suspend fun recordExecutionApiCall(
+        command: RecordExecutionApiCallCommand,
     ): RepositoryResult<ExecutionRunBudgetEntity>
 
     suspend fun closeExecutionBudget(
@@ -115,18 +99,11 @@ suspend fun JianyuRepository.transitionExecutionParticipant(
 )?.transitionExecutionParticipant(command)
     ?: missingExecutionRuntimeCapability("transition_execution_participant")
 
-suspend fun JianyuRepository.consumeExecutionBudget(
-    command: ConsumeExecutionBudgetCommand,
+suspend fun JianyuRepository.recordExecutionApiCall(
+    command: RecordExecutionApiCallCommand,
 ): RepositoryResult<ExecutionRunBudgetEntity> = executionRuntimeCapability(
-    "consume_execution_budget",
-)?.consumeExecutionBudget(command) ?: missingExecutionRuntimeCapability("consume_execution_budget")
-
-suspend fun JianyuRepository.setExecutionBudgetReserve(
-    command: SetExecutionBudgetReserveCommand,
-): RepositoryResult<ExecutionRunBudgetEntity> = executionRuntimeCapability(
-    "set_execution_budget_reserve",
-)?.setExecutionBudgetReserve(command)
-    ?: missingExecutionRuntimeCapability("set_execution_budget_reserve")
+    "record_execution_api_call",
+)?.recordExecutionApiCall(command) ?: missingExecutionRuntimeCapability("record_execution_api_call")
 
 suspend fun JianyuRepository.closeExecutionBudget(
     rootRunId: String,

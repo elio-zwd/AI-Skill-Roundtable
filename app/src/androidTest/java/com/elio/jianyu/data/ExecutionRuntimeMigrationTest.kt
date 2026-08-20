@@ -34,7 +34,7 @@ class ExecutionRuntimeMigrationTest {
     }
 
     @Test
-    fun allMigrationsRemainContinuousFromVersion1ToVersion13() {
+    fun allMigrationsRemainContinuousFromVersion1ToVersion14() {
         assertEquals(
             listOf(
                 1 to 2,
@@ -49,6 +49,7 @@ class ExecutionRuntimeMigrationTest {
                 10 to 11,
                 11 to 12,
                 12 to 13,
+                13 to 14,
             ),
             RoundtableDatabase.ALL_MIGRATIONS.map { it.startVersion to it.endVersion },
         )
@@ -93,6 +94,31 @@ class ExecutionRuntimeMigrationTest {
         migrated.close()
     }
 
+    @Test
+    fun migration13To14PreservesUsageAndRemovesApiCallCeilingColumns() {
+        val version13 = migrationHelper.createDatabase(TEST_DATABASE, 13)
+        insertVersion13Fixture(version13)
+        version13.close()
+
+        val migrated = migrationHelper.runMigrationsAndValidate(
+            TEST_DATABASE,
+            14,
+            true,
+            RoundtableDatabase.MIGRATION_13_14,
+        )
+
+        assertEquals(7, scalarInt(migrated, "SELECT usedApiCalls FROM execution_run_budgets"))
+        migrated.query("PRAGMA table_info(execution_run_budgets)").use { cursor ->
+            val columns = generateSequence { if (cursor.moveToNext()) cursor.getString(1) else null }
+                .toSet()
+            assertTrue("应保留调用次数", "usedApiCalls" in columns)
+            assertTrue("不得保留调用次数上限", "maxApiCalls" !in columns)
+            assertTrue("不得保留必需调用预留", "reservedRequiredCalls" !in columns)
+        }
+        assertEquals(0, foreignKeyViolations(migrated))
+        migrated.close()
+    }
+
     private fun insertVersion7Fixture(database: androidx.sqlite.db.SupportSQLiteDatabase) {
         database.execSQL(
             "INSERT INTO issues VALUES ('$ISSUE_ID','Issue',100,100,NULL)",
@@ -113,6 +139,29 @@ class ExecutionRuntimeMigrationTest {
             INSERT INTO execution_participant_snapshots VALUES (
                 '$PARTICIPANT_ID','$RUN_ID','official_skill','skill-a','Skill A','A',
                 'skills/a/SKILL.md','prompt','{}','',0,100
+            )
+            """.trimIndent(),
+        )
+    }
+
+    private fun insertVersion13Fixture(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+        database.execSQL("INSERT INTO issues VALUES ('$ISSUE_ID','Issue',100,100,NULL)")
+        database.execSQL(
+            "INSERT INTO stages VALUES ('$STAGE_ID','$ISSUE_ID',0,'Stage','Objective',100,100)",
+        )
+        database.execSQL(
+            """
+            INSERT INTO execution_runs VALUES (
+                '$RUN_ID','$ISSUE_ID','$STAGE_ID',NULL,'command-13','succeeded',
+                NULL,100,100,100,100,NULL,NULL,NULL,'standard',NULL,NULL,'full_stage',
+                'gemini-3.6-flash','medium','auto_routed'
+            )
+            """.trimIndent(),
+        )
+        database.execSQL(
+            """
+            INSERT INTO execution_run_budgets VALUES (
+                '$RUN_ID',30,7,2,15,3,4096,1,100
             )
             """.trimIndent(),
         )

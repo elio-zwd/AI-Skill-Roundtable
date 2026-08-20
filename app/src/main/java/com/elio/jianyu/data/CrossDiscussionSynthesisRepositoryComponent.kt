@@ -106,10 +106,6 @@ internal class CrossDiscussionSynthesisRepositoryComponent(
         if (rootBudget.closed) {
             return@collaborationTransaction invalidState("response_budget_closed")
         }
-        if (rootBudget.maxApiCalls - rootBudget.usedApiCalls < 1) {
-            return@collaborationTransaction invalidState("response_budget_exhausted")
-        }
-
         core.insertExecutionRun(command.run)
         core.insertParticipantSnapshots(listOf(command.participant))
         core.insertParticipantStates(
@@ -120,13 +116,6 @@ internal class CrossDiscussionSynthesisRepositoryComponent(
                     updatedAt = command.createdAt,
                 ),
             ),
-        )
-        check(
-            core.setRequiredBudgetReserve(
-                rootRunId = aggregate.rootRun.id,
-                count = 1,
-                updatedAt = command.createdAt,
-            ) == 1,
         )
         val sortedUsage = command.contextUsage.sorted()
         if (sortedUsage.materials.isNotEmpty()) {

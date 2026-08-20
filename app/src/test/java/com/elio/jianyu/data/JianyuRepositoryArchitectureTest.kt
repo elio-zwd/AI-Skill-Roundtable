@@ -34,8 +34,9 @@ class JianyuRepositoryArchitectureTest {
             "app/src/main/java/com/elio/jianyu/data/ExecutionThinkingPolicyMigration.kt",
         )
 
-        assertTrue(databaseSource.contains("version = 13"))
+        assertTrue(databaseSource.contains("version = 14"))
         assertTrue(databaseSource.contains("MIGRATION_12_13"))
+        assertTrue(databaseSource.contains("MIGRATION_13_14"))
         assertTrue(databaseSource.contains("MIGRATION_7_8"))
         assertTrue(databaseSource.contains("MIGRATION_8_9"))
         assertTrue(databaseSource.contains("MIGRATION_9_10"))

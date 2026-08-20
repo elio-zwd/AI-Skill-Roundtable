@@ -389,7 +389,7 @@ class MaterialContextRepositoryTest {
             run = run,
             participants = listOf(participant),
             budgetRootRunId = RUN_ID,
-            budget = ExecutionRuntimeBudgetConfig(maxApiCalls = 4),
+            budget = ExecutionRuntimeBudgetConfig(),
             contextUsage = usage,
         )
     }

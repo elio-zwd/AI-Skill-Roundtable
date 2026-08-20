@@ -54,9 +54,9 @@ fun interface ExecutionNetworkGateway {
 /**
  * 复用现有 Interactions 流式客户端的生产适配器。
  *
- * [RequestBudgetTracker] 仅作为旧客户端的传输层防御计数器，不是业务预算事实源；
+ * [RequestBudgetTracker] 仅作为旧客户端的传输层调用计数器，不是业务预算事实源；
  * 每次真实网络尝试前必须先执行 [PreparedExecutionNetworkCall.execute] 的
- * `onAttemptStarted`，由 Coordinator 原子消费 Room 预算。
+ * `onAttemptStarted`，由 Coordinator 原子记录 Room 调用次数。
  */
 class InteractionExecutionNetworkGateway(
     context: Context,
@@ -87,7 +87,7 @@ class InteractionExecutionNetworkGateway(
                 ),
                 sessionId = request.sessionId,
                 attemptPlan = attemptPlan,
-                tracker = RequestBudgetTracker(TRANSPORT_GUARD_LIMIT),
+                tracker = RequestBudgetTracker(),
                 operationName = OPERATION_NAME,
                 interactionChainKey = request.interactionChainKey,
                 isRequired = true,
@@ -105,7 +105,6 @@ class InteractionExecutionNetworkGateway(
 
     private companion object {
         const val OPERATION_NAME = "JianyuExecution"
-        const val TRANSPORT_GUARD_LIMIT = 1_000_000
     }
 }
 

@@ -82,11 +82,8 @@ data class ExecutionParticipantStateEntity(
 )
 data class ExecutionRunBudgetEntity(
     @PrimaryKey val rootRunId: String,
-    val maxApiCalls: Int,
     @ColumnInfo(defaultValue = "0")
     val usedApiCalls: Int = 0,
-    @ColumnInfo(defaultValue = "0")
-    val reservedRequiredCalls: Int = 0,
     val maxCharacters: Int,
     val maxSearchQueriesPerCharacter: Int,
     val maxOutputTokensPerAnswer: Int,

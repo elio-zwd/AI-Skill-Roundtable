@@ -276,7 +276,7 @@ internal fun ExecutionStatusCard(
                     shape = MaterialTheme.shapes.small,
                 ) {
                     Text(
-                        text = "调用额度：已用 ${budget.usedApiCalls} / ${budget.maxApiCalls}，剩余 ${budget.remainingApiCalls}",
+                        text = "已发起 ${budget.usedApiCalls} 次 API 调用",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -526,7 +526,6 @@ private fun IssueExecutionPhase.toDisplayLabel(): String = when (this) {
     IssueExecutionPhase.NO_API_KEY -> "未配置 API Key"
     IssueExecutionPhase.OFFLINE -> "网络不可用"
     IssueExecutionPhase.RATE_LIMITED -> "请求受限"
-    IssueExecutionPhase.BUDGET_EXHAUSTED -> "调用预算已用完"
 }
 
 @Composable
@@ -538,8 +537,7 @@ private fun IssueExecutionPhase.toStatusColor() = when (this) {
     IssueExecutionPhase.RETRYABLE,
     IssueExecutionPhase.NO_API_KEY,
     IssueExecutionPhase.OFFLINE,
-    IssueExecutionPhase.RATE_LIMITED,
-    IssueExecutionPhase.BUDGET_EXHAUSTED -> MaterialTheme.colorScheme.tertiary
+    IssueExecutionPhase.RATE_LIMITED -> MaterialTheme.colorScheme.tertiary
     IssueExecutionPhase.FAILED -> MaterialTheme.colorScheme.error
     else -> MaterialTheme.colorScheme.onSurfaceVariant
 }

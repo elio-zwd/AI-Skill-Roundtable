@@ -38,19 +38,19 @@ class IssueLifecycleV12MigrationTest {
     }
 
     @Test
-    fun legacyVersionsOneToFourMigrateContinuouslyTo13() {
+    fun legacyVersionsOneToFourMigrateContinuouslyTo14() {
         for (startVersion in 1..4) {
             val name = databaseName(startVersion)
             createLegacyDatabase(name, startVersion).close()
 
             val migrated = migrationHelper.runMigrationsAndValidate(
                 name,
-                13,
+                14,
                 true,
                 *RoundtableDatabase.ALL_MIGRATIONS,
             )
             assertEquals(
-                "v$startVersion→v13 foreign_key_check",
+                "v$startVersion→v14 foreign_key_check",
                 0,
                 migrated.query("PRAGMA foreign_key_check").use { it.count },
             )
@@ -59,18 +59,18 @@ class IssueLifecycleV12MigrationTest {
     }
 
     @Test
-    fun committedSchemaVersionsFiveToTwelveMigrateContinuouslyTo13() {
-        for (startVersion in 5..12) {
+    fun committedSchemaVersionsFiveToThirteenMigrateContinuouslyTo14() {
+        for (startVersion in 5..13) {
             val name = databaseName(startVersion)
             migrationHelper.createDatabase(name, startVersion).close()
             val migrated = migrationHelper.runMigrationsAndValidate(
                 name,
-                13,
+                14,
                 true,
                 *RoundtableDatabase.ALL_MIGRATIONS,
             )
             assertEquals(
-                "v$startVersion→v13 foreign_key_check",
+                "v$startVersion→v14 foreign_key_check",
                 0,
                 migrated.query("PRAGMA foreign_key_check").use { it.count },
             )

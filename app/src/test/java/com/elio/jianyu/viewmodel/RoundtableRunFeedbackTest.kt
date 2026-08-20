@@ -11,7 +11,7 @@ class RoundtableRunFeedbackTest {
 
     @Test
     fun noFailuresProducesNoFeedback() {
-        val result = OrchestrationResult(listOf("a"), emptyList(), 1, false, false)
+        val result = OrchestrationResult(listOf("a"), emptyList(), 1, false)
         assertNull(buildRoundtableFeedback(result, budget))
     }
 
@@ -21,7 +21,6 @@ class RoundtableRunFeedbackTest {
             completedCharacters = emptyList(),
             failedCharacters = listOf("a", "b"),
             apiCallsUsed = 2,
-            isStoppedByBudget = false,
             isLimitExceeded = false,
             timedOutCharacters = listOf("a", "b")
         )
@@ -37,7 +36,6 @@ class RoundtableRunFeedbackTest {
             completedCharacters = listOf("a"),
             failedCharacters = listOf("b", "c"),
             apiCallsUsed = 3,
-            isStoppedByBudget = false,
             isLimitExceeded = false,
             timedOutCharacters = listOf("b")
         )

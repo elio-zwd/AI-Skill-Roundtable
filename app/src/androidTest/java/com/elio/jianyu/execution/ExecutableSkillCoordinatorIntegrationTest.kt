@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.data.AppendDomainMessageCommand
-import com.elio.jianyu.data.ConsumeExecutionBudgetCommand
 import com.elio.jianyu.data.CreateExecutionRuntimeCommand
 import com.elio.jianyu.data.ExecutionParticipantStateEntity
 import com.elio.jianyu.data.ExecutionRunBudgetEntity
@@ -20,7 +19,7 @@ import com.elio.jianyu.data.IssueRecoverySnapshot
 import com.elio.jianyu.data.Message
 import com.elio.jianyu.data.RecoverInterruptedExecutionCommand
 import com.elio.jianyu.data.RepositoryError
-import com.elio.jianyu.data.SetExecutionBudgetReserveCommand
+import com.elio.jianyu.data.RecordExecutionApiCallCommand
 import com.elio.jianyu.data.StageEntity
 import com.elio.jianyu.data.TransitionExecutionParticipantCommand
 import com.elio.jianyu.data.TransitionRunCommand
@@ -230,8 +229,6 @@ class ExecutableSkillCoordinatorIntegrationTest {
             val budget = if (command.budgetRootRunId == command.run.id) {
                 ExecutionRunBudgetEntity(
                     rootRunId = command.run.id,
-                    maxApiCalls = command.budget.maxApiCalls,
-                    reservedRequiredCalls = command.participants.size,
                     maxCharacters = command.budget.maxCharacters,
                     maxSearchQueriesPerCharacter = command.budget.maxSearchQueriesPerCharacter,
                     maxOutputTokensPerAnswer = command.budget.maxOutputTokensPerAnswer,
@@ -286,31 +283,17 @@ class ExecutableSkillCoordinatorIntegrationTest {
             return updated
         }
 
-        override suspend fun consumeBudget(
-            command: ConsumeExecutionBudgetCommand,
+        override suspend fun recordApiCall(
+            command: RecordExecutionApiCallCommand,
         ): ExecutionRunBudgetEntity {
             val current = budgets.getValue(command.rootRunId)
-            if (
-                current.closed ||
-                current.usedApiCalls + command.count + command.reserveForRequired > current.maxApiCalls
-            ) {
+            if (current.closed) {
                 throw ExecutionRepositoryException(
-                    RepositoryError.InvalidState("consume_execution_budget", "budget_exhausted"),
+                    RepositoryError.InvalidState("record_execution_api_call", "budget_closed"),
                 )
             }
             return current.copy(
                 usedApiCalls = current.usedApiCalls + command.count,
-                reservedRequiredCalls = command.reserveForRequired,
-                updatedAt = command.updatedAt,
-            ).also { budgets[command.rootRunId] = it }
-        }
-
-        override suspend fun setBudgetReserve(
-            command: SetExecutionBudgetReserveCommand,
-        ): ExecutionRunBudgetEntity {
-            val current = budgets.getValue(command.rootRunId)
-            return current.copy(
-                reservedRequiredCalls = command.reservedRequiredCalls,
                 updatedAt = command.updatedAt,
             ).also { budgets[command.rootRunId] = it }
         }

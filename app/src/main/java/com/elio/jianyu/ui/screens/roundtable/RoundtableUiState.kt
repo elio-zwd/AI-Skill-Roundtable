@@ -51,7 +51,6 @@ enum class RoundActionUiState {
     HIDDEN,
     CONTINUE_ROUND,
     START_NEXT_ROUND,
-    BUDGET_EXCEEDED,
 }
 
 data class RetryBarUiState(
@@ -236,7 +235,6 @@ fun resolveRoundActionUiState(
     return when (roundActionState) {
         RoundActionState.CONTINUE_ROUND -> RoundActionUiState.CONTINUE_ROUND
         RoundActionState.START_NEXT_ROUND -> RoundActionUiState.START_NEXT_ROUND
-        RoundActionState.BUDGET_EXCEEDED -> RoundActionUiState.BUDGET_EXCEEDED
     }
 }
 

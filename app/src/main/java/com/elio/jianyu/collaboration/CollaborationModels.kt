@@ -62,7 +62,7 @@ data class DirectedResponseRequest(
     val model: String = DEFAULT_EXECUTION_MODEL,
     val thinkingOverride: IssueThinkingPolicy? = null,
     val searchMode: SearchMode = SearchMode.AUTO,
-    val budget: ExecutionRuntimeBudgetConfig = CollaborationExecutionBudgetPolicy.directed(),
+    val budget: ExecutionRuntimeBudgetConfig = ExecutionRuntimeBudgetConfig(),
 ) {
     init {
         require(STABLE_OPERATION_ID.matches(operationId))
@@ -73,7 +73,6 @@ data class DirectedResponseRequest(
         require(roundIndex >= 0)
         require(userConfirmedAt > 0L)
         require(model.isNotBlank())
-        require(budget.maxApiCalls >= 1)
     }
 }
 
@@ -89,9 +88,7 @@ data class CrossDiscussionRequest(
     val model: String = DEFAULT_EXECUTION_MODEL,
     val thinkingOverride: IssueThinkingPolicy? = null,
     val searchMode: SearchMode = SearchMode.AUTO,
-    val budget: ExecutionRuntimeBudgetConfig = CollaborationExecutionBudgetPolicy.cross(
-        selectedSkillIds.size,
-    ),
+    val budget: ExecutionRuntimeBudgetConfig = ExecutionRuntimeBudgetConfig(),
     val autoStartSynthesisOnFullSuccess: Boolean = true,
 ) {
     init {
@@ -105,7 +102,6 @@ data class CrossDiscussionRequest(
         require(roundIndex >= 0)
         require(userConfirmedAt > 0L)
         require(model.isNotBlank())
-        require(budget.maxApiCalls >= selectedSkillIds.size + 1)
     }
 }
 

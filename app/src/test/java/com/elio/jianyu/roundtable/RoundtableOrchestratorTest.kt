@@ -95,7 +95,7 @@ class RoundtableOrchestratorTest {
             val consumed = if (isRequired) {
                 tracker.tryConsumeRequired(1)
             } else {
-                tracker.tryConsumeOptional(1, reserveForRequired)
+                tracker.tryConsumeOptional(1)
             }
             if (!consumed) {
                 throw RuntimeException("Budget reservation failed")
@@ -117,7 +117,7 @@ class RoundtableOrchestratorTest {
             val consumed = if (isRequired) {
                 tracker.tryConsumeRequired(1)
             } else {
-                tracker.tryConsumeOptional(1, reserveForRequired)
+                tracker.tryConsumeOptional(1)
             }
             if (!consumed) {
                 throw RuntimeException("Budget reservation failed for Embedding")
@@ -378,7 +378,7 @@ class RoundtableOrchestratorTest {
         val messagesList = mutableListOf(
             Message(id = 1001L, chatId = 1L, senderId = "user", senderName = "User", avatar = "U", text = "你好")
         )
-        val budget = RoundtableBudget(maxCharactersPerQuestion = 2, maxApiCallsPerQuestion = 30)
+        val budget = RoundtableBudget(maxCharactersPerQuestion = 2)
         val budgetManager = RoundtableBudgetManager(budget)
 
         val dbGateway = FakeRoundtableDatabaseGateway(messagesList, mutableListOf(charA, charB))
@@ -410,7 +410,7 @@ class RoundtableOrchestratorTest {
     }
 
     @Test
-    fun optionalRequestsCannotConsumeReservedMainAnswerBudget() = runBlocking {
+    fun optionalRequestsAreRecordedAlongsideMainAnswers() = runBlocking {
         val context = mock(Context::class.java)
         val charA = Character(id = "char_a", name = "智囊A", avatar = "A", tagline = "", systemPrompt = "", order = 1)
         val charB = Character(id = "char_b", name = "智囊B", avatar = "B", tagline = "", systemPrompt = "", order = 2)
@@ -418,14 +418,12 @@ class RoundtableOrchestratorTest {
         val messagesList = mutableListOf(
             Message(id = 1001L, chatId = 1L, senderId = "user", senderName = "User", avatar = "U", text = "提问")
         )
-        // 限制最大 API 次数为 2 次，这就刚好只够 A 和 B 的主回答 (REQUIRED)
-        val budget = RoundtableBudget(maxCharactersPerQuestion = 2, maxApiCallsPerQuestion = 2)
+        val budget = RoundtableBudget(maxCharactersPerQuestion = 2)
         val budgetManager = RoundtableBudgetManager(budget)
         val tracker = budgetManager.getTracker(1001L)
 
         val dbGateway = FakeRoundtableDatabaseGateway(messagesList, mutableListOf(charA, charB))
 
-        // 验证可选消费 Embedding 会直接由于预留不足而报错拦截，保全主回答
         val answerGateway = FakeCharacterAnswerGateway("回复")
 
         val orchestrator = RoundtableOrchestrator(
@@ -438,28 +436,20 @@ class RoundtableOrchestratorTest {
             createAttemptPlan = testAttemptPlan
         )
 
-        // 开启语义路由（在 charactersToAnswer.size = 2 时，Embedding (OPTIONAL) 消费 1 次需要预留 2 次 REQUIRED 主回答，
-        // 即 1 + 2 = 3 > 2 预算，所以 Embedding 应当被拒绝，退回到默认排序）
         val result = orchestrator.runRoundtableSequence(sessionId = 1L, questionRunId = 1001L, isSemanticRoutingEnabled = true)
 
         assertEquals("圆桌依然完成了 2 个角色的主回答", 2, result.completedCharacters.size)
-        assertEquals("API 次数刚好消耗 2 次", 2, tracker.getUsed())
+        assertEquals("Embedding 与两次主回答均应被记录", 3, tracker.getUsed())
     }
 
     @Test
-    fun optionalBudgetRespectsRequiredReserve() = runBlocking {
-        val budget = RoundtableBudget(maxApiCallsPerQuestion = 5)
-        val tracker = RequestBudgetTracker(budget.maxApiCallsPerQuestion)
+    fun optionalRequestsAreNotBlockedByApiCallCount() = runBlocking {
+        val tracker = RequestBudgetTracker()
 
-        // 模拟圆桌进行中需要 5 个主回答（预留 5）
-        val reserve = 5
+        val successDuringRound = tracker.tryConsumeOptional()
+        assertTrue("累计调用次数不应阻断标题生成", successDuringRound)
 
-        // 自动标题属于 OPTIONAL，在圆桌进行时它在 tryConsumeOptional 里会由于预留不足被拦截，不与圆桌并发争抢额度
-        val successDuringRound = tracker.tryConsumeOptional(1, reserveForRequired = reserve)
-        assertFalse("圆桌进行中并发生成标题会被拒绝", successDuringRound)
-
-        // 圆桌完成后（reserve 降为 0），可以成功生成标题
-        val successAfterRound = tracker.tryConsumeOptional(1, reserveForRequired = 0)
+        val successAfterRound = tracker.tryConsumeOptional()
         assertTrue("圆桌完成后可生成标题", successAfterRound)
     }
 
@@ -597,7 +587,7 @@ class RoundtableOrchestratorTest {
     fun requiredRetryPreservesLaterParticipants() = runBlocking {
         val context = mock(Context::class.java)
         // 预算限额是 2，我们有两个 REQUIRED 主回答（A 和 B）
-        val budget = RoundtableBudget(maxCharactersPerQuestion = 2, maxApiCallsPerQuestion = 2)
+        val budget = RoundtableBudget(maxCharactersPerQuestion = 2)
         val budgetManager = RoundtableBudgetManager(budget)
 
         val charA = Character(id = "char_a", name = "A", avatar = "A", tagline = "", systemPrompt = "", order = 1)
@@ -666,7 +656,7 @@ class RoundtableOrchestratorTest {
     fun requiredKeyFallbackPreservesLaterParticipants() = runBlocking {
         val context = mock(Context::class.java)
         // 预算限额是 2。有两个智囊。
-        val budget = RoundtableBudget(maxCharactersPerQuestion = 2, maxApiCallsPerQuestion = 2)
+        val budget = RoundtableBudget(maxCharactersPerQuestion = 2)
         val budgetManager = RoundtableBudgetManager(budget)
 
         val charA = Character(id = "char_a", name = "A", avatar = "A", tagline = "", systemPrompt = "", order = 1)

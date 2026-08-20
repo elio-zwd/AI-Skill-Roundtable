@@ -79,11 +79,8 @@ class RoomJianyuRepository(
     override suspend fun transitionExecutionParticipant(command: TransitionExecutionParticipantCommand) =
         executionRuntime.transitionExecutionParticipant(command)
 
-    override suspend fun consumeExecutionBudget(command: ConsumeExecutionBudgetCommand) =
-        executionRuntime.consumeExecutionBudget(command)
-
-    override suspend fun setExecutionBudgetReserve(command: SetExecutionBudgetReserveCommand) =
-        executionRuntime.setExecutionBudgetReserve(command)
+    override suspend fun recordExecutionApiCall(command: RecordExecutionApiCallCommand) =
+        executionRuntime.recordExecutionApiCall(command)
 
     override suspend fun closeExecutionBudget(rootRunId: String, updatedAt: Long) =
         executionRuntime.closeExecutionBudget(rootRunId, updatedAt)

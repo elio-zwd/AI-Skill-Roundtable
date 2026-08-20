@@ -127,10 +127,6 @@ class IssueCollaborationCoordinator(
             .filterTo(mutableSetOf(), eligibility::isExecutable)
         requireValid(StandardFollowUpPolicy.validate(roster, executable))
         val currentRoster = requireNotNull(roster)
-        require(request.budget.maxApiCalls >= currentRoster.participants.size) {
-            "调用预算不足以覆盖当前正式阵容"
-        }
-
         val usage = rebindUsage(
             request.context.usage,
             request.issueId,
@@ -449,7 +445,6 @@ class IssueCollaborationCoordinator(
                 model = request.model,
                 searchMode = request.searchMode,
                 contributions = request.context.contributions,
-                additionalRequiredCalls = 1,
                 keepBudgetOpenOnSuccess = true,
             ),
         )
@@ -600,9 +595,6 @@ class IssueCollaborationCoordinator(
                 model = request.model,
                 searchMode = request.searchMode,
                 contributions = contributions,
-                additionalRequiredCalls = if (
-                    created.runtime.run.runKind == ExecutionRunKind.CROSS_DISCUSSION_RESPONSE
-                ) 1 else 0,
                 keepBudgetOpenOnSuccess =
                     created.runtime.run.runKind == ExecutionRunKind.CROSS_DISCUSSION_RESPONSE,
             ),

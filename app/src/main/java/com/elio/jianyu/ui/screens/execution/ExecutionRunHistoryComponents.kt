@@ -212,10 +212,7 @@ private fun ExecutionRunHistoryDetail(
                             "${detail.run.actualThinkingLevel.storageValue} · " +
                                 detail.run.thinkingLevelSource.displayLabel,
                         )
-                        RunRecordPill(
-                            "额度",
-                            "已用 ${detail.budget.usedApiCalls} / ${detail.budget.maxApiCalls}",
-                        )
+                        RunRecordPill("调用", "${detail.budget.usedApiCalls} 次")
                     }
                     detail.run.relationshipDescription?.let { Text(it) }
                     detail.run.failureMessage?.takeIf(String::isNotBlank)?.let { failure ->

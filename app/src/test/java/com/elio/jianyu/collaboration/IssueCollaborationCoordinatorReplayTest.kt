@@ -88,8 +88,6 @@ class IssueCollaborationCoordinatorReplayTest {
             ),
             budget = ExecutionRunBudgetEntity(
                 rootRunId = run.id,
-                maxApiCalls = budgetConfig.maxApiCalls,
-                reservedRequiredCalls = 1,
                 maxCharacters = budgetConfig.maxCharacters,
                 maxSearchQueriesPerCharacter = budgetConfig.maxSearchQueriesPerCharacter,
                 maxOutputTokensPerAnswer = budgetConfig.maxOutputTokensPerAnswer,

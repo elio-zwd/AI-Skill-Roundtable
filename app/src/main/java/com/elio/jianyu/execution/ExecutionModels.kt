@@ -13,11 +13,6 @@ import java.security.MessageDigest
 
 typealias ExecutionParticipantStatus = com.elio.jianyu.data.ExecutionParticipantStatus
 
-enum class ExecutionBudgetCallKind {
-    REQUIRED,
-    OPTIONAL,
-}
-
 enum class ExecutionErrorCode(val storageValue: String, val retryable: Boolean) {
     NO_API_KEY("no_api_key", true),
     OFFLINE("offline", true),
@@ -27,7 +22,6 @@ enum class ExecutionErrorCode(val storageValue: String, val retryable: Boolean) 
     EMPTY_RESPONSE("empty_response", true),
     PROVIDER_ERROR("provider_error", true),
     SAFETY_BLOCKED("safety_blocked", false),
-    BUDGET_EXHAUSTED("budget_exhausted", true),
     STORAGE_FAILURE("storage_failure", true),
     INVALID_SKILL("invalid_skill", false),
     INVALID_STATE("invalid_state", false),
@@ -49,7 +43,6 @@ data class ExecutionFailure(
 typealias ExecutionError = ExecutionFailure
 
 class NoExecutionApiKeyException : IllegalStateException("No imported API key is available")
-class ExecutionBudgetExhaustedException : IllegalStateException("Execution budget is exhausted")
 class ExecutionSafetyBlockedException : IllegalStateException("Provider blocked the request")
 class ExecutionEmptyResponseException : IllegalStateException("Provider returned no model text")
 class ExecutionModelMismatchException : IllegalStateException("Provider returned an unexpected model")
@@ -99,20 +92,13 @@ object ExecutionThinkingPolicyResolver {
 
 data class ExecutionBudgetSnapshot(
     val rootRunId: String,
-    val maxApiCalls: Int,
     val usedApiCalls: Int,
-    val reservedRequiredCalls: Int,
     val closed: Boolean,
 ) {
     init {
         require(rootRunId.isNotBlank())
-        require(maxApiCalls > 0)
-        require(usedApiCalls in 0..maxApiCalls)
-        require(reservedRequiredCalls >= 0)
+        require(usedApiCalls >= 0)
     }
-
-    val remainingApiCalls: Int
-        get() = maxApiCalls - usedApiCalls
 }
 
 data class ExecutionParticipantResult(
@@ -156,9 +142,7 @@ fun ExecutionRuntimeSnapshot.toExecutionRecoverySnapshot(): ExecutionRecoverySna
         },
         budget = ExecutionBudgetSnapshot(
             rootRunId = budget.rootRunId,
-            maxApiCalls = budget.maxApiCalls,
             usedApiCalls = budget.usedApiCalls,
-            reservedRequiredCalls = budget.reservedRequiredCalls,
             closed = budget.closed,
         ),
         requiresExplicitRetry = run.status in setOf(
@@ -254,7 +238,6 @@ data class ExecutionPreparedRunCommand(
     val model: String = DEFAULT_EXECUTION_MODEL,
     val searchMode: SearchMode = SearchMode.AUTO,
     val contributions: List<ExecutionContextContribution> = emptyList(),
-    val additionalRequiredCalls: Int = 0,
     val keepBudgetOpenOnSuccess: Boolean = false,
 ) {
     init {
@@ -265,7 +248,6 @@ data class ExecutionPreparedRunCommand(
         require(roundIndex >= 0)
         require(userConfirmedAt > 0L)
         require(model.isNotBlank())
-        require(additionalRequiredCalls >= 0)
     }
 }
 

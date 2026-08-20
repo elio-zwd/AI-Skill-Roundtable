@@ -23,7 +23,6 @@ enum class IssueExecutionPhase {
     NO_API_KEY,
     OFFLINE,
     RATE_LIMITED,
-    BUDGET_EXHAUSTED,
 }
 
 data class IssueExecutionParticipantUi(
@@ -40,14 +39,9 @@ data class IssueExecutionParticipantUi(
 )
 
 data class IssueExecutionBudgetUi(
-    val maxApiCalls: Int,
     val usedApiCalls: Int,
-    val reservedRequiredCalls: Int,
     val closed: Boolean,
-) {
-    val remainingApiCalls: Int
-        get() = (maxApiCalls - usedApiCalls).coerceAtLeast(0)
-}
+)
 
 /** 已持久化的阶段 Run 摘要；只展示数据库中实际冻结的执行快照。 */
 data class IssueExecutionRunHistoryUi(

@@ -92,7 +92,6 @@ data class OrchestrationResult(
     val completedCharacters: List<String>,
     val failedCharacters: List<String>,
     val apiCallsUsed: Int,
-    val isStoppedByBudget: Boolean,
     val isLimitExceeded: Boolean,
     val timedOutCharacters: List<String> = emptyList()
 )
@@ -105,7 +104,7 @@ class RoundtableBudgetManager(val budget: RoundtableBudget = RoundtableBudget())
 
     fun getTracker(questionRunId: Long): RequestBudgetTracker {
         return trackers.computeIfAbsent(questionRunId) {
-            RequestBudgetTracker(budget.maxApiCallsPerQuestion)
+            RequestBudgetTracker()
         }
     }
 
@@ -175,7 +174,6 @@ class RoundtableOrchestrator(
         val completed = mutableListOf<String>()
         val failed = mutableListOf<String>()
         val timedOut = mutableListOf<String>()
-        var isStoppedByBudget = false
         var isLimitExceeded = false
 
         val tracker = budgetManager.getTracker(questionRunId)
@@ -183,15 +181,11 @@ class RoundtableOrchestrator(
         val budget = budgetManager.budget
 
         try {
-            if (tracker.isExceeded()) {
-                return OrchestrationResult(emptyList(), emptyList(), tracker.getUsed(), true, false)
-            }
-
             val activeCharacters = dbGateway.getActiveCharacters()
             val messages = dbGateway.getMessages(sessionId)
             val runMessageIndex = messages.indexOfFirst { it.id == questionRunId }
             if (runMessageIndex == -1) {
-                return OrchestrationResult(emptyList(), emptyList(), tracker.getUsed(), false, false)
+                return OrchestrationResult(emptyList(), emptyList(), tracker.getUsed(), false)
             }
 
             val selectedCharacters = if (targetCharacterIds != null) {
@@ -225,8 +219,7 @@ class RoundtableOrchestrator(
 
             val selectedParticipantIds = selectedCharacters.map { it.id }
             if (selectedParticipantIds.isEmpty()) {
-                tracker.close()
-                return OrchestrationResult(emptyList(), emptyList(), tracker.getUsed(), false, false)
+                return OrchestrationResult(emptyList(), emptyList(), tracker.getUsed(), false)
             }
 
             val messagesSinceRun = messages
@@ -241,27 +234,14 @@ class RoundtableOrchestrator(
             val pendingCharacters = selectedCharacters.filter { it.id !in answeredInTargetRound }
 
             if (pendingCharacters.isEmpty()) {
-                tracker.close()
-                return OrchestrationResult(emptyList(), emptyList(), tracker.getUsed(), false, false)
+                return OrchestrationResult(emptyList(), emptyList(), tracker.getUsed(), false)
             }
 
-            if (tracker.getRemaining() < pendingCharacters.size) {
-                tracker.close()
-                return OrchestrationResult(emptyList(), emptyList(), tracker.getUsed(), true, false)
-            }
-
-            tracker.setRequiredReserve(pendingCharacters.size)
-
-            for ((index, character) in pendingCharacters.withIndex()) {
+            for (character in pendingCharacters) {
                 if (!answered.contains(character.id) && answered.size >= budget.maxCharactersPerQuestion) {
                     isLimitExceeded = true
                     break
                 }
-                if (tracker.isExceeded()) {
-                    isStoppedByBudget = true
-                    break
-                }
-
                 val pendingMessageId = dbGateway.insertMessage(
                     Message(
                         chatId = sessionId,
@@ -291,7 +271,7 @@ class RoundtableOrchestrator(
                             budget = budget,
                             sessionId = sessionId,
                             isRequired = true,
-                            reserveForRequired = pendingCharacters.size - index,
+                            reserveForRequired = 0,
                             onAttemptStarted = {
                                 dbGateway.updatePendingMessageText(
                                     pendingMessageId,
@@ -344,12 +324,6 @@ class RoundtableOrchestrator(
                 if (minIntervalMs > 0L) delayProvider.delay(minIntervalMs)
             }
 
-            updateRequiredReserveForNextStep(
-                sessionId = sessionId,
-                questionRunId = questionRunId,
-                selectedParticipantIds = selectedParticipantIds,
-                tracker = tracker
-            )
         } finally {
             roundtableMutex.unlock()
         }
@@ -358,7 +332,6 @@ class RoundtableOrchestrator(
             completedCharacters = completed,
             failedCharacters = failed,
             apiCallsUsed = tracker.getUsed(),
-            isStoppedByBudget = isStoppedByBudget,
             isLimitExceeded = isLimitExceeded,
             timedOutCharacters = timedOut
         )
@@ -378,7 +351,6 @@ class RoundtableOrchestrator(
         val sortedCharacters = if (semanticRoutingEnabled) {
             try {
                 val attemptPlan = createAttemptPlan(context, sessionId)
-                val requiredCount = minOf(activeCharacters.size, budget.maxCharactersPerQuestion)
                 val questionVector = answerGateway.getEmbedding(
                     context = context,
                     text = questionMessage.text,
@@ -386,7 +358,7 @@ class RoundtableOrchestrator(
                     attemptPlan = attemptPlan,
                     tracker = tracker,
                     isRequired = false,
-                    reserveForRequired = requiredCount
+                    reserveForRequired = 0
                 )
                 activeCharacters.map { character ->
                     val characterVector = runCatching {
@@ -431,46 +403,6 @@ class RoundtableOrchestrator(
         } else {
             maxRound
         }
-    }
-
-    private suspend fun updateRequiredReserveForNextStep(
-        sessionId: Long,
-        questionRunId: Long,
-        selectedParticipantIds: List<String>,
-        tracker: RequestBudgetTracker
-    ) {
-        if (selectedParticipantIds.isEmpty()) {
-            tracker.close()
-            return
-        }
-
-        val latestMessages = dbGateway.getMessages(sessionId)
-        val runMessageIndex = latestMessages.indexOfFirst { it.id == questionRunId }
-        if (runMessageIndex == -1) {
-            tracker.close()
-            return
-        }
-
-        val messagesSinceRun = latestMessages
-            .subList(runMessageIndex + 1, latestMessages.size)
-            .takeWhile { it.senderId != "user" }
-            .filterNot { it.isPending }
-
-        val maxRound = messagesSinceRun.maxOfOrNull { it.roundIndex } ?: 1
-        val answeredInLatestRound = messagesSinceRun
-            .filter { it.roundIndex == maxRound }
-            .map { it.senderId }
-            .toSet()
-
-        val missingInCurrentRound = selectedParticipantIds.count { it !in answeredInLatestRound }
-        val requiredForNextStep = if (missingInCurrentRound > 0) {
-            missingInCurrentRound
-        } else {
-            selectedParticipantIds.size
-        }
-
-        tracker.setRequiredReserve(requiredForNextStep)
-        if (tracker.getRemaining() < requiredForNextStep) tracker.close()
     }
 
     private fun calculateCosineSimilarity(vectorA: List<Float>, vectorB: List<Float>): Float {

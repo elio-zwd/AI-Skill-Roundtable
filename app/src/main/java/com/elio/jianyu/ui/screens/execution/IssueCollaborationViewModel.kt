@@ -19,7 +19,6 @@ import com.elio.jianyu.collaboration.StandardFollowUpRequest
 import com.elio.jianyu.data.CrossDiscussionStatus
 import com.elio.jianyu.data.ExecutionRunEntity
 import com.elio.jianyu.data.ExecutionRunKind
-import com.elio.jianyu.collaboration.CollaborationExecutionBudgetPolicy
 import com.elio.jianyu.data.Message
 import com.elio.jianyu.data.IssueThinkingPolicy
 import com.elio.jianyu.data.PreparedExecutionContext
@@ -203,7 +202,6 @@ class IssueCollaborationViewModel internal constructor(
                     context = contextSelection(current, preparedContext),
                     thinkingOverride = thinkingOverride,
                     searchMode = searchMode,
-                    budget = CollaborationExecutionBudgetPolicy.directed(),
                 ),
             )
         }
@@ -230,7 +228,6 @@ class IssueCollaborationViewModel internal constructor(
                     context = contextSelection(current, preparedContext),
                     thinkingOverride = thinkingOverride,
                     searchMode = searchMode,
-                    budget = CollaborationExecutionBudgetPolicy.cross(selected.size),
                     autoStartSynthesisOnFullSuccess = true,
                 ),
             )

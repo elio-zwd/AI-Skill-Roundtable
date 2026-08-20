@@ -419,20 +419,6 @@ internal fun RoundActionBar(
                         )
                     }
                 }
-                RoundActionUiState.BUDGET_EXCEEDED -> {
-                    Surface(
-                        color = Color(0xFF2D3748),
-                        contentColor = TextSecondary,
-                        shape = RoundedCornerShape(18.dp),
-                        modifier = Modifier.wrapContentWidth(),
-                    ) {
-                        RoundActionContent(
-                            icon = Icons.Default.Info,
-                            text = "本问题已达安全预算上限",
-                            color = TextSecondary,
-                        )
-                    }
-                }
             }
         }
     }

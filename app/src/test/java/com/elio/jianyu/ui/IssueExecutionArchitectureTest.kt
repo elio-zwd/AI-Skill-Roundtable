@@ -86,7 +86,7 @@ class IssueExecutionArchitectureTest {
 
         assertFalse(source.contains("ConcurrentHashMap<Long, RequestBudgetTracker>"))
         assertFalse(source.contains("ConcurrentHashMap<String, RequestBudgetTracker>"))
-        assertTrue(source.contains("consumeBudget("))
+        assertTrue(source.contains("recordApiCall("))
         assertTrue(source.contains("execution_run_budgets") || source.contains("ExecutionRunBudget"))
     }
 

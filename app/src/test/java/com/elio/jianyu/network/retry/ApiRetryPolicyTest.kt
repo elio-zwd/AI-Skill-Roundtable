@@ -177,7 +177,7 @@ class ApiRetryPolicyTest {
         contextField.isAccessible = true
         contextField.set(ApiKeyPool, context)
 
-        val tracker = com.elio.jianyu.roundtable.RequestBudgetTracker(10)
+        val tracker = com.elio.jianyu.roundtable.RequestBudgetTracker()
         val attemptPlan = listOf(
             ApiKeyLease("key_a", "K1", "secret_1", ApiKeySource.LOCAL)
         )
@@ -287,7 +287,7 @@ class ApiRetryPolicyTest {
                 context = context,
                 sessionId = 1L,
                 attemptPlan = plan,
-                tracker = RequestBudgetTracker(5),
+                tracker = RequestBudgetTracker(),
                 operationName = "CancellationTest"
             ) {
                 throw expected

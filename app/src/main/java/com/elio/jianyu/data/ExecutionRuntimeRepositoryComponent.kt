@@ -1,6 +1,5 @@
 package com.elio.jianyu.data
 
-import com.elio.jianyu.execution.ExecutionBudgetCallKind
 import com.elio.jianyu.execution.ExecutionStateMachine
 
 internal class ExecutionRuntimeRepositoryComponent(
@@ -102,8 +101,6 @@ internal class ExecutionRuntimeRepositoryComponent(
                 insertRunBudget(
                     ExecutionRunBudgetEntity(
                         rootRunId = command.run.id,
-                        maxApiCalls = command.budget.maxApiCalls,
-                        reservedRequiredCalls = participants.size,
                         maxCharacters = command.budget.maxCharacters,
                         maxSearchQueriesPerCharacter =
                             command.budget.maxSearchQueriesPerCharacter,
@@ -216,37 +213,27 @@ internal class ExecutionRuntimeRepositoryComponent(
         }
     }
 
-    suspend fun consumeExecutionBudget(
-        command: ConsumeExecutionBudgetCommand,
+    suspend fun recordExecutionApiCall(
+        command: RecordExecutionApiCallCommand,
     ): RepositoryResult<ExecutionRunBudgetEntity> {
-        return transactions.transaction("consume_execution_budget") {
+        return transactions.transaction("record_execution_api_call") {
             require(command.rootRunId.isNotBlank())
             require(command.count > 0)
-            require(command.reserveForRequired >= 0)
             require(command.updatedAt > 0L)
             val existing = getRunBudget(command.rootRunId)
                 ?: return@transaction RepositoryResult.Failure(
                     RepositoryError.NotFound("execution_run_budget", command.rootRunId),
                 )
-            val changed = when (command.kind) {
-                ExecutionBudgetCallKind.REQUIRED -> consumeRequiredBudget(
-                    rootRunId = command.rootRunId,
-                    count = command.count,
-                    reserveAfter = command.reserveForRequired,
-                    updatedAt = command.updatedAt,
-                )
-                ExecutionBudgetCallKind.OPTIONAL -> consumeOptionalBudget(
-                    rootRunId = command.rootRunId,
-                    count = command.count,
-                    reserveForRequired = command.reserveForRequired,
-                    updatedAt = command.updatedAt,
-                )
-            }
+            val changed = recordExecutionApiCall(
+                rootRunId = command.rootRunId,
+                count = command.count,
+                updatedAt = command.updatedAt,
+            )
             if (changed != 1) {
                 return@transaction RepositoryResult.Failure(
                     RepositoryError.InvalidState(
-                        "consume_execution_budget",
-                        if (existing.closed) "budget_closed" else "budget_exhausted",
+                        "record_execution_api_call",
+                        if (existing.closed) "budget_closed" else "usage_record_failed",
                     ),
                 )
             }
@@ -254,48 +241,6 @@ internal class ExecutionRuntimeRepositoryComponent(
                 getRunBudget(command.rootRunId)
                     ?: throw IllegalStateException("Budget update disappeared"),
             )
-        }
-    }
-
-    suspend fun setExecutionBudgetReserve(
-        command: SetExecutionBudgetReserveCommand,
-    ): RepositoryResult<ExecutionRunBudgetEntity> {
-        return transactions.transaction("set_execution_budget_reserve") {
-            require(command.reservedRequiredCalls >= 0)
-            require(command.updatedAt > 0L)
-            val budget = getRunBudget(command.rootRunId)
-                ?: return@transaction RepositoryResult.Failure(
-                    RepositoryError.NotFound("execution_run_budget", command.rootRunId),
-                )
-            if (budget.closed) {
-                return@transaction RepositoryResult.Failure(
-                    RepositoryError.InvalidState(
-                        "set_execution_budget_reserve",
-                        "budget_closed",
-                    ),
-                )
-            }
-            if (
-                budget.reservedRequiredCalls == command.reservedRequiredCalls &&
-                budget.updatedAt == command.updatedAt
-            ) {
-                return@transaction RepositoryResult.Success(budget, idempotent = true)
-            }
-            if (
-                setRequiredBudgetReserve(
-                    command.rootRunId,
-                    command.reservedRequiredCalls,
-                    command.updatedAt,
-                ) != 1
-            ) {
-                return@transaction RepositoryResult.Failure(
-                    RepositoryError.InvalidState(
-                        "set_execution_budget_reserve",
-                        "reserve_update_failed",
-                    ),
-                )
-            }
-            RepositoryResult.Success(requireNotNull(getRunBudget(command.rootRunId)))
         }
     }
 

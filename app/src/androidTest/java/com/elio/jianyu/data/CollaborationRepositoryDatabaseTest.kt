@@ -54,7 +54,6 @@ class CollaborationRepositoryDatabaseTest {
         assertEquals(ExecutionHistoryScope.EXPLICIT_MESSAGES, first.runtime.run.historyScope)
         assertEquals(USER_MESSAGE_ID, first.runtime.run.triggerMessageId)
         assertEquals(1, first.runtime.participants.size)
-        assertEquals(1, first.runtime.budget.reservedRequiredCalls)
         assertEquals(2, recovery.core.messages.size)
         assertEquals(1, usage.size)
         assertEquals("历史正文\r\n第二行", usage.single().contentSnapshot)
@@ -89,7 +88,6 @@ class CollaborationRepositoryDatabaseTest {
             listOf("study-planner", "research-fact-checker"),
             first.runtime.participants.map { it.sourceId },
         )
-        assertEquals(2, first.runtime.budget.reservedRequiredCalls)
         assertEquals(STANDARD_RUN_ID, first.runtime.budget.rootRunId)
         assertEquals(listOf(STANDARD_USER_MESSAGE_ID), recovery.core.messages.map { it.id })
         assertTrue(usage.isEmpty())
@@ -130,7 +128,6 @@ class CollaborationRepositoryDatabaseTest {
     fun crossResponseAndSynthesisShareBudgetAndSnapshotOnlySuccessfulOutputs() = runBlocking {
         saveIssue()
         val response = repository.createCrossDiscussionResponse(crossResponseCommand()).successValue()
-        assertEquals(3, response.runtime.budget.reservedRequiredCalls)
         assertFalse(response.runtime.budget.closed)
 
         markParticipantSucceeded(
@@ -183,7 +180,6 @@ class CollaborationRepositoryDatabaseTest {
         assertEquals(RESPONSE_RUN_ID, synthesis.runtime.run.parentRunId)
         assertNull(synthesis.runtime.run.retryOfRunId)
         assertEquals(RESPONSE_RUN_ID, synthesis.runtime.budget.rootRunId)
-        assertEquals(1, synthesis.runtime.budget.reservedRequiredCalls)
         assertEquals(
             listOf(RESPONSE_MESSAGE_A, RESPONSE_MESSAGE_B),
             usage.map { it.sourceMessageId },
@@ -254,7 +250,7 @@ class CollaborationRepositoryDatabaseTest {
             thinkingLevelSource = ExecutionThinkingSource.AUTO_ROUTED,
         ),
         participant = participant(DIRECTED_RUN_ID, "study-planner", 0, 150L),
-        budget = ExecutionRuntimeBudgetConfig(maxApiCalls = 1),
+        budget = ExecutionRuntimeBudgetConfig(),
         selectedMessageIds = selectedMessageIds,
     )
 
@@ -283,7 +279,7 @@ class CollaborationRepositoryDatabaseTest {
                 participant(STANDARD_RUN_ID, "study-planner", 0, 140L),
                 participant(STANDARD_RUN_ID, "research-fact-checker", 1, 140L),
             ),
-            budget = ExecutionRuntimeBudgetConfig(maxApiCalls = 2),
+            budget = ExecutionRuntimeBudgetConfig(),
         )
 
     private fun crossResponseCommand(): CreateCrossDiscussionResponseCommand {
@@ -322,7 +318,7 @@ class CollaborationRepositoryDatabaseTest {
                 participant(RESPONSE_RUN_ID, "study-planner", 0, 180L),
                 participant(RESPONSE_RUN_ID, "research-fact-checker", 1, 180L),
             ),
-            budget = ExecutionRuntimeBudgetConfig(maxApiCalls = 3),
+            budget = ExecutionRuntimeBudgetConfig(),
         )
     }
 

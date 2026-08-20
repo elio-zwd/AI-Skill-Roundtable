@@ -82,7 +82,7 @@ class IssueExecutionScreenTest {
 
         composeRule.onNodeWithTag(IssueExecutionTestTags.SCREEN).assertIsDisplayed()
         composeRule.onNodeWithTag(IssueExecutionTestTags.STATUS).assertIsDisplayed()
-        composeRule.onNodeWithText("调用额度：已用 1 / 30，剩余 29")
+        composeRule.onNodeWithText("已发起 1 次 API 调用")
             .assertIsDisplayed()
         composeRule.onNodeWithTag(IssueExecutionTestTags.CONTENT_LIST).performScrollToIndex(4)
         composeRule.onNodeWithTag(IssueExecutionTestTags.participant("participant-1"))
@@ -222,9 +222,7 @@ class IssueExecutionScreenTest {
                 ),
             ),
             budget = IssueExecutionBudgetUi(
-                maxApiCalls = 8,
                 usedApiCalls = 3,
-                reservedRequiredCalls = 0,
                 closed = true,
             ),
         )
@@ -335,9 +333,7 @@ class IssueExecutionScreenTest {
             ),
         ),
         budget = IssueExecutionBudgetUi(
-            maxApiCalls = 30,
             usedApiCalls = 1,
-            reservedRequiredCalls = 1,
             closed = false,
         ),
         failureCode = null,

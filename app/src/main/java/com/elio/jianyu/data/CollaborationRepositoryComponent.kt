@@ -54,7 +54,6 @@ internal class CollaborationRepositoryComponent(
             participants = command.participants,
             budgetRootRunId = command.run.id,
             budget = command.budget,
-            requiredReserve = command.participants.size,
             contextUsage = command.contextUsage,
             messageUsage = emptyList(),
         )
@@ -113,7 +112,6 @@ internal class CollaborationRepositoryComponent(
             participants = listOf(command.participant),
             budgetRootRunId = command.run.id,
             budget = command.budget,
-            requiredReserve = 1,
             contextUsage = command.contextUsage,
             messageUsage = messageUsage,
         )
@@ -185,7 +183,6 @@ internal class CollaborationRepositoryComponent(
             participants = command.participants,
             budgetRootRunId = command.run.id,
             budget = command.budget,
-            requiredReserve = command.participants.size + 1,
             contextUsage = command.contextUsage,
             messageUsage = messageUsage,
         )
@@ -302,12 +299,10 @@ internal class CollaborationRepositoryComponent(
             participants = listOf(command.participant),
             budgetRootRunId = session.responseRunId,
             budget = ExecutionRuntimeBudgetConfig(
-                maxApiCalls = rootBudget.maxApiCalls,
                 maxCharacters = rootBudget.maxCharacters,
                 maxSearchQueriesPerCharacter = rootBudget.maxSearchQueriesPerCharacter,
                 maxOutputTokensPerAnswer = rootBudget.maxOutputTokensPerAnswer,
             ),
-            requiredReserve = 1,
             contextUsage = command.contextUsage,
             messageUsage = messageUsage,
         )
@@ -552,7 +547,6 @@ internal class CollaborationRepositoryComponent(
         participants: List<ExecutionParticipantSnapshotEntity>,
         budgetRootRunId: String,
         budget: ExecutionRuntimeBudgetConfig,
-        requiredReserve: Int,
         contextUsage: ContextUsageWriteSet,
         messageUsage: List<ExecutionMessageUsageSnapshotEntity>,
     ): ExecutionRuntimeSnapshot {
@@ -574,8 +568,6 @@ internal class CollaborationRepositoryComponent(
             core.insertRunBudget(
                 ExecutionRunBudgetEntity(
                     rootRunId = run.id,
-                    maxApiCalls = budget.maxApiCalls,
-                    reservedRequiredCalls = requiredReserve,
                     maxCharacters = budget.maxCharacters,
                     maxSearchQueriesPerCharacter = budget.maxSearchQueriesPerCharacter,
                     maxOutputTokensPerAnswer = budget.maxOutputTokensPerAnswer,
@@ -585,13 +577,6 @@ internal class CollaborationRepositoryComponent(
         } else {
             val root = core.getRunBudget(budgetRootRunId)
             require(root != null && !root.closed)
-            check(
-                core.setRequiredBudgetReserve(
-                    budgetRootRunId,
-                    requiredReserve,
-                    run.createdAt,
-                ) == 1,
-            )
         }
         val sortedUsage = contextUsage.sorted()
         if (sortedUsage.materials.isNotEmpty()) core.insertMaterialUsages(sortedUsage.materials)

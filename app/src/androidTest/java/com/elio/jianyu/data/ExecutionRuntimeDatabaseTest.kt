@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.elio.jianyu.execution.ExecutionBudgetCallKind
 import com.elio.jianyu.execution.ExecutionErrorCode
 import com.elio.jianyu.execution.JianyuExecutionPersistenceGateway
 import kotlinx.coroutines.async
@@ -55,7 +54,6 @@ class ExecutionRuntimeDatabaseTest {
 
         assertEquals(listOf(0, 1), first.participants.map { it.position })
         assertTrue(first.participantStates.all { it.status == ExecutionParticipantStatus.QUEUED })
-        assertEquals(2, first.budget.reservedRequiredCalls)
         assertTrue((repeated as RepositoryResult.Success).idempotent)
         assertEquals(first, reloaded)
         assertEquals(0, foreignKeyViolations())
@@ -101,23 +99,19 @@ class ExecutionRuntimeDatabaseTest {
     }
 
     @Test
-    fun concurrentBudgetConsumptionNeverExceedsPersistedMaximum() = runBlocking {
+    fun concurrentApiCallRecordsAccumulateWithoutApplicationCeiling() = runBlocking {
         saveIssue()
         repository.createExecutionRuntime(
-            runtimeCommand(
-                budget = ExecutionRuntimeBudgetConfig(maxApiCalls = 4),
-            ),
+            runtimeCommand(),
         ).successValue()
 
         val results = coroutineScope {
             (1..8).map { attempt ->
                 async {
-                    repository.consumeExecutionBudget(
-                        ConsumeExecutionBudgetCommand(
+                    repository.recordExecutionApiCall(
+                        RecordExecutionApiCallCommand(
                             rootRunId = RUN_ID,
-                            kind = ExecutionBudgetCallKind.REQUIRED,
                             count = 1,
-                            reserveForRequired = 0,
                             updatedAt = 300L + attempt,
                         ),
                     )
@@ -126,9 +120,8 @@ class ExecutionRuntimeDatabaseTest {
         }
         val budget = repository.getExecutionRuntime(RUN_ID).successValue().budget
 
-        assertEquals(4, results.count { it is RepositoryResult.Success })
-        assertEquals(4, results.count { it is RepositoryResult.Failure })
-        assertEquals(4, budget.usedApiCalls)
+        assertEquals(8, results.count { it is RepositoryResult.Success })
+        assertEquals(8, budget.usedApiCalls)
         assertEquals(0, foreignKeyViolations())
     }
 
@@ -145,12 +138,10 @@ class ExecutionRuntimeDatabaseTest {
                 startedAt = 200L,
             ),
         ).successValue()
-        repository.consumeExecutionBudget(
-            ConsumeExecutionBudgetCommand(
+        repository.recordExecutionApiCall(
+            RecordExecutionApiCallCommand(
                 rootRunId = RUN_ID,
-                kind = ExecutionBudgetCallKind.REQUIRED,
                 count = 1,
-                reserveForRequired = 1,
                 updatedAt = 201L,
             ),
         ).successValue()
@@ -209,7 +200,6 @@ class ExecutionRuntimeDatabaseTest {
             recovered.participantStates.first().lastErrorCode,
         )
         assertEquals(1, recovered.budget.usedApiCalls)
-        assertEquals(1, recovered.budget.reservedRequiredCalls)
         assertEquals("部分文本", issue.core.messages.single().text)
         assertFalse(issue.core.messages.single().isPending)
         assertEquals(0, foreignKeyViolations())
@@ -233,7 +223,7 @@ class ExecutionRuntimeDatabaseTest {
         idempotencyKey: String = "command-1",
         retryOfRunId: String? = null,
         budgetRootRunId: String = runId,
-        budget: ExecutionRuntimeBudgetConfig = ExecutionRuntimeBudgetConfig(maxApiCalls = 4),
+        budget: ExecutionRuntimeBudgetConfig = ExecutionRuntimeBudgetConfig(),
     ): CreateExecutionRuntimeCommand {
         val run = ExecutionRunEntity(
             id = runId,

@@ -93,12 +93,6 @@ internal class CollaborationRetryRepositoryComponent(
         if (budget.closed) {
             return@collaborationTransaction invalidState("budget_closed")
         }
-        val requiredReserve = requestedParticipants.size +
-            if (previous.runKind == ExecutionRunKind.CROSS_DISCUSSION_RESPONSE) 1 else 0
-        if (budget.maxApiCalls - budget.usedApiCalls < requiredReserve) {
-            return@collaborationTransaction invalidState("budget_exhausted")
-        }
-
         core.insertExecutionRun(requestedRun)
         core.insertParticipantSnapshots(requestedParticipants)
         core.insertParticipantStates(
@@ -109,13 +103,6 @@ internal class CollaborationRetryRepositoryComponent(
                     updatedAt = command.createdAt,
                 )
             },
-        )
-        check(
-            core.setRequiredBudgetReserve(
-                rootRunId = rootRunId,
-                count = requiredReserve,
-                updatedAt = command.createdAt,
-            ) == 1,
         )
 
         cloneContextUsage(previous.id, requestedRun.id, command.createdAt)

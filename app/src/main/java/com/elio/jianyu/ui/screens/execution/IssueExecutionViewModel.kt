@@ -677,9 +677,7 @@ class IssueExecutionViewModel internal constructor(
 
     private fun com.elio.jianyu.data.ExecutionRunBudgetEntity.toUi() =
         IssueExecutionBudgetUi(
-            maxApiCalls = maxApiCalls,
             usedApiCalls = usedApiCalls,
-            reservedRequiredCalls = reservedRequiredCalls,
             closed = closed,
         )
 
@@ -714,7 +712,6 @@ class IssueExecutionViewModel internal constructor(
             ExecutionErrorCode.NO_API_KEY.storageValue -> IssueExecutionPhase.NO_API_KEY
             ExecutionErrorCode.OFFLINE.storageValue -> IssueExecutionPhase.OFFLINE
             ExecutionErrorCode.RATE_LIMITED.storageValue -> IssueExecutionPhase.RATE_LIMITED
-            ExecutionErrorCode.BUDGET_EXHAUSTED.storageValue -> IssueExecutionPhase.BUDGET_EXHAUSTED
             else -> when (run.status) {
                 ExecutionRunStatus.NOT_STARTED -> IssueExecutionPhase.READY
                 ExecutionRunStatus.RUNNING -> IssueExecutionPhase.RUNNING
