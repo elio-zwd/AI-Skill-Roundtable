@@ -87,6 +87,7 @@ class IssueCollaborationCoordinator(
     private val integratorResolver: ExecutionSkillResolver,
     private val eligibility: OfficialCollaborationSkillEligibility,
     private val clock: CollaborationClock = SystemCollaborationClock,
+    private val modelIdResolver: (String) -> String = { requestedModel -> requestedModel },
 ) {
     suspend fun recover(
         issueId: String,
@@ -155,7 +156,7 @@ class IssueCollaborationCoordinator(
             updatedAt = request.userConfirmedAt,
             runKind = ExecutionRunKind.STANDARD,
             historyScope = ExecutionHistoryScope.FULL_STAGE,
-            actualModelId = request.model,
+            actualModelId = modelIdResolver(request.model),
             actualThinkingLevel = ExecutionThinkingPolicyResolver.resolve(
                 snapshot.issue.core.issue.defaultThinkingPolicy,
                 request.thinkingOverride,
@@ -296,7 +297,7 @@ class IssueCollaborationCoordinator(
             updatedAt = request.userConfirmedAt,
             runKind = ExecutionRunKind.DIRECTED_RESPONSE,
             historyScope = historyScope(request.context.selectedMessageIds),
-            actualModelId = request.model,
+            actualModelId = modelIdResolver(request.model),
             actualThinkingLevel = ExecutionThinkingPolicyResolver.resolve(
                 snapshot.issue.core.issue.defaultThinkingPolicy,
                 request.thinkingOverride,
@@ -391,7 +392,7 @@ class IssueCollaborationCoordinator(
             runKind = ExecutionRunKind.CROSS_DISCUSSION_RESPONSE,
             discussionId = ids.discussionId,
             historyScope = historyScope(request.context.selectedMessageIds),
-            actualModelId = request.model,
+            actualModelId = modelIdResolver(request.model),
             actualThinkingLevel = ExecutionThinkingPolicyResolver.resolve(
                 snapshot.issue.core.issue.defaultThinkingPolicy,
                 request.thinkingOverride,
@@ -576,7 +577,7 @@ class IssueCollaborationCoordinator(
                 newRunId = ids.runId,
                 idempotencyKey = ids.idempotencyKey,
                 createdAt = request.userConfirmedAt,
-                actualModelId = request.model,
+                actualModelId = modelIdResolver(request.model),
                 actualThinkingLevel = thinking.level,
                 thinkingLevelSource = thinking.source,
             ),

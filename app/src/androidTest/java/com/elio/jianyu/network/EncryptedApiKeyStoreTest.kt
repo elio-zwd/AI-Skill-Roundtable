@@ -34,7 +34,7 @@ class EncryptedApiKeyStoreTest {
 
     @Test
     fun writeThenRead_returnsOriginalRecords() {
-        val store = EncryptedApiKeyStore(context)
+        val store = EncryptedApiKeyStore(context, ENCRYPTED_FILE_NAME)
         val records = testRecords()
 
         assertTrue(store.write(records))
@@ -44,7 +44,7 @@ class EncryptedApiKeyStoreTest {
 
     @Test
     fun encryptedFile_isStoredInNoBackupDirectoryWithoutPlaintextKeys() {
-        val store = EncryptedApiKeyStore(context)
+        val store = EncryptedApiKeyStore(context, ENCRYPTED_FILE_NAME)
         val records = testRecords()
 
         assertTrue(store.write(records))
@@ -63,7 +63,7 @@ class EncryptedApiKeyStoreTest {
 
     @Test
     fun clear_removesEncryptedFileAndReturnsEmptyRecords() {
-        val store = EncryptedApiKeyStore(context)
+        val store = EncryptedApiKeyStore(context, ENCRYPTED_FILE_NAME)
         assertTrue(store.write(testRecords()))
         assertTrue(encryptedFile.exists())
 
@@ -75,7 +75,7 @@ class EncryptedApiKeyStoreTest {
 
     @Test
     fun corruptedCiphertext_failsSafelyWithoutReturningRecords() {
-        val store = EncryptedApiKeyStore(context)
+        val store = EncryptedApiKeyStore(context, ENCRYPTED_FILE_NAME)
         assertTrue(store.write(testRecords()))
 
         encryptedFile.writeText(

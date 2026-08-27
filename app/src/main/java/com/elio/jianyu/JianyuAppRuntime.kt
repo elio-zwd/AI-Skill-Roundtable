@@ -11,9 +11,11 @@ import com.elio.jianyu.data.RoomJianyuRepository
 import com.elio.jianyu.data.RoundtableDatabase
 import com.elio.jianyu.execution.ExecutionContextBuilder
 import com.elio.jianyu.execution.ExecutionRunCoordinator
-import com.elio.jianyu.execution.InteractionExecutionNetworkGateway
+import com.elio.jianyu.execution.AiExecutionNetworkGateway
 import com.elio.jianyu.execution.JianyuExecutionPersistenceGateway
 import com.elio.jianyu.execution.OfficialCatalogExecutionSkillResolver
+import com.elio.jianyu.network.AiManager
+import com.elio.jianyu.network.AiUseCase
 import com.elio.jianyu.lifecycle.JianyuLifecycleRuntime
 import com.elio.jianyu.lifecycle.createJianyuLifecycleRuntime
 import com.elio.jianyu.result.StageResultService
@@ -487,8 +489,13 @@ object JianyuAppRuntimeProvider {
                     ExecutionRunCoordinator(
                         persistence = JianyuExecutionPersistenceGateway(repository),
                         skillResolver = skillResolver,
-                        networkGateway = InteractionExecutionNetworkGateway(context),
+                        networkGateway = AiExecutionNetworkGateway(context),
                         contextBuilder = ExecutionContextBuilder(),
+                        modelIdResolver = {
+                            AiManager.configuration(context).configuration.value
+                                .modelFor(AiUseCase.ISSUE_EXECUTION)
+                                .modelId
+                        },
                     ).also { coordinator ->
                         collaborationCoordinator = IssueCollaborationCoordinator(
                             repository = repository,
@@ -498,6 +505,11 @@ object JianyuAppRuntimeProvider {
                                 catalog = catalogRuntimeResult.runtime.catalog,
                                 executionEligibility = catalogRuntimeResult.runtime.executionEligibility,
                             ),
+                            modelIdResolver = {
+                                AiManager.configuration(context).configuration.value
+                                    .modelFor(AiUseCase.ISSUE_EXECUTION)
+                                    .modelId
+                            },
                         )
                     }
                 }

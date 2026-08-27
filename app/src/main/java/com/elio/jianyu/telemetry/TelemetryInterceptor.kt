@@ -1,7 +1,7 @@
 package com.elio.jianyu.telemetry
 
 import com.elio.jianyu.BuildConfig
-import com.elio.jianyu.network.ApiKeyPool
+import com.elio.jianyu.network.AiManager
 import java.io.IOException
 import java.util.UUID
 import okhttp3.Interceptor
@@ -17,7 +17,8 @@ class TelemetryInterceptor : Interceptor {
         val endpoint = "${request.method} ${request.url.encodedPath}"
         val model = Regex("models/([^:/]+)").find(request.url.encodedPath)?.groupValues?.getOrNull(1)
         val apiKey = request.url.queryParameter("key")
-        val keyId = apiKey?.takeIf(String::isNotBlank)?.let(ApiKeyPool::findKeyId)
+            ?: request.header("Authorization")?.removePrefix("Bearer ")
+        val keyId = apiKey?.takeIf(String::isNotBlank)?.let(AiManager::findKeyIdOrNull)
         val contentDebugAtStart = initialLevel == TelemetryLevel.CONTENT_DEBUG && BuildConfig.DEBUG
         val requestPreview = if (contentDebugAtStart) TelemetryPreviewExtractor.requestPreview(request) else null
 

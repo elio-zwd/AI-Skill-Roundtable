@@ -8,7 +8,9 @@ import com.elio.jianyu.audio.assets.AudioGenerationGatewayResult
 import com.elio.jianyu.audio.assets.AudioGenerationOutput
 import com.elio.jianyu.audio.assets.AudioGenerationRequest
 import com.elio.jianyu.audio.assets.AudioTargetFormat
-import com.elio.jianyu.network.ApiKeyPool
+import com.elio.jianyu.network.AiManager
+import com.elio.jianyu.network.AiProvider
+import com.elio.jianyu.network.retry.ApiCallFailure
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.SocketTimeoutException
@@ -62,7 +64,7 @@ class ByokAudioGenerationGateway(
     private val transport: GeminiAudioTransport,
 ) : AudioGenerationGateway {
     constructor(context: Context) : this(
-        keyProvider = ApiKeyPoolAudioByokKeyProvider(context.applicationContext),
+        keyProvider = GeminiRepositoryAudioByokKeyProvider(context.applicationContext),
         transport = OkHttpGeminiAudioTransport(),
     )
 
@@ -155,25 +157,27 @@ object GeminiAudioWavEncoder {
     }
 }
 
-private class ApiKeyPoolAudioByokKeyProvider(
+private class GeminiRepositoryAudioByokKeyProvider(
     private val context: Context,
 ) : AudioByokKeyProvider {
+    private val keys get() = AiManager.keys(context, AiProvider.GEMINI)
+
     override fun attemptPlan(): List<AudioByokKeyLease> {
-        return ApiKeyPool.getKeyAttemptOrder(context).map { info ->
-            AudioByokKeyLease(info.id, info.key)
+        return keys.createAttemptPlan(sessionId = 0L).map { lease ->
+            AudioByokKeyLease(lease.keyId, requireNotNull(keys.secretFor(lease.keyId)))
         }
     }
 
     override fun reportSuccess(keyId: String) {
-        ApiKeyPool.setLastUsedKeyId(context, keyId)
+        keys.recordSuccess(sessionId = 0L, keyId = keyId)
     }
 
     override fun reportAuthenticationFailure(keyId: String) {
-        ApiKeyPool.markKeyInvalid(context, keyId, "语音服务鉴权失败")
+        keys.recordFailure(keyId, ApiCallFailure.Http(code = 403))
     }
 
     override fun reportRateLimited(keyId: String) {
-        ApiKeyPool.banKey(context, keyId)
+        keys.recordFailure(keyId, ApiCallFailure.Http(code = 429))
     }
 }
 

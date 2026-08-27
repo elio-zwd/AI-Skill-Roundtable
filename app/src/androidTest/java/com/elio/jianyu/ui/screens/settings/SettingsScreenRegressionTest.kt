@@ -3,6 +3,10 @@ package com.elio.jianyu.ui.screens.settings
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.elio.jianyu.network.AiProvider
+import com.elio.jianyu.network.AiRuntimeConfiguration
+import com.elio.jianyu.network.AiUseCase
+import com.elio.jianyu.network.defaultModel
 import com.elio.jianyu.telemetry.TelemetryLevel
 import com.elio.jianyu.ui.theme.SkillRoundtableTheme
 import org.junit.Rule
@@ -15,11 +19,17 @@ class SettingsScreenRegressionTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun apiKeyScreen_exposesRootAndImportControls() {
+    fun aiManagementScreen_exposesRootAndImportControls() {
         composeRule.setContent {
             SkillRoundtableTheme {
-                ApiKeyManagerScreen(
-                    uiState = ApiKeyManagerUiState(
+                AiManagementScreen(
+                    uiState = AiManagementUiState(
+                        configuration = AiRuntimeConfiguration(
+                            AiUseCase.entries.associateWith { useCase ->
+                                defaultModel(useCase.supportedProviders.first())
+                            },
+                        ),
+                        keyProvider = AiProvider.GEMINI,
                         summaries = emptyList(),
                         storageError = null,
                         currentKeyAccount = null,
@@ -28,23 +38,25 @@ class SettingsScreenRegressionTest {
                         confirmation = null,
                     ),
                     onBack = {},
-                    onOpenTelemetry = {},
+                    onSelectProvider = { _, _ -> },
+                    onSelectModel = { _, _ -> },
+                    onSelectKeyProvider = {},
                     onInputChange = {},
                     onImport = {},
-                    onToggle = { _, _ -> },
-                    onValidate = {},
-                    onRequestDelete = {},
-                    onRequestClearAll = {},
+                    onToggleKey = { _, _ -> },
+                    onValidateKey = {},
+                    onRequestDeleteKey = {},
+                    onRequestClearProviderKeys = {},
                     onDismissConfirmation = {},
-                    onConfirmDelete = {},
-                    onConfirmClearAll = {},
+                    onConfirmDeleteKey = {},
+                    onConfirmClearProviderKeys = {},
                 )
             }
         }
 
-        composeRule.onNodeWithTag(SettingsTestTags.API_KEY_ROOT).assertExists()
-        composeRule.onNodeWithTag(SettingsTestTags.API_KEY_IMPORT_INPUT).assertExists()
-        composeRule.onNodeWithTag(SettingsTestTags.API_KEY_IMPORT_BUTTON).assertExists()
+        composeRule.onNodeWithTag(AiManagementTestTags.ROOT).assertExists()
+        composeRule.onNodeWithTag(AiManagementTestTags.IMPORT_INPUT).assertExists()
+        composeRule.onNodeWithTag(AiManagementTestTags.IMPORT_BUTTON).assertExists()
     }
 
     @Test

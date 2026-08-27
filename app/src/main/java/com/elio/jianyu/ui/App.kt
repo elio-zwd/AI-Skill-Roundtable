@@ -70,7 +70,7 @@ import com.elio.jianyu.ui.screens.issues.IssuesRoute
 import com.elio.jianyu.ui.screens.library.AudioLibraryRoute
 import com.elio.jianyu.ui.screens.resources.ResourcesRoute
 import com.elio.jianyu.ui.screens.roundtable.RoundtableRoute
-import com.elio.jianyu.ui.screens.settings.ApiKeyManagerRoute
+import com.elio.jianyu.ui.screens.settings.AiManagementRoute
 import com.elio.jianyu.ui.screens.settings.SettingsRoute
 import com.elio.jianyu.ui.screens.settings.TelemetryRoute
 import com.elio.jianyu.ui.screens.skills.OfficialSkillNavigationRoute
@@ -273,27 +273,7 @@ internal fun MainAppContent(
                     navController = navController,
                     modifier = Modifier.fillMaxSize(),
                     homeContent = {
-                        HomeRoute(
-                            repository = appRuntime.repository,
-                            catalogRuntimeResult = appRuntime.officialSkillCatalogRuntimeResult,
-                            executionCoordinator = appRuntime.executionCoordinator,
-                            onOpenSettings = {
-                                navController.navigateToSecondary(AppDestination.SETTINGS)
-                            },
-                            onNavigateToIssue = { issueId, stageId ->
-                                navController.navigateToIssue(issueId, stageId)
-                            },
-                            onOpenSkillCatalog = {
-                                navController.navigateToTopLevel(AppDestination.SKILLS)
-                            },
-                            skillUseRequest = pendingSkillId?.let { skillId ->
-                                OfficialSkillUseRequest(skillId, pendingSkillIntent)
-                            },
-                            onSkillUseRequestConsumed = {
-                                pendingSkillId = null
-                                pendingSkillIntent = null
-                            },
-                        )
+                        com.elio.jianyu.ui.screens.dialog.DialogRoute()
                     },
                 issuesContent = {
                     IssuesRoute(
@@ -353,7 +333,7 @@ internal fun MainAppContent(
                 settingsContent = {
                     SettingsRoute(
                         onBack = { navController.popBackStack() },
-                        onOpenApiKeys = {
+                        onOpenAiManagement = {
                             navController.navigateToSecondary(AppDestination.API_KEYS)
                         },
                         onOpenTelemetry = {
@@ -364,7 +344,7 @@ internal fun MainAppContent(
                 roundtableContent = {
                     RoundtableRoute(
                         viewModel = viewModel,
-                        onOpenApiKeyConfig = {
+                        onOpenAiManagement = {
                             navController.navigateToSecondary(AppDestination.API_KEYS)
                         },
                         onOpenTelemetry = {
@@ -384,13 +364,10 @@ internal fun MainAppContent(
                         allCharacters = allCharacters,
                     )
                 },
-                apiKeysContent = {
-                    ApiKeyManagerRoute(
+                aiManagementContent = {
+                    AiManagementRoute(
                         currentSessionId = currentSessionId,
                         onBack = { navController.popBackStack() },
-                        onOpenTelemetry = {
-                            navController.navigateToSecondary(AppDestination.TELEMETRY)
-                        },
                     )
                 },
                 telemetryContent = {

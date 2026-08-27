@@ -4,6 +4,7 @@ import android.content.Context
 import com.elio.jianyu.data.Character
 import com.elio.jianyu.data.Message
 import com.elio.jianyu.network.ApiKeySource
+import com.elio.jianyu.network.AiProvider
 import com.elio.jianyu.network.keys.ApiKeyLease
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.awaitCancellation
@@ -28,7 +29,7 @@ class RoundtableOrchestratorTest {
     }
 
     private val testAttemptPlan = { _: Context, _: Long ->
-        listOf(ApiKeyLease("test_key", "Test", "secret", ApiKeySource.LOCAL))
+        listOf(ApiKeyLease("test_key", "Test", AiProvider.GEMINI, ApiKeySource.LOCAL))
     }
 
     class FakeRoundtableDatabaseGateway(
@@ -703,8 +704,8 @@ class RoundtableOrchestratorTest {
 
         val attemptPlanTwoKeys = { _: Context, _: Long ->
             listOf(
-                ApiKeyLease("key_1", "K1", "secret_1", ApiKeySource.LOCAL),
-                ApiKeyLease("key_2", "K2", "secret_2", ApiKeySource.LOCAL)
+                ApiKeyLease("key_1", "K1", AiProvider.GEMINI, ApiKeySource.LOCAL),
+                ApiKeyLease("key_2", "K2", AiProvider.GEMINI, ApiKeySource.LOCAL)
             )
         }
 

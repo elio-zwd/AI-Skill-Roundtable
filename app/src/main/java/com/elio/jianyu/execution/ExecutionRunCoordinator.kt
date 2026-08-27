@@ -34,6 +34,7 @@ class ExecutionRunCoordinator(
     private val networkGateway: ExecutionNetworkGateway,
     private val contextBuilder: ExecutionContextBuilder = ExecutionContextBuilder(),
     private val clock: ExecutionClock = SystemExecutionClock,
+    private val modelIdResolver: (String) -> String = { requestedModel -> requestedModel },
 ) {
     private val activeJobs = ConcurrentHashMap<String, Job>()
     private val locallyStoppedRuns = ConcurrentHashMap.newKeySet<String>()
@@ -43,6 +44,7 @@ class ExecutionRunCoordinator(
             throw ExecutionStartException(failure)
         }
         return withRunRegistration(command.runId) {
+            val modelId = modelIdResolver(command.model)
             val issueRecovery = persistence.recoverIssue(command.issueId)
             val stage = requireStage(issueRecovery, command.stageId)
             val thinking = ExecutionThinkingPolicyResolver.resolve(
@@ -75,7 +77,7 @@ class ExecutionRunCoordinator(
                         idempotencyKey = command.idempotencyKey,
                         createdAt = command.userConfirmedAt,
                         updatedAt = command.userConfirmedAt,
-                        actualModelId = command.model,
+                        actualModelId = modelId,
                         actualThinkingLevel = thinking.level,
                         thinkingLevelSource = thinking.source,
                     ),
@@ -95,7 +97,7 @@ class ExecutionRunCoordinator(
                 stage = stage,
                 currentUserInput = command.currentUserInput,
                 roundIndex = command.roundIndex,
-                model = command.model,
+                model = modelId,
                 searchMode = command.searchMode,
                 contributions = command.contributions,
             )
@@ -121,7 +123,7 @@ class ExecutionRunCoordinator(
                 stage = stage,
                 currentUserInput = command.currentUserInput,
                 roundIndex = command.roundIndex,
-                model = command.model,
+                model = runtime.run.actualModelId ?: modelIdResolver(command.model),
                 searchMode = command.searchMode,
                 contributions = command.contributions,
                 keepBudgetOpenOnSuccess = command.keepBudgetOpenOnSuccess,
@@ -134,6 +136,7 @@ class ExecutionRunCoordinator(
             throw ExecutionStartException(failure)
         }
         return withRunRegistration(command.newRunId) {
+            val modelId = modelIdResolver(command.model)
             val previous = persistence.getRuntime(command.previousRunId)
             require(previous.run.runKind == ExecutionRunKind.STANDARD) {
                 "协作 Run 必须通过协作协调器重试，以保留消息快照和 Discussion 关系"
@@ -188,7 +191,7 @@ class ExecutionRunCoordinator(
                         parentRunId = previous.run.parentRunId,
                         discussionId = previous.run.discussionId,
                         historyScope = previous.run.historyScope,
-                        actualModelId = command.model,
+                        actualModelId = modelId,
                         actualThinkingLevel = thinking.level,
                         thinkingLevelSource = thinking.source,
                     ),
@@ -208,7 +211,7 @@ class ExecutionRunCoordinator(
                 stage = stage,
                 currentUserInput = command.currentUserInput,
                 roundIndex = command.roundIndex,
-                model = command.model,
+                model = modelId,
                 searchMode = command.searchMode,
                 contributions = command.contributions,
             )

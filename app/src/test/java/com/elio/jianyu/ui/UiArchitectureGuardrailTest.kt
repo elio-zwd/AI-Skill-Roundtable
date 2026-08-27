@@ -30,7 +30,7 @@ class UiArchitectureGuardrailTest {
             "CharacterHallRoute",
             "AudioLibraryRoute",
             "RoundtableRoute",
-            "ApiKeyManagerRoute",
+            "AiManagementRoute",
             "TelemetryRoute",
         )
         requiredRoutes.forEach { route -> assertTrue("App.kt 缺少 $route", source.contains(route)) }
@@ -39,7 +39,7 @@ class UiArchitectureGuardrailTest {
             "AddEditCharacterDialog",
             "CharacterHallScreen",
             "AudioLibraryScreen",
-            "ApiKeyManagerScreen",
+            "AiManagementScreen",
             "ApiTelemetryScreen",
             "android.widget.Toast",
         )
@@ -53,7 +53,7 @@ class UiArchitectureGuardrailTest {
         val forbiddenDeclarations = mapOf(
             "screens/characters/CharacterHallRoute.kt" to "fun CharacterHallScreen(",
             "screens/library/AudioLibraryRoute.kt" to "fun AudioLibraryScreen(",
-            "screens/settings/ApiKeyManagerRoute.kt" to "fun ApiKeyManagerScreen(",
+            "screens/settings/AiManagementRoute.kt" to "fun AiManagementScreen(",
             "screens/settings/TelemetryRoute.kt" to "fun ApiTelemetryScreen(",
         )
 

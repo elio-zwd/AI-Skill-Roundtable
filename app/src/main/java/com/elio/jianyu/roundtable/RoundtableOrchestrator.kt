@@ -3,8 +3,9 @@ package com.elio.jianyu.roundtable
 import android.content.Context
 import com.elio.jianyu.data.Character
 import com.elio.jianyu.data.Message
+import com.elio.jianyu.network.AiManager
+import com.elio.jianyu.network.AiUseCase
 import com.elio.jianyu.network.keys.ApiKeyLease
-import com.elio.jianyu.network.keys.ApiKeyScheduler
 import com.elio.jianyu.telemetry.PrivacySafeLogger
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
@@ -156,7 +157,7 @@ class RoundtableOrchestrator(
     private val minIntervalMs: Long = 1000L,
     private val characterTimeoutMs: Long = 120_000L,
     private val createAttemptPlan: (Context, Long) -> List<ApiKeyLease> = { ctx, sessionId ->
-        ApiKeyScheduler.createAttemptPlan(ctx, sessionId)
+        AiManager.keysForUseCase(ctx, AiUseCase.ROUNDTABLE_ANSWER).createAttemptPlan(sessionId)
     }
 ) {
     private val roundtableMutex = Mutex()

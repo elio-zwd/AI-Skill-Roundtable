@@ -26,7 +26,7 @@ fun AppNavHost(
     roundtableContent: @Composable () -> Unit,
     charactersContent: @Composable () -> Unit,
     audioLibraryContent: @Composable () -> Unit,
-    apiKeysContent: @Composable () -> Unit,
+    aiManagementContent: @Composable () -> Unit,
     telemetryContent: @Composable () -> Unit,
 ) {
     NavHost(
@@ -128,7 +128,7 @@ fun AppNavHost(
             audioLibraryContent()
         }
         composable(AppDestination.API_KEYS.routePattern) {
-            apiKeysContent()
+            aiManagementContent()
         }
         composable(AppDestination.TELEMETRY.routePattern) {
             telemetryContent()

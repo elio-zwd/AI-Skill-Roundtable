@@ -55,7 +55,7 @@ class AppNavHostTest {
                     audioLibraryContent = {
                         DestinationMarker(AppDestination.AUDIO_LIBRARY.routePattern)
                     },
-                    apiKeysContent = { DestinationMarker(AppDestination.API_KEYS.routePattern) },
+                    aiManagementContent = { DestinationMarker(AppDestination.API_KEYS.routePattern) },
                     telemetryContent = { DestinationMarker(AppDestination.TELEMETRY.routePattern) },
                 )
             }

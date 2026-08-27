@@ -14,7 +14,7 @@ SkillRoundtableTheme + MainAppContent
   │    ├─ RoundtableRoute
   │    ├─ CharacterHallRoute
   │    ├─ AudioLibraryRoute
-  │    ├─ ApiKeyManagerRoute
+  │    ├─ AiManagementRoute
   │    └─ TelemetryRoute
   │
   ├─ Route：收集 StateFlow、连接事件与副作用
@@ -22,15 +22,16 @@ SkillRoundtableTheme + MainAppContent
   └─ Components：展示与局部交互
            │
            ▼
-RoundtableViewModel / ApiKeyPool / TelemetryRepository
+RoundtableViewModel / AiManager / TelemetryRepository
            │
            ├─ RoundtableOrchestrator
            │    ├─ RoundtableBudgetManager / RequestBudgetTracker
            │    ├─ RoundtableDatabaseGateway
            │    └─ CharacterAnswerGateway
            ├─ Room repositories
-           ├─ RetrofitClient / ApiKeyScheduler
-           └─ LiveApiClient / WorkManager audio pipeline
+           ├─ ProviderKeyRepository / AiRequestExecutor
+           ├─ GeminiRestTransport / GeminiInteractionsTransport / DeepSeekTransport
+           └─ GeminiLiveAudioTransport / WorkManager audio pipeline
 ```
 
 PR07 只重构 UI 结构、主题、导航和测试门禁，没有重新设计视觉，也没有改变 Room、网络、SSE、TTS、Key 或遥测业务语义。
@@ -65,10 +66,10 @@ PR07 只重构 UI 结构、主题、导航和测试门禁，没有重新设计�
 | 顶层 | `ROUNDTABLE` | `roundtable` | 显示 |
 | 顶层 | `CHARACTERS` | `characters` | 显示 |
 | 顶层 | `AUDIO_LIBRARY` | `audio-library` | 显示 |
-| 二级 | `API_KEYS` | `settings/api-keys` | 隐藏 |
+| 二级 | `API_KEYS`（界面名称：AI 管理） | `settings/api-keys` | 隐藏 |
 | 二级 | `TELEMETRY` | `settings/telemetry` | 隐藏 |
 
-圆桌直接打开遥测时，导航栈按 `ROUNDTABLE → API_KEYS → TELEMETRY` 构造，使系统返回与顶部返回都先回 API Key，再回圆桌。
+圆桌直接打开遥测时，导航栈按 `ROUNDTABLE → API_KEYS → TELEMETRY` 构造；`API_KEYS` 页面展示为“AI 管理”，使系统返回与顶部返回都先回 AI 管理，再回圆桌。
 
 ### 2.3 Route / Screen / Components / UiState
 
@@ -93,7 +94,7 @@ App → Route → Screen → Components
 - `roundtable/`：会话、抽屉、消息、轮次、席位、输入、停止、继续、失败重试、导出、TTS 入口。
 - `characters/`：分组、角色列表、详情、启停、新增、编辑、删除。
 - `library/`：合成进度与失败、音频列表、播放、删除、已有转码入口。
-- `settings/`：API Key 与遥测页面；共享设置域组件。
+- `settings/`：AI 管理与遥测页面；共享设置域组件。
 
 ### 2.5 主题
 
@@ -105,7 +106,7 @@ PR07-F 增加三类门禁：
 
 1. JVM 静态架构测试：限制 MainActivity、App、Route/Screen 依赖与跨页面引用；
 2. Navigation Compose 测试：冷启动、顶层切换、遥测二级返回链；
-3. Compose UI 测试：顶层导航、圆桌关键标签、智囊加载/空状态、音频空状态、API Key 和遥测入口。
+3. Compose UI 测试：顶层导航、圆桌关键标签、智囊加载/空状态、音频空状态、AI 管理和遥测入口。
 
 完整命令与真机清单见 `docs/testing/pr-07-ui-regression-checklist.md`。
 
@@ -142,7 +143,15 @@ PR07-F 增加三类门禁：
 
 ### 4.2 Key Lease 与重试
 
-`ApiKeyScheduler` 生成确定的尝试顺序：preferred Key、当前会话绑定 Key、其他可用候选、last-used 轮转状态。
+`ProviderKeyRepository` 按提供商生成确定的尝试顺序：preferred Key、当前会话绑定 Key、其他可用候选、last-used 轮转状态。业务层只读取 Key ID 与显示名，明文仅由 `AiRequestExecutor` 在 transport 调用瞬间解析。
+
+AI 管理分为三块：
+
+1. `AiConfigurationRepository`：分别持久化对话标题、资料决策、联网检索、圆桌回答和议题执行的文本提供商与模型；Gemini 可选 `gemini-3.6-flash`、`gemini-3.5-flash`、`gemini-3.1-flash-lite`，DeepSeek 可选 V4 Flash / Pro；
+2. `ProviderKeyRepository` 与 `AiRequestExecutor`：按提供商隔离加密 Key、轮换、重试、错误分类和冷却状态；
+3. `GeminiRestTransport`、`GeminiInteractionsTransport`、`GeminiLiveAudioTransport` 与 `DeepSeekTransport`：分别只实现对应 REST、SSE、Live WebSocket、OpenAI 兼容 Chat Completions 协议。
+
+每一种文本调用用途独立读取自己的模型选择；联网检索仅可选择支持 Google Search 的 Gemini 模型。嵌入模型与 Gemini Live 语音模型因 API 协议限定，保持固定且会在 AI 管理页说明。
 
 重试策略：
 
@@ -231,7 +240,7 @@ Room 保存角色、会话、消息、组合和音频索引。修改实体时必
 ## 9. 已知技术债与非 PR07 范围
 
 - `RoundtableViewModel` 仍是多个页面域的集中桥接点，PR07 不重写业务层。
-- `ApiKeyManagerRoute` 和 `TelemetryRoute` 仍直接连接现有单例服务，PR07 只建立 UI 边界。
+- `AiManagementRoute` 和 `TelemetryRoute` 仍直接连接现有单例服务，PR07 只建立 UI 边界。
 - `LegacyUiTokens.kt` 仍作为兼容别名存在，但没有重复颜色值。
 - 当前没有亮色主题、Material 3 Adaptive 或大屏专用布局。
 - Seek、时间轴、AAC 新功能和无关业务 Bug 不属于 PR07。

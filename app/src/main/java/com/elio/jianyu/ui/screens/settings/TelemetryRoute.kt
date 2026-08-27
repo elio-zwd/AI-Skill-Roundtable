@@ -9,7 +9,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import com.elio.jianyu.network.ApiKeyPool
+import com.elio.jianyu.network.AiManager
+import com.elio.jianyu.network.AiUseCase
 import com.elio.jianyu.telemetry.CloudInteractionSettings
 import com.elio.jianyu.telemetry.TelemetryLevel
 import com.elio.jianyu.telemetry.TelemetryRepository
@@ -22,7 +23,7 @@ fun TelemetryRoute(
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
-        ApiKeyPool.init(context)
+        AiManager.initialize(context)
         TelemetryRepository.init(context)
         CloudInteractionSettings.init(context)
     }
@@ -34,11 +35,13 @@ fun TelemetryRoute(
     var expandedEventId by remember { mutableStateOf<String?>(null) }
     var confirmation by remember { mutableStateOf<TelemetryConfirmation?>(null) }
 
-    val keyStatuses = remember(currentSessionId) {
-        ApiKeyPool.getKeyStatuses(context)
+    val configuration by AiManager.configuration(context).configuration.collectAsState()
+    val roundtableProvider = configuration.modelFor(AiUseCase.ROUNDTABLE_ANSWER).provider
+    val keyStatuses = remember(roundtableProvider, currentSessionId) {
+        AiManager.keys(context, roundtableProvider).getKeyStatuses()
     }
-    val currentKeyInfo = remember(currentSessionId) {
-        currentSessionId?.let { ApiKeyPool.getOrBindSessionKey(context, it) }
+    val currentKeyInfo = remember(roundtableProvider, currentSessionId) {
+        currentSessionId?.let { AiManager.keys(context, roundtableProvider).getOrBindSessionKey(it) }
     }
     val expiresAt = TelemetryRepository.contentDebugExpiresAt(context)
     val remainingMinutes = expiresAt?.let {

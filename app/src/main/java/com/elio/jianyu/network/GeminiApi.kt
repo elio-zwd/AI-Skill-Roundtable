@@ -3,10 +3,6 @@ package com.elio.jianyu.network
 import android.content.Context
 import com.elio.jianyu.BuildConfig
 import com.elio.jianyu.network.keys.ApiKeyLease
-import com.elio.jianyu.network.retry.ApiCallFailure
-import com.elio.jianyu.network.retry.ApiRetryDecision
-import com.elio.jianyu.network.retry.ApiRetryPolicy
-import com.elio.jianyu.network.retry.safeCategory
 import com.elio.jianyu.roundtable.RequestBudgetTracker
 import com.elio.jianyu.telemetry.CloudInteractionRequestPolicy
 import com.elio.jianyu.telemetry.CloudInteractionSettings
@@ -14,7 +10,6 @@ import com.elio.jianyu.telemetry.InteractionChainStore
 import com.elio.jianyu.telemetry.PrivacySafeLogger
 import com.elio.jianyu.telemetry.TelemetryInterceptor
 import com.elio.jianyu.telemetry.TelemetryRepository
-import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
@@ -241,8 +236,8 @@ interface GeminiApiService {
     ): EmbedContentResponse
 }
 
-object RetrofitClient {
-    private const val TAG = "RetrofitClient"
+object GeminiRestTransport {
+    private const val TAG = "GeminiRestTransport"
     private const val BASE_URL = "https://generativelanguage.googleapis.com/"
     private const val MAIN_ANSWER_PREFIX = "MainAnswer-"
     private const val CONTINUE_ANSWER_PREFIX = "ContinueAnswer-"
@@ -276,9 +271,18 @@ object RetrofitClient {
             .create(GeminiApiService::class.java)
     }
 
-    /**
-     * 底层通用网络请求执行引擎，实现确定的租约尝试、错误分类与重试策略、预算控制与指数退避。
-     */
+    suspend fun validateKey(apiKey: String): ApiKeyValidationState = try {
+        when (service.validateApiKey(apiKey = apiKey).code()) {
+            in 200..299 -> ApiKeyValidationState.AVAILABLE
+            400, 401, 403 -> ApiKeyValidationState.INVALID
+            429 -> ApiKeyValidationState.RATE_LIMITED
+            else -> ApiKeyValidationState.NETWORK_ERROR
+        }
+    } catch (_: Exception) {
+        ApiKeyValidationState.NETWORK_ERROR
+    }
+
+    /** 通过统一 AI 管理模块执行 Gemini REST 请求；本 transport 不自行轮换 Key 或处理重试。 */
     suspend fun <T> executeWithBudgetAndRetry(
         context: Context,
         sessionId: Long,
@@ -288,113 +292,19 @@ object RetrofitClient {
         delayProvider: com.elio.jianyu.roundtable.DelayProvider = com.elio.jianyu.roundtable.DefaultDelayProvider,
         isRequired: Boolean = true,
         reserveForRequired: Int = 0,
-        block: suspend (ApiKeyLease) -> T
+        onAttemptStarted: suspend () -> Unit = {},
+        block: suspend (String) -> T,
     ): T {
-        val safeOperationName = sanitizeOperationName(operationName)
-        var lastFailure: ApiCallFailure? = null
-
-        if (attemptPlan.isEmpty()) {
-            val failure = ApiCallFailure.Unknown(Exception("No available keys in plan"))
-            throw com.elio.jianyu.network.retry.ApiExecutionException(
-                failure = failure,
-                operationName = safeOperationName,
-                keyId = null,
-                cause = Exception("操作 [$safeOperationName] 失败：可用的 API 密钥列表为空。")
-            )
-        }
-
-        val reserveForOtherRequired = (reserveForRequired - 1).coerceAtLeast(0)
-        for (lease in attemptPlan) {
-            val consumed = if (isRequired) {
-                tracker.tryConsumeRequired()
-            } else {
-                tracker.tryConsumeOptional()
-            }
-            if (!consumed) {
-                val failure = ApiCallFailure.Unknown(Exception("Request budget unavailable"))
-                throw com.elio.jianyu.network.retry.ApiExecutionException(
-                    failure = failure,
-                    operationName = safeOperationName,
-                    keyId = lease.keyId,
-                    cause = Exception("操作 [$safeOperationName] 超过了本轮请求预算。")
-                )
-            }
-
-            var sameKeyAttemptCount = 0
-            while (true) {
-                try {
-                    PrivacySafeLogger.d(
-                        TAG,
-                        "Executing $safeOperationName with keyId=${lease.keyId}"
-                    )
-                    val result = block(lease)
-                    ApiRetryPolicy.resetRateLimitCount(context, lease.keyId)
-                    ApiKeyPool.bindSessionKey(context, sessionId, lease.keyId)
-                    ApiKeyPool.setLastUsedKeyId(context, lease.keyId)
-                    return result
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (error: Exception) {
-                    val failure = classifyFailure(error)
-                    PrivacySafeLogger.e(
-                        TAG,
-                        "API call failed (operation=$safeOperationName, category=${failure.safeCategory()})"
-                    )
-                    lastFailure = failure
-                    val decision = ApiRetryPolicy.getDecision(failure, sameKeyAttemptCount)
-                    ApiRetryPolicy.handleKeyStatusUpdate(context, lease.keyId, failure)
-
-                    when (decision) {
-                        ApiRetryDecision.STOP_REQUEST -> {
-                            throw com.elio.jianyu.network.retry.ApiExecutionException(
-                                failure = failure,
-                                operationName = safeOperationName,
-                                keyId = lease.keyId,
-                                cause = sanitizedFailureException(safeOperationName, failure)
-                            )
-                        }
-                        ApiRetryDecision.RETRY_SAME_KEY -> {
-                            sameKeyAttemptCount++
-                            val backoffMs = if (
-                                failure is ApiCallFailure.Http && failure.code in 500..599
-                            ) {
-                                sameKeyAttemptCount * 1000L
-                            } else {
-                                1000L
-                            }
-                            delayProvider.delay(backoffMs)
-
-                            val retryConsumed = if (isRequired) {
-                                tracker.tryConsumeRequired()
-                            } else {
-                                tracker.tryConsumeOptional()
-                            }
-                            if (!retryConsumed) {
-                                val budgetFailure = ApiCallFailure.Unknown(
-                                    Exception("Retry budget unavailable")
-                                )
-                                throw com.elio.jianyu.network.retry.ApiExecutionException(
-                                    failure = budgetFailure,
-                                    operationName = safeOperationName,
-                                    keyId = lease.keyId,
-                                    cause = Exception("操作 [$safeOperationName] 重试时超过了本轮请求预算。")
-                                )
-                            }
-                            continue
-                        }
-                        ApiRetryDecision.TRY_NEXT_KEY,
-                        ApiRetryDecision.COOLDOWN_AND_TRY_NEXT_KEY -> break
-                    }
-                }
-            }
-        }
-
-        val failure = lastFailure ?: ApiCallFailure.Unknown(Exception("All keys failed"))
-        throw com.elio.jianyu.network.retry.ApiExecutionException(
-            failure = failure,
-            operationName = safeOperationName,
-            keyId = null,
-            cause = sanitizedFailureException(safeOperationName, failure)
+        return AiManager.requests(context, AiProvider.GEMINI).execute(
+            sessionId = sessionId,
+            attemptPlan = attemptPlan,
+            operationName = operationName,
+            delayProvider = delayProvider,
+            onAttemptStarted = {
+                if (isRequired) tracker.tryConsumeRequired() else tracker.tryConsumeOptional()
+                onAttemptStarted()
+            },
+            block = block,
         )
     }
 
@@ -407,7 +317,8 @@ object RetrofitClient {
         operationName: String = "CreateInteraction",
         delayProvider: com.elio.jianyu.roundtable.DelayProvider = com.elio.jianyu.roundtable.DefaultDelayProvider,
         isRequired: Boolean = true,
-        reserveForRequired: Int = 0
+        reserveForRequired: Int = 0,
+        onAttemptStarted: suspend () -> Unit = {},
     ): Interaction {
         TelemetryRepository.init(context)
         val cloudEnabled = CloudInteractionSettings.isEnabled(context)
@@ -429,16 +340,17 @@ object RetrofitClient {
             previousInteractionId = cloudPolicy.previousInteractionId
         )
         val response = executeWithBudgetAndRetry(
-            context,
-            sessionId,
-            attemptPlan,
-            tracker,
-            operationName,
-            delayProvider,
-            isRequired,
-            reserveForRequired
-        ) { lease ->
-            service.createInteraction(apiKey = lease.secret, request = privacySafeRequest)
+            context = context,
+            sessionId = sessionId,
+            attemptPlan = attemptPlan,
+            tracker = tracker,
+            operationName = operationName,
+            delayProvider = delayProvider,
+            isRequired = isRequired,
+            reserveForRequired = reserveForRequired,
+            onAttemptStarted = onAttemptStarted,
+        ) { secret ->
+            service.createInteraction(apiKey = secret, request = privacySafeRequest)
         }
         if (
             cloudPolicy.store &&
@@ -464,16 +376,16 @@ object RetrofitClient {
     ): GenerateContentResponse {
         TelemetryRepository.init(context)
         return executeWithBudgetAndRetry(
-            context,
-            sessionId,
-            attemptPlan,
-            tracker,
-            operationName,
-            delayProvider,
-            isRequired,
-            reserveForRequired
-        ) { lease ->
-            service.generateContent(model = model, apiKey = lease.secret, request = request)
+            context = context,
+            sessionId = sessionId,
+            attemptPlan = attemptPlan,
+            tracker = tracker,
+            operationName = operationName,
+            delayProvider = delayProvider,
+            isRequired = isRequired,
+            reserveForRequired = reserveForRequired,
+        ) { secret ->
+            service.generateContent(model = model, apiKey = secret, request = request)
         }
     }
 
@@ -493,36 +405,17 @@ object RetrofitClient {
             content = Content(parts = listOf(Part(text = text)))
         )
         return executeWithBudgetAndRetry(
-            context,
-            sessionId,
-            attemptPlan,
-            tracker,
-            operationName,
-            delayProvider,
-            isRequired,
-            reserveForRequired
-        ) { lease ->
-            service.embedContent(apiKey = lease.secret, request = request).embedding.values
+            context = context,
+            sessionId = sessionId,
+            attemptPlan = attemptPlan,
+            tracker = tracker,
+            operationName = operationName,
+            delayProvider = delayProvider,
+            isRequired = isRequired,
+            reserveForRequired = reserveForRequired,
+        ) { secret ->
+            service.embedContent(apiKey = secret, request = request).embedding.values
         }
-    }
-
-    private fun classifyFailure(error: Exception): ApiCallFailure = when (error) {
-        is retrofit2.HttpException -> {
-            val retryAfterMs = ApiRetryPolicy.parseRetryAfterMs(
-                error.response()?.headers()?.get("Retry-After")
-            )
-            ApiCallFailure.Http(error.code(), retryAfterMs)
-        }
-        is java.io.IOException -> ApiCallFailure.Network(error)
-        is kotlinx.serialization.SerializationException -> ApiCallFailure.Serialization(error)
-        else -> ApiCallFailure.Unknown(error)
-    }
-
-    private fun sanitizeOperationName(operationName: String): String {
-        val base = operationName.substringBefore('-')
-            .filter { it.isLetterOrDigit() || it == '_' }
-            .take(80)
-        return base.ifBlank { "ApiOperation" }
     }
 
     private fun interactionCharacterId(operationName: String): String? {
@@ -542,16 +435,4 @@ object RetrofitClient {
         }
     }
 
-    private fun sanitizedFailureException(
-        operationName: String,
-        failure: ApiCallFailure
-    ): Exception {
-        val category = when (failure) {
-            is ApiCallFailure.Http -> "HTTP_${failure.code}"
-            is ApiCallFailure.Network -> "NETWORK"
-            is ApiCallFailure.Serialization -> "SERIALIZATION"
-            is ApiCallFailure.Unknown -> "UNKNOWN"
-        }
-        return Exception("操作 [$operationName] 失败（$category）。")
-    }
 }

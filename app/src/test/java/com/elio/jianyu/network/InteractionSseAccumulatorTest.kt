@@ -11,7 +11,7 @@ class InteractionSseAccumulatorTest {
 
     @Test
     fun streamingEndpointRequestsSseResponseFormat() {
-        val endpoint = InteractionStreamingClient.STREAMING_ENDPOINT.toHttpUrl()
+        val endpoint = GeminiInteractionsTransport.STREAMING_ENDPOINT.toHttpUrl()
 
         assertEquals("/v1beta/interactions", endpoint.encodedPath)
         assertEquals("sse", endpoint.queryParameter("alt"))

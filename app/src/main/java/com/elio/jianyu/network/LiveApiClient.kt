@@ -7,6 +7,7 @@ import com.elio.jianyu.audio.AudioSynthesisState
 import com.elio.jianyu.audio.AudioSynthesisStatusStore
 import com.elio.jianyu.audio.TtsSynthesisException
 import com.elio.jianyu.audio.pcmBytesToDurationMs
+import com.elio.jianyu.network.retry.ApiCallFailure
 import com.elio.jianyu.telemetry.PrivacySafeLogger
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -126,8 +127,8 @@ internal fun classifyTtsFailure(
     }
 }
 
-object LiveApiClient {
-    private const val TAG = "LiveApiClient"
+object GeminiLiveAudioTransport {
+    private const val TAG = "GeminiLiveAudioTransport"
 
     private val client = OkHttpClient.Builder()
         .readTimeout(45, TimeUnit.SECONDS)
@@ -145,11 +146,37 @@ object LiveApiClient {
      */
     suspend fun generateTtsWav(
         context: Context,
-        apiKey: String,
+        sessionId: Long,
         text: String,
         voiceName: String,
         outputFile: File,
         messageId: Long? = extractTtsMessageId(outputFile)
+    ): String {
+        val attemptPlan = AiManager.keys(context, AiProvider.GEMINI).createAttemptPlan(sessionId)
+        return AiManager.requests(context, AiProvider.GEMINI).execute(
+            sessionId = sessionId,
+            attemptPlan = attemptPlan,
+            operationName = "LiveTts",
+            failureClassifier = ::classifyGeminiFailure,
+        ) { secret ->
+            generateTtsWavWithKey(
+                context = context,
+                apiKey = secret,
+                text = text,
+                voiceName = voiceName,
+                outputFile = outputFile,
+                messageId = messageId,
+            )
+        }
+    }
+
+    private suspend fun generateTtsWavWithKey(
+        context: Context,
+        apiKey: String,
+        text: String,
+        voiceName: String,
+        outputFile: File,
+        messageId: Long?,
     ): String {
         if (messageId != null && !activeMessageIds.add(messageId)) {
             throw TtsSynthesisException(
@@ -476,5 +503,16 @@ object LiveApiClient {
 
     private fun shortToBytes(value: Short): ByteArray {
         return ByteBuffer.allocate(2).order(ByteOrder.LITTLE_ENDIAN).putShort(value).array()
+    }
+
+    private fun classifyGeminiFailure(error: Exception): ApiCallFailure = when (
+        (error as? TtsSynthesisException)?.code
+    ) {
+        AudioSynthesisErrorCode.AUTH_FAILED -> ApiCallFailure.Http(403)
+        AudioSynthesisErrorCode.RATE_LIMITED -> ApiCallFailure.Http(429)
+        AudioSynthesisErrorCode.MODEL_UNAVAILABLE -> ApiCallFailure.Http(503)
+        AudioSynthesisErrorCode.TIMEOUT,
+        AudioSynthesisErrorCode.NETWORK_ERROR -> ApiCallFailure.Network(error)
+        else -> ApiCallFailure.Unknown(error)
     }
 }

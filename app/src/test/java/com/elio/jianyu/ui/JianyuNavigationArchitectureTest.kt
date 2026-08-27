@@ -25,7 +25,7 @@ class JianyuNavigationArchitectureTest {
             "RoundtableRoute",
             "CharacterHallRoute",
             "AudioLibraryRoute",
-            "ApiKeyManagerRoute",
+            "AiManagementRoute",
             "TelemetryRoute",
         ).forEach { route ->
             assertTrue("App.kt 缺少 Route：$route", source.contains(route))

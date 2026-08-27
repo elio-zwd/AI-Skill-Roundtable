@@ -37,7 +37,8 @@ class AppDestinationTest {
         assertFalse(AppDestination.ROUNDTABLE.showsBottomNavigation)
         assertFalse(AppDestination.CHARACTERS.showsBottomNavigation)
         assertFalse(AppDestination.AUDIO_LIBRARY.showsBottomNavigation)
-        AppDestination.topLevelDestinations.forEach { destination ->
+        assertFalse(AppDestination.HOME.showsBottomNavigation)
+        AppDestination.topLevelDestinations.filter { it != AppDestination.HOME }.forEach { destination ->
             assertTrue(destination.showsBottomNavigation)
         }
     }
@@ -59,10 +60,10 @@ class AppDestinationTest {
     }
 
     @Test
-    fun telemetryFromRoundtable_returnsThroughApiKeys() {
+    fun telemetryFromRoundtable_returnsThroughAiManagementPage() {
         assertEquals(
             listOf(
-                AppDestination.API_KEYS,
+                AppDestination.SETTINGS,
                 AppDestination.TELEMETRY,
             ),
             AppDestination.telemetryPathFromRoundtable,
@@ -80,16 +81,18 @@ class AppDestinationTest {
     }
 
     @Test
-    fun fromRoutePattern_rejectsUnknownOrMissingRoute() {
-        assertNull(AppDestination.fromRoutePattern(null))
-        assertNull(AppDestination.fromRoutePattern("unknown"))
+    fun fromLaunchRoute_mapsEveryKnownDestination() {
+        AppDestination.entries.forEach { destination ->
+            assertEquals(
+                destination,
+                AppDestination.fromLaunchRoute(destination.launchRoute),
+            )
+        }
     }
 
     @Test
-    fun routePatterns_areUnique() {
-        assertEquals(
-            AppDestination.entries.size,
-            AppDestination.entries.map { it.routePattern }.toSet().size,
-        )
+    fun unknownRoute_returnsNull() {
+        assertNull(AppDestination.fromRoutePattern("unknown"))
+        assertNull(AppDestination.fromLaunchRoute("unknown"))
     }
 }

@@ -10,9 +10,13 @@ import com.elio.jianyu.data.RoundtableDatabase
 import com.elio.jianyu.network.Content
 import com.elio.jianyu.network.GenerateContentRequest
 import com.elio.jianyu.network.Part
-import com.elio.jianyu.network.RetrofitClient
-import com.elio.jianyu.network.InteractionStreamingClient
-import com.elio.jianyu.network.ApiKeyPool
+import com.elio.jianyu.network.GeminiRestTransport
+import com.elio.jianyu.network.GeminiInteractionsTransport
+import com.elio.jianyu.network.AiManager
+import com.elio.jianyu.network.AiProvider
+import com.elio.jianyu.network.AiUseCase
+import com.elio.jianyu.network.DeepSeekTransport
+import com.elio.jianyu.network.defaultModel
 import com.elio.jianyu.network.Tool
 import com.elio.jianyu.network.CreateInteractionRequest
 import com.elio.jianyu.network.InteractionGenerationConfig
@@ -20,7 +24,6 @@ import com.elio.jianyu.network.outputText
 import com.elio.jianyu.telemetry.CloudInteractionSettings
 import com.elio.jianyu.telemetry.PrivacySafeLogger
 import com.elio.jianyu.network.keys.ApiKeyLease
-import com.elio.jianyu.network.keys.ApiKeyScheduler
 import com.elio.jianyu.roundtable.RoundtableBudget
 import com.elio.jianyu.roundtable.RequestBudgetTracker
 import com.elio.jianyu.roundtable.RoundtableOrchestrator
@@ -189,7 +192,11 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         prefs.edit().putString("search_mode", mode.name).apply()
     }
 
-    val apiKeySummaries = ApiKeyPool.summaries
+    val aiKeySummaries = AiManager.configuration(application).configuration
+        .flatMapLatest { configuration ->
+            AiManager.keys(application, configuration.modelFor(AiUseCase.ROUNDTABLE_ANSWER).provider).summaries
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val budgetManager = RoundtableBudgetManager()
 
@@ -278,7 +285,8 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             isRequired: Boolean,
             reserveForRequired: Int
         ): List<Float> {
-            return RetrofitClient.embedContent(
+            if (attemptPlan.firstOrNull()?.provider == AiProvider.DEEPSEEK) return emptyList()
+            return GeminiRestTransport.embedContent(
                 context = context,
                 text = text,
                 sessionId = sessionId,
@@ -305,7 +313,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
     init {
         val context = getApplication<Application>().applicationContext
-        ApiKeyPool.init(context)
+        AiManager.initialize(context)
 
         _isAutoNextEnabled.value = prefs.getBoolean("is_auto_next_enabled", true)
         _isSemanticRoutingEnabled.value = prefs.getBoolean("is_semantic_routing_enabled", false)
@@ -423,8 +431,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         if (text.isBlank()) return
 
         launchRoundtableJob {
-            val availableKeys = ApiKeyPool.getAvailableKeys(getApplication())
-            if (availableKeys.isEmpty()) {
+            if (!AiManager.keysForUseCase(getApplication(), AiUseCase.ROUNDTABLE_ANSWER).hasAvailableKeys()) {
                 _errorMessage.value = "当前没有可用的 API 密钥，请稍后再试或在“我的配置”中填写密钥。"
                 return@launchRoundtableJob
             }
@@ -468,24 +475,39 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 用户提问：$firstQuestion
             """.trimIndent()
 
-            val request = GenerateContentRequest(
-                contents = listOf(Content(parts = listOf(Part(text = prompt))))
-            )
-
             try {
-                val plan = ApiKeyScheduler.createAttemptPlan(context, sessionId)
-                val response = RetrofitClient.generateContent(
-                    context = context,
-                    model = "gemini-3.1-flash-lite",
-                    request = request,
-                    sessionId = sessionId,
-                    attemptPlan = plan,
-                    tracker = tracker,
-                    operationName = "GenerateTitle",
-                    isRequired = false,
-                    reserveForRequired = 0
-                )
-                val reply = response.candidates.firstOrNull()?.content?.parts?.firstOrNull()?.text?.trim()
+                val model = AiManager.configuration(context).configuration.value
+                    .modelFor(AiUseCase.SESSION_TITLE)
+                val plan = AiManager.keys(context, model.provider).createAttemptPlan(sessionId)
+                val reply = when (model.provider) {
+                    AiProvider.GEMINI -> {
+                        val response = GeminiRestTransport.generateContent(
+                            context = context,
+                            model = model.modelId,
+                            request = GenerateContentRequest(
+                                contents = listOf(Content(parts = listOf(Part(text = prompt))))
+                            ),
+                            sessionId = sessionId,
+                            attemptPlan = plan,
+                            tracker = tracker,
+                            operationName = "GenerateTitle",
+                            isRequired = false,
+                            reserveForRequired = 0,
+                        )
+                        response.candidates.firstOrNull()?.content?.parts?.firstOrNull()?.text?.trim()
+                    }
+                    AiProvider.DEEPSEEK -> DeepSeekTransport.createChatCompletion(
+                        context = context,
+                        sessionId = sessionId,
+                        attemptPlan = plan,
+                        model = model,
+                        systemInstruction = "你是一个对话标题提炼助手。只输出不超过 15 个字的标题，不要解释。",
+                        userContent = firstQuestion,
+                        maxOutputTokens = 40,
+                        operationName = "GenerateTitle",
+                        tracker = tracker,
+                    ).choices.firstOrNull()?.message?.content?.trim()
+                }
                 if (!reply.isNullOrBlank()) {
                     val cleanTitle = reply.replace("\"", "").replace("'", "").trim()
                     chatRepo.updateSessionTitle(sessionId, cleanTitle)
@@ -548,8 +570,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         }
 
         viewModelScope.launch {
-            val apiKeyToUse = ApiKeyPool.getAvailableKeys(context).firstOrNull()?.key.orEmpty()
-            if (apiKeyToUse.isBlank()) {
+            if (!AiManager.keys(context, AiProvider.GEMINI).hasAvailableKeys()) {
                 _errorMessage.value = "无法播放语音：无可用 API Key"
                 return@launch
             }
@@ -557,9 +578,9 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             val tempWavFile = File(context.cacheDir, "tts_${message.id}.wav")
             try {
                 PrivacySafeLogger.d("RoundtableViewModel", "Starting TTS synthesis")
-                val path = com.elio.jianyu.network.LiveApiClient.generateTtsWav(
+                val path = com.elio.jianyu.network.GeminiLiveAudioTransport.generateTtsWav(
                     context = context,
-                    apiKey = apiKeyToUse,
+                    sessionId = message.chatId,
                     text = message.text,
                     voiceName = voiceName,
                     outputFile = tempWavFile
@@ -645,8 +666,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
     private suspend fun runRetryRoundtableSequence(sessionId: Long, questionRunId: Long, targetCharacterIds: List<String>) {
         val context = getApplication<Application>().applicationContext
-        val availableKeys = ApiKeyPool.getAvailableKeys(context)
-        if (availableKeys.isEmpty()) {
+        if (!AiManager.keysForUseCase(context, AiUseCase.ROUNDTABLE_ANSWER).hasAvailableKeys()) {
             _errorMessage.value = "当前没有可用的 API 密钥，请稍后再试或在“我的配置”中填写密钥。"
             return
         }
@@ -741,8 +761,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
     private suspend fun runRoundtableSequence(sessionId: Long, questionRunId: Long) {
         val context = getApplication<Application>().applicationContext
-        val availableKeys = ApiKeyPool.getAvailableKeys(context)
-        if (availableKeys.isEmpty()) {
+        if (!AiManager.keysForUseCase(context, AiUseCase.ROUNDTABLE_ANSWER).hasAvailableKeys()) {
             _errorMessage.value = "当前没有可用的 API 密钥，请稍后再试或在“我的配置”中填写密钥。"
             return
         }
@@ -818,6 +837,10 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             context,
             character.skillAssetPath
         )
+        val configuration = AiManager.configuration(context).configuration.value
+        val configuredModel = configuration.modelFor(AiUseCase.ROUNDTABLE_ANSWER)
+        val provider = attemptPlan.firstOrNull()?.provider ?: configuredModel.provider
+        val model = configuredModel.takeIf { it.provider == provider } ?: defaultModel(provider)
         val exampleFiles = if (folderName.isNotBlank()) {
             com.elio.jianyu.skill.SkillLoader
                 .listFilesInAssetDir(context, "skills/$folderName/examples")
@@ -927,30 +950,41 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 """.trimIndent()
             }
 
-            val charSummariesJson = summariesMap.optJSONObject(folderName)?.toString()
-            val brokerRequest = CreateInteractionRequest(
-                model = "gemini-3.1-flash-lite",
-                input = JsonPrimitive(brokerPrompt),
-                systemInstruction = charSummariesJson
-            )
-
-            val brokerResponse = try {
-                RetrofitClient.createInteraction(
-                    context = context,
-                    request = brokerRequest,
-                    sessionId = sessionId,
-                    attemptPlan = attemptPlan,
-                    tracker = tracker,
-                    operationName = "BrokerDecision",
-                    isRequired = false,
-                    reserveForRequired = reserveForRequired
-                )
+            val brokerModel = configuration.modelFor(AiUseCase.MATERIAL_BROKER)
+            val brokerPlan = AiManager.keys(context, brokerModel.provider).createAttemptPlan(sessionId)
+            val brokerText = try {
+                when (brokerModel.provider) {
+                    AiProvider.GEMINI -> GeminiRestTransport.createInteraction(
+                        context = context,
+                        request = CreateInteractionRequest(
+                            model = brokerModel.modelId,
+                            input = JsonPrimitive(brokerPrompt),
+                            systemInstruction = summariesMap.optJSONObject(folderName)?.toString(),
+                        ),
+                        sessionId = sessionId,
+                        attemptPlan = brokerPlan,
+                        tracker = tracker,
+                        operationName = "BrokerDecision",
+                        isRequired = false,
+                        reserveForRequired = reserveForRequired,
+                    ).outputText
+                    AiProvider.DEEPSEEK -> DeepSeekTransport.createChatCompletion(
+                        context = context,
+                        sessionId = sessionId,
+                        attemptPlan = brokerPlan,
+                        model = brokerModel,
+                        systemInstruction = summariesMap.optJSONObject(folderName)?.toString(),
+                        userContent = brokerPrompt,
+                        operationName = "BrokerDecision",
+                        tracker = tracker,
+                    ).choices.firstOrNull()?.message?.content.orEmpty()
+                }
             } catch (error: Exception) {
                 PrivacySafeLogger.e("RoundtableViewModel", "Broker request failed", error)
-                null
+                ""
             }
 
-            val cleanedReply = brokerResponse?.outputText.orEmpty()
+            val cleanedReply = brokerText
                 .replace("```json", "")
                 .replace("```", "")
                 .trim()
@@ -1017,13 +1051,15 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
             val searchInfos = mutableListOf<String>()
             if (finalNeedSearch) {
+                val searchModel = configuration.modelFor(AiUseCase.WEB_GROUNDING)
+                val searchPlan = AiManager.keys(context, searchModel.provider).createAttemptPlan(sessionId)
                 for ((index, query) in finalQueries.withIndex()) {
                     PrivacySafeLogger.d(
                         "RoundtableViewModel",
                         "Starting web grounding request ${index + 1}/${finalQueries.size}"
                     )
                     val searchRequest = CreateInteractionRequest(
-                        model = "gemini-2.5-flash",
+                        model = searchModel.modelId,
                         input = JsonPrimitive(
                             "请针对以下搜索任务进行联网搜索并给出详细总结：\n任务：$query\n脑暴背景：$prompt"
                         ),
@@ -1031,11 +1067,11 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     )
 
                     val searchResponse = try {
-                        RetrofitClient.createInteraction(
+                        GeminiRestTransport.createInteraction(
                             context = context,
                             request = searchRequest,
                             sessionId = sessionId,
-                            attemptPlan = attemptPlan,
+                            attemptPlan = searchPlan,
                             tracker = tracker,
                             operationName = "GoogleSearch-${index + 1}",
                             isRequired = false,
@@ -1109,8 +1145,27 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             }
         }
 
+        if (provider == AiProvider.DEEPSEEK) {
+            val response = DeepSeekTransport.createChatCompletion(
+                context = context,
+                sessionId = sessionId,
+                attemptPlan = attemptPlan,
+                model = model,
+                systemInstruction = referencesText,
+                userContent = prompt,
+                maxOutputTokens = budget.maxOutputTokensPerAnswer,
+                operationName = "MainAnswer-${character.id}",
+                tracker = tracker,
+                onAttemptStarted = onAttemptStarted,
+                onTextUpdate = onTextUpdate,
+            )
+            return@withContext response.choices.firstOrNull()?.message?.content
+                ?.takeIf(String::isNotBlank)
+                ?: throw IllegalStateException("DeepSeek 未返回可展示的模型文本")
+        }
+
         val request = CreateInteractionRequest(
-            model = "gemini-3.5-flash",
+            model = model.modelId,
             input = JsonPrimitive(prompt),
             systemInstruction = referencesText,
             store = true,
@@ -1122,7 +1177,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             )
         )
 
-        val currentResponse = InteractionStreamingClient.createInteraction(
+        val currentResponse = GeminiInteractionsTransport.createInteraction(
             context = context,
             request = request,
             sessionId = sessionId,
@@ -1147,7 +1202,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             } else {
                 PrivacySafeLogger.d("RoundtableViewModel", "Starting interaction continuation")
                 val continueRequest = CreateInteractionRequest(
-                    model = "gemini-3.5-flash",
+                    model = model.modelId,
                     input = JsonPrimitive("请继续"),
                     systemInstruction = referencesText,
                     store = true,
@@ -1159,7 +1214,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     )
                 )
                 val continueResponse = try {
-                    InteractionStreamingClient.createInteraction(
+                    GeminiInteractionsTransport.createInteraction(
                         context = context,
                         request = continueRequest,
                         sessionId = sessionId,

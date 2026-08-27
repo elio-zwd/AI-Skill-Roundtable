@@ -13,7 +13,7 @@ enum class AppDestination(
         launchRoute = "home",
         label = "首页",
         testTagSuffix = "home",
-        showsBottomNavigation = true,
+        showsBottomNavigation = false,
     ),
     ISSUES(
         routePattern = "issues",
@@ -70,7 +70,7 @@ enum class AppDestination(
     API_KEYS(
         routePattern = "settings/api-keys",
         launchRoute = "settings/api-keys",
-        label = "API Key 管理",
+        label = "AI 管理",
         testTagSuffix = "api_keys",
         showsBottomNavigation = false,
     ),
@@ -100,11 +100,14 @@ enum class AppDestination(
         )
 
         val telemetryPathFromRoundtable: List<AppDestination> = listOf(
-            API_KEYS,
+            SETTINGS,
             TELEMETRY,
         )
 
         fun fromRoutePattern(routePattern: String?): AppDestination? =
-            entries.firstOrNull { destination -> destination.routePattern == routePattern }
+            entries.firstOrNull { it.routePattern == routePattern }
+
+        fun fromLaunchRoute(launchRoute: String?): AppDestination? =
+            entries.firstOrNull { it.launchRoute == launchRoute }
     }
 }

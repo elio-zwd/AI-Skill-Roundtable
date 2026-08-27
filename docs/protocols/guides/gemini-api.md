@@ -29,9 +29,9 @@ POST https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-00
 
 | 模型名 | 用途 | 配置说明 |
 |--------|------|------|
-| `gemini-3.5-flash` | 主力对话思考模型 | 对话生成，开启 `thinkingConfig` (thinkingLevel = `"high"`) |
-| `gemini-2.5-flash` | 联网接地检索模型 | 用于携带 `google_search` tools 产生联网搜索总结与网页接地引用 |
-| `gemini-3.1-flash-lite` | Context Broker 决策路由器 | 低成本快速做本地文件与联网双决策判定 |
+| `gemini-3.6-flash` | 用户可选文本模型 | 在 AI 管理页按调用用途独立选择 |
+| `gemini-3.5-flash` | 用户可选文本模型 | 在 AI 管理页按调用用途独立选择 |
+| `gemini-3.1-flash-lite` | 用户可选文本模型 | 在 AI 管理页按调用用途独立选择 |
 | `gemini-3.1-flash-live-preview` | Live 语音音频模型 | 用于 WebSocket Bidi 实时拉取音频 PCM 裸流（TTS） |
 | `gemini-embedding-001` | 向量嵌入模型 | 获取 768 维文本相似度特征向量，供语义路由使用（注：原 text-embedding-004 已下线退休） |
 
@@ -87,7 +87,7 @@ POST https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-00
 为了最大化提升大模型的 **Implicit Context Cache (隐式上下文缓存)** 命中率，避免每次轮询带来的冷启动，项目采用了 **Conversation-level API Key Binding (会话级密钥绑定)** 策略：
 
 1. **绑定持久化**：
-   - 使用 SharedPreferences 对每个 `sessionId` 进行 Key 绑定记录。
+   - `ProviderKeyRepository` 按提供商使用 SharedPreferences 对每个 `sessionId` 进行 Key 绑定记录。
    - 会话一经绑定，整个脑暴对话（包括 7 个角色轮流作答及多次提问）全程强绑定同一个 API Key 发起请求。
 2. **故障换绑与熔断机制**：
    - 除非遇到 API `429`（频控）或其他 Exception 连接报错，该绑定的 Key 不会改变。
@@ -97,7 +97,7 @@ POST https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-00
 
 ## 7. Gemini Live WebSocket API (TTS) 协议规范
 
-为了实现低延迟的语音流式合成与直播交互，项目在 `LiveApiClient.kt` 中集成了 Gemini Live 协议：
+为了实现低延迟的语音流式合成与直播交互，项目在 `GeminiLiveAudioTransport` 中集成了 Gemini Live 协议：
 
 ### 7.1 WebSocket 端点与握手
 - **协议**：Secure WebSocket (`wss`)
@@ -239,7 +239,7 @@ WebSocket 握手成功后，双方采用双向 JSON 帧格式进行实时通信�
 
 ## 9. API 熔断诊断与请求遥测日志协议
 
-为了支撑 API 熔断调试面板的可视化展示，项目在 `ApiKeyPool` 中定义了请求拦截与状态统计的数据协议。
+为了支撑 API 熔断诊断的可视化展示，AI 管理模块将职责拆为 `AiConfigurationRepository`（按调用用途保存模型）、`ProviderKeyRepository`（Key 状态）、`AiRequestExecutor`（轮换与重试）和各协议 transport（网络传输）。
 
 ### 9.1 遥测日志数据结构 (`ApiLog`)
 
@@ -275,7 +275,7 @@ data class KeyStatus(
 
 - **剩余时间计算**：
   \[\text{remaining} = \max(0, \text{banExpireTime} - \text{System.currentTimeMillis()})\]
-- **重置协议**：通过调用 `ApiKeyPool.clearBans(context)` 可以清除所有在 SharedPreferences 中写入的 `ban_{keyId}` 状态，使得被禁用的 Key 立即恢复为可用状态。
+- **重置协议**：通过对应 `ProviderKeyRepository.clearBans()` 可以清除该提供商全部 Key 的冷却与退避计数；手动禁用状态不会被该操作改变。
 
 
 ## 10. Interactions API (流式脑暴会话) 协议规范
@@ -337,4 +337,3 @@ POST https://generativelanguage.googleapis.com/v1beta/interactions?key={api_key}
   ]
 }
 ```
-

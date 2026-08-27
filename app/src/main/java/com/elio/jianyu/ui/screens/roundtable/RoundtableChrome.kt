@@ -167,13 +167,13 @@ internal fun RoundtableTopBar(
             }
 
             IconButton(
-                onClick = { onEvent(RoundtableEvent.OpenApiKeyConfig) },
+                onClick = { onEvent(RoundtableEvent.OpenAiManagement) },
                 modifier = Modifier.bounceClick(),
             ) {
                 Icon(
                     Icons.Default.Settings,
                     contentDescription = "密钥设置",
-                    tint = if (uiState.hasApiKeys) SecondaryAccent else GoldAccent,
+                    tint = if (uiState.hasAvailableAiKeys) SecondaryAccent else GoldAccent,
                 )
             }
         }

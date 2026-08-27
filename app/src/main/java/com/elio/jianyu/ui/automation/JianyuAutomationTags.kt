@@ -254,8 +254,8 @@ object JianyuAutomationTags {
     }
 
     object Settings {
-        const val API_KEYS_ENTRY = "settings_api_keys_entry"
-        const val API_KEYS_ACTION = "settings_api_keys_action"
+        const val AI_MANAGEMENT_ENTRY = "settings_ai_management_entry"
+        const val AI_MANAGEMENT_ACTION = "settings_ai_management_action"
         const val TELEMETRY_ENTRY = "settings_telemetry_entry"
         const val TELEMETRY_ACTION = "settings_telemetry_action"
     }
@@ -393,8 +393,8 @@ object JianyuAutomationTags {
         StageTimeline.CURRENT,
         StageTimeline.UNDO_BUTTON,
         StageTimeline.UNDO_CONFIRMATION,
-        Settings.API_KEYS_ENTRY,
-        Settings.API_KEYS_ACTION,
+        Settings.AI_MANAGEMENT_ENTRY,
+        Settings.AI_MANAGEMENT_ACTION,
         Settings.TELEMETRY_ENTRY,
         Settings.TELEMETRY_ACTION,
     )

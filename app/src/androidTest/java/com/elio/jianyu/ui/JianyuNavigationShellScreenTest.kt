@@ -145,7 +145,7 @@ class JianyuNavigationShellScreenTest {
     }
 
     @Test
-    fun settings_preservesApiKeyTelemetryAndBackCallbacks() {
+    fun settings_preservesAiManagementTelemetryAndBackCallbacks() {
         var backCount = 0
         var apiKeyCount = 0
         var telemetryCount = 0
@@ -153,14 +153,14 @@ class JianyuNavigationShellScreenTest {
             SkillRoundtableTheme {
                 SettingsScreen(
                     onBack = { backCount += 1 },
-                    onOpenApiKeys = { apiKeyCount += 1 },
+                    onOpenAiManagement = { apiKeyCount += 1 },
                     onOpenTelemetry = { telemetryCount += 1 },
                 )
             }
         }
 
         composeRule.onNodeWithTag(SettingsShellTestTags.SCREEN).assertExists()
-        composeRule.onNodeWithTag(SettingsShellTestTags.API_KEYS_ACTION).performClick()
+        composeRule.onNodeWithTag(SettingsShellTestTags.AI_MANAGEMENT_ACTION).performClick()
         composeRule.onNodeWithTag(SettingsShellTestTags.TELEMETRY_ACTION).performClick()
         composeRule.onNodeWithTag(JianyuShellTestTags.PAGE_BACK_BUTTON).performClick()
         composeRule.runOnIdle {

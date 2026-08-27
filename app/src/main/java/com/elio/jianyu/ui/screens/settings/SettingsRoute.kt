@@ -8,8 +8,8 @@ import com.elio.jianyu.ui.components.JianyuStateCard
 
 object SettingsShellTestTags {
     const val SCREEN = "settings_screen"
-    const val API_KEYS_ENTRY = "settings_api_keys_entry"
-    const val API_KEYS_ACTION = "settings_api_keys_action"
+    const val AI_MANAGEMENT_ENTRY = "settings_ai_management_entry"
+    const val AI_MANAGEMENT_ACTION = "settings_ai_management_action"
     const val TELEMETRY_ENTRY = "settings_telemetry_entry"
     const val TELEMETRY_ACTION = "settings_telemetry_action"
 }
@@ -17,12 +17,12 @@ object SettingsShellTestTags {
 @Composable
 fun SettingsRoute(
     onBack: () -> Unit,
-    onOpenApiKeys: () -> Unit,
+    onOpenAiManagement: () -> Unit,
     onOpenTelemetry: () -> Unit,
 ) {
     SettingsScreen(
         onBack = onBack,
-        onOpenApiKeys = onOpenApiKeys,
+        onOpenAiManagement = onOpenAiManagement,
         onOpenTelemetry = onOpenTelemetry,
     )
 }
@@ -30,7 +30,7 @@ fun SettingsRoute(
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
-    onOpenApiKeys: () -> Unit,
+    onOpenAiManagement: () -> Unit,
     onOpenTelemetry: () -> Unit,
 ) {
     JianyuPageShell(
@@ -63,12 +63,12 @@ fun SettingsScreen(
             style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
         )
         JianyuStateCard(
-            title = "API Key",
-            message = "管理用户自行导入的 BYOK Key 池；本地浏览不依赖 Key。",
+            title = "AI 管理",
+            message = "选择 Gemini 或 DeepSeek 文本模型，并管理各自独立的 BYOK Key 池。",
             actionLabel = "管理",
-            actionTestTag = SettingsShellTestTags.API_KEYS_ACTION,
-            onAction = onOpenApiKeys,
-            modifier = Modifier.testTag(SettingsShellTestTags.API_KEYS_ENTRY),
+            actionTestTag = SettingsShellTestTags.AI_MANAGEMENT_ACTION,
+            onAction = onOpenAiManagement,
+            modifier = Modifier.testTag(SettingsShellTestTags.AI_MANAGEMENT_ENTRY),
         )
         JianyuStateCard(
             title = "遥测与诊断",

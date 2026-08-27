@@ -60,13 +60,6 @@ data class ParsedKeyBatch(
     val invalid: Int
 )
 
-data class ApiKeyInfo(
-    val id: String,
-    val key: String,
-    val account: String,
-    val source: ApiKeySource = ApiKeySource.LOCAL
-)
-
 @Serializable
 data class ApiLog(
     val keyId: String,
@@ -91,34 +84,6 @@ data class KeyStatus(
     val remainingBanTimeMs: Long,
     val isManualDisabled: Boolean
 )
-
-fun interface ApiKeyProvider {
-    fun getRecords(): List<ApiKeyRecord>
-}
-
-class LocalApiKeyProvider(
-    private val store: EncryptedApiKeyStore
-) : ApiKeyProvider {
-    override fun getRecords(): List<ApiKeyRecord> = store.read()
-}
-
-interface RemoteApiKeyProvider : ApiKeyProvider
-
-object DisabledRemoteApiKeyProvider : RemoteApiKeyProvider {
-    override fun getRecords(): List<ApiKeyRecord> = emptyList()
-}
-
-class CompositeApiKeyProvider(
-    private val localProvider: ApiKeyProvider,
-    private val remoteProvider: ApiKeyProvider
-) : ApiKeyProvider {
-    override fun getRecords(): List<ApiKeyRecord> {
-        val fingerprints = mutableSetOf<String>()
-        return (localProvider.getRecords() + remoteProvider.getRecords()).filter { record ->
-            fingerprints.add(record.fingerprint)
-        }
-    }
-}
 
 object ApiKeyBatchParser {
     private const val MAX_KEY_LENGTH = 512

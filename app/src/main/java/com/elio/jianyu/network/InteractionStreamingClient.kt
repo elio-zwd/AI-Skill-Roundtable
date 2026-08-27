@@ -3,10 +3,7 @@ package com.elio.jianyu.network
 import android.content.Context
 import com.elio.jianyu.network.keys.ApiKeyLease
 import com.elio.jianyu.network.retry.ApiCallFailure
-import com.elio.jianyu.network.retry.ApiExecutionException
-import com.elio.jianyu.network.retry.ApiRetryDecision
 import com.elio.jianyu.network.retry.ApiRetryPolicy
-import com.elio.jianyu.network.retry.safeCategory
 import com.elio.jianyu.roundtable.DefaultDelayProvider
 import com.elio.jianyu.roundtable.DelayProvider
 import com.elio.jianyu.roundtable.RequestBudgetTracker
@@ -16,7 +13,6 @@ import com.elio.jianyu.telemetry.InteractionChainStore
 import com.elio.jianyu.telemetry.PrivacySafeLogger
 import com.elio.jianyu.telemetry.TelemetryRepository
 import java.io.IOException
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -46,7 +42,7 @@ data class StreamedInteraction(
  * 仅把 model_output 步骤中的 text delta 暴露给界面，thought 等内部步骤不会进入聊天记录。
  * 每次重试开始前都会通知调用方重置当前 Pending 文本，避免不同尝试的内容相互拼接。
  */
-object InteractionStreamingClient {
+object GeminiInteractionsTransport {
     private const val TAG = "InteractionStreaming"
     internal const val STREAMING_ENDPOINT =
         "https://generativelanguage.googleapis.com/v1beta/interactions?alt=sse"
@@ -108,9 +104,9 @@ object InteractionStreamingClient {
             isRequired = isRequired,
             reserveForRequired = reserveForRequired,
             onAttemptStarted = onAttemptStarted
-        ) { lease ->
+        ) { secret ->
             streamSingleAttempt(
-                apiKey = lease.secret,
+                apiKey = secret,
                 request = streamingRequest,
                 onTextUpdate = onTextUpdate
             )
@@ -136,113 +132,19 @@ object InteractionStreamingClient {
         isRequired: Boolean,
         reserveForRequired: Int,
         onAttemptStarted: suspend () -> Unit,
-        block: suspend (ApiKeyLease) -> StreamedInteraction
+        block: suspend (String) -> StreamedInteraction,
     ): StreamedInteraction {
-        val safeOperationName = sanitizeOperationName(operationName)
-        var lastFailure: ApiCallFailure? = null
-
-        if (attemptPlan.isEmpty()) {
-            val failure = ApiCallFailure.Unknown(Exception("No available keys in plan"))
-            throw ApiExecutionException(
-                failure = failure,
-                operationName = safeOperationName,
-                keyId = null,
-                cause = Exception("操作 [$safeOperationName] 失败：可用的 API 密钥列表为空。")
-            )
-        }
-
-        val reserveForOtherRequired = (reserveForRequired - 1).coerceAtLeast(0)
-        for (lease in attemptPlan) {
-            val consumed = if (isRequired) {
-                tracker.tryConsumeRequired()
-            } else {
-                tracker.tryConsumeOptional()
-            }
-            if (!consumed) {
-                val failure = ApiCallFailure.Unknown(Exception("Request budget unavailable"))
-                throw ApiExecutionException(
-                    failure = failure,
-                    operationName = safeOperationName,
-                    keyId = lease.keyId,
-                    cause = Exception("操作 [$safeOperationName] 超过了本轮请求预算。")
-                )
-            }
-
-            var sameKeyAttemptCount = 0
-            while (true) {
-                try {
-                    onAttemptStarted()
-                    PrivacySafeLogger.d(TAG, "Starting $safeOperationName stream with keyId=${lease.keyId}")
-                    val result = block(lease)
-                    ApiRetryPolicy.resetRateLimitCount(context, lease.keyId)
-                    ApiKeyPool.bindSessionKey(context, sessionId, lease.keyId)
-                    ApiKeyPool.setLastUsedKeyId(context, lease.keyId)
-                    return result
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (error: Exception) {
-                    val failure = classifyFailure(error)
-                    PrivacySafeLogger.e(
-                        TAG,
-                        "Streaming API call failed (operation=$safeOperationName, category=${failure.safeCategory()})"
-                    )
-                    lastFailure = failure
-                    val decision = ApiRetryPolicy.getDecision(failure, sameKeyAttemptCount)
-                    ApiRetryPolicy.handleKeyStatusUpdate(context, lease.keyId, failure)
-
-                    when (decision) {
-                        ApiRetryDecision.STOP_REQUEST -> {
-                            throw ApiExecutionException(
-                                failure = failure,
-                                operationName = safeOperationName,
-                                keyId = lease.keyId,
-                                cause = sanitizedFailureException(safeOperationName, failure)
-                            )
-                        }
-
-                        ApiRetryDecision.RETRY_SAME_KEY -> {
-                            sameKeyAttemptCount++
-                            val backoffMs = if (
-                                failure is ApiCallFailure.Http && failure.code in 500..599
-                            ) {
-                                sameKeyAttemptCount * 1000L
-                            } else {
-                                1000L
-                            }
-                            delayProvider.delay(backoffMs)
-
-                            val retryConsumed = if (isRequired) {
-                                tracker.tryConsumeRequired()
-                            } else {
-                                tracker.tryConsumeOptional()
-                            }
-                            if (!retryConsumed) {
-                                val budgetFailure = ApiCallFailure.Unknown(
-                                    Exception("Retry budget unavailable")
-                                )
-                                throw ApiExecutionException(
-                                    failure = budgetFailure,
-                                    operationName = safeOperationName,
-                                    keyId = lease.keyId,
-                                    cause = Exception("操作 [$safeOperationName] 的重试超过本轮请求预算。")
-                                )
-                            }
-                            continue
-                        }
-
-                        ApiRetryDecision.TRY_NEXT_KEY,
-                        ApiRetryDecision.COOLDOWN_AND_TRY_NEXT_KEY -> break
-                    }
-                }
-            }
-        }
-
-        val failure = lastFailure ?: ApiCallFailure.Unknown(Exception("All keys failed"))
-        throw ApiExecutionException(
-            failure = failure,
-            operationName = sanitizeOperationName(operationName),
-            keyId = null,
-            cause = sanitizedFailureException(sanitizeOperationName(operationName), failure)
+        return AiManager.requests(context, AiProvider.GEMINI).execute(
+            sessionId = sessionId,
+            attemptPlan = attemptPlan,
+            operationName = operationName,
+            delayProvider = delayProvider,
+            onAttemptStarted = {
+                if (isRequired) tracker.tryConsumeRequired() else tracker.tryConsumeOptional()
+                onAttemptStarted()
+            },
+            failureClassifier = ::classifyFailure,
+            block = block,
         )
     }
 
@@ -301,7 +203,7 @@ object InteractionStreamingClient {
     }
 
     private fun streamFrames(request: Request): Flow<String> = callbackFlow {
-        val call = RetrofitClient.okHttpClient.newCall(request)
+        val call = GeminiRestTransport.okHttpClient.newCall(request)
         call.enqueue(object : Callback {
             override fun onFailure(call: Call, error: IOException) {
                 close(error)
@@ -367,13 +269,6 @@ object InteractionStreamingClient {
         else -> ApiCallFailure.Unknown(error)
     }
 
-    private fun sanitizeOperationName(operationName: String): String {
-        val base = operationName.substringBefore('-')
-            .filter { it.isLetterOrDigit() || it == '_' }
-            .take(80)
-        return base.ifBlank { "ApiOperation" }
-    }
-
     private fun interactionCharacterId(operationName: String): String? {
         val raw = when {
             operationName.startsWith(MAIN_ANSWER_PREFIX) -> operationName.removePrefix(MAIN_ANSWER_PREFIX)
@@ -387,18 +282,6 @@ object InteractionStreamingClient {
         }
     }
 
-    private fun sanitizedFailureException(
-        operationName: String,
-        failure: ApiCallFailure
-    ): Exception {
-        val category = when (failure) {
-            is ApiCallFailure.Http -> "HTTP_${failure.code}"
-            is ApiCallFailure.Network -> "NETWORK"
-            is ApiCallFailure.Serialization -> "SERIALIZATION"
-            is ApiCallFailure.Unknown -> "UNKNOWN"
-        }
-        return Exception("操作 [$operationName] 失败（$category）。")
-    }
 }
 
 internal data class InteractionStreamProgress(

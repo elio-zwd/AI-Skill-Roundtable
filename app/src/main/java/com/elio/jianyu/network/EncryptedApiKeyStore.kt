@@ -26,16 +26,18 @@ private data class EncryptedApiKeyEnvelope(
 /**
  * 使用 Android Keystore 加密完整密钥池，并写入不会参与系统备份的目录。
  */
-class EncryptedApiKeyStore(context: Context) {
+class EncryptedApiKeyStore(
+    context: Context,
+    fileName: String,
+) {
     companion object {
         private const val KEY_ALIAS = "skill_roundtable_api_key_v1"
         private const val TRANSFORMATION = "AES/GCM/NoPadding"
         private const val GCM_TAG_LENGTH_BITS = 128
-        private const val FILE_NAME = "gemini_api_keys.enc"
     }
 
     private val json = Json { ignoreUnknownKeys = true }
-    private val atomicFile = AtomicFile(File(context.noBackupFilesDir, FILE_NAME))
+    private val atomicFile = AtomicFile(File(context.noBackupFilesDir, fileName))
     private val lock = Any()
 
     @Volatile

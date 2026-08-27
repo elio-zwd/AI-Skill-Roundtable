@@ -94,6 +94,23 @@ class ExecutionRunCoordinatorTest {
     }
 
     @Test
+    fun selectedAiManagementModelIsSnapshottedIntoExecutionRequest() = runBlocking {
+        val persistence = FakeExecutionPersistence()
+        val network = FakeExecutionNetworkGateway(
+            mutableMapOf("skill-a" to FakeOutcome.Success(listOf("A"))),
+        )
+
+        val result = coordinator(
+            persistence = persistence,
+            network = network,
+            modelIdResolver = { "deepseek-v4-pro" },
+        ).start(startCommand("run-1", "skill-a"))
+
+        assertEquals("deepseek-v4-pro", result.runtime.run.actualModelId)
+        assertEquals("deepseek-v4-pro", network.requests.single().model)
+    }
+
+    @Test
     fun partialSuccessKeepsSuccessfulMessageAndMarksRunRetryable() = runBlocking {
         val persistence = FakeExecutionPersistence()
         val network = FakeExecutionNetworkGateway(
@@ -192,6 +209,7 @@ class ExecutionRunCoordinatorTest {
     private fun coordinator(
         persistence: FakeExecutionPersistence,
         network: FakeExecutionNetworkGateway,
+        modelIdResolver: (String) -> String = { requestedModel -> requestedModel },
     ): ExecutionRunCoordinator {
         val resolver = ExecutionSkillResolver { runId, selections, createdAt ->
             selections.mapIndexed { index, selection ->
@@ -216,6 +234,7 @@ class ExecutionRunCoordinatorTest {
             skillResolver = resolver,
             networkGateway = network,
             clock = ExecutionClock { persistence.nextTime() },
+            modelIdResolver = modelIdResolver,
         )
     }
 

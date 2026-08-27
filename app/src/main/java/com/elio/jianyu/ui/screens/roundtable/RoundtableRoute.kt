@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun RoundtableRoute(
     viewModel: RoundtableViewModel,
-    onOpenApiKeyConfig: () -> Unit,
+    onOpenAiManagement: () -> Unit,
     onOpenTelemetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -40,7 +40,7 @@ fun RoundtableRoute(
     val isRoundtableRunning by viewModel.isRoundtableRunning.collectAsState()
     val typingCharacterIds by viewModel.typingCharacterIds.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
-    val apiKeySummaries by viewModel.apiKeySummaries.collectAsState()
+    val aiKeySummaries by viewModel.aiKeySummaries.collectAsState()
     val isAutoNextEnabled by viewModel.isAutoNextEnabled.collectAsState()
     val isSemanticRoutingEnabled by viewModel.isSemanticRoutingEnabled.collectAsState()
     val searchMode by viewModel.searchMode.collectAsState()
@@ -64,7 +64,7 @@ fun RoundtableRoute(
         characters = characters,
         isRoundtableRunning = isRoundtableRunning,
         typingCharacterIds = typingCharacterIds,
-        hasApiKeys = apiKeySummaries.any { it.enabled },
+        hasAvailableAiKeys = aiKeySummaries.any { it.enabled },
         isAutoNextEnabled = isAutoNextEnabled,
         isSemanticRoutingEnabled = isSemanticRoutingEnabled,
         searchMode = searchMode,
@@ -135,7 +135,7 @@ fun RoundtableRoute(
             RoundtableEvent.ContinueRound -> viewModel.triggerNextCharacterManual()
             RoundtableEvent.RetryFailedCharacters -> viewModel.retryFailedCharacters()
             RoundtableEvent.DismissRetryableState -> viewModel.dismissRetryableState()
-            RoundtableEvent.OpenApiKeyConfig -> onOpenApiKeyConfig()
+            RoundtableEvent.OpenAiManagement -> onOpenAiManagement()
             RoundtableEvent.OpenTelemetry -> {
                 isDrawerVisible = false
                 onOpenTelemetry()

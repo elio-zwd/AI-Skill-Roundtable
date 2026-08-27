@@ -88,7 +88,7 @@ class AppIdentityIsolationTest {
             legacyPreferences.contains(LEGACY_PREFERENCES_KEY),
         )
 
-        val keyStore = EncryptedApiKeyStore(context)
+        val keyStore = EncryptedApiKeyStore(context, ENCRYPTED_KEY_FILE)
         assertTrue(keyStore.read().isEmpty())
         assertNull(keyStore.lastError)
         assertFalse("只读空保险箱不得创建密钥文件", encryptedKeyFile.exists())

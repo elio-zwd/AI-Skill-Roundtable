@@ -70,7 +70,7 @@ data class RoundtableUiState(
     val characters: List<Character> = emptyList(),
     val isRoundtableRunning: Boolean = false,
     val typingCharacterIds: Set<String> = emptySet(),
-    val hasApiKeys: Boolean = false,
+    val hasAvailableAiKeys: Boolean = false,
     val isAutoNextEnabled: Boolean = true,
     val isSemanticRoutingEnabled: Boolean = false,
     val searchMode: SearchMode = SearchMode.AUTO,
@@ -137,7 +137,7 @@ sealed interface RoundtableEvent {
     data object ContinueRound : RoundtableEvent
     data object RetryFailedCharacters : RoundtableEvent
     data object DismissRetryableState : RoundtableEvent
-    data object OpenApiKeyConfig : RoundtableEvent
+    data object OpenAiManagement : RoundtableEvent
     data object OpenTelemetry : RoundtableEvent
     data object CopyConversationMarkdown : RoundtableEvent
     data object SaveConversationMarkdown : RoundtableEvent
