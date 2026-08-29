@@ -1,6 +1,6 @@
 # AGENTS.md — 见域（当前仓库：AI-Skill-Roundtable）
 
-> AI 代理工作规范。进入仓库后先阅读本文件，再阅读距离目标文件最近的 `AGENTS.md`、当前规划和任务施工单。更具体目录中的规则优先。
+> AI 代理工作规范。进入仓库后先阅读本文件，再阅读距离目标文件最近的 `AGENTS.md`、当前产品定义、当前规划和任务施工单。更具体目录中的规则优先。
 
 ---
 
@@ -19,35 +19,44 @@ Kotlin 包路径：app/src/main/java/com/elio/jianyu/
 
 当前应用是一套可运行的原生 Android 多角色聊天基线，包含 Room 本地会话、Gemini REST / Interactions / Live WebSocket、联网搜索、Markdown、用户自带 Key 池、遥测和音频管理。
 
-以上是**当前实现事实**。应用名称和技术身份已经迁移，但持续议题、阶段、资料成果、完整品牌视觉和后续数据模型仍由 PR09 后续任务实施。
+以上是**当前实现事实**。产品定义已经更新为“对话 + Skill 角色”，但现有路由、数据模型、历史用户文案和编排上下文不代表已经全部完成迁移。
 
-### 1.2 目标产品
+### 1.2 当前目标产品
 
 目标产品名称为 **见域**，口号为：
 
 > 看见更多观点，打开认知边界
 
-正式定义：
+当前正式定义：
 
-> 见域是一款面向个人的多智能体思考与行动工作台。用户围绕持续议题，调用人物视角、专业顾问、任务助手和工作流能力，通过自由追问与分阶段推进，沉淀判断、行动方案和知识成果。
+> **见域是一款以 AI Skill 角色对话为核心的个人思考与行动应用。用户可以和一个或多个具有独立人格、思维方式与能力边界的 Skill 角色持续交流，在不同观点之间形成自己的判断，并把有价值的内容沉淀为资料、下一步和成果。**
 
-当前已完成的技术标识：
+当前产品定义由以下文件共同约束，按顺序优先：
+
+1. `docs/decisions/adr-009-skill-role-conversation-product-model.md`
+2. `docs/product/jianyu-terminology.md`
+3. `docs/product/jianyu-product-model.md`
+4. `docs/product/jianyu-prd.md`
+
+PR08 历史 planning/decision 文档继续保留用于追溯；当其中“议题 / 推进议题 / 邀请 Skill / Skill 必须作为用户统一上位词”等旧冻结定义与 ADR-009 冲突时，**ADR-009 和当前 `docs/product/` 文档优先**。
+
+### 1.3 当前产品心智模型
 
 ```text
-App 名称：见域
-applicationId / namespace：com.elio.jianyu
+对话是 Top 1
+会话是持续保存的用户容器
+Skill 是内部能力载体
+Skill 角色是用户实际交流的参与者
+多个 Skill 角色默认平级、独立判断
+增加 Skill 角色不会产生主从或默认正反方
+@角色只影响本次回复
+交叉讨论必须由用户显式触发
+资料与成果保持区分
 ```
 
-仍属于未来目标：
+用户不需要理解“议题”“阶段”“Run”“响应批次”“Agent 编排”等工程术语才能使用产品。
 
-```text
-目标仓库名：jianyu-workbench
-目标官网：jianyu.my-elio.online
-```
-
-不得把仓库名、官网、完整产品模型或完整品牌视觉描述为已经完成。
-
-### 1.3 旧 App 数据边界
+### 1.4 旧 App 数据边界
 
 当前 App 尚未正式发布，应用身份已从 `com.elio.skillroundtable` 迁移到 `com.elio.jianyu`，并冻结以下边界：
 
@@ -65,165 +74,179 @@ applicationId / namespace：com.elio.jianyu
 
 ## 2. 当前阶段与执行顺序
 
-当前可信顺序：
+历史顺序：
 
 ```text
-PR #20：已合并，冻结产品定义、品牌、PR08 总计划与协作规则
-→ PR #21：已合并，冻结“推进议题”与阶段推进契约
-→ PR #22：已合并，收敛第 1～62 题并更新仓库规则
-→ PR08-A～E：已完成
-→ PR08-F：已完成并获得用户批准
-→ PR09：正在按独立任务实施生产代码、数据模型、品牌和技术标识迁移
+PR #20～#22：PR08 产品定义阶段
+→ PR08-A～F：历史产品规格整合
+→ PR09：生产代码、数据模型、品牌和技术标识迁移
+→ ADR-009（2026-08-29）：产品心智重组为“对话 + Skill 角色”，覆盖冲突的 PR08 冻结术语
+→ 后续 PR：按 ADR-009 逐步迁移 UI、文案、编排上下文与数据语义
 ```
 
-当前门禁：
+执行规则：
 
-- PR08 不修改 Android 生产代码、测试、Room、资源、Manifest、Gradle、CI 或仓库设置；
-- PR09 每个任务使用独立分支、Commit 和 Draft PR 阶段；
+- 历史 PR08 文档不得被当作不可覆盖的“永远冻结”规则；后续 Accepted ADR 可以明确变更产品契约；
+- 每个实现任务使用独立分支、Commit 和 PR；
 - 当前文档中的目标行为只有在对应代码、测试和验收完成后才能写成已实现；
-- 未经用户明确授权不得标记 Ready、合并、关闭 PR 或删除分支。
-
-任何历史文档中“PR08 直接逐屏修改 Compose”“PR08-F 前即可开始 PR09”或“`com.elio.jianyu` 尚未迁移”的表述均已失效。
+- 未经用户明确授权不得合并、关闭 PR 或删除分支；
+- 规格变更 PR 与生产代码迁移 PR 应尽量分离，除非任务明确要求一起实施；
+- 遇到历史文档冲突时先判断它是“历史依据”还是“当前规范”，不要为了满足旧措辞逆向修改当前产品定义。
 
 ---
 
-## 3. 已冻结的见域产品契约
+## 3. 当前见域产品契约
 
-### 3.1 产品对象
+### 3.1 对话与会话
 
-```text
-问题是入口
-Skill 是能力载体
-议题是持续容器
-阶段是议题内推进节点
-圆桌是多 Skill 协作形式
-成果是判断、行动方案、知识笔记或可交付内容
-```
+正式用户术语：
 
-“轮次”只可描述模型或成员的一次响应批次，不是最高层产品对象。
+- **对话**：Top 1 核心页面；
+- **会话**：可持续保存、搜索、继续和归档的对话容器；
+- **会话记录**：历史会话入口。
 
-### 3.2 两类核心价值
+旧“议题 / 议题列表 / 议题详情”不再是当前核心用户术语。
 
-正式名称仅为：
+工程内部可以暂时保留 `topic/stage/round` 等过渡结构，但不得因为当前实现存在这些结构，就重新把“议题”写回正式用户心智。
 
-- **现实支持**
-- **思维拓展**
+### 3.2 Skill 与 Skill 角色
 
-规则：
+必须区分：
 
-- 可跳过、单独选择或组合；
-- 可在同一议题中反复切换；
-- 不是永久标签；
-- 不自动拆成两条议题主线；
-- “生活与工作”“思维与视角”“现实行动”不得作为正式分类名称。
+- **Skill**：内部能力包/能力载体；
+- **Skill 角色**：用户实际看见、选择和交流的 AI 角色。
 
-### 3.3 单 Skill 与多 Skill
+只要对象作为聊天参与者出现，用户侧统一使用 **Skill 角色** 或具体角色名。
 
-- 单 Skill 与多 Skill 并列；
-- 单 Skill 可邀请其他 Skill，升级为多 Skill；
-- 多 Skill 中点名某个 Skill 只产生临时定向回答；
-- 临时定向回答不自动退出多 Skill；
-- Skill 增删不删除历史回答、资料或成果；
-- 系统可以推荐 Skill，但必须说明理由并由用户确认。
+Skill 角色允许并鼓励具有：
 
-### 3.4 推进议题
+- 人物化头像/肖像；
+- 稳定名称；
+- 清晰身份；
+- 稳定人格；
+- 稳定思考方式；
+- 稳定表达风格。
 
-正式入口名称为 **推进议题**，不是暂定名称。
+不能因为“不能冒充真人”而故意把角色设计成无人格工具。
 
-- 入口始终可用，阶段成熟时可增强提示；
-- 不强迫用户必须完成当前阶段；
-- 自由追问用于继续当前阶段；
-- 推进议题用于建立新的明确阶段目标；
-- “下一轮”只作为历史术语；
-- 推进议题不等于让全部角色重复发言。
+### 3.3 真实人物型 Skill 角色
 
-三步确认：
+真实人物型角色可以高度人物化，但必须保持身份真实性。
 
-```text
-第一步：选择推进方向
-第二步：选择具体措施或自定义目标
-第三步：确认下一阶段摘要
-```
+推荐在角色详情、首次使用或合适位置说明：
 
-只有第三步最终确认后才创建新阶段。
+> AI 模拟角色，基于可获得资料构建，不代表本人，也不保证复现本人当前或完整观点。
 
-正式方向和措施：
+不要求每条消息重复免责声明，但不得把 AI 生成内容表述为真人本人当前真实发言、授权、背书或批准。
 
-**思维拓展**
+### 3.4 多角色平级
 
-- 引入反方意见；
-- 查找遗漏视角；
-- 检查关键假设；
-- 比较不同立场；
-- 深入某个问题；
-- 自定义目标。
+一个会话中的多个 Skill 角色默认：
 
-**现实支持**
+- 平级；
+- 独立；
+- 无主 Skill / 副 Skill；
+- 无默认领导者；
+- 无默认正方 / 反方；
+- 不因加入顺序改变身份地位；
+- 不因 UI 排序表示权力。
 
-- 明确下一步；
-- 形成执行计划；
-- 分析执行阻碍；
-- 生成成果交付；
-- 设置检查节点；
-- 自定义目标。
+用户增加参与者时正式写 **增加 Skill 角色**，不用“邀请 Skill”。
 
-默认继承：
+### 3.5 默认独立回应
 
-- 议题背景；
-- 已确认资料；
-- 已保存成果；
-- 当前 Skill 阵容；
-- 已形成判断；
-- 主要分歧；
-- 当前行动项。
+多角色默认独立回应是**强产品契约**，不是只用于文案的描述。
 
-用户可调整：
+角色形成本轮首次判断时主要基于：
 
-- 下一阶段目标；
-- Skill；
-- 资料；
-- 输出形式。
+- 用户当前问题和必要用户消息；
+- 用户明确选择的资料；
+- 用户明确选择的个人背景；
+- 必要的中性事实背景；
+- 该角色自己的 Skill/persona/能力。
 
-阶段关系：
+默认不得把前一个角色刚生成的完整回答作为后一个角色必须继承的领导性上下文。
 
-- 新阶段仍属于原议题；
-- 旧阶段完整保存；
-- 不覆盖原阶段；
-- 一个议题保持单一主线；
-- 不自动创建分支议题；
-- 不自动复制互相冲突的历史副本。
+因此修改以下实现时必须审计角色独立性：
 
-### 3.5 圆桌结果
+- Interactions `previous_interaction_id`；
+- fallback 全量历史拼接；
+- 会话摘要；
+- RoundtableOrchestrator / 调度器；
+- Prompt 组装；
+- 上下文缓存与召回。
 
-圆桌不投票裁决真理。收束结果应包含：
+技术优化不能让角色 B 因为角色 A 先说话而系统性复读或从众。
 
-- 共识；
-- 分歧；
-- 适用条件；
-- 明确建议；
-- 下一步。
+### 3.6 @角色 / 本次回复角色
 
-系统可以给出推荐及理由，用户保留最终决定权。
+用户可以通过 `@角色` 或选择器让某个 Skill 角色回答当前请求。
+
+这只影响当前请求：
+
+- 不提升为主角色；
+- 不移除其他角色；
+- 不改变长期角色关系；
+- 不让其他角色以后自动服从它。
+
+### 3.7 交叉讨论
+
+**交叉讨论必须由用户显式触发。**
+
+只有此时，参与角色才把其他角色的相关观点作为明确讨论输入。
+
+交叉讨论：
+
+- 不无限自动循环；
+- 不通过多数票裁决真理；
+- 不建立永久主从关系；
+- 完成后默认恢复独立回应。
+
+### 3.8 继续深入
+
+旧“推进议题”不再是冻结正式入口。
+
+当前自然用户动作是 **继续深入**，可根据上下文提供：
+
+- 深入问题；
+- 检查假设；
+- 增加 Skill 角色；
+- 换视角；
+- 交叉讨论；
+- 核查资料；
+- 整理下一步；
+- 保存成果。
+
+“阶段”可作为内部/局部工作流结构，必要时用户侧二级表达为“对话节点”，不得在 Top 1 聊天页常驻成主视觉。
+
+### 3.9 资料与成果
+
+- 资料是输入和依据；
+- 草稿不是正式成果；
+- 成果只有用户明确确认保存后成立；
+- 个人背景只有用户主动保存和选择后长期复用；
+- 敏感资料不应未经用户允许发送给所有角色；
+- 系统可以给出推荐及理由，用户保留最终决定权。
 
 ---
 
 ## 4. 当前可信工程事实
 
+开始实现任务前必须以当前分支代码和最近迁移文档再次核对版本，不得仅凭本文件的历史数字做修改决策。
+
+当前稳定身份事实：
+
 | 项目 | 当前值 |
 |---|---|
 | 应用名称 | 见域 |
 | applicationId / namespace | `com.elio.jianyu` |
-| 语言 | Kotlin 2.0.21 |
+| 语言 | Kotlin |
 | UI | Jetpack Compose + Material 3 |
-| 导航 | Navigation Compose 2.8.4 |
-| 数据库 | Room v5 |
-| JDK | JDK 17 |
-| Gradle | Wrapper 8.14 `-bin` |
-| Compile / Target SDK | 35 |
-| Min SDK | 26 |
-| 网络 | Retrofit、OkHttp、WebSocket |
-| API Key | 用户自行导入的 BYOK Key 池，最多 50 个 |
-| Key 存储 | Android Keystore + AES-GCM，密文位于 `noBackupFilesDir` |
+| JDK | 17 |
+| Gradle | 使用仓库 Wrapper |
+| 网络 | Retrofit / OkHttp / WebSocket / Gemini APIs |
+| API Key | 用户自行导入的 BYOK Key 池 |
+| Key 存储 | Android Keystore + AES-GCM 本地保护 |
 
 ### API Key 不可变事实
 
@@ -231,7 +254,7 @@ Skill 是能力载体
 - `ApiKeyPool` 只管理用户在 App 内自行导入的 Key；
 - Android App 编译和运行时都不读取根目录 `.env`；
 - `.env` 仅供开发者手动运行本地辅助脚本；
-- 文档中的“内置 10 个 Key”“w1-w10 内置密钥”等属于旧架构残留。
+- 历史文档中的“内置 10 个 Key”“w1-w10 内置密钥”等属于旧架构残留，不得重新实现为当前事实。
 
 ---
 
@@ -239,8 +262,9 @@ Skill 是能力载体
 
 1. 阅读根目录 `AGENTS.md`；
 2. 阅读目标目录下最近的 `AGENTS.md`；
-3. 阅读 `docs/planning/pr-execution-master-plan.md` 和当前任务施工单；
-4. 执行：
+3. 产品/UI 任务先阅读 ADR-009 和 `docs/product/` 当前三份规范；
+4. 阅读 `docs/planning/pr-execution-master-plan.md` 和当前任务施工单（若存在）；
+5. 执行：
 
 ```powershell
 git status --short
@@ -248,13 +272,12 @@ git branch --show-current
 git log -5 --oneline
 ```
 
-5. 检查开放 PR、目标 Base SHA、相关 CI、评论、Review 和审查线程；
-6. 读取调用链、关联测试、配置和文档，不得只读取单个目标文件；
-7. 修改前列出预计文件、行为冻结点、验证命令和主要风险；
-8. 从最新目标基线创建独立分支，不直接修改 `main`；
-9. 检查是否与其他对话或开放 PR 修改相同文件；
-10. 每次写入前重新读取目标分支上的最新文件；
-11. 若任务属于 PR08，确认写入范围仅包含授权文档或设计资产；
+6. 检查开放 PR、目标 Base SHA、相关 CI、评论、Review 和审查线程；
+7. 读取调用链、关联测试、配置和文档，不得只读取单个目标文件；
+8. 修改前列出预计文件、行为冻结点、验证命令和主要风险；
+9. 从最新目标基线创建独立分支，不直接修改 `main`；
+10. 检查是否与其他对话或开放 PR 修改相同文件；
+11. 每次写入前重新读取目标分支上的最新文件；
 12. 若 Superpowers 技能不可用，明确使用等价人工流程，不得假装调用成功。
 
 ---
@@ -294,6 +317,8 @@ app/src/androidTest/java/com/elio/jianyu/
 
 ```text
 docs/
+├── product/
+├── decisions/
 ├── architecture/
 ├── planning/
 ├── testing/
@@ -321,9 +346,20 @@ docs/
 - `LegacyUiTokens.kt` 只能做兼容别名；
 - 不保留同一页面的新旧两套入口、导航或重复 Composable；
 - 新抽象必须有真实调用方和测试；
-- 已存在的 `testTag` 属于稳定测试契约。
+- 已存在的 `testTag` 属于稳定测试契约，除非对应产品迁移任务明确更新测试契约。
 
-这些规则描述当前工程基线。PR09 实施时必须继续遵守，除非最终迁移规格明确更新。
+### 7.1 Top 1 对话 UI 额外规则
+
+当前移动 UI 设计基准：Xiaomi 14 Ultra，Android 竖屏，1440 × 3200。
+
+- 聊天内容是绝对主体；
+- Skill 角色头像、名称和消息归属清晰；
+- 多角色视觉默认平级；
+- “增加 Skill 角色”是正式用户动作；
+- `@角色`/本次回复角色不能被实现成长期主角色；
+- 高级控制项默认收进二级入口或 Bottom Sheet；
+- 不把 Run、Interaction ID、阶段时间线、上下文确认、策略 Override 等工程内容长期铺在主屏；
+- 不采用 iPhone Dynamic Island、iOS Home Indicator 等 iOS 专属视觉作为 Android 基准。
 
 ---
 
@@ -335,7 +371,7 @@ docs/
 - 不保留互相冲突的新旧实现；
 - 修改数据库实体时同步版本、Migration、Schema 和测试；
 - 修改包名、Activity 或 `applicationId` 时同步脚本、Manifest、CI 和文档；
-- 历史 ADR 可保留背景，但必须明确历史状态；
+- 历史 ADR 和 planning 文档可保留背景，但必须明确历史状态；
 - 无关 Bug 另开 PR，不在规格、设计或迁移评估 PR 中顺带修复；
 - 不强制更新、删除他人分支、合并或关闭 PR，除非用户明确授权。
 
@@ -345,7 +381,7 @@ docs/
 
 | 信息类型 | 正确位置 | 是否提交 Git |
 |---|---|---|
-| Android App BYOK Key | App 内导入；Keystore 加密后存入 `noBackupFilesDir` | 否 |
+| Android App BYOK Key | App 内导入；Keystore 加密后本地保存 | 否 |
 | 本地辅助脚本 Key | 根目录 `.env` | 否 |
 | 模板占位符 | `.env.example` | 是 |
 | 签名文件、私钥、证书 | 本机或安全 CI Secret | 否 |
@@ -391,10 +427,11 @@ git status --short
 纯文档 PR 至少检查：
 
 - 文件回读和相对链接；
-- 术语、状态和阶段边界一致性；
+- 当前术语与 ADR-009 一致；
+- 历史规格和当前规格的覆盖关系明确；
 - 净差异只包含授权路径；
 - `git diff --check`；
-- PR 当前 Head 的 CI。
+- PR 当前 Head 的 CI（如配置文档门禁）。
 
 交付报告必须区分：
 
@@ -432,29 +469,46 @@ git status --short
 - 多对话通过 Issue、分支、Commit、PR 描述和评论交接；
 - 开始前检查开放 PR，避免修改相同文件；
 - 不假设其他对话共享实时记忆；
-- 未经授权不标记 Ready、不合并、不关闭、不删除分支；
-- 完成后提供本地 AI 只读验收 Prompt。
+- 未经授权不合并、不关闭、不删除分支；
+- 完成后提供本地 AI 只读验收 Prompt（如果任务需要本地验收）。
 
 ---
 
 ## 13. 核心文档
 
+### 当前产品定义
+
+| 文档 | 路径 |
+|---|---|
+| ADR-009：对话 + Skill 角色 | `docs/decisions/adr-009-skill-role-conversation-product-model.md` |
+| 当前术语契约 | `docs/product/jianyu-terminology.md` |
+| 当前产品模型 | `docs/product/jianyu-product-model.md` |
+| 当前 PRD | `docs/product/jianyu-prd.md` |
+
+### 工程与执行
+
 | 文档 | 路径 |
 |---|---|
 | 总控计划 | `docs/planning/pr-execution-master-plan.md` |
-| PR08 产品定义工作笔记 | `docs/planning/pr-08-product-definition-working-notes.md` |
-| PR08 总计划 | `docs/planning/pr-08-jianyu-product-redesign-plan.md` |
-| PR08 任务清单 | `docs/planning/pr-08-jianyu-product-redesign-tasks.md` |
-| PR08 多对话交接 | `docs/planning/pr-08-jianyu-parallel-handoff.md` |
-| 议题推进契约 | `docs/planning/pr-08-jianyu-issue-advancement-planning.md` |
-| 产品规格审阅稿 | `docs/planning/pr-08-jianyu-product-spec-review-draft.md` |
-| 第 1～62 题决策索引 | `docs/planning/pr-08-jianyu-product-spec-decision-index.md` |
-| 第 56～61 题补充 | `docs/planning/pr-08-jianyu-product-spec-supplement-56-61.md` |
-| 第 62 题补充 | `docs/planning/pr-08-jianyu-product-spec-supplement-62.md` |
-| PR09-01 应用身份迁移计划 | `docs/planning/pr-09-01-jianyu-app-identity-plan.md` |
 | 系统架构 | `docs/architecture/system-architecture.md` |
 | 当前 UI 稳定接口 | `docs/architecture/pr-08-ui-design-stable-interfaces.md` |
 | UI 回归清单 | `docs/testing/pr-07-ui-regression-checklist.md` |
 | Android 编译指南 | `docs/environment/android-compilation-guide.md` |
 | Gemini API 协议 | `docs/protocols/gemini-api.md` |
 | 新增角色指南 | `docs/skills/how-to-add-new-character.md` |
+
+### 历史产品规格（追溯用）
+
+以下文档仍可用于理解历史决定，但产品语义发生冲突时不得覆盖 ADR-009：
+
+- `docs/planning/pr-08-product-definition-working-notes.md`
+- `docs/planning/pr-08-jianyu-product-redesign-plan.md`
+- `docs/planning/pr-08-jianyu-product-redesign-tasks.md`
+- `docs/planning/pr-08-jianyu-parallel-handoff.md`
+- `docs/planning/pr-08-jianyu-issue-advancement-planning.md`
+- `docs/planning/pr-08-jianyu-product-spec-review-draft.md`
+- `docs/planning/pr-08-jianyu-product-spec-decision-index.md`
+- `docs/planning/pr-08-jianyu-product-spec-supplement-56-61.md`
+- `docs/planning/pr-08-jianyu-product-spec-supplement-62.md`
+
+如果后续任务要继续使用这些历史规格中的非冲突部分，PR 描述必须说明哪些条款仍被沿用、哪些已由 ADR-009 覆盖。
