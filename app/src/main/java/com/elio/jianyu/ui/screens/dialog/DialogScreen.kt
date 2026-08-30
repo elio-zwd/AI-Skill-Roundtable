@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.ui.screens.dialog.components.DialogComposer
+import com.elio.jianyu.ui.screens.dialog.components.DialogBottomBar
 import com.elio.jianyu.ui.screens.dialog.components.DialogTopBar
 import com.elio.jianyu.ui.screens.dialog.components.SkillMessageCard
 import com.elio.jianyu.ui.screens.dialog.components.SkillRoleStrip
@@ -93,7 +94,10 @@ fun DialogScreen(
                         searchState = uiState.searchState,
                         onEvent = onEvent,
                     )
-
+                    DialogBottomBar(
+                        selectedTabIndex = 0,
+                        onEvent = onEvent,
+                    )
                 }
             },
         ) { paddingValues ->

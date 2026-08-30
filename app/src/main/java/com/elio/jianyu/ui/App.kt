@@ -59,6 +59,8 @@ import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.components.JianyuNavigationIcons
 import com.elio.jianyu.ui.navigation.AppDestination
 import com.elio.jianyu.ui.navigation.AppNavHost
+import com.elio.jianyu.ui.navigation.JianyuNavigationRoutes
+import com.elio.jianyu.ui.navigation.ResourceTab
 import com.elio.jianyu.ui.navigation.navigateToIssue
 import com.elio.jianyu.ui.navigation.navigateToSecondary
 import com.elio.jianyu.ui.navigation.navigateToTopLevel
@@ -268,7 +270,20 @@ internal fun MainAppContent(
                     navController = navController,
                     modifier = Modifier.fillMaxSize(),
                     homeContent = {
-                        com.elio.jianyu.ui.screens.dialog.DialogRoute(viewModel = viewModel)
+                        com.elio.jianyu.ui.screens.dialog.DialogRoute(
+                            viewModel = viewModel,
+                            onNavigateBottomTab = { tabIndex ->
+                                when (tabIndex) {
+                                    1 -> navController.navigate(
+                                        JianyuNavigationRoutes.resources(ResourceTab.MATERIALS),
+                                    )
+                                    2 -> navController.navigate(
+                                        JianyuNavigationRoutes.resources(ResourceTab.ARTIFACTS),
+                                    )
+                                    3 -> navController.navigateToSecondary(AppDestination.SETTINGS)
+                                }
+                            },
+                        )
                     },
                 issuesContent = {
                     IssuesRoute(

@@ -1,6 +1,5 @@
 package com.elio.jianyu.ui.screens.dialog.components
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,6 +15,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -27,8 +28,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -49,7 +48,7 @@ fun SkillRoleStrip(
     onEvent: (DialogEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    LazyRow(
         modifier = modifier
             .fillMaxWidth()
             .background(DialogTokens.SurfaceWhite)
@@ -57,20 +56,19 @@ fun SkillRoleStrip(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // 当前会话的角色卡（规划教练、系统思考者等）
-        activeRoles.forEach { role ->
+        items(activeRoles, key = SkillRoleUiModel::id) { role ->
             SkillRoleCard(
                 role = role,
                 onClick = { onEvent(DialogEvent.ClickSkillCard(role.id)) },
-                modifier = Modifier.weight(1.15f),
+                modifier = Modifier.width(142.dp),
             )
         }
-
-        // 「增加 Skill 角色」卡片入口
-        AddSkillRoleEntryCard(
-            onClick = { onEvent(DialogEvent.ClickAddSkillCard) },
-            modifier = Modifier.weight(0.85f),
-        )
+        item {
+            AddSkillRoleEntryCard(
+                onClick = { onEvent(DialogEvent.ClickAddSkillCard) },
+                modifier = Modifier.width(92.dp),
+            )
+        }
     }
 }
 
@@ -140,31 +138,12 @@ private fun SkillRoleCard(
                 modifier = Modifier.size(44.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                if (avatarRes != null) {
-                    Image(
-                        painter = painterResource(id = avatarRes),
-                        contentDescription = role.name,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(10.dp)),
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(role.tintBorder),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = role.avatarText.take(2),
-                            color = role.accentColor,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                }
+                SkillRoleAvatar(
+                    role = role.copy(avatarResId = avatarRes),
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(10.dp)),
+                )
 
                 // 右下角绿色在线圆点（带白色描边）
                 Box(

@@ -140,6 +140,21 @@ class DialogUiStateTest {
     }
 
     @Test
+    fun toSkillRoleUiModel_keepsAssetAvatarAndUsesNameAsTextPlaceholder() {
+        val role = Character(
+            id = "zhang_xuefeng",
+            name = "张雪峰",
+            avatar = "avatars/zhang_xuefeng.jpg",
+            tagline = "升学与职业规划",
+            systemPrompt = "保持角色视角",
+            order = 1,
+        ).toSkillRoleUiModel(inCurrentSession = true)
+
+        assertEquals("avatars/zhang_xuefeng.jpg", role.avatarUrl)
+        assertEquals("张雪", role.avatarText)
+    }
+
+    @Test
     fun mapDialogUiState_filtersArchivedSessions() {
         val current = ChatSession(id = 1, title = "当前")
         val archived = ChatSession(id = 2, title = "归档")

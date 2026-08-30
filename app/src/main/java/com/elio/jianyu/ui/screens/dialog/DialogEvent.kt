@@ -34,6 +34,7 @@ sealed interface DialogEvent {
     // 消息级操作
     data class CopyMessage(val messageId: String, val content: String) : DialogEvent
     data class SaveMessageAsArtifact(val messageId: String) : DialogEvent
+    data class ClickMessageMore(val messageId: String) : DialogEvent
 
     // 输入区与发送
     data class InputTextChanged(val text: String) : DialogEvent
@@ -52,4 +53,6 @@ sealed interface DialogEvent {
     object ViewReferenceContent : DialogEvent
     object TriggerCrossDiscussion : DialogEvent // 交叉讨论
 
+    // 底部一级导航
+    data class NavigateBottomTab(val tabIndex: Int) : DialogEvent
 }

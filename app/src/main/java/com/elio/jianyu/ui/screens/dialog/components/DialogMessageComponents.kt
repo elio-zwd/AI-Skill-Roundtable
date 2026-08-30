@@ -134,36 +134,17 @@ fun SkillMessageCard(
                 .size(38.dp)
                 .padding(top = 2.dp),
         ) {
-            if (avatarRes != null) {
-                Image(
-                    painter = painterResource(id = avatarRes),
-                    contentDescription = message.role.name,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .border(
-                            1.dp,
-                            if (isPlanner) Color(0xFFE0D8FB) else Color(0xFFC7EBD9),
-                            CircleShape,
-                        ),
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(message.role.tintBg),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = message.role.avatarText.take(2),
-                        color = message.role.accentColor,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
+            SkillRoleAvatar(
+                role = message.role.copy(avatarResId = avatarRes),
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .border(
+                        1.dp,
+                        if (isPlanner) Color(0xFFE0D8FB) else message.role.tintBorder,
+                        CircleShape,
+                    ),
+            )
         }
 
         Spacer(modifier = Modifier.width(10.dp))
@@ -250,12 +231,27 @@ fun SkillMessageCard(
                             modifier = Modifier.height(18.dp),
                         )
 
-                        // 整理内容
+                        // 保存为成果
                         MessageActionButton(
                             icon = DialogIcons.Bookmark,
-                            text = "整理内容",
+                            text = "保存为成果",
                             onClick = {
                                 onEvent(DialogEvent.SaveMessageAsArtifact(message.id))
+                            },
+                            modifier = Modifier.weight(1.25f),
+                        )
+
+                        VerticalDivider(
+                            color = Color(0xFFF1F3F5),
+                            modifier = Modifier.height(18.dp),
+                        )
+
+                        // 更多
+                        MessageActionButton(
+                            icon = DialogIcons.MoreHoriz,
+                            text = "更多",
+                            onClick = {
+                                onEvent(DialogEvent.ClickMessageMore(message.id))
                             },
                             modifier = Modifier.weight(1f),
                         )

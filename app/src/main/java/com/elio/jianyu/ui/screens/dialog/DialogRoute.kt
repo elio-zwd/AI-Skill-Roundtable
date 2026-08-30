@@ -29,6 +29,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun DialogRoute(
     viewModel: RoundtableViewModel,
+    onNavigateBottomTab: (Int) -> Unit = {},
     modifier: Modifier = Modifier,
     initialUiState: DialogUiState = DialogUiState(),
 ) {
@@ -167,6 +168,12 @@ fun DialogRoute(
                         Toast.makeText(context, "已复制内容，可到资料页整理为成果。", Toast.LENGTH_SHORT).show()
                     }
                 }
+                is DialogEvent.ClickMessageMore -> Toast.makeText(
+                    context,
+                    "更多消息操作即将开放。",
+                    Toast.LENGTH_SHORT,
+                ).show()
+                is DialogEvent.NavigateBottomTab -> onNavigateBottomTab(event.tabIndex)
                 is DialogEvent.RenameSession -> {
                     if (resolveSessionId(event.sessionId) != null) {
                         renameTitle = currentSession?.title.orEmpty()
