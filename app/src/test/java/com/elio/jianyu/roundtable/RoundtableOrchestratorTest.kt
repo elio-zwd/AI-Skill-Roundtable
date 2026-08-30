@@ -63,6 +63,13 @@ class RoundtableOrchestratorTest {
             pendingTextUpdates += text
         }
 
+        override suspend fun completePendingMessage(id: Long, text: String) {
+            val index = messages.indexOfFirst { it.id == id && it.isPending }
+            if (index >= 0) {
+                messages[index] = messages[index].copy(text = text, isPending = false)
+            }
+        }
+
         override suspend fun removePendingMessages(sessionId: Long) {
             messages.removeAll { it.chatId == sessionId && it.isPending }
         }
@@ -247,6 +254,88 @@ class RoundtableOrchestratorTest {
         assertEquals(listOf("char_stream"), result.completedCharacters)
         assertTrue(messagesList.none { it.isPending })
         assertEquals("第一段第二段", messagesList.last().text)
+        assertTrue(dbGateway.deletedMessageIds.isEmpty())
+    }
+
+    @Test
+    fun streamingFailure_preservesVisiblePartialReplyAsCompletedMessage() = runBlocking {
+        val context = mock(Context::class.java)
+        val character = Character(
+            id = "char_stream_failure",
+            name = "流式智囊",
+            avatar = "S",
+            tagline = "S",
+            systemPrompt = "SetS",
+            order = 1,
+        )
+        val messagesList = mutableListOf(
+            Message(
+                id = 1001L,
+                chatId = 1L,
+                senderId = "user",
+                senderName = "User",
+                avatar = "U",
+                text = "请回答",
+            ),
+        )
+        val dbGateway = FakeRoundtableDatabaseGateway(messagesList, mutableListOf(character))
+        val answerGateway = object : CharacterAnswerGateway {
+            override suspend fun callGeminiApi(
+                character: Character,
+                prompt: String,
+                attemptPlan: List<ApiKeyLease>,
+                tracker: RequestBudgetTracker,
+                budget: RoundtableBudget,
+                sessionId: Long,
+                isRequired: Boolean,
+                reserveForRequired: Int,
+            ): String = error("不会调用非流式入口")
+
+            override suspend fun callGeminiApiStreaming(
+                character: Character,
+                prompt: String,
+                attemptPlan: List<ApiKeyLease>,
+                tracker: RequestBudgetTracker,
+                budget: RoundtableBudget,
+                sessionId: Long,
+                isRequired: Boolean,
+                reserveForRequired: Int,
+                onAttemptStarted: suspend () -> Unit,
+                onTextUpdate: suspend (String) -> Unit,
+            ): String {
+                onAttemptStarted()
+                onTextUpdate("用户已经看到的回复正文")
+                throw RuntimeException("模拟流式连接中断")
+            }
+
+            override suspend fun getEmbedding(
+                context: Context,
+                text: String,
+                sessionId: Long,
+                attemptPlan: List<ApiKeyLease>,
+                tracker: RequestBudgetTracker,
+                isRequired: Boolean,
+                reserveForRequired: Int,
+            ): List<Float> = emptyList()
+        }
+        val orchestrator = RoundtableOrchestrator(
+            context = context,
+            dbGateway = dbGateway,
+            answerGateway = answerGateway,
+            budgetManager = RoundtableBudgetManager(RoundtableBudget()),
+            delayProvider = ZeroDelayProvider,
+            minIntervalMs = 0L,
+            createAttemptPlan = testAttemptPlan,
+        )
+
+        val result = orchestrator.runRoundtableSequence(1L, 1001L, false)
+
+        assertEquals(listOf("char_stream_failure"), result.failedCharacters)
+        val preserved = messagesList.single { it.senderId == character.id }
+        assertFalse(preserved.isPending)
+        assertTrue(preserved.text.contains("用户已经看到的回复正文"))
+        assertTrue(preserved.text.contains("可能不完整"))
+        assertTrue(dbGateway.deletedMessageIds.isEmpty())
     }
 
     @Test

@@ -25,6 +25,7 @@ interface RoundtableDatabaseGateway {
     suspend fun insertMessage(message: Message): Long
     suspend fun deleteMessageById(id: Long)
     suspend fun updatePendingMessageText(id: Long, text: String) {}
+    suspend fun completePendingMessage(id: Long, text: String)
     suspend fun removePendingMessages(sessionId: Long)
     suspend fun getActiveCharacters(): List<Character>
 }
@@ -255,6 +256,7 @@ class RoundtableOrchestrator(
                         roundIndex = currentRound
                     )
                 )
+                var latestPartialText = ""
 
                 try {
                     val latestMessages = dbGateway.getMessages(sessionId)
@@ -286,13 +288,18 @@ class RoundtableOrchestrator(
                                 )
                             },
                             onTextUpdate = { partialText ->
+                                latestPartialText = partialText
                                 dbGateway.updatePendingMessageText(pendingMessageId, partialText)
                             }
                         )
                     }
 
-                    dbGateway.deleteMessageById(pendingMessageId)
                     if (reply == null) {
+                        settleInterruptedPendingMessage(
+                            pendingMessageId = pendingMessageId,
+                            partialText = latestPartialText,
+                            notice = "回答等待超时，以上内容可能不完整。",
+                        )
                         PrivacySafeLogger.w(
                             "RoundtableOrchestrator",
                             "Character answer timed out"
@@ -300,22 +307,17 @@ class RoundtableOrchestrator(
                         failed.add(character.id)
                         timedOut.add(character.id)
                     } else {
-                        dbGateway.insertMessage(
-                            Message(
-                                chatId = sessionId,
-                                senderId = character.id,
-                                senderName = character.name,
-                                avatar = character.avatar,
-                                text = reply,
-                                roundIndex = currentRound
-                            )
-                        )
+                        dbGateway.completePendingMessage(pendingMessageId, reply)
                         completed.add(character.id)
                         answered.add(character.id)
                     }
                 } catch (error: CancellationException) {
                     withContext(NonCancellable) {
-                        dbGateway.deleteMessageById(pendingMessageId)
+                        settleInterruptedPendingMessage(
+                            pendingMessageId = pendingMessageId,
+                            partialText = latestPartialText,
+                            notice = "你已停止生成，以上内容可能不完整。",
+                        )
                     }
                     throw error
                 } catch (error: Exception) {
@@ -324,7 +326,11 @@ class RoundtableOrchestrator(
                         "Character answer failed",
                         error
                     )
-                    dbGateway.deleteMessageById(pendingMessageId)
+                    settleInterruptedPendingMessage(
+                        pendingMessageId = pendingMessageId,
+                        partialText = latestPartialText,
+                        notice = "回答生成中断，以上内容可能不完整。",
+                    )
                     failed.add(character.id)
                 }
 
@@ -342,6 +348,22 @@ class RoundtableOrchestrator(
             isLimitExceeded = isLimitExceeded,
             timedOutCharacters = timedOut
         )
+    }
+
+    private suspend fun settleInterruptedPendingMessage(
+        pendingMessageId: Long,
+        partialText: String,
+        notice: String,
+    ) {
+        val visibleText = partialText.trim()
+        if (visibleText.isBlank() || visibleText == "正在思考中...") {
+            dbGateway.deleteMessageById(pendingMessageId)
+        } else {
+            dbGateway.completePendingMessage(
+                pendingMessageId,
+                "$visibleText\n\n> $notice",
+            )
+        }
     }
 
     private suspend fun selectAndFreezeCharacters(

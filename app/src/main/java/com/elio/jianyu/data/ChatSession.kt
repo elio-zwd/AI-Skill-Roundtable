@@ -140,6 +140,14 @@ interface ChatDao {
     suspend fun updatePendingMessageText(id: Long, text: String)
 
     @Query(
+        "UPDATE messages SET text = :text, isPending = 0 WHERE id = :id AND isPending = 1 " +
+            "AND NOT EXISTS (SELECT 1 FROM issues " +
+            "WHERE legacyChatSessionId = messages.chatId " +
+            "AND issues.id NOT LIKE 'legacy-chat-%')"
+    )
+    suspend fun completePendingMessage(id: Long, text: String)
+
+    @Query(
         "DELETE FROM messages WHERE id = :id AND NOT EXISTS (" +
             "SELECT 1 FROM issues WHERE legacyChatSessionId = messages.chatId " +
             "AND issues.id NOT LIKE 'legacy-chat-%')"
@@ -225,6 +233,10 @@ class ChatRepository(private val chatDao: ChatDao) {
 
     suspend fun updatePendingMessageText(id: Long, text: String) {
         chatDao.updatePendingMessageText(id, text)
+    }
+
+    suspend fun completePendingMessage(id: Long, text: String) {
+        chatDao.completePendingMessage(id, text)
     }
 
     suspend fun deleteMessageById(id: Long) = chatDao.deleteMessageById(id)

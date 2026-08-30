@@ -228,6 +228,9 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         override suspend fun updatePendingMessageText(id: Long, text: String) {
             chatRepo.updatePendingMessageText(id, text)
         }
+        override suspend fun completePendingMessage(id: Long, text: String) {
+            chatRepo.completePendingMessage(id, text)
+        }
         override suspend fun removePendingMessages(sessionId: Long) = chatRepo.removePendingMessages(sessionId)
         override suspend fun getActiveCharacters(): List<Character> = charRepo.getActiveCharacters()
     }
