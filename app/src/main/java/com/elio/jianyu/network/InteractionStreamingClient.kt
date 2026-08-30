@@ -18,11 +18,14 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
@@ -308,30 +311,51 @@ internal class InteractionSseAccumulator {
         get() = output.toString()
 
     fun accept(data: String): InteractionStreamProgress {
-        val envelope = json.decodeFromString<InteractionSseEnvelope>(data)
-        interactionId = envelope.interaction?.id?.takeIf(String::isNotBlank) ?: interactionId
-        interactionModel = envelope.interaction?.model?.takeIf(String::isNotBlank) ?: interactionModel
+        val envelope = json.parseToJsonElement(data) as? JsonObject
+            ?: throw SerializationException("Interaction stream event must be a JSON object")
+        val eventType = envelope.string("event_type") ?: envelope.string("type")
+        val interaction = envelope.objectValue("interaction")
+        interactionId = interaction?.string("id")
+            ?: envelope.string("interaction_id")
+            ?: envelope.string("id")
+            ?: interactionId
+        interactionModel = interaction?.string("model") ?: interactionModel
         var textChanged = false
         var flushSuggested = false
 
-        when (envelope.eventType) {
+        when (eventType) {
             "step.start" -> {
-                if (envelope.step?.type == "model_output") {
-                    envelope.index?.let(modelOutputStepIndexes::add)
+                val step = envelope.objectValue("step")
+                val index = envelope.intValue("index")
+                if (step?.string("type") == "model_output" && index != null) {
+                    modelOutputStepIndexes.add(index)
+                    val initialText = step.arrayValue("content")
+                        ?.mapNotNull { item ->
+                            (item as? JsonObject)
+                                ?.takeIf { it.string("type") == "text" }
+                                ?.string("text")
+                        }
+                        .orEmpty()
+                        .joinToString(separator = "")
+                    if (initialText.isNotEmpty()) {
+                        output.append(initialText)
+                        textChanged = true
+                    }
                 }
             }
 
             "step.delta" -> {
-                val index = envelope.index
-                val delta = envelope.delta
+                val index = envelope.intValue("index")
+                val delta = envelope.objectValue("delta")
                 if (
                     index != null &&
                     index in modelOutputStepIndexes &&
-                    delta?.type == "text" &&
-                    !delta.text.isNullOrEmpty()
+                    delta?.string("type") == "text"
                 ) {
-                    output.append(delta.text)
-                    textChanged = true
+                    delta.string("text")?.takeIf(String::isNotEmpty)?.let { text ->
+                        output.append(text)
+                        textChanged = true
+                    }
                 }
             }
 
@@ -352,34 +376,19 @@ internal class InteractionSseAccumulator {
             flushSuggested = flushSuggested
         )
     }
+
+    private fun JsonObject.string(name: String): String? =
+        (this[name] as? JsonPrimitive)?.contentOrNull?.takeIf(String::isNotBlank)
+
+    private fun JsonObject.intValue(name: String): Int? =
+        (this[name] as? JsonPrimitive)?.intOrNull
+
+    private fun JsonObject.objectValue(name: String): JsonObject? =
+        this[name] as? JsonObject
+
+    private fun JsonObject.arrayValue(name: String): JsonArray? =
+        this[name] as? JsonArray
 }
-
-@Serializable
-private data class InteractionSseEnvelope(
-    @SerialName("event_type") val eventType: String? = null,
-    val index: Int? = null,
-    val step: InteractionSseStep? = null,
-    val delta: InteractionSseDelta? = null,
-    val interaction: InteractionSseInteraction? = null
-)
-
-@Serializable
-private data class InteractionSseStep(
-    val type: String? = null
-)
-
-@Serializable
-private data class InteractionSseDelta(
-    val type: String? = null,
-    val text: String? = null
-)
-
-@Serializable
-private data class InteractionSseInteraction(
-    val id: String? = null,
-    val model: String? = null,
-    val status: String? = null
-)
 
 private class StreamingHttpException(
     val code: Int,

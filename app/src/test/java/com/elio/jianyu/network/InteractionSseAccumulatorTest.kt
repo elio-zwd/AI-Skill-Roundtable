@@ -82,6 +82,49 @@ class InteractionSseAccumulatorTest {
         assertTrue(accumulator.completed)
     }
 
+    @Test
+    fun currentSchemaReadsInitialContentAndTypeBasedCompletionFrame() {
+        val accumulator = InteractionSseAccumulator()
+
+        accumulator.accept(
+            """{"event_type":"interaction.created","interaction":{"id":"int_current","status":"in_progress"}}"""
+        )
+        val start = accumulator.accept(
+            """{"event_type":"step.start","index":1,"step":{"content":[{"text":"首段正文","type":"text"}],"type":"model_output"}}"""
+        )
+        val delta = accumulator.accept(
+            """{"event_type":"step.delta","index":1,"delta":{"text":"后续正文","type":"text"}}"""
+        )
+        val completed = accumulator.accept(
+            """{"type":"interaction.completed","interaction":{"id":"int_current","status":"completed","usage":{"total_tokens":15}}}"""
+        )
+
+        assertEquals("首段正文", start.text)
+        assertEquals("首段正文后续正文", delta.text)
+        assertEquals("int_current", accumulator.interactionId)
+        assertTrue(completed.flushSuggested)
+        assertTrue(accumulator.completed)
+    }
+
+    @Test
+    fun completionAcceptsTopLevelInteractionId() {
+        val accumulator = InteractionSseAccumulator()
+
+        accumulator.accept(
+            """{"event_type":"step.start","index":0,"step":{"type":"model_output"}}"""
+        )
+        accumulator.accept(
+            """{"event_type":"step.delta","index":0,"delta":{"type":"text","text":"完整回答"}}"""
+        )
+        accumulator.accept(
+            """{"type":"interaction.completed","id":"int_top_level","status":"completed"}"""
+        )
+
+        assertEquals("完整回答", accumulator.outputText)
+        assertEquals("int_top_level", accumulator.interactionId)
+        assertTrue(accumulator.completed)
+    }
+
     @Test(expected = IOException::class)
     fun failedInteractionIsRejected() {
         val accumulator = InteractionSseAccumulator()
