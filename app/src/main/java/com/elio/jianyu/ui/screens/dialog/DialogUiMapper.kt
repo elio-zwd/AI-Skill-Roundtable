@@ -27,6 +27,12 @@ internal fun mapDialogUiState(
     }
     val activeRoles = participantIds.mapNotNull(roleById::get)
     val allRoles = characters.map { character -> roleById.getValue(character.id) }
+    val skillSearchQuery = localState.addSkillCatalog.searchQuery.trim()
+    val visibleRoles = allRoles.filter { role ->
+        skillSearchQuery.isEmpty() ||
+            role.name.contains(skillSearchQuery, ignoreCase = true) ||
+            role.shortDescription.contains(skillSearchQuery, ignoreCase = true)
+    }
     val selectedRole = localState.selectedSkillDetail?.role?.id?.let(roleById::get)
 
     return localState.copy(
@@ -59,10 +65,11 @@ internal fun mapDialogUiState(
             isShowingArchived = showArchivedSessions,
         ),
         addSkillCatalog = AddSkillCatalogUiModel(
-            searchQuery = localState.addSkillCatalog.searchQuery,
-            recentUsed = activeRoles.take(5),
-            recommended = allRoles.filterNot { role -> role.id in participantIds }.take(8),
-            allSkills = allRoles,
+            searchQuery = skillSearchQuery,
+            recentUsed = activeRoles.filter { role -> role in visibleRoles }.take(5),
+            recommended = visibleRoles.filterNot { role -> role.id in participantIds }.take(8),
+            // “全部角色”必须保留完整查询结果，不能复用推荐区的数量上限。
+            allSkills = visibleRoles,
         ),
     )
 }

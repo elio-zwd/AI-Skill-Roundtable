@@ -178,4 +178,54 @@ class DialogUiStateTest {
         assertEquals(1, mapped.drawerData.archivedCount)
         assertTrue(mapped.drawerData.isShowingArchived)
     }
+
+    @Test
+    fun mapDialogUiState_keepsCompleteRoleCatalogAndAppliesSearch() {
+        val characters = (1..12).map { index ->
+            Character(
+                id = "role_$index",
+                name = if (index == 12) "费曼老师" else "角色$index",
+                avatar = "",
+                tagline = if (index == 12) "用通俗语言解释复杂概念" else "角色说明$index",
+                systemPrompt = "保持角色视角",
+                order = index,
+            )
+        }
+        val session = ChatSession(id = 1, title = "测试会话")
+
+        val complete = mapDialogUiState(
+            localState = DialogUiState(),
+            sessions = listOf(session),
+            currentSession = session,
+            messages = emptyList(),
+            characters = characters,
+            participantIds = listOf("role_1"),
+            archivedSessionIds = emptySet(),
+            showArchivedSessions = false,
+            isGenerating = false,
+            searchEnabled = false,
+            thinkingIntensity = "标准",
+        )
+        assertEquals(12, complete.addSkillCatalog.allSkills.size)
+        assertEquals(8, complete.addSkillCatalog.recommended.size)
+
+        val searched = mapDialogUiState(
+            localState = DialogUiState(
+                addSkillCatalog = AddSkillCatalogUiModel(searchQuery = "通俗语言"),
+            ),
+            sessions = listOf(session),
+            currentSession = session,
+            messages = emptyList(),
+            characters = characters,
+            participantIds = listOf("role_1"),
+            archivedSessionIds = emptySet(),
+            showArchivedSessions = false,
+            isGenerating = false,
+            searchEnabled = false,
+            thinkingIntensity = "标准",
+        )
+        assertEquals(listOf("role_12"), searched.addSkillCatalog.allSkills.map { it.id })
+        assertEquals(listOf("role_12"), searched.addSkillCatalog.recommended.map { it.id })
+        assertTrue(searched.addSkillCatalog.recentUsed.isEmpty())
+    }
 }

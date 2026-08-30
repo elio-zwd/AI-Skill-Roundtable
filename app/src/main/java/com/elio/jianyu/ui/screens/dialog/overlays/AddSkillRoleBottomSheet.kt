@@ -218,12 +218,21 @@ fun AddSkillRoleBottomSheet(
                     // 分组三：全部角色
                     if (catalog.allSkills.isNotEmpty()) {
                         item {
-                            SectionHeader(title = "全部角色")
+                            SectionHeader(title = "全部角色（${catalog.allSkills.size}）")
                         }
                         items(catalog.allSkills, key = { it.id }) { skill ->
                             FullWidthSkillRow(
                                 skill = skill,
                                 onAddSkill = { onEvent(DialogEvent.AddSkillToSession(skill.id)) },
+                            )
+                        }
+                    } else {
+                        item {
+                            Text(
+                                text = "没有找到匹配的 Skill 角色",
+                                color = DialogTokens.TextSecondary,
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(vertical = 24.dp),
                             )
                         }
                     }

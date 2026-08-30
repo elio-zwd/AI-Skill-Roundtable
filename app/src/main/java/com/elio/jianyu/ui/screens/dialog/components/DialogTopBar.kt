@@ -97,7 +97,7 @@ fun DialogTopBar(
                 )
                 Spacer(modifier = Modifier.height(1.dp))
                 Text(
-                    text = "${session.roleCount} 个 Skill 角色",
+                    text = "当前会话 · ${session.roleCount} 个 Skill 角色",
                     color = DialogTokens.TextSecondary,
                     fontSize = 11.5.sp,
                     maxLines = 1,
