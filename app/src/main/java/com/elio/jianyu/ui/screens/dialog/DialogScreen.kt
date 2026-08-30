@@ -16,11 +16,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.elio.jianyu.ui.screens.dialog.components.DialogBottomBar
 import com.elio.jianyu.ui.screens.dialog.components.DialogComposer
 import com.elio.jianyu.ui.screens.dialog.components.DialogTopBar
 import com.elio.jianyu.ui.screens.dialog.components.SkillMessageCard
@@ -30,6 +30,7 @@ import com.elio.jianyu.ui.screens.dialog.overlays.AddSkillRoleBottomSheet
 import com.elio.jianyu.ui.screens.dialog.overlays.ComposerFeaturesBottomSheet
 import com.elio.jianyu.ui.screens.dialog.overlays.ConversationHistoryDrawer
 import com.elio.jianyu.ui.screens.dialog.overlays.SkillRoleDetailBottomSheet
+import com.elio.jianyu.ui.screens.dialog.overlays.SessionMoreMenuPopover
 import com.elio.jianyu.ui.screens.dialog.overlays.TargetRoleSelectionBottomSheet
 
 /**
@@ -43,6 +44,12 @@ fun DialogScreen(
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
+
+    LaunchedEffect(uiState.messages.size) {
+        if (uiState.messages.isNotEmpty()) {
+            listState.animateScrollToItem(uiState.messages.lastIndex)
+        }
+    }
 
     Box(
         modifier = modifier
@@ -58,10 +65,18 @@ fun DialogScreen(
             topBar = {
                 Column(modifier = Modifier.background(DialogTokens.SurfaceWhite)) {
                     // 1. 顶部导航栏
-                    DialogTopBar(
-                        session = uiState.session,
-                        onEvent = onEvent,
-                    )
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        DialogTopBar(
+                            session = uiState.session,
+                            onEvent = onEvent,
+                        )
+                        SessionMoreMenuPopover(
+                            expanded = uiState.isMoreMenuOpen,
+                            onDismiss = { onEvent(DialogEvent.DismissMoreMenu) },
+                            onEvent = onEvent,
+                            modifier = Modifier.align(Alignment.TopEnd),
+                        )
+                    }
 
                     // 2. Skill 角色条
                     SkillRoleStrip(
@@ -79,11 +94,6 @@ fun DialogScreen(
                         onEvent = onEvent,
                     )
 
-                    // 4. 底部 4 标签一级导航
-                    DialogBottomBar(
-                        selectedTabIndex = 0,
-                        onEvent = onEvent,
-                    )
                 }
             },
         ) { paddingValues ->

@@ -61,15 +61,11 @@ import com.elio.jianyu.ui.navigation.AppDestination
 import com.elio.jianyu.ui.navigation.AppNavHost
 import com.elio.jianyu.ui.navigation.navigateToIssue
 import com.elio.jianyu.ui.navigation.navigateToSecondary
-import com.elio.jianyu.ui.navigation.navigateToTelemetryFromRoundtable
 import com.elio.jianyu.ui.navigation.navigateToTopLevel
-import com.elio.jianyu.ui.screens.characters.CharacterHallRoute
 import com.elio.jianyu.ui.screens.execution.AudioEnabledIssueExecutionRoute
 import com.elio.jianyu.ui.screens.home.HomeRoute
 import com.elio.jianyu.ui.screens.issues.IssuesRoute
-import com.elio.jianyu.ui.screens.library.AudioLibraryRoute
 import com.elio.jianyu.ui.screens.resources.ResourcesRoute
-import com.elio.jianyu.ui.screens.roundtable.RoundtableRoute
 import com.elio.jianyu.ui.screens.settings.AiManagementRoute
 import com.elio.jianyu.ui.screens.settings.SettingsRoute
 import com.elio.jianyu.ui.screens.settings.TelemetryRoute
@@ -223,7 +219,6 @@ internal fun MainAppContent(
     appRuntime: JianyuAppRuntime,
     onOfficialSkillUseRequested: (OfficialSkillUseRequest) -> Unit = {},
 ) {
-    val allCharacters by viewModel.allCharacters.collectAsState()
     val currentSessionId by viewModel.currentSessionId.collectAsState()
 
     val navController = rememberNavController()
@@ -273,7 +268,7 @@ internal fun MainAppContent(
                     navController = navController,
                     modifier = Modifier.fillMaxSize(),
                     homeContent = {
-                        com.elio.jianyu.ui.screens.dialog.DialogRoute()
+                        com.elio.jianyu.ui.screens.dialog.DialogRoute(viewModel = viewModel)
                     },
                 issuesContent = {
                     IssuesRoute(
@@ -339,29 +334,6 @@ internal fun MainAppContent(
                         onOpenTelemetry = {
                             navController.navigateToSecondary(AppDestination.TELEMETRY)
                         },
-                    )
-                },
-                roundtableContent = {
-                    RoundtableRoute(
-                        viewModel = viewModel,
-                        onOpenAiManagement = {
-                            navController.navigateToSecondary(AppDestination.API_KEYS)
-                        },
-                        onOpenTelemetry = {
-                            navController.navigateToTelemetryFromRoundtable()
-                        },
-                    )
-                },
-                charactersContent = {
-                    CharacterHallRoute(
-                        viewModel = viewModel,
-                        characters = allCharacters,
-                    )
-                },
-                audioLibraryContent = {
-                    AudioLibraryRoute(
-                        viewModel = viewModel,
-                        allCharacters = allCharacters,
                     )
                 },
                 aiManagementContent = {

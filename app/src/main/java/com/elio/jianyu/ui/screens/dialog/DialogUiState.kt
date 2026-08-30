@@ -313,6 +313,7 @@ data class DialogComposerState(
     val inputText: String = "",
     val targetRole: SkillRoleUiModel? = null, // @ 点名的角色
     val isMultiRoleAnswer: Boolean = false,   // 是否为“多个角色分别回答”
+    val isGenerating: Boolean = false,
 )
 
 /**
@@ -336,6 +337,7 @@ data class SkillRoleDetailUiModel(
     val isInCurrentSession: Boolean,
     val fullDescription: String,
     val capabilities: List<SkillCapabilityItem>,
+    val identityDisclosure: String? = null,
 )
 
 enum class SkillCapabilityIconType {
@@ -360,6 +362,7 @@ data class ConversationDrawerUiModel(
     val searchQuery: String = "",
     val groups: List<ConversationGroupUiModel> = emptyList(),
     val archivedCount: Int = 0,
+    val isShowingArchived: Boolean = false,
 )
 
 @Immutable

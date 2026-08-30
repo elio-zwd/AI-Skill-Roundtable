@@ -100,7 +100,7 @@ fun ConversationHistoryDrawer(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = "会话记录",
+                            text = if (drawerData.isShowingArchived) "已归档会话" else "会话记录",
                             color = DialogTokens.TextPrimary,
                             fontSize = DialogTokens.FontSheetTitle,
                             fontWeight = FontWeight.Bold,
@@ -246,7 +246,7 @@ fun ConversationHistoryDrawer(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "最近会话",
+                            text = if (drawerData.isShowingArchived) "已归档" else "最近会话",
                             color = DialogTokens.TextSecondary,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
@@ -311,7 +311,11 @@ fun ConversationHistoryDrawer(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "已归档会话 (${drawerData.archivedCount})",
+                                    text = if (drawerData.isShowingArchived) {
+                                        "返回最近会话"
+                                    } else {
+                                        "已归档会话 (${drawerData.archivedCount})"
+                                    },
                                     color = DialogTokens.BrandPurple,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium,

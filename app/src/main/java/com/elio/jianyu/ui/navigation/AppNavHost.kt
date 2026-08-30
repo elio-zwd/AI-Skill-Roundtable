@@ -23,9 +23,6 @@ fun AppNavHost(
     skillDetailContent: @Composable (skillId: String?) -> Unit,
     resourcesContent: @Composable (ResourceTab) -> Unit,
     settingsContent: @Composable () -> Unit,
-    roundtableContent: @Composable () -> Unit,
-    charactersContent: @Composable () -> Unit,
-    audioLibraryContent: @Composable () -> Unit,
     aiManagementContent: @Composable () -> Unit,
     telemetryContent: @Composable () -> Unit,
 ) {
@@ -117,16 +114,6 @@ fun AppNavHost(
             settingsContent()
         }
 
-        // 旧页面仅作为兼容 Route 保留，不再出现在新底部导航。
-        composable(AppDestination.ROUNDTABLE.routePattern) {
-            roundtableContent()
-        }
-        composable(AppDestination.CHARACTERS.routePattern) {
-            charactersContent()
-        }
-        composable(AppDestination.AUDIO_LIBRARY.routePattern) {
-            audioLibraryContent()
-        }
         composable(AppDestination.API_KEYS.routePattern) {
             aiManagementContent()
         }
@@ -192,11 +179,5 @@ private fun NavHostController.ensureTopLevelParent(
     } == true
     if (!alreadyInGraph) {
         navigateToTopLevel(destination)
-    }
-}
-
-fun NavHostController.navigateToTelemetryFromRoundtable() {
-    AppDestination.telemetryPathFromRoundtable.forEach { destination ->
-        navigateToSecondary(destination)
     }
 }

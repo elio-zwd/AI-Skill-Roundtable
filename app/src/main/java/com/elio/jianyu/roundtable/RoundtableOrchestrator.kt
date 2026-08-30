@@ -166,7 +166,8 @@ class RoundtableOrchestrator(
         sessionId: Long,
         questionRunId: Long,
         isSemanticRoutingEnabled: Boolean,
-        targetCharacterIds: List<String>? = null
+        targetCharacterIds: List<String>? = null,
+        responseMode: TranscriptBuilder.ResponseMode = TranscriptBuilder.ResponseMode.INDEPENDENT,
     ): OrchestrationResult {
         if (!roundtableMutex.tryLock()) {
             throw IllegalStateException("Roundtable sequence is already running")
@@ -257,7 +258,12 @@ class RoundtableOrchestrator(
 
                 try {
                     val latestMessages = dbGateway.getMessages(sessionId)
-                    val transcript = TranscriptBuilder.build(latestMessages, character, currentRound)
+                    val transcript = TranscriptBuilder.build(
+                        messages = latestMessages,
+                        currentCharacter = character,
+                        roundIndex = currentRound,
+                        responseMode = responseMode,
+                    )
                     val attemptPlan = createAttemptPlan(context, sessionId)
                     if (attemptPlan.isEmpty()) {
                         throw IllegalStateException("No available API key plan")

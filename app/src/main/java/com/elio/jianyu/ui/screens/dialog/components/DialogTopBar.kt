@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.elio.jianyu.ui.screens.dialog.DialogEvent
@@ -109,6 +110,7 @@ fun DialogTopBar(
             Box(
                 modifier = Modifier
                     .size(38.dp)
+                    .testTag("new_session_button")
                     .clip(CircleShape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },

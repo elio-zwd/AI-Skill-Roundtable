@@ -50,11 +50,6 @@ class AppNavHostTest {
                         DestinationMarker(resourcesMarker(tab))
                     },
                     settingsContent = { DestinationMarker(AppDestination.SETTINGS.routePattern) },
-                    roundtableContent = { DestinationMarker(AppDestination.ROUNDTABLE.routePattern) },
-                    charactersContent = { DestinationMarker(AppDestination.CHARACTERS.routePattern) },
-                    audioLibraryContent = {
-                        DestinationMarker(AppDestination.AUDIO_LIBRARY.routePattern)
-                    },
                     aiManagementContent = { DestinationMarker(AppDestination.API_KEYS.routePattern) },
                     telemetryContent = { DestinationMarker(AppDestination.TELEMETRY.routePattern) },
                 )
@@ -171,27 +166,6 @@ class AppNavHostTest {
         }
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(resourcesMarker(ResourceTab.MATERIALS)).assertIsDisplayed()
-    }
-
-    @Test
-    fun legacyTelemetryPath_returnsThroughApiKeysToRoundtable() {
-        composeRule.runOnIdle {
-            navController.navigateToSecondary(AppDestination.ROUNDTABLE)
-            navController.navigateToTelemetryFromRoundtable()
-        }
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag(AppDestination.TELEMETRY.routePattern).assertIsDisplayed()
-        assertCurrentRoute(AppDestination.TELEMETRY.routePattern)
-
-        composeRule.runOnIdle { navController.popBackStack() }
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag(AppDestination.API_KEYS.routePattern).assertIsDisplayed()
-        assertCurrentRoute(AppDestination.API_KEYS.routePattern)
-
-        composeRule.runOnIdle { navController.popBackStack() }
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag(AppDestination.ROUNDTABLE.routePattern).assertIsDisplayed()
-        assertCurrentRoute(AppDestination.ROUNDTABLE.routePattern)
     }
 
     private fun assertCurrentRoute(expectedRoutePattern: String) {

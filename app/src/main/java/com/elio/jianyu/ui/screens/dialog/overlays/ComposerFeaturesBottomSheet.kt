@@ -119,7 +119,12 @@ fun ComposerFeaturesBottomSheet(
                     trailingText = thinkingIntensity,
                     trailingTextColor = DialogTokens.TextSecondary,
                     onClick = {
-                        // 预留思考强度切换
+                        val next = when (thinkingIntensity) {
+                            "极简" -> "标准"
+                            "标准" -> "深度"
+                            else -> "极简"
+                        }
+                        onEvent(DialogEvent.SelectThinkingIntensity(next))
                     },
                 )
                 HorizontalDivider(color = DialogTokens.NeutralBorder)

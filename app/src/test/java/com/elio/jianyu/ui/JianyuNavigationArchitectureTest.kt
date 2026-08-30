@@ -13,7 +13,7 @@ class JianyuNavigationArchitectureTest {
         get() = packageRoot.resolve("ui")
 
     @Test
-    fun app_assemblesAllJianyuRoutesAndKeepsLegacyCompatibilityEntries() {
+    fun app_assemblesCurrentJianyuRoutesWithoutLegacyEntries() {
         val source = uiRoot.resolve("App.kt").readText()
         listOf(
             "HomeRoute",
@@ -22,13 +22,14 @@ class JianyuNavigationArchitectureTest {
             "ResourcesRoute",
             "SettingsRoute",
             "OfficialSkillNavigationRoute",
-            "RoundtableRoute",
-            "CharacterHallRoute",
-            "AudioLibraryRoute",
+            "DialogRoute",
             "AiManagementRoute",
             "TelemetryRoute",
         ).forEach { route ->
             assertTrue("App.kt 缺少 Route：$route", source.contains(route))
+        }
+        listOf("RoundtableRoute", "CharacterHallRoute", "AudioLibraryRoute").forEach { legacy ->
+            assertFalse("App.kt 不得保留旧兼容 Route：$legacy", source.contains(legacy))
         }
 
         listOf(

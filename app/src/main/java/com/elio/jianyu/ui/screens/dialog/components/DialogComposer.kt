@@ -32,6 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.elio.jianyu.ui.screens.dialog.DialogComposerState
@@ -160,7 +161,9 @@ fun DialogComposer(
                                     innerTextField()
                                 }
                             },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("chat_input"),
                         )
                     }
                 }
@@ -190,10 +193,11 @@ fun DialogComposer(
                 Spacer(modifier = Modifier.width(4.dp))
 
                 // 亮蓝色圆形发送按钮（纸飞机图标）
-                val isSendActive = composerState.inputText.isNotBlank()
+                val isSendActive = composerState.isGenerating || composerState.inputText.isNotBlank()
                 Box(
                     modifier = Modifier
                         .size(42.dp)
+                        .testTag(if (composerState.isGenerating) "stop_button" else "send_button")
                         .clip(CircleShape)
                         .background(
                             if (isSendActive) Color(0xFF2563EB)
@@ -208,8 +212,8 @@ fun DialogComposer(
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        imageVector = DialogIcons.SendPlane,
-                        contentDescription = "发送",
+                        imageVector = if (composerState.isGenerating) Icons.Default.Close else DialogIcons.SendPlane,
+                        contentDescription = if (composerState.isGenerating) "停止" else "发送",
                         tint = Color.White,
                         modifier = Modifier.size(19.dp),
                     )

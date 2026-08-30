@@ -42,9 +42,6 @@ class AppBottomNavigationTest {
 
         listOf(
             AppDestination.SETTINGS,
-            AppDestination.ROUNDTABLE,
-            AppDestination.CHARACTERS,
-            AppDestination.AUDIO_LIBRARY,
             AppDestination.API_KEYS,
             AppDestination.TELEMETRY,
         ).forEach { hiddenDestination ->

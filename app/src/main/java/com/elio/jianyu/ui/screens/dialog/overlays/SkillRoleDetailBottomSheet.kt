@@ -218,6 +218,24 @@ fun SkillRoleDetailBottomSheet(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                detail.identityDisclosure?.let { disclosure ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(DialogTokens.BrandPurpleLight)
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                    ) {
+                        Text(
+                            text = disclosure,
+                            color = DialogTokens.TextSecondary,
+                            fontSize = 12.sp,
+                            lineHeight = 17.sp,
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
                 // 3. 三大能力卡（擅长、思维特点、表达特点）
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     detail.capabilities.forEach { cap ->

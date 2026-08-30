@@ -72,10 +72,10 @@ fun SessionMoreMenuPopover(
                 },
             )
 
-            // 2. 保存 / 整理成果
+            // 2. 整理会话内容
             PopoverMenuItem(
                 icon = DialogIcons.Star,
-                text = "保存 / 整理成果",
+                text = "整理会话内容",
                 onClick = {
                     onDismiss()
                     onEvent(DialogEvent.SaveOrOrganizeArtifacts)

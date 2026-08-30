@@ -25,7 +25,7 @@ class RoundtableRunFeedbackTest {
             timedOutCharacters = listOf("a", "b")
         )
         assertEquals(
-            "本轮所有智囊均未能在规定时间内完成回答，请稍后重试。",
+            "本次请求的 Skill 角色均未能在规定时间内完成回答，请稍后重试。",
             buildRoundtableFeedback(result, budget)
         )
     }
@@ -40,7 +40,7 @@ class RoundtableRunFeedbackTest {
             timedOutCharacters = listOf("b")
         )
         assertEquals(
-            "已保留 1 位智囊的回复；另有 2 位未完成，其中 1 位超时。",
+            "已保留 1 位 Skill 角色的回复；另有 2 位未完成，其中 1 位超时。",
             buildRoundtableFeedback(result, budget)
         )
     }

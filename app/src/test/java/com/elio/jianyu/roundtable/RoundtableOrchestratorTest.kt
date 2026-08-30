@@ -138,13 +138,13 @@ class RoundtableOrchestratorTest {
         )
         val dbGateway = FakeRoundtableDatabaseGateway(messagesList, mutableListOf(charA, charB))
 
-        var verifiedBReceivedA = false
+        var bReceivedAOutput = false
         val answerGateway = FakeCharacterAnswerGateway(
             replyText = "智囊回复",
             onCallApi = { character, prompt ->
                 if (character.id == "char_b") {
                     if (prompt.contains("智囊回复")) {
-                        verifiedBReceivedA = true
+                        bReceivedAOutput = true
                     }
                 }
             }
@@ -164,7 +164,7 @@ class RoundtableOrchestratorTest {
         val result = orchestrator.runRoundtableSequence(sessionId = 1L, questionRunId = 1001L, isSemanticRoutingEnabled = false)
 
         assertEquals("两个角色都应该完成", 2, result.completedCharacters.size)
-        assertTrue("B发言前应当读取到A的回复", verifiedBReceivedA)
+        assertFalse("默认独立回应时，B 不得读取 A 的生成输出", bReceivedAOutput)
     }
 
     @Test
@@ -524,11 +524,16 @@ class RoundtableOrchestratorTest {
         )
 
         // 运行第二轮脑暴
-        orchestrator.runRoundtableSequence(sessionId = 1L, questionRunId = 1001L, isSemanticRoutingEnabled = false)
+        orchestrator.runRoundtableSequence(
+            sessionId = 1L,
+            questionRunId = 1001L,
+            isSemanticRoutingEnabled = false,
+            responseMode = TranscriptBuilder.ResponseMode.CROSS_DISCUSSION,
+        )
 
-        // 验证 Transcript 包含了第一轮的发言内容
-        assertTrue("Transcript应包含第一轮A的发言", transcriptForB.contains("第一轮发言A"))
-        assertTrue("Transcript应包含第一轮B的发言", transcriptForB.contains("第一轮发言B"))
+        // 只有显式交叉讨论才把其他角色观点作为输入。
+        assertTrue("交叉讨论应包含第一轮 A 的发言", transcriptForB.contains("第一轮发言A"))
+        assertTrue("交叉讨论应包含第一轮 B 的发言", transcriptForB.contains("第一轮发言B"))
     }
 
     @Test
@@ -580,7 +585,7 @@ class RoundtableOrchestratorTest {
         val transcript = TranscriptBuilder.build(messagesList, charA, roundIndex = 1)
 
         assertTrue(transcript.contains("新提问"))
-        assertFalse(transcript.contains("第一个提问"))
+        assertTrue("持续会话应保留用户此前明确表达的信息", transcript.contains("第一个提问"))
         assertFalse(transcript.contains("老回复"))
     }
 

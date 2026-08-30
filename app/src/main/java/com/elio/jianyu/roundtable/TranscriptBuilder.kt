@@ -4,45 +4,68 @@ import com.elio.jianyu.data.Character
 import com.elio.jianyu.data.Message
 
 object TranscriptBuilder {
+    enum class ResponseMode {
+        INDEPENDENT,
+        CROSS_DISCUSSION,
+    }
+
     /**
-     * 构建圆桌脑暴的上下文 Prompt（Transcript）。
+     * 构建 Skill 角色回答的上下文 Prompt（Transcript）。
      *
      * 规则：
-     * 1. 无论轮次多少，都拉取当前用户提问后的所有非 pending 消息。
-     * 2. 角色 A 只能看到用户问题。
-     * 3. 角色 B 能看到用户问题和角色 A 在当前轮的发言。
-     * 4. 角色 C 能看到用户问题、角色 A 和角色 B 在当前轮的发言。
-     * 5. 新的用户问题会切断之前的圆桌脑暴历史，只保留最近一次用户提问之后的对话。
+     * 1. 默认独立回应只使用用户消息和当前角色自己的设定，不注入其他角色输出。
+     * 2. 用户显式发起交叉讨论时，才把当前问题后的角色观点作为讨论输入。
+     * 3. 响应批次只用于内部恢复，不形成主从、正反方或必须继承的领导性结论。
      */
     fun build(
         messages: List<Message>,
         currentCharacter: Character,
-        roundIndex: Int
+        roundIndex: Int,
+        responseMode: ResponseMode = ResponseMode.INDEPENDENT,
     ): String {
         val sb = StringBuilder()
-        sb.append("【圆桌会议脑暴记录】\n\n")
+        sb.append("【Skill 角色对话上下文】\n\n")
 
         val lastUserIndex = messages.indexOfLast { it.senderId == "user" }
         val lastUserMsg = if (lastUserIndex != -1) messages[lastUserIndex] else null
 
         if (lastUserMsg != null) {
-            sb.append("用户提问：${lastUserMsg.text}\n\n")
-            val chatMessages = messages.subList(lastUserIndex + 1, messages.size)
-            for (msg in chatMessages) {
-                if (msg.isPending) continue
-                // 排除当前角色正在生成的这次（其实因为 isPending 被过滤了，但做个双重保障）
-                if (msg.senderId == currentCharacter.id && msg.roundIndex == roundIndex) continue
-                sb.append("智囊「${msg.senderName}」在第 ${msg.roundIndex} 轮发言：\n${msg.text}\n\n")
+            val priorUserMessages = messages
+                .take(lastUserIndex)
+                .filter { it.senderId == "user" && !it.isPending }
+                .takeLast(6)
+            if (priorUserMessages.isNotEmpty()) {
+                sb.append("用户此前明确表达的信息：\n")
+                priorUserMessages.forEach { message ->
+                    sb.append("- ${message.text}\n")
+                }
+                sb.append("\n")
+            }
+            sb.append("用户当前请求：${lastUserMsg.text}\n\n")
+
+            if (responseMode == ResponseMode.CROSS_DISCUSSION) {
+                val roleMessages = messages
+                    .subList(lastUserIndex + 1, messages.size)
+                    .filterNot { message ->
+                        message.isPending ||
+                            (message.senderId == currentCharacter.id && message.roundIndex == roundIndex)
+                    }
+                if (roleMessages.isNotEmpty()) {
+                    sb.append("用户已显式发起交叉讨论。以下观点是本次讨论的明确输入：\n\n")
+                    roleMessages.forEach { message ->
+                        sb.append("Skill 角色「${message.senderName}」的观点：\n${message.text}\n\n")
+                    }
+                }
             }
         }
 
-        sb.append("现在，轮到你——「${currentCharacter.name}」在第 $roundIndex 轮发言了。\n")
-        sb.append("请记住你的设定、说话语气和人设。")
-        sb.append("请你站在你自己的专业背景与刺头/支持立场，对用户的提问进行解答，")
-        if (roundIndex > 1) {
-            sb.append("同时你**必须**参考、评判、补充或反驳前几位智囊在前几轮的发言，展现出真实的脑暴交锋！")
+        sb.append("你是 Skill 角色「${currentCharacter.name}」。请保持自己的角色设定、思考方式和表达风格。\n")
+        if (responseMode == ResponseMode.INDEPENDENT) {
+            sb.append("请独立形成判断。不要假设其他角色已经给出结论，也不要为了制造差异而强行反对。")
+        } else {
+            sb.append("请针对上面的具体观点进行回应，说明赞同、补充或质疑的依据与适用条件。")
         }
-        sb.append("第一句话请直接切入重点，给出明确的判断或观点，千万别废话铺垫！")
+        sb.append("第一句话直接切入重点，给出清晰判断；证据不足时明确说明不确定性。")
 
         return sb.toString()
     }

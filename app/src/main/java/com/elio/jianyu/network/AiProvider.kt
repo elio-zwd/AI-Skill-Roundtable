@@ -66,7 +66,7 @@ enum class AiUseCase(
     SESSION_TITLE("对话标题", "首次提问后的会话标题提炼", setOf(AiProvider.GEMINI, AiProvider.DEEPSEEK)),
     MATERIAL_BROKER("资料决策", "选择本地参考资料与检索需求", setOf(AiProvider.GEMINI, AiProvider.DEEPSEEK)),
     WEB_GROUNDING("联网检索", "调用 Google Search 获取实时信息", setOf(AiProvider.GEMINI)),
-    ROUNDTABLE_ANSWER("圆桌回答", "角色的最终文本回答", setOf(AiProvider.GEMINI, AiProvider.DEEPSEEK)),
+    ROUNDTABLE_ANSWER("对话角色回答", "Skill 角色的最终文本回答", setOf(AiProvider.GEMINI, AiProvider.DEEPSEEK)),
     ISSUE_EXECUTION("议题执行", "议题工作流中的文本执行", setOf(AiProvider.GEMINI, AiProvider.DEEPSEEK)),
 }
 

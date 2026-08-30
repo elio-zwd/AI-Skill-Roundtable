@@ -27,9 +27,7 @@ class UiArchitectureGuardrailTest {
     fun app_usesRouteEntriesWithoutPageSpecificDialogsOrToasts() {
         val source = uiRoot.resolve("App.kt").readText()
         val requiredRoutes = listOf(
-            "CharacterHallRoute",
-            "AudioLibraryRoute",
-            "RoundtableRoute",
+            "DialogRoute",
             "AiManagementRoute",
             "TelemetryRoute",
         )
@@ -51,8 +49,7 @@ class UiArchitectureGuardrailTest {
     @Test
     fun routeFiles_doNotKeepCompatibilityScreenFacades() {
         val forbiddenDeclarations = mapOf(
-            "screens/characters/CharacterHallRoute.kt" to "fun CharacterHallScreen(",
-            "screens/library/AudioLibraryRoute.kt" to "fun AudioLibraryScreen(",
+            "screens/dialog/DialogRoute.kt" to "fun DialogScreen(",
             "screens/settings/AiManagementRoute.kt" to "fun AiManagementScreen(",
             "screens/settings/TelemetryRoute.kt" to "fun ApiTelemetryScreen(",
         )
@@ -77,7 +74,7 @@ class UiArchitectureGuardrailTest {
 
     @Test
     fun pageDomains_doNotImportOtherPageInternals() {
-        val domains = setOf("roundtable", "characters", "library", "settings")
+        val domains = setOf("dialog", "issues", "resources", "settings", "skills")
         val importPattern = Regex(
             "import com\\.elio\\.jianyu\\.ui\\.screens\\.([a-z]+)\\.",
         )

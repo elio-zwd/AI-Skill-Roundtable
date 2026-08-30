@@ -228,7 +228,7 @@ fun SkillMessageCard(
                     // 水平分割线
                     HorizontalDivider(color = Color(0xFFF1F3F5), thickness = 1.dp)
 
-                    // 3. 底部三等分操作栏（点赞复制 / 书签保存为成果 / 更多）
+                    // 3. 消息操作栏
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -250,27 +250,12 @@ fun SkillMessageCard(
                             modifier = Modifier.height(18.dp),
                         )
 
-                        // 保存为成果
+                        // 整理内容
                         MessageActionButton(
                             icon = DialogIcons.Bookmark,
-                            text = "保存为成果",
+                            text = "整理内容",
                             onClick = {
                                 onEvent(DialogEvent.SaveMessageAsArtifact(message.id))
-                            },
-                            modifier = Modifier.weight(1.25f),
-                        )
-
-                        VerticalDivider(
-                            color = Color(0xFFF1F3F5),
-                            modifier = Modifier.height(18.dp),
-                        )
-
-                        // 更多
-                        MessageActionButton(
-                            icon = DialogIcons.MoreHoriz,
-                            text = "更多",
-                            onClick = {
-                                onEvent(DialogEvent.ClickMessageMore(message.id))
                             },
                             modifier = Modifier.weight(1f),
                         )

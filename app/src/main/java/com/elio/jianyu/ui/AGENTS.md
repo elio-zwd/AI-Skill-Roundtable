@@ -2,7 +2,7 @@
 
 > 本文件适用于 `app/src/main/java/com/elio/jianyu/ui/` 及其子目录。与根目录 `AGENTS.md` 同时生效；本文件对 UI 文件更具体。
 >
-> 产品语义必须遵守 `docs/decisions/adr-009-skill-role-conversation-product-model.md` 与 `docs/product/` 当前规范。当前代码中的 `roundtable`、`characters`、旧 Route 和旧 testTag 可能仍是兼容标识，**不得仅因为工程名尚未迁移就继续把用户体验定义成“圆桌 / 议题 / 主 Skill”**。
+> 产品语义必须遵守 `docs/decisions/adr-009-skill-role-conversation-product-model.md` 与 `docs/product/` 当前规范。不得仅因为内部工程名尚未迁移，就把用户体验定义成“圆桌 / 议题 / 主 Skill”。
 
 ## 1. 固定分层
 
@@ -43,16 +43,16 @@ Components → same-domain models + common components/theme
 
 ## 3. 页面域边界与产品语义
 
-### 3.1 当前工程目录（兼容事实）
+### 3.1 当前工程目录
 
-当前代码可能仍包含：
+当前 UI 页面域包括：
 
-- `roundtable/`：历史聊天/多角色页面实现；
-- `characters/`：历史角色列表与详情；
-- `library/`：音频/已有资料能力；
+- `dialog/`：Top 1 对话与 Skill 角色交互；
+- `skills/`：Skill 角色目录与详情；
+- `resources/`：资料与成果；
 - `settings/`：API Key、遥测等设置。
 
-这些目录名是**当前实现标识**，不是新的用户正式名称。
+不得恢复已移除的旧圆桌、智囊大厅或旧音频库兼容页面。
 
 ### 3.2 当前目标 UI 语义
 
@@ -149,21 +149,10 @@ Skill 角色可以使用：
 
 ## 7. 导航规则
 
-### 7.1 当前 Route 是工程兼容接口
+### 7.1 导航纪律
 
-当前代码可能仍使用 `ROUNDTABLE`、`CHARACTERS`、`AUDIO_LIBRARY` 等目的地。这些名称在未执行专门导航迁移任务前可以继续作为**内部 Route 标识**。
-
-不得由此推导：
-
-- 用户页面仍必须叫“圆桌”；
-- `CHARACTERS` 用户文案不能改成 Skill 角色；
-- `ROUNDTABLE` 必须继续是目标产品最高层心智；
-- 新导航 IA 已被冻结。
-
-### 7.2 迁移纪律
-
-- Route 字符串/枚举改名必须在专门迁移任务中同步导航测试和返回链；
-- 不为了只改用户文案而顺手破坏稳定 Route；
+- Route 字符串/枚举改名必须同步导航测试和返回链；
+- 不保留已淘汰页面的兼容 Route；
 - 页面局部 Dialog、BottomSheet、Drawer 不进入全局 NavHost；
 - 顶部返回与系统返回应得到一致目的地；
 - 后续 IA 以“对话 Top 1”为冻结点，其他一级入口仍可继续设计。
@@ -176,10 +165,6 @@ Skill 角色可以使用：
 - `chat_input`
 - `send_button`
 - `stop_button`
-- `retry_failed_characters_button`
-- `dismiss_failed_characters_button`
-- `character_hall`
-- `audio_library`
 - `api_key_manager`
 - `telemetry_screen`
 - `app_bottom_navigation`

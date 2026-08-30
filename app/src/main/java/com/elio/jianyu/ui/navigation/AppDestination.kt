@@ -6,7 +6,6 @@ enum class AppDestination(
     val label: String,
     val testTagSuffix: String,
     val showsBottomNavigation: Boolean,
-    val isLegacyCompatibility: Boolean = false,
 ) {
     HOME(
         routePattern = "home",
@@ -43,30 +42,6 @@ enum class AppDestination(
         testTagSuffix = "settings",
         showsBottomNavigation = false,
     ),
-    ROUNDTABLE(
-        routePattern = "roundtable",
-        launchRoute = "roundtable",
-        label = "圆桌脑暴",
-        testTagSuffix = "legacy_roundtable",
-        showsBottomNavigation = false,
-        isLegacyCompatibility = true,
-    ),
-    CHARACTERS(
-        routePattern = "characters",
-        launchRoute = "characters",
-        label = "智囊大厅",
-        testTagSuffix = "legacy_characters",
-        showsBottomNavigation = false,
-        isLegacyCompatibility = true,
-    ),
-    AUDIO_LIBRARY(
-        routePattern = "audio-library",
-        launchRoute = "audio-library",
-        label = "音频库",
-        testTagSuffix = "legacy_audio_library",
-        showsBottomNavigation = false,
-        isLegacyCompatibility = true,
-    ),
     API_KEYS(
         routePattern = "settings/api-keys",
         launchRoute = "settings/api-keys",
@@ -91,17 +66,6 @@ enum class AppDestination(
             ISSUES,
             SKILLS,
             RESOURCES,
-        )
-
-        val legacyDestinations: List<AppDestination> = listOf(
-            ROUNDTABLE,
-            CHARACTERS,
-            AUDIO_LIBRARY,
-        )
-
-        val telemetryPathFromRoundtable: List<AppDestination> = listOf(
-            SETTINGS,
-            TELEMETRY,
         )
 
         fun fromRoutePattern(routePattern: String?): AppDestination? =

@@ -1,7 +1,7 @@
 package com.elio.jianyu.roundtable
 
 /**
- * 圆桌脑暴的单次回答与参与者设置。
+ * 多 Skill 角色对话的单次回答与参与者设置。
  */
 data class RoundtableBudget(
     val maxCharactersPerQuestion: Int = 15,

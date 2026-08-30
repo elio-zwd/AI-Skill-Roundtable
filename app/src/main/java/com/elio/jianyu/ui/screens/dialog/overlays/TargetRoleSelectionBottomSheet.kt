@@ -93,15 +93,16 @@ fun TargetRoleSelectionBottomSheet(
                     HorizontalDivider(color = DialogTokens.NeutralBorder)
                 }
 
-                // 选项 3：多个角色分别回答
-                val isMultiSelected = composerState.isMultiRoleAnswer
-                MultiRoleAnswerOptionRow(
-                    isSelected = isMultiSelected,
-                    onClick = {
-                        onEvent(DialogEvent.DismissOverlay)
-                        onEvent(DialogEvent.SelectMultiRoleAnswer)
-                    },
-                )
+                if (activeRoles.size > 1) {
+                    val isMultiSelected = composerState.isMultiRoleAnswer
+                    MultiRoleAnswerOptionRow(
+                        isSelected = isMultiSelected,
+                        onClick = {
+                            onEvent(DialogEvent.DismissOverlay)
+                            onEvent(DialogEvent.SelectMultiRoleAnswer)
+                        },
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(24.dp))
             }
@@ -237,7 +238,7 @@ private fun MultiRoleAnswerOptionRow(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "两位角色将分别给出各自的回答",
+                    text = "当前会话中的角色将各自独立回答",
                     color = DialogTokens.TextSecondary,
                     fontSize = 12.sp,
                     maxLines = 1,
