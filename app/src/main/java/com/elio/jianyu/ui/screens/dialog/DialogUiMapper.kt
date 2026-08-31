@@ -34,6 +34,12 @@ internal fun mapDialogUiState(
             role.shortDescription.contains(skillSearchQuery, ignoreCase = true)
     }
     val selectedRole = localState.selectedSkillDetail?.role?.id?.let(roleById::get)
+    val composerState = localState.composerState.copy(
+        targetRole = localState.composerState.targetRole
+            ?.takeIf { role -> role.id in participantIds },
+        isMultiRoleAnswer = localState.composerState.isMultiRoleAnswer && activeRoles.size > 1,
+        isGenerating = isGenerating,
+    )
 
     return localState.copy(
         session = DialogSessionInfo(
@@ -48,7 +54,7 @@ internal fun mapDialogUiState(
             statusText = if (searchEnabled) "已开" else "已关",
         ),
         thinkingIntensity = thinkingIntensity,
-        composerState = localState.composerState.copy(isGenerating = isGenerating),
+        composerState = composerState,
         selectedSkillDetail = selectedRole?.let(::buildSkillRoleDetail),
         drawerData = ConversationDrawerUiModel(
             currentSessionId = currentSession?.id?.toString().orEmpty(),

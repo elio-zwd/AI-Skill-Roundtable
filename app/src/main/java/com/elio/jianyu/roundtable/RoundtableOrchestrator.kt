@@ -27,7 +27,7 @@ interface RoundtableDatabaseGateway {
     suspend fun updatePendingMessageText(id: Long, text: String) {}
     suspend fun completePendingMessage(id: Long, text: String)
     suspend fun removePendingMessages(sessionId: Long)
-    suspend fun getActiveCharacters(): List<Character>
+    suspend fun getCharacters(): List<Character>
 }
 
 interface CharacterAnswerGateway {
@@ -184,7 +184,7 @@ class RoundtableOrchestrator(
         val budget = budgetManager.budget
 
         try {
-            val activeCharacters = dbGateway.getActiveCharacters()
+            val availableCharacters = dbGateway.getCharacters()
             val messages = dbGateway.getMessages(sessionId)
             val runMessageIndex = messages.indexOfFirst { it.id == questionRunId }
             if (runMessageIndex == -1) {
@@ -192,8 +192,8 @@ class RoundtableOrchestrator(
             }
 
             val selectedCharacters = if (targetCharacterIds != null) {
-                val activeMap = activeCharacters.associateBy { it.id }
-                targetCharacterIds.mapNotNull { id -> activeMap[id] }
+                val availableMap = availableCharacters.associateBy { it.id }
+                targetCharacterIds.mapNotNull { id -> availableMap[id] }
             } else {
                 val cachedSnapshots = budgetManager.getSelectedParticipantSnapshots(questionRunId)
                 val cachedSelectedIds = budgetManager.getSelectedParticipants(questionRunId)
@@ -201,7 +201,7 @@ class RoundtableOrchestrator(
                     cachedSnapshots != null -> cachedSnapshots
                     cachedSelectedIds != null -> {
                         val restored = cachedSelectedIds.mapNotNull { id ->
-                            activeCharacters.firstOrNull { it.id == id }
+                            availableCharacters.firstOrNull { it.id == id }
                         }
                         if (restored.isNotEmpty()) {
                             budgetManager.setSelectedParticipantSnapshots(questionRunId, restored)
@@ -211,7 +211,7 @@ class RoundtableOrchestrator(
                     else -> selectAndFreezeCharacters(
                         sessionId = sessionId,
                         questionRunId = questionRunId,
-                        activeCharacters = activeCharacters,
+                        availableCharacters = availableCharacters,
                         questionMessage = messages[runMessageIndex],
                         semanticRoutingEnabled = isSemanticRoutingEnabled,
                         tracker = tracker,
@@ -369,13 +369,13 @@ class RoundtableOrchestrator(
     private suspend fun selectAndFreezeCharacters(
         sessionId: Long,
         questionRunId: Long,
-        activeCharacters: List<Character>,
+        availableCharacters: List<Character>,
         questionMessage: Message,
         semanticRoutingEnabled: Boolean,
         tracker: RequestBudgetTracker,
         budget: RoundtableBudget
     ): List<Character> {
-        if (activeCharacters.isEmpty()) return emptyList()
+        if (availableCharacters.isEmpty()) return emptyList()
 
         val sortedCharacters = if (semanticRoutingEnabled) {
             try {
@@ -389,7 +389,7 @@ class RoundtableOrchestrator(
                     isRequired = false,
                     reserveForRequired = 0
                 )
-                activeCharacters.map { character ->
+                availableCharacters.map { character ->
                     val characterVector = runCatching {
                         if (character.skillDescriptionVector.isBlank()) {
                             emptyList()
@@ -405,10 +405,10 @@ class RoundtableOrchestrator(
                     character to similarity
                 }.sortedByDescending { it.second }.map { it.first }
             } catch (_: Exception) {
-                activeCharacters
+                availableCharacters
             }
         } else {
-            activeCharacters
+            availableCharacters
         }
 
         val selected = sortedCharacters.take(budget.maxCharactersPerQuestion)
