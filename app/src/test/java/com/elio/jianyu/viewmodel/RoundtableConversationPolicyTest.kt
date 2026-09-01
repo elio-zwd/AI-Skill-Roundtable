@@ -36,4 +36,11 @@ class RoundtableConversationPolicyTest {
 
         assertEquals(listOf("role_b"), resolved)
     }
+
+    @Test
+    fun roundtableThinkingIntensityMapsToProviderLevels() {
+        assertEquals("minimal", roundtableThinkingLevel("极简"))
+        assertEquals("medium", roundtableThinkingLevel("均衡"))
+        assertEquals("high", roundtableThinkingLevel("深度"))
+    }
 }

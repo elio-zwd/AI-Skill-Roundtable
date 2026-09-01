@@ -1370,6 +1370,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 systemInstruction = referencesText,
                 userContent = prompt,
                 maxOutputTokens = budget.maxOutputTokensPerAnswer,
+                thinkingLevel = currentThinkingLevel(),
                 operationName = "MainAnswer-${character.id}",
                 tracker = tracker,
                 onAttemptStarted = onAttemptStarted,
@@ -1457,11 +1458,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         responseText
     }
 
-    private fun currentThinkingLevel(): String = when (_thinkingIntensity.value) {
-        "极简" -> "low"
-        "深度" -> "high"
-        else -> "medium"
-    }
+    private fun currentThinkingLevel(): String = roundtableThinkingLevel(_thinkingIntensity.value)
 
     private fun thinkingIntensityDirective(): String = when (_thinkingIntensity.value) {
         "极简" -> "优先直接结论与必要依据，保持简洁，不展开次要分支。"
@@ -1570,6 +1567,12 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
     private fun isCurrentSessionNavigation(version: Long, sessionId: Long): Boolean =
         version == sessionNavigationVersion && _currentSessionId.value == sessionId
+}
+
+internal fun roundtableThinkingLevel(intensity: String): String = when (intensity) {
+    "极简" -> "minimal"
+    "深度" -> "high"
+    else -> "medium"
 }
 
 /** 点名回复只能落到当前会话阵容；未点名时保持阵容顺序并去重。 */

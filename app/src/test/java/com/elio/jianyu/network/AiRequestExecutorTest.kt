@@ -74,6 +74,28 @@ class AiRequestExecutorTest {
         throw AssertionError("CancellationException was not propagated")
     }
 
+    @Test
+    fun skipsDeletedKeyWithoutCountingAnApiAttempt() = runBlocking {
+        val reporter = FakeReporter(missingKeyIds = setOf("key-a"))
+        val executor = AiRequestExecutor(AiProvider.DEEPSEEK, reporter)
+        var attempts = 0
+
+        val result = executor.execute(
+            sessionId = 7L,
+            attemptPlan = listOf(lease("key-a"), lease("key-b")),
+            operationName = "deleted-key",
+            onAttemptStarted = { attempts++ },
+        ) { secret ->
+            assertEquals("secret-key-b", secret)
+            "ok"
+        }
+
+        assertEquals("ok", result)
+        assertEquals(1, attempts)
+        assertEquals(listOf("key-b"), reporter.successful)
+        assertTrue(reporter.failures.isEmpty())
+    }
+
     private fun lease(id: String, provider: AiProvider = AiProvider.DEEPSEEK) = ApiKeyLease(
         keyId = id,
         displayName = id,
@@ -81,11 +103,14 @@ class AiRequestExecutorTest {
         source = ApiKeySource.LOCAL,
     )
 
-    private class FakeReporter : ProviderKeyAttemptReporter {
+    private class FakeReporter(
+        private val missingKeyIds: Set<String> = emptySet(),
+    ) : ProviderKeyAttemptReporter {
         val successful = mutableListOf<String>()
         val failures = mutableListOf<Pair<String, ApiCallFailure>>()
 
-        override fun secretFor(keyId: String): String = "secret-$keyId"
+        override fun secretFor(keyId: String): String? =
+            if (keyId in missingKeyIds) null else "secret-$keyId"
 
         override fun recordSuccess(sessionId: Long, keyId: String) {
             successful += keyId
