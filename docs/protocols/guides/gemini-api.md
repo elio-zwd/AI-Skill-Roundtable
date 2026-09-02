@@ -1,5 +1,7 @@
 # Gemini API 协议说明
 
+> 当前 Gemini 文本模型的模型 ID、请求字段与思考档位请以 [Gemini 模型请求与思考档位契约](../models/gemini-model-request-contract.md) 为准。该契约已按 2026-09-02 官方文档核验；本页保留历史协议资料，出现冲突时以前者为准。
+
 ## 1. 基本信息
 
 | 项目 | 值 |
