@@ -33,8 +33,35 @@ data class DeepSeekChatCompletionRequest(
     val model: String,
     val messages: List<DeepSeekMessage>,
     @SerialName("max_tokens") val maxTokens: Int? = null,
+    val thinking: DeepSeekThinking? = null,
+    @SerialName("reasoning_effort") val reasoningEffort: String? = null,
     val stream: Boolean = false,
 )
+
+@Serializable
+data class DeepSeekThinking(
+    val type: String,
+)
+
+internal data class DeepSeekThinkingConfiguration(
+    val thinking: DeepSeekThinking,
+    val reasoningEffort: String,
+)
+
+/** 将应用统一思考档位映射为 DeepSeek Chat Completions 支持的档位。 */
+internal fun deepSeekThinkingConfiguration(thinkingLevel: String?): DeepSeekThinkingConfiguration? =
+    when (thinkingLevel) {
+        null -> null
+        "minimal", "low" -> DeepSeekThinkingConfiguration(
+            thinking = DeepSeekThinking(type = "enabled"),
+            reasoningEffort = "low",
+        )
+        "medium", "high" -> DeepSeekThinkingConfiguration(
+            thinking = DeepSeekThinking(type = "enabled"),
+            reasoningEffort = "high",
+        )
+        else -> throw IllegalArgumentException("DeepSeek 不支持思考档位：$thinkingLevel")
+    }
 
 @Serializable
 data class DeepSeekChatCompletionResponse(
@@ -124,6 +151,7 @@ object DeepSeekTransport {
         systemInstruction: String?,
         userContent: String,
         maxOutputTokens: Int? = null,
+        thinkingLevel: String? = null,
         operationName: String,
         tracker: RequestBudgetTracker,
         onAttemptStarted: suspend () -> Unit = {},
@@ -134,6 +162,7 @@ object DeepSeekTransport {
             systemInstruction?.takeIf(String::isNotBlank)?.let { add(DeepSeekMessage("system", it)) }
             add(DeepSeekMessage("user", userContent))
         }
+        val thinkingConfiguration = deepSeekThinkingConfiguration(thinkingLevel)
         val response = AiManager.requests(context, AiProvider.DEEPSEEK).execute(
             sessionId = sessionId,
             attemptPlan = attemptPlan,
@@ -149,6 +178,8 @@ object DeepSeekTransport {
                     model = model.modelId,
                     messages = messages,
                     maxTokens = maxOutputTokens,
+                    thinking = thinkingConfiguration?.thinking,
+                    reasoningEffort = thinkingConfiguration?.reasoningEffort,
                 ),
             )
             if (!httpResponse.isSuccessful) throw HttpException(httpResponse)

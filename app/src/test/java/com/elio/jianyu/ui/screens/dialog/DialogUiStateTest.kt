@@ -75,6 +75,22 @@ class DialogUiStateTest {
     }
 
     @Test
+    fun clearComposerReplySelection_keepsDraftAndClearsOneShotScope() {
+        val role = DialogUiState.PreviewMock.activeRoles.first()
+        val cleared = clearComposerReplySelection(
+            DialogComposerState(
+                inputText = "尚未发送的草稿",
+                targetRole = role,
+                isMultiRoleAnswer = false,
+            ),
+        )
+
+        assertEquals("尚未发送的草稿", cleared.inputText)
+        assertNull(cleared.targetRole)
+        assertFalse(cleared.isMultiRoleAnswer)
+    }
+
+    @Test
     fun mapDialogUiState_usesRealSessionMessagesAndParticipants() {
         val character = Character(
             id = "steve_jobs",
@@ -227,5 +243,46 @@ class DialogUiStateTest {
         assertEquals(listOf("role_12"), searched.addSkillCatalog.allSkills.map { it.id })
         assertEquals(listOf("role_12"), searched.addSkillCatalog.recommended.map { it.id })
         assertTrue(searched.addSkillCatalog.recentUsed.isEmpty())
+    }
+
+    @Test
+    fun mapDialogUiState_removesReplyScopeThatIsNotAvailableInCurrentSession() {
+        val available = Character(
+            id = "available",
+            name = "当前角色",
+            avatar = "",
+            tagline = "当前会话角色",
+            systemPrompt = "保持角色视角",
+            order = 1,
+        )
+        val staleRole = SkillRoleUiModel(
+            id = "stale",
+            name = "上个会话角色",
+            shortDescription = "不属于当前会话",
+        )
+
+        val mapped = mapDialogUiState(
+            localState = DialogUiState(
+                composerState = DialogComposerState(
+                    inputText = "保留这段草稿",
+                    targetRole = staleRole,
+                    isMultiRoleAnswer = true,
+                ),
+            ),
+            sessions = listOf(ChatSession(id = 1, title = "当前会话")),
+            currentSession = ChatSession(id = 1, title = "当前会话"),
+            messages = emptyList(),
+            characters = listOf(available),
+            participantIds = listOf(available.id),
+            archivedSessionIds = emptySet(),
+            showArchivedSessions = false,
+            isGenerating = false,
+            searchEnabled = false,
+            thinkingIntensity = "标准",
+        )
+
+        assertEquals("保留这段草稿", mapped.composerState.inputText)
+        assertNull(mapped.composerState.targetRole)
+        assertFalse(mapped.composerState.isMultiRoleAnswer)
     }
 }

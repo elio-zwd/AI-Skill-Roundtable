@@ -101,6 +101,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
     private var skillsSummaries: org.json.JSONObject? = null
     private var activeRoundtableJob: Job? = null
+    private var sessionNavigationVersion = 0L
 
     private fun loadSkillsSummariesOnce(context: android.content.Context): org.json.JSONObject {
         val current = skillsSummaries
@@ -232,7 +233,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             chatRepo.completePendingMessage(id, text)
         }
         override suspend fun removePendingMessages(sessionId: Long) = chatRepo.removePendingMessages(sessionId)
-        override suspend fun getActiveCharacters(): List<Character> = charRepo.getActiveCharacters()
+        override suspend fun getCharacters(): List<Character> = charRepo.allCharacters.first()
     }
 
     private val answerGateway = object : CharacterAnswerGateway {
@@ -414,9 +415,16 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
     fun ensureConversationReady() {
         if (_currentSessionId.value != null) return
+        val navigationVersion = sessionNavigationVersion
         viewModelScope.launch {
             val firstSession = chatRepo.allSessions.first()
                 .firstOrNull { it.id !in _archivedSessionIds.value }
+            if (
+                _currentSessionId.value != null ||
+                navigationVersion != sessionNavigationVersion
+            ) {
+                return@launch
+            }
             if (firstSession != null) {
                 selectSession(firstSession.id)
             } else {
@@ -426,21 +434,33 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun selectSession(sessionId: Long) {
+        val navigationVersion = ++sessionNavigationVersion
         _currentSessionId.value = sessionId
+        _currentSession.value = null
         _currentParticipantIds.value = emptyList()
         viewModelScope.launch {
-            _currentSession.value = chatRepo.getSessionById(sessionId)
-            _currentParticipantIds.value = loadParticipantIds(sessionId)
+            val session = chatRepo.getSessionById(sessionId)
+            val participantIds = loadParticipantIds(sessionId)
+            if (!isCurrentSessionNavigation(navigationVersion, sessionId)) return@launch
+            _currentSession.value = session
+            _currentParticipantIds.value = participantIds
             updateRoundActionState(sessionId)
         }
     }
 
     fun createNewSession(title: String) {
+        val navigationVersion = ++sessionNavigationVersion
         viewModelScope.launch {
             val id = chatRepo.createSession(title)
+            if (navigationVersion != sessionNavigationVersion) return@launch
             _currentSessionId.value = id
-            _currentSession.value = chatRepo.getSessionById(id)
-            _currentParticipantIds.value = loadParticipantIds(id)
+            _currentSession.value = null
+            _currentParticipantIds.value = emptyList()
+            val session = chatRepo.getSessionById(id)
+            val participantIds = loadParticipantIds(id)
+            if (!isCurrentSessionNavigation(navigationVersion, id)) return@launch
+            _currentSession.value = session
+            _currentParticipantIds.value = participantIds
         }
     }
 
@@ -456,6 +476,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 _retryableRoundtableState.value = null
             }
             if (_currentSessionId.value == sessionId) {
+                sessionNavigationVersion += 1
                 _currentSessionId.value = null
                 _currentSession.value = null
                 _currentParticipantIds.value = emptyList()
@@ -474,6 +495,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         val sessionId = _currentSessionId.value ?: return
         viewModelScope.launch {
             val available = charRepo.getCharacterById(skillId) ?: return@launch
+            if (_currentSessionId.value != sessionId) return@launch
             val updated = (_currentParticipantIds.value + available.id).distinct().take(15)
             conversationPreferences.setParticipantIds(sessionId, updated)
             _currentParticipantIds.value = updated
@@ -496,6 +518,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
     fun archiveSession(sessionId: Long) {
         _archivedSessionIds.value = conversationPreferences.setArchived(sessionId, archived = true)
         if (_currentSessionId.value == sessionId) {
+            sessionNavigationVersion += 1
             _currentSessionId.value = null
             _currentSession.value = null
             _currentParticipantIds.value = emptyList()
@@ -509,14 +532,13 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     private suspend fun loadParticipantIds(sessionId: Long): List<String> {
-        val immediatelyAvailable = charRepo.getActiveCharacters()
+        val immediatelyAvailable = charRepo.allCharacters.first()
         val availableIds = if (immediatelyAvailable.isNotEmpty()) {
             immediatelyAvailable.map(Character::id)
         } else {
             withTimeoutOrNull(5_000L) {
                 charRepo.allCharacters
-                    .first { characters -> characters.any(Character::isActive) }
-                    .filter(Character::isActive)
+                    .first(List<Character>::isNotEmpty)
                     .map(Character::id)
             }.orEmpty()
         }
@@ -548,8 +570,12 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             _errorMessage.value = "当前没有可用的 API 密钥，请稍后再试或在“我的配置”中填写密钥。"
             return false
         }
-        val targetCharacterIds = targetCharacterId?.let(::listOf)
-            ?: _currentParticipantIds.value.toList()
+        val participantIds = _currentParticipantIds.value
+        val targetCharacterIds = resolveRequestedSkillRoleIds(participantIds, targetCharacterId)
+        if (targetCharacterId != null && targetCharacterIds.isEmpty()) {
+            _errorMessage.value = "点名的 Skill 角色已不在当前会话，请重新选择。"
+            return false
+        }
         if (targetCharacterIds.isEmpty()) {
             _errorMessage.value = "当前会话没有可用的 Skill 角色，请先增加一个角色。"
             return false
@@ -566,6 +592,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 text = text
             )
             val questionRunId = chatRepo.insertMessage(userMsg)
+            budgetManager.setSelectedParticipants(questionRunId, targetCharacterIds)
             runRoundtableSequence(
                 sessionId = sessionId,
                 questionRunId = questionRunId,
@@ -633,7 +660,11 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 if (!reply.isNullOrBlank()) {
                     val cleanTitle = reply.replace("\"", "").replace("'", "").trim()
                     chatRepo.updateSessionTitle(sessionId, cleanTitle)
-                    chatRepo.getSessionById(sessionId)?.let { _currentSession.value = it }
+                    chatRepo.getSessionById(sessionId)?.let { session ->
+                        if (_currentSessionId.value == sessionId) {
+                            _currentSession.value = session
+                        }
+                    }
                 }
             } catch (error: Exception) {
                 PrivacySafeLogger.e("RoundtableViewModel", "Title generation failed", error)
@@ -644,7 +675,11 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
     fun renameSession(sessionId: Long, newTitle: String) {
         viewModelScope.launch(Dispatchers.IO) {
             chatRepo.updateSessionTitle(sessionId, newTitle)
-            chatRepo.getSessionById(sessionId)?.let { _currentSession.value = it }
+            chatRepo.getSessionById(sessionId)?.let { session ->
+                if (_currentSessionId.value == sessionId) {
+                    _currentSession.value = session
+                }
+            }
         }
     }
 
@@ -851,12 +886,11 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             return
         }
 
-        val activeCharacters = charRepo.getActiveCharacters()
-        val activeIds = activeCharacters.map { it.id }.toSet()
-        val executableTargetIds = targetCharacterIds.filter { it in activeIds }
+        val availableIds = charRepo.allCharacters.first().map(Character::id).toSet()
+        val executableTargetIds = targetCharacterIds.filter { it in availableIds }
 
         if (executableTargetIds.isEmpty()) {
-            _errorMessage.value = "失败角色当前不可用，请重新启用后重试。"
+            _errorMessage.value = "失败角色已不存在，无法继续重试。"
             return
         }
 
@@ -1336,6 +1370,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 systemInstruction = referencesText,
                 userContent = prompt,
                 maxOutputTokens = budget.maxOutputTokensPerAnswer,
+                thinkingLevel = currentThinkingLevel(),
                 operationName = "MainAnswer-${character.id}",
                 tracker = tracker,
                 onAttemptStarted = onAttemptStarted,
@@ -1423,11 +1458,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         responseText
     }
 
-    private fun currentThinkingLevel(): String = when (_thinkingIntensity.value) {
-        "极简" -> "low"
-        "深度" -> "high"
-        else -> "medium"
-    }
+    private fun currentThinkingLevel(): String = roundtableThinkingLevel(_thinkingIntensity.value)
 
     private fun thinkingIntensityDirective(): String = when (_thinkingIntensity.value) {
         "极简" -> "优先直接结论与必要依据，保持简洁，不展开次要分支。"
@@ -1506,6 +1537,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
     fun updateRoundActionState(sessionId: Long) {
         viewModelScope.launch {
             val messages = chatRepo.getMessages(sessionId)
+            if (_currentSessionId.value != sessionId) return@launch
             val lastUserMsg = messages.lastOrNull { it.senderId == "user" }
             if (lastUserMsg == null) {
                 _roundActionState.value = RoundActionState.CONTINUE_ROUND
@@ -1513,27 +1545,46 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             }
 
             val questionRunId = lastUserMsg.id
-            val activeChars = charRepo.getActiveCharacters()
-            if (activeChars.isEmpty()) {
+            val selectedParticipantIds = budgetManager.getSelectedParticipants(questionRunId)
+                ?: _currentParticipantIds.value
+            if (selectedParticipantIds.isEmpty()) {
                 _roundActionState.value = RoundActionState.CONTINUE_ROUND
                 return@launch
             }
-
-            val selectedParticipantIds = budgetManager.getOrSetSelectedParticipants(
-                questionRunId,
-                activeChars.map { it.id }
-            )
             val runMsgIndex = messages.indexOfFirst { it.id == questionRunId }
             if (runMsgIndex == -1) {
                 _roundActionState.value = RoundActionState.CONTINUE_ROUND
                 return@launch
             }
             val messagesSinceRun = messages.subList(runMsgIndex + 1, messages.size)
+            if (_currentSessionId.value != sessionId) return@launch
             _roundActionState.value = com.elio.jianyu.roundtable.RoundActionStateResolver.resolve(
                 selectedParticipantIds = selectedParticipantIds,
                 messagesSinceRun = messagesSinceRun,
             )
         }
+    }
+
+    private fun isCurrentSessionNavigation(version: Long, sessionId: Long): Boolean =
+        version == sessionNavigationVersion && _currentSessionId.value == sessionId
+}
+
+internal fun roundtableThinkingLevel(intensity: String): String = when (intensity) {
+    "极简" -> "minimal"
+    "深度" -> "high"
+    else -> "medium"
+}
+
+/** 点名回复只能落到当前会话阵容；未点名时保持阵容顺序并去重。 */
+internal fun resolveRequestedSkillRoleIds(
+    participantIds: List<String>,
+    targetCharacterId: String?,
+): List<String> {
+    val distinctParticipantIds = participantIds.distinct()
+    return if (targetCharacterId == null) {
+        distinctParticipantIds
+    } else {
+        distinctParticipantIds.filter { it == targetCharacterId }
     }
 }
 

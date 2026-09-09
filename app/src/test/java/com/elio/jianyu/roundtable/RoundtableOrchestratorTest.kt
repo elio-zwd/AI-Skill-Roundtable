@@ -34,7 +34,7 @@ class RoundtableOrchestratorTest {
 
     class FakeRoundtableDatabaseGateway(
         val messages: MutableList<Message> = mutableListOf(),
-        val activeCharacters: MutableList<Character> = mutableListOf()
+        val characters: MutableList<Character> = mutableListOf()
     ) : RoundtableDatabaseGateway {
         val deletedMessageIds = mutableListOf<Long>()
         val pendingTextUpdates = mutableListOf<String>()
@@ -74,8 +74,8 @@ class RoundtableOrchestratorTest {
             messages.removeAll { it.chatId == sessionId && it.isPending }
         }
 
-        override suspend fun getActiveCharacters(): List<Character> {
-            return activeCharacters
+        override suspend fun getCharacters(): List<Character> {
+            return characters
         }
     }
 
@@ -491,7 +491,7 @@ class RoundtableOrchestratorTest {
         messagesList.add(Message(id = 1002L, chatId = 1L, senderId = "char_a", senderName = "A", avatar = "A", text = "回复"))
         messagesList.add(Message(id = 1003L, chatId = 1L, senderId = "char_b", senderName = "B", avatar = "B", text = "回复"))
 
-        dbGateway.activeCharacters.add(charC)
+        dbGateway.characters.add(charC)
         val result2 = orchestrator.runRoundtableSequence(sessionId = 1L, questionRunId = 1001L, isSemanticRoutingEnabled = false)
 
         assertEquals("C 作为第 3 个角色无法参与回答", 0, result2.completedCharacters.filter { it == "char_c" }.size)
@@ -959,7 +959,7 @@ class RoundtableOrchestratorTest {
             messages = mutableListOf(
                 Message(id = 1001L, chatId = 1L, senderId = "user", senderName = "User", avatar = "U", text = "你好")
             ),
-            activeCharacters = mutableListOf(charA, charB)
+            characters = mutableListOf(charA, charB)
         )
         val answerGateway = object : CharacterAnswerGateway {
             override suspend fun callGeminiApi(
@@ -1013,7 +1013,7 @@ class RoundtableOrchestratorTest {
             messages = mutableListOf(
                 Message(id = 1001L, chatId = 1L, senderId = "user", senderName = "User", avatar = "U", text = "你好")
             ),
-            activeCharacters = mutableListOf(character)
+            characters = mutableListOf(character)
         )
         val started = CompletableDeferred<Unit>()
         val answerGateway = object : CharacterAnswerGateway {
@@ -1126,7 +1126,57 @@ class RoundtableOrchestratorTest {
     }
 
     @Test
-    fun retryTargetCharacters_skipsDisabledOrNonExistentCharacters() = runBlocking {
+    fun explicitSessionRoster_executesCharacterRegardlessOfLegacyActiveFlag() = runBlocking {
+        val context = mock(Context::class.java)
+        val sessionRole = Character(
+            id = "session_role",
+            name = "会话角色",
+            avatar = "角",
+            tagline = "",
+            systemPrompt = "",
+            order = 1,
+            isActive = false,
+        )
+        val dbGateway = FakeRoundtableDatabaseGateway(
+            messages = mutableListOf(
+                Message(
+                    id = 1001L,
+                    chatId = 1L,
+                    senderId = "user",
+                    senderName = "User",
+                    avatar = "U",
+                    text = "请回答",
+                ),
+            ),
+            characters = mutableListOf(sessionRole),
+        )
+        val calledCharacters = mutableListOf<String>()
+        val answerGateway = FakeCharacterAnswerGateway(
+            onCallApi = { character, _ -> calledCharacters += character.id },
+        )
+        val orchestrator = RoundtableOrchestrator(
+            context = context,
+            dbGateway = dbGateway,
+            answerGateway = answerGateway,
+            budgetManager = RoundtableBudgetManager(RoundtableBudget()),
+            delayProvider = ZeroDelayProvider,
+            minIntervalMs = 0L,
+            createAttemptPlan = testAttemptPlan,
+        )
+
+        val result = orchestrator.runRoundtableSequence(
+            sessionId = 1L,
+            questionRunId = 1001L,
+            isSemanticRoutingEnabled = false,
+            targetCharacterIds = listOf(sessionRole.id),
+        )
+
+        assertEquals(listOf(sessionRole.id), calledCharacters)
+        assertEquals(listOf(sessionRole.id), result.completedCharacters)
+    }
+
+    @Test
+    fun retryTargetCharacters_skipsNonExistentCharacters() = runBlocking {
         val context = mock(Context::class.java)
         val charC = Character(id = "char_c", name = "C", avatar = "C", tagline = "", systemPrompt = "", order = 3)
 

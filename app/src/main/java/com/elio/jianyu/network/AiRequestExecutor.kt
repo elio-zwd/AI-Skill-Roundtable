@@ -49,12 +49,11 @@ internal class AiRequestExecutor(
         var lastFailure: ApiCallFailure? = null
         for (lease in attemptPlan) {
             require(lease.provider == provider) { "密钥计划与提供商不一致" }
+            val secret = keyRepository.secretFor(lease.keyId) ?: continue
             var sameKeyAttemptCount = 0
             while (true) {
                 try {
                     onAttemptStarted()
-                    val secret = keyRepository.secretFor(lease.keyId)
-                        ?: throw IllegalStateException("${provider.displayName} key is no longer available")
                     val result = block(secret)
                     keyRepository.recordSuccess(sessionId, lease.keyId)
                     return result

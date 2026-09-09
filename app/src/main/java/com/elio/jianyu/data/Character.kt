@@ -28,9 +28,6 @@ interface CharacterDao {
     @Query("SELECT * FROM characters ORDER BY `order` ASC")
     fun getAllCharacters(): Flow<List<Character>>
 
-    @Query("SELECT * FROM characters WHERE isActive = 1 ORDER BY `order` ASC")
-    suspend fun getActiveCharacters(): List<Character>
-
     @Query("SELECT * FROM characters WHERE id = :id LIMIT 1")
     suspend fun getCharacterById(id: String): Character?
 
@@ -46,8 +43,6 @@ interface CharacterDao {
 
 class CharacterRepository(private val characterDao: CharacterDao) {
     val allCharacters: Flow<List<Character>> = characterDao.getAllCharacters()
-
-    suspend fun getActiveCharacters() = characterDao.getActiveCharacters()
 
     suspend fun getCharacterById(id: String) = characterDao.getCharacterById(id)
 

@@ -115,7 +115,10 @@ fun DialogRoute(
                 DialogEvent.CreateNewSession -> {
                     viewModel.createNewSession("新建对话")
                     showArchivedSessions = false
-                    localState = uiState.copy(activeOverlay = DialogOverlayType.NONE)
+                    localState = uiState.copy(
+                        activeOverlay = DialogOverlayType.NONE,
+                        composerState = clearComposerReplySelection(uiState.composerState),
+                    )
                 }
                 is DialogEvent.SelectSession -> {
                     event.sessionId.toLongOrNull()?.let { sessionId ->
@@ -126,7 +129,10 @@ fun DialogRoute(
                             viewModel.selectSession(sessionId)
                         }
                     }
-                    localState = uiState.copy(activeOverlay = DialogOverlayType.NONE)
+                    localState = uiState.copy(
+                        activeOverlay = DialogOverlayType.NONE,
+                        composerState = clearComposerReplySelection(uiState.composerState),
+                    )
                 }
                 is DialogEvent.AddSkillToSession -> {
                     viewModel.addSkillRoleToCurrentSession(event.skillId)
@@ -137,6 +143,11 @@ fun DialogRoute(
                     localState = uiState.copy(
                         activeOverlay = DialogOverlayType.NONE,
                         selectedSkillDetail = null,
+                        composerState = if (uiState.composerState.targetRole?.id == event.skillId) {
+                            clearComposerReplySelection(uiState.composerState)
+                        } else {
+                            uiState.composerState
+                        },
                     )
                 }
                 is DialogEvent.LetSkillAnswerCurrent -> {
@@ -311,8 +322,11 @@ internal fun reduceDialogLocalState(
 
 /** @ 点名与多角色选择只作用于当前一次请求，发送后必须复位。 */
 internal fun clearComposerAfterSubmission(state: DialogComposerState): DialogComposerState =
+    clearComposerReplySelection(state).copy(inputText = "")
+
+/** 切换会话或移除被点名角色时保留草稿，只清除本次回复范围。 */
+internal fun clearComposerReplySelection(state: DialogComposerState): DialogComposerState =
     state.copy(
-        inputText = "",
         targetRole = null,
         isMultiRoleAnswer = false,
     )

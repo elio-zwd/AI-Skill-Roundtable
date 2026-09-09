@@ -139,6 +139,7 @@ class AiExecutionNetworkGateway(
                         systemInstruction = systemInstruction,
                         userContent = request.modelRequest.userContent,
                         maxOutputTokens = request.maxOutputTokens,
+                        thinkingLevel = request.thinkingLevel,
                         operationName = OPERATION_NAME,
                         tracker = RequestBudgetTracker(),
                         onAttemptStarted = onAttemptStarted,
