@@ -1,11 +1,11 @@
 # 给后续 AI 的接手提示词
 
-使用前把尖括号占位替换为本批真实路径。当前 UI 文档工作树为 `D:/My_Elio/AI-Skill-Roundtable-ui-images`，分支为 `codex/ui-spec-image-options`。规格 AI 应在该工作树处理文档；若以后该分支已经合入目标开发分支，可改用合入后的项目工作树。不要假定主工作区当前分支已经包含这些文件，也不要依赖其他对话记忆。
+使用前把尖括号占位替换为本批真实路径。UI 文档已经合入 `main`，当前项目工作区为 `D:/My_Elio/AI-Skill-Roundtable`。开始前先核对工作区、当前分支和未提交改动，不要依赖其他对话记忆。
 
 ## 1. 当前优先：角色主页面规格 AI
 
 ```text
-请在 D:/My_Elio/AI-Skill-Roundtable-ui-images 中为“角色”主页面整理可实施 UI 规格，先不写生产代码。开始前确认当前分支为 codex/ui-spec-image-options，并包含“docs: 记录主页面选图决定”提交。
+请在 D:/My_Elio/AI-Skill-Roundtable 中为“角色”主页面整理可实施 UI 规格，先不写生产代码。开始前确认当前 `main` 包含“docs: 记录主页面选图决定”的内容，并确认没有覆盖其他未提交改动。
 
 先读取根 AGENTS.md、当前产品定义、UI-RECONSTRUCTION-HANDOFF.md、共享视觉基线与对话页规格。
 再读取：
