@@ -11,6 +11,7 @@ import com.elio.jianyu.skill.catalog.OfficialSkillPublicationStatus
 import com.elio.jianyu.skill.catalog.OfficialSkillRiskLevel
 import com.elio.jianyu.skill.catalog.OfficialSkillUseMode
 import com.elio.jianyu.skill.catalog.RecentOfficialSkillUse
+import com.elio.jianyu.skill.role.SkillRoleDiscoveryCategory
 
 internal object OfficialSkillCatalogTestTags {
     const val ROOT = "official_skill_catalog"
@@ -68,6 +69,7 @@ internal data class OfficialSkillCatalogUiState(
     val totalSkillCount: Int = 0,
     val favoriteIds: Set<String> = emptySet(),
     val recentUses: List<RecentOfficialSkillUse> = emptyList(),
+    val roleCatalog: SkillRoleCatalogUiState? = null,
     val selectedSkill: OfficialSkillDefinition? = null,
     val combinations: List<OfficialSkillCombinationSnapshot> = emptyList(),
     val combinationsLoading: Boolean = false,
@@ -78,6 +80,9 @@ internal data class OfficialSkillCatalogUiState(
 
 internal sealed interface OfficialSkillCatalogEvent {
     data class SearchChanged(val value: String) : OfficialSkillCatalogEvent
+    data class DiscoveryCategoryChanged(
+        val value: SkillRoleDiscoveryCategory?,
+    ) : OfficialSkillCatalogEvent
     data class SectionChanged(val value: OfficialSkillCatalogSection) : OfficialSkillCatalogEvent
     data class FilterDialogChanged(val visible: Boolean) : OfficialSkillCatalogEvent
     data class TogglePrimaryType(val value: OfficialSkillPrimaryType) : OfficialSkillCatalogEvent
