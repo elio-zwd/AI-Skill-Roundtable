@@ -19,9 +19,9 @@ private const val ROLE_ACTION_SETTLE_TIMEOUT_MS = 5_000L
 /**
  * 为【角色】页提供可等待的真实会话动作。
  *
- * 不改动旧同步 API；这里先把官方 Skill 按需桥接为 legacy Character，再复用
- * RoundtableViewModel 现有 session/participant 状态发布逻辑。Boolean 只在目标状态
- * 真正落地后返回 true，调用方因此可以安全地把 recent-use 写在成功之后。
+ * 这里先把官方 Skill 按需桥接为 legacy Character，再复用 RoundtableViewModel 现有
+ * session 状态发布逻辑。Boolean 只在目标状态真正落地后返回 true，调用方因此可以
+ * 安全地把 recent-use 写在成功之后。
  */
 suspend fun RoundtableViewModel.createNewSessionWithSkillRole(
     skillId: String,
@@ -39,6 +39,7 @@ suspend fun RoundtableViewModel.createNewSessionWithSkillRole(
     val sessionId = runCatching { chatRepository.createSession(title) }.getOrNull() ?: return false
     conversationPreferences.setParticipantIds(sessionId, listOf(skillId))
 
+    // participant 已先持久化，再发布 current session，避免 create-then-add 空会话竞态。
     selectSession(sessionId)
     val settled = withTimeoutOrNull(ROLE_ACTION_SETTLE_TIMEOUT_MS) {
         combine(currentSessionId, currentParticipantIds) { currentId, participantIds ->
@@ -52,8 +53,12 @@ suspend fun RoundtableViewModel.createNewSessionWithSkillRole(
 }
 
 /**
- * 捕获当前 session 后再解析并桥接角色；若期间用户切换会话，本次动作失败且不会把
- * participant 写到新会话。成功返回前会等待现有 ViewModel participant 状态包含该角色。
+ * 始终把 participant 变更绑定到动作开始时捕获的 session ID。
+ *
+ * 不调用旧 [RoundtableViewModel.addSkillRoleToCurrentSession]，因为旧 wrapper 会在真正
+ * 执行时重新读取 currentSessionId，可能把角色写入刚切换的新会话。这里在兼容角色
+ * 准备完成后再次核对 session，并直接更新捕获会话的偏好；随后仅在它仍为当前会话时
+ * 通过 selectSession 刷新 ViewModel 状态。成功返回前继续等待 participant 状态落地。
  */
 suspend fun RoundtableViewModel.addSkillRoleToCurrentSessionAwait(
     skillId: String,
@@ -67,7 +72,23 @@ suspend fun RoundtableViewModel.addSkillRoleToCurrentSessionAwait(
     if (adapter.ensureCompatibleCharacter(definition) == null) return false
     if (currentSessionId.value != sessionId) return false
 
-    addSkillRoleToCurrentSession(skillId)
+    val conversationPreferences = ConversationSessionPreferences(application)
+    val originalParticipantIds = conversationPreferences.getParticipantIds(
+        sessionId = sessionId,
+        defaultIds = currentParticipantIds.value,
+    )
+    val updatedParticipantIds = (originalParticipantIds + skillId).distinct().take(15)
+    if (skillId !in updatedParticipantIds) return false
+
+    conversationPreferences.setParticipantIds(sessionId, updatedParticipantIds)
+    if (currentSessionId.value != sessionId) {
+        // 极窄并发窗口下只恢复原捕获会话，绝不把 participant 写入新会话。
+        conversationPreferences.setParticipantIds(sessionId, originalParticipantIds)
+        return false
+    }
+
+    // setParticipantIds 到 selectSession 之间没有挂起点；UI 主线程不会在中间切换会话。
+    selectSession(sessionId)
     val settled = withTimeoutOrNull(ROLE_ACTION_SETTLE_TIMEOUT_MS) {
         combine(currentSessionId, currentParticipantIds) { currentId, participantIds ->
             currentId to participantIds
