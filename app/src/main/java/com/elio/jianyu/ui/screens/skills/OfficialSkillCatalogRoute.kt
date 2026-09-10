@@ -11,6 +11,7 @@ import androidx.compose.runtime.saveable.mapSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import com.elio.jianyu.data.DeleteOfficialSkillCombinationCommand
 import com.elio.jianyu.data.JianyuRepository
 import com.elio.jianyu.data.OfficialSkillCombinationEntity
@@ -36,6 +37,8 @@ import com.elio.jianyu.skill.catalog.OfficialSkillPublicationStatus
 import com.elio.jianyu.skill.catalog.OfficialSkillRiskLevel
 import com.elio.jianyu.skill.catalog.OfficialSkillUseMode
 import com.elio.jianyu.skill.catalog.OfficialSkillUseRequest
+import com.elio.jianyu.skill.role.SkillRolePresentationCatalogLoader
+import com.elio.jianyu.skill.role.SkillRolePresentationLoadResult
 import java.util.UUID
 import kotlinx.coroutines.launch
 
@@ -121,6 +124,25 @@ fun OfficialSkillCatalogRoute(
             modifier = modifier,
         )
         return
+    }
+
+    val appContext = LocalContext.current.applicationContext
+    val presentationResult = remember(appContext, catalog) {
+        SkillRolePresentationCatalogLoader.load(appContext, catalog)
+    }
+    val presentationCatalog = when (presentationResult) {
+        is SkillRolePresentationLoadResult.Failure -> {
+            OfficialSkillCatalogScreen(
+                uiState = OfficialSkillCatalogUiState(
+                    isLoading = false,
+                    catalogError = presentationResult.message,
+                ),
+                onEvent = {},
+                modifier = modifier,
+            )
+            return
+        }
+        is SkillRolePresentationLoadResult.Success -> presentationResult.catalog
     }
 
     val scope = rememberCoroutineScope()
@@ -216,6 +238,13 @@ fun OfficialSkillCatalogRoute(
     } else {
         queriedSkills
     }
+    val roleCatalog = projectSkillRoleCatalog(
+        catalog = catalog,
+        presentationCatalog = presentationCatalog,
+        query = query,
+        favoriteIds = favoriteIds,
+        recentUses = recentUses,
+    )
 
     val uiState = OfficialSkillCatalogUiState(
         isLoading = false,
@@ -227,6 +256,7 @@ fun OfficialSkillCatalogRoute(
         totalSkillCount = catalog.skills.size,
         favoriteIds = favoriteIds,
         recentUses = recentUses,
+        roleCatalog = roleCatalog,
         selectedSkill = selectedSkillId?.let(catalog::findById),
         combinations = combinations,
         combinationsLoading = combinationsLoading,
