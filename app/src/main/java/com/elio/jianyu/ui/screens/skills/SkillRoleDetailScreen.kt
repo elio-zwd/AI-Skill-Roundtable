@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.elio.jianyu.skill.catalog.OfficialSkillPrimaryType
 import com.elio.jianyu.ui.components.JianyuRoleAvatar
 
 @Composable
@@ -164,6 +165,10 @@ internal fun SkillRoleDetailScreen(
                 items = skill.typicalScenarios,
             )
             RoleDetailSection(
+                title = "工作方式",
+                items = listOf(skillRoleWorkingStyle(role)),
+            )
+            RoleDetailSection(
                 title = "输入要求",
                 items = skill.inputRequirements,
             )
@@ -175,6 +180,30 @@ internal fun SkillRoleDetailScreen(
                 title = "边界",
                 items = skill.boundaries + skill.integrityBoundaries,
             )
+
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = "来源与能力依据",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = skill.sourceSummary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
 
             skill.personDisclaimer
                 ?.takeIf(String::isNotBlank)
@@ -251,6 +280,17 @@ internal fun SkillRoleDetailScreen(
             }
         }
     }
+}
+
+private fun skillRoleWorkingStyle(role: SkillRoleCardUi): String = when (role.primaryType) {
+    OfficialSkillPrimaryType.PERSON_PERSPECTIVE ->
+        "以公开观点与表达风格提供模拟视角，用于启发与比较，不代表本人。"
+    OfficialSkillPrimaryType.PROFESSIONAL_ADVISOR ->
+        "围绕问题给出结构化专业建议，并明确前提、限制与需要补充的信息。"
+    OfficialSkillPrimaryType.TASK_ASSISTANT ->
+        "围绕明确任务整理输入、执行步骤和可直接使用的输出。"
+    OfficialSkillPrimaryType.WORKFLOW_CAPABILITY ->
+        "按稳定工作流推进多步骤任务，并在关键节点保留检查与确认。"
 }
 
 @Composable
