@@ -54,6 +54,7 @@ import androidx.navigation.compose.rememberNavController
 import com.elio.jianyu.JianyuAppRuntime
 import com.elio.jianyu.JianyuAppRuntimeProvider
 import com.elio.jianyu.runtime.JianyuRuntimeState
+import com.elio.jianyu.skill.catalog.OfficialSkillCatalogRuntimeResult
 import com.elio.jianyu.skill.catalog.OfficialSkillUseRequest
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.components.JianyuNavigationIcons
@@ -63,6 +64,7 @@ import com.elio.jianyu.ui.navigation.JianyuNavigationRoutes
 import com.elio.jianyu.ui.navigation.ResourceTab
 import com.elio.jianyu.ui.navigation.navigateToIssue
 import com.elio.jianyu.ui.navigation.navigateToSecondary
+import com.elio.jianyu.ui.navigation.navigateToSkillDetail
 import com.elio.jianyu.ui.navigation.navigateToTopLevel
 import com.elio.jianyu.ui.screens.execution.AudioEnabledIssueExecutionRoute
 import com.elio.jianyu.ui.screens.home.HomeRoute
@@ -72,7 +74,10 @@ import com.elio.jianyu.ui.screens.settings.AiManagementRoute
 import com.elio.jianyu.ui.screens.settings.SettingsRoute
 import com.elio.jianyu.ui.screens.settings.TelemetryRoute
 import com.elio.jianyu.ui.screens.skills.OfficialSkillNavigationRoute
+import com.elio.jianyu.ui.screens.skills.SkillRoleDetailRoute
 import com.elio.jianyu.viewmodel.RoundtableViewModel
+import com.elio.jianyu.viewmodel.addSkillRoleToCurrentSessionAwait
+import com.elio.jianyu.viewmodel.createNewSessionWithSkillRole
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -224,6 +229,7 @@ internal fun MainAppContent(
     val currentSessionId by viewModel.currentSessionId.collectAsState()
 
     val navController = rememberNavController()
+    val roleActionScope = rememberCoroutineScope()
     var pendingSkillId by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingSkillIntent by rememberSaveable { mutableStateOf<String?>(null) }
     val onUseOfficialSkill: (OfficialSkillUseRequest) -> Unit = { request ->
@@ -285,88 +291,117 @@ internal fun MainAppContent(
                             },
                         )
                     },
-                issuesContent = {
-                    IssuesRoute(
-                        repository = appRuntime.repository,
-                        lifecycleRuntime = appRuntime.lifecycleRuntime,
-                        onOpenIssue = navController::navigateToIssue,
-                        onOpenSettings = {
-                            navController.navigateToSecondary(AppDestination.SETTINGS)
-                        },
-                    )
-                },
-                issueContent = { issueId, stageId ->
-                    AudioEnabledIssueExecutionRoute(
-                        repository = appRuntime.repository,
-                        coordinator = appRuntime.executionCoordinator,
-                        collaborationCoordinator = appRuntime.collaborationCoordinator,
-                        stageResultService = appRuntime.stageResultService,
-                        audioRuntime = appRuntime.audioRuntime,
-                        issueId = issueId,
-                        stageId = stageId,
-                        onBack = { navController.popBackStack() },
-                        onOpenStage = navController::navigateToIssue,
-                    )
-                },
-                skillsContent = {
-                    OfficialSkillNavigationRoute(
-                        repository = appRuntime.repository,
-                        runtimeResult = appRuntime.officialSkillCatalogRuntimeResult,
-                        onOpenSettings = {
-                            navController.navigateToSecondary(AppDestination.SETTINGS)
-                        },
-                        onUseSkill = onUseOfficialSkill,
-                    )
-                },
-                skillDetailContent = { skillId ->
-                    OfficialSkillNavigationRoute(
-                        repository = appRuntime.repository,
-                        runtimeResult = appRuntime.officialSkillCatalogRuntimeResult,
-                        initialSkillId = skillId,
-                        onBack = { navController.popBackStack() },
-                        onOpenSettings = {
-                            navController.navigateToSecondary(AppDestination.SETTINGS)
-                        },
-                        onUseSkill = onUseOfficialSkill,
-                    )
-                },
-                resourcesContent = { tab ->
-                    ResourcesRoute(
-                        repository = appRuntime.repository,
-                        initialTab = tab,
-                        onOpenSettings = {
-                            navController.navigateToSecondary(AppDestination.SETTINGS)
-                        },
-                        onOpenIssue = navController::navigateToIssue,
-                    )
-                },
-                settingsContent = {
-                    SettingsRoute(
-                        onBack = { navController.popBackStack() },
-                        onOpenAiManagement = {
-                            navController.navigateToSecondary(AppDestination.API_KEYS)
-                        },
-                        onOpenTelemetry = {
-                            navController.navigateToSecondary(AppDestination.TELEMETRY)
-                        },
-                    )
-                },
-                aiManagementContent = {
-                    AiManagementRoute(
-                        currentSessionId = currentSessionId,
-                        onBack = { navController.popBackStack() },
-                    )
-                },
-                telemetryContent = {
-                    TelemetryRoute(
-                        currentSessionId = currentSessionId,
-                        onBack = { navController.popBackStack() },
-                    )
-                },
-            )
+                    issuesContent = {
+                        IssuesRoute(
+                            repository = appRuntime.repository,
+                            lifecycleRuntime = appRuntime.lifecycleRuntime,
+                            onOpenIssue = navController::navigateToIssue,
+                            onOpenSettings = {
+                                navController.navigateToSecondary(AppDestination.SETTINGS)
+                            },
+                        )
+                    },
+                    issueContent = { issueId, stageId ->
+                        AudioEnabledIssueExecutionRoute(
+                            repository = appRuntime.repository,
+                            coordinator = appRuntime.executionCoordinator,
+                            collaborationCoordinator = appRuntime.collaborationCoordinator,
+                            stageResultService = appRuntime.stageResultService,
+                            audioRuntime = appRuntime.audioRuntime,
+                            issueId = issueId,
+                            stageId = stageId,
+                            onBack = { navController.popBackStack() },
+                            onOpenStage = navController::navigateToIssue,
+                        )
+                    },
+                    skillsContent = {
+                        OfficialSkillNavigationRoute(
+                            repository = appRuntime.repository,
+                            runtimeResult = appRuntime.officialSkillCatalogRuntimeResult,
+                            onOpenSettings = {
+                                navController.navigateToSecondary(AppDestination.SETTINGS)
+                            },
+                            onUseSkill = onUseOfficialSkill,
+                            onOpenSkillDetail = navController::navigateToSkillDetail,
+                        )
+                    },
+                    skillDetailContent = { skillId ->
+                        SkillRoleDetailRoute(
+                            runtimeResult = appRuntime.officialSkillCatalogRuntimeResult,
+                            skillId = skillId,
+                            canAddToCurrentConversation = currentSessionId != null,
+                            onBack = { navController.popBackStack() },
+                            onStartNewConversation = { selectedSkillId ->
+                                roleActionScope.launch {
+                                    val success = viewModel.createNewSessionWithSkillRole(selectedSkillId)
+                                    if (success) {
+                                        val runtime = (
+                                            appRuntime.officialSkillCatalogRuntimeResult
+                                                as? OfficialSkillCatalogRuntimeResult.Success
+                                            )?.runtime
+                                        runtime?.preferences?.recordSkillUsed(
+                                            selectedSkillId,
+                                            System.currentTimeMillis(),
+                                        )
+                                        navController.navigateToTopLevel(AppDestination.HOME)
+                                    }
+                                }
+                            },
+                            onAddToCurrentConversation = { selectedSkillId ->
+                                roleActionScope.launch {
+                                    val success = viewModel.addSkillRoleToCurrentSessionAwait(selectedSkillId)
+                                    if (success) {
+                                        val runtime = (
+                                            appRuntime.officialSkillCatalogRuntimeResult
+                                                as? OfficialSkillCatalogRuntimeResult.Success
+                                            )?.runtime
+                                        runtime?.preferences?.recordSkillUsed(
+                                            selectedSkillId,
+                                            System.currentTimeMillis(),
+                                        )
+                                        navController.navigateToTopLevel(AppDestination.HOME)
+                                    }
+                                }
+                            },
+                        )
+                    },
+                    resourcesContent = { tab ->
+                        ResourcesRoute(
+                            repository = appRuntime.repository,
+                            initialTab = tab,
+                            onOpenSettings = {
+                                navController.navigateToSecondary(AppDestination.SETTINGS)
+                            },
+                            onOpenIssue = navController::navigateToIssue,
+                        )
+                    },
+                    settingsContent = {
+                        SettingsRoute(
+                            onBack = { navController.popBackStack() },
+                            onOpenAiManagement = {
+                                navController.navigateToSecondary(AppDestination.API_KEYS)
+                            },
+                            onOpenTelemetry = {
+                                navController.navigateToSecondary(AppDestination.TELEMETRY)
+                            },
+                        )
+                    },
+                    aiManagementContent = {
+                        AiManagementRoute(
+                            currentSessionId = currentSessionId,
+                            onBack = { navController.popBackStack() },
+                        )
+                    },
+                    telemetryContent = {
+                        TelemetryRoute(
+                            currentSessionId = currentSessionId,
+                            onBack = { navController.popBackStack() },
+                        )
+                    },
+                )
+            }
         }
     }
-}
 }
 
 @Composable
