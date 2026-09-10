@@ -15,10 +15,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -127,12 +125,6 @@ internal fun SkillRolePageHeader(
                         .heightIn(min = 48.dp)
                         .testTag(OfficialSkillCatalogTestTags.FILTER_BUTTON),
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.FilterList,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(Modifier.width(4.dp))
                     Text("筛选")
                 }
             }
@@ -418,10 +410,10 @@ internal fun SkillRoleListRow(
                 )
             }
             FavoriteRoleButton(role, onToggleFavorite)
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = "查看角色",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            Text(
+                text = "›",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
