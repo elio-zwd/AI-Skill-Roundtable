@@ -34,10 +34,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.skill.catalog.OfficialSkillPrimaryType
 import com.elio.jianyu.ui.components.JianyuRoleAvatar
+import com.elio.jianyu.ui.components.JianyuShellTestTags
 
 @Composable
 internal fun SkillRoleDetailScreen(
@@ -65,7 +67,9 @@ internal fun SkillRoleDetailScreen(
         ) {
             IconButton(
                 onClick = onBack,
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier
+                    .size(48.dp)
+                    .testTag(JianyuShellTestTags.PAGE_BACK_BUTTON),
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
