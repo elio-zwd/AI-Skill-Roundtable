@@ -59,6 +59,9 @@ class SkillRoleDetailScreenTest {
         role.officialSkill.personDisclaimer?.let { disclosure ->
             composeRule.onNodeWithText(disclosure).assertExists()
         } ?: error("人物型官方 Skill 必须有 personDisclaimer")
+        composeRule.onNodeWithText("工作方式").assertExists()
+        composeRule.onNodeWithText("来源与能力依据").assertExists()
+        composeRule.onNodeWithText(role.officialSkill.sourceSummary).assertExists()
         composeRule.onNodeWithText("开始新对话").performClick()
         composeRule.onNodeWithText("增加到当前会话").assertIsNotEnabled()
         composeRule.onNodeWithText("当前没有可加入的会话").assertExists()
@@ -85,13 +88,16 @@ class SkillRoleDetailScreenTest {
 
         composeRule.onNodeWithText(role.name).assertExists()
         composeRule.onNodeWithText("适合的问题").assertExists()
+        composeRule.onNodeWithText("工作方式").assertExists()
         composeRule.onNodeWithText("输入要求").assertExists()
         composeRule.onNodeWithText("输出形式").assertExists()
         composeRule.onNodeWithText("边界").assertExists()
+        composeRule.onNodeWithText("来源与能力依据").assertExists()
         composeRule.onNodeWithText("开始新对话").assertExists()
         composeRule.onNodeWithText("增加到当前会话").assertExists()
         composeRule.runOnIdle {
             assertTrue(role.officialSkill.typicalScenarios.isNotEmpty())
+            assertTrue(role.officialSkill.sourceSummary.isNotBlank())
         }
     }
 }
