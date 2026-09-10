@@ -1,6 +1,7 @@
 package com.elio.jianyu.ui.screens.skills
 
 import com.elio.jianyu.skill.catalog.OfficialSkillCatalog
+import com.elio.jianyu.skill.catalog.OfficialSkillCatalogFilters
 import com.elio.jianyu.skill.catalog.OfficialSkillCatalogQuery
 import com.elio.jianyu.skill.catalog.OfficialSkillDefinition
 import com.elio.jianyu.skill.catalog.OfficialSkillPrimaryType
@@ -45,6 +46,7 @@ internal fun projectSkillRoleCatalog(
     presentationCatalog: SkillRolePresentationCatalog,
     query: String = "",
     selectedCategory: SkillRoleDiscoveryCategory? = null,
+    filters: OfficialSkillCatalogFilters = OfficialSkillCatalogFilters(),
     favoriteIds: Set<String> = emptySet(),
     recentUses: List<RecentOfficialSkillUse> = emptyList(),
     legacyAvatarPaths: Map<String, String> = emptyMap(),
@@ -81,6 +83,9 @@ internal fun projectSkillRoleCatalog(
     val matchedIds = OfficialSkillCatalogQuery.apply(
         catalog = catalog,
         query = query,
+        filters = filters.copy(favoritesOnly = false, recentOnly = false),
+        favoriteIds = favoriteIds,
+        recentSkillIds = latestUseBySkillId.keys,
     ).mapTo(linkedSetOf(), OfficialSkillDefinition::id)
 
     val visibleRoles = allRoles.filter { role ->
