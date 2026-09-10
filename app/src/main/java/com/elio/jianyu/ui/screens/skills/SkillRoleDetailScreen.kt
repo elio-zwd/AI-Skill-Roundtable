@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
@@ -89,7 +90,8 @@ internal fun SkillRoleDetailScreen(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .padding(top = 18.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(top = 18.dp, bottom = 18.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             Row(
