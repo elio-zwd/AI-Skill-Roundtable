@@ -8,11 +8,90 @@
 >
 > PR：#59（Draft，禁止自动合并）
 >
-> 本文用途：结束当前 UI-02 开发执行对话，将剩余工作交给新的“规划师 AI”拆分、排序和安排。聊天上下文不再作为唯一状态来源。
+> UI-02 功能/验收基线 HEAD：`49b9f1a5ad6cedb775ad45f230f4fb5aeb3e85a3`
+>
+> 本文用途：向总规划 AI 提供 UI-02 最终收口事实。聊天上下文不再作为唯一状态来源。
 
 ## 1. 当前阶段结论
 
-UI-02 已完成主要代码实现和两轮视觉校准，但 **Task 7 尚未完成，PR #59 不可宣称完成**。
+UI-02 主体实现、P0 bridge、LIFE_TOOLS 5/5、recent-use 与最小真实模型调用门禁均已有最终证据；**Task 7 仍保持未完成，PR #59 继续 Draft**。
+
+当前未关闭项只有：
+
+1. UI-01 shared Root Navigation（`对话 / 角色 / 资料 / 我的`）仍为外部依赖；
+2. `assembleDebugAndroidTest` 仍受仓库既有 AndroidTest baseline compile blocker 影响；
+3. 最终 merge-readiness 仍等待总规划 AI 决策。
+
+因此不要再把 Start New / Add Current / recent-use / LIFE_TOOLS 4/5 / `MODEL_CALL: NOT_RUN` 当作当前问题，也不要把 AndroidTest baseline blocker 写成 UI-02 功能失败。
+
+## 2. 已完成的 UI-02 主体与最终门禁
+
+以下不应被重新设计或重新作为 Bug 排查，除非出现新的反证：
+
+- [x] 44 项 `OfficialSkillCatalog` 是角色全集权威。
+- [x] Presentation Manifest 只保存发现分类和编辑精选，不复制官方 Skill 身份/能力事实。
+- [x] 发现分类：`全部 / 思考方法 / 职业成长 / 研究学习 / 产品创造 / 沟通表达 / 办公事务 / 生活工具`。
+- [x] 固定推荐：纳瓦尔 → 理查德·费曼 → 纳西姆·塔勒布。
+- [x] 真人角色稳定头像 + `AI 模拟角色`；功能角色稳定非真人身份视觉。
+- [x] A 页：推荐 Hero + 两张次卡 + 最近使用（有数据才出现）+ 全部角色。
+- [x] B 页：分类说明 + 双列角色目录，窄屏/大字体安全降单列。
+- [x] 全屏详情：身份 Hero、能力/输入/输出/工作方式/边界/来源与能力依据、真人声明、固定双动作。
+- [x] raw `career_workplace / creator_business / personal_finance` 等内部 token 已从用户 UI 隐藏。
+- [x] `OfficialSkillConversationRoleAdapter`、`createNewSessionWithSkillRole`、`addSkillRoleToCurrentSessionAwait` 已实现并获得运行时证据。
+- [x] P0 Start New：PASS；真实进入新 session，并确认 `meeting-to-action` participant。
+- [x] P0 Add Current：PASS；保持 captured current session，participant 增加成功。
+- [x] recent-use：PASS；成功 use action 后可归因刷新。
+- [x] R-03 LIFE_TOOLS：PASS；批准 5 项全部存在，第三行滚动可见 `culture-fortune-entertainment`。
+- [x] R-05 model call：PASS；`meeting-to-action → 详情 → 开始新对话 → hello → 真实回复`。
+- [x] `compileDebugKotlin`：PASS。
+- [x] targeted JVM：PASS。
+- [x] `testDebugUnitTest`：PASS。
+- [x] `assembleDebug`：PASS。
+
+### R-03 最终澄清
+
+第二轮 `生活工具` 4/5 是首屏视口误判，不是 Catalog / Query / projection / Presentation Manifest 的数据缺陷。
+
+批准的 LIFE_TOOLS 始终是：
+
+1. `budget-consumption-coach`
+2. `habit-wellbeing-coach`
+3. `relationship-dialogue-practice`
+4. `chinese-social-etiquette`
+5. `culture-fortune-entertainment`
+
+`skill_role_presentation_v1.json` 已包含全部 5 项；双列网格的第 5 项位于第三行、第二轮截图首屏下方。后续实际滚动后已确认第三行可达。因此禁止再通过“补 Manifest”伪造修复。
+
+## 3. 当前未关闭项
+
+### U-01：UI-01 shared Root Navigation
+
+最终共享 `对话 / 角色 / 资料 / 我的` Bottom Navigation 仍属于 UI-01。UI-02 没有私建第二套底栏。
+
+当前动作：等待 UI-01 的共享 Root Navigation 集成状态明确，再由总规划 AI决定是否满足 UI-02 最终 merge-readiness。
+
+### U-02：AndroidTest baseline compile blocker
+
+`assembleDebugAndroidTest` 仍被：
+
+`app/src/androidTest/java/com/elio/jianyu/ui/screens/execution/IssueExecutionStopAvailabilityTest.kt:49`
+
+旧 `IssueExecutionBudgetUi` 构造参数失配阻塞。
+
+该项为 **BLOCKED_BASELINE**，不是 UI-02 功能失败。本轮禁止修改、删除、跳过或弱化该 AndroidTest baseline。
+
+### U-03：Final merge-readiness
+
+PR #59 继续保持 Open + Draft + 未合并。
+
+- 不标记 Ready；
+- 不自动 merge；
+- 不把 Task 7 勾选完成；
+- 等待总规划 AI 对 UI-01 / baseline / PR 集成状态作最终 merge-readiness 决策。
+
+## 4. 第二轮验收历史快照（原文保留，不代表当前状态）
+
+> 以下保留第二轮失败原文，供审计与根因追溯。当前状态以本文第 1～3 节为准。
 
 第二轮本地只读验收基线：
 
@@ -35,25 +114,6 @@ UI-02 已完成主要代码实现和两轮视觉校准，但 **Task 7 尚未完�
 
 - `assembleDebugAndroidTest` 被 `app/src/androidTest/java/com/elio/jianyu/ui/screens/execution/IssueExecutionStopAvailabilityTest.kt:49` 的旧 `IssueExecutionBudgetUi` 构造参数阻塞。
 - 本任务不得通过修改/删除/跳过该旧测试制造 AndroidTest 绿灯；除非规划师单独创建独立基线修复任务。
-
-## 2. 已完成的 UI-02 主体
-
-以下不应被重新设计，除非新的证据表明存在 Bug：
-
-- 44 项 `OfficialSkillCatalog` 是角色全集权威。
-- Presentation Manifest 只保存发现分类和编辑精选，不复制官方 Skill 身份/能力事实。
-- 发现分类：`全部 / 思考方法 / 职业成长 / 研究学习 / 产品创造 / 沟通表达 / 办公事务 / 生活工具`。
-- 固定推荐：纳瓦尔 → 理查德·费曼 → 纳西姆·塔勒布。
-- 真人角色稳定头像 + `AI 模拟角色`；功能角色稳定非真人身份视觉。
-- A 页：推荐 Hero + 两张次卡 + 最近使用（有数据才出现）+ 全部角色。
-- B 页：分类说明 + 双列角色目录，窄屏/大字体安全降单列。
-- 全屏详情：身份 Hero、能力/输入/输出/工作方式/边界/来源与能力依据、真人声明、固定双动作。
-- raw `career_workplace / creator_business / personal_finance` 等内部 token 已从用户 UI 隐藏。
-- `OfficialSkillConversationRoleAdapter`、`createNewSessionWithSkillRole`、`addSkillRoleToCurrentSessionAwait` 已实现。
-- recent-use 代码意图是“真实 use action 返回 success 后才写”。
-- UI-01 最终共享 `对话 / 角色 / 资料 / 我的` 导航仍是外部依赖；UI-02 不私建第二套底栏。
-
-## 3. 第二轮验收暴露的真实剩余问题
 
 ### R-01 / P0：开始新对话桥失败
 
@@ -205,117 +265,42 @@ UI-02 已明确不负责私建最终 `对话 / 角色 / 资料 / 我的`。
 
 不要把当前旧底栏作为 UI-02 Bug。
 
-## 4. 建议规划师的任务编排
+## 5. 第三轮/最终证据对第二轮问题的关闭映射
 
-建议按以下顺序，不要继续优先做视觉微调：
+- [x] R-01 / Start New：关闭，PASS。
+- [x] R-02 / Add Current：关闭，PASS。
+- [x] R-03 / LIFE_TOOLS 4/5：关闭；根因是首屏视口误判，第三行滚动 5/5 PASS。
+- [x] R-04 / recent-use：关闭，PASS。
+- [x] R-05 / model call：关闭，真实回复 PASS。
+- [ ] R-06 / AndroidTest baseline：仍为独立 BLOCKED_BASELINE，不在 UI-02 修复。
+- [ ] R-07 / UI-01 shared navigation：仍为外部依赖。
 
-```text
-P0 Spike：统一调查 start-new + add-current bridge 根因
-  ↓
-Bounded Fix：按已确认根因做最小修复 + 回归测试
-  ↓
-P1 Bounded：修复 LIFE_TOOLS 4/5
-  ↓
-本地 AI：验证 bridge + recent + model call + LIFE_TOOLS 5/5
-  ↓
-Drive：建立新的 visual run，重新上传关键截图/UI dump
-  ↓
-GPT：读取 Drive 做最后视觉审查（仅有证据再调视觉）
-  ↓
-可选独立 Bounded：修复 AndroidTest 基线阻塞
-  ↓
-等待/集成 UI-01
-  ↓
-最终 regression / PR review / Task 7 完成
-```
+## 6. 当前 Task 7 门禁
 
-## 5. 下一轮开发必须优先读取
+Task 7 仍保持未完成。当前细粒度状态：
 
-开始任何修复前读取：
+- [x] LIFE_TOOLS 5/5 在运行时可见。
+- [x] `meeting-to-action` start-new 真正进入 Dialog participant。
+- [x] `study-planner` add-current 真正进入同一 session participant。
+- [x] recent-use 成功语义已获得可归因人工证据。
+- [x] 至少一个正式角色模型调用能走 Skill asset 并返回真实回复。
+- [x] A/B/详情关键视觉已有通过证据。
+- [x] raw internal tags 仍未泄漏。
+- [x] `compileDebugKotlin` / targeted JVM / `testDebugUnitTest` / `assembleDebug` 已有最终通过证据。
+- [ ] AndroidTest 状态仍为 `BLOCKED_BASELINE`，待独立处理/总规划裁决。
+- [ ] UI-01 shared Root Navigation 集成状态未关闭。
+- [ ] final merge-readiness 尚未由总规划 AI 决定。
 
-- `AGENTS.md`
-- `app/src/main/java/com/elio/jianyu/ui/AGENTS.md`
-- `docs/superpowers/plans/2026-09-10-ui-02-role-page.md`
-- `docs/superpowers/status/2026-09-10-ui-02-role-page.md`
-- 本文件
-- `docs/product/重构/UI界面/实施规格/UI-02/角色主页面-双布局-实施规格.md`
-- `docs/product/重构/UI界面/实施规格/UI-02/2026-09-11-Drive视觉校准审查.md`
-- `docs/testing/ui-02-role-page-local-visual-round2.md`
+## 7. 分支 / PR 规则
 
-根因调查重点代码：
+- 继续使用 `codex/ui-02-role-spec`；不创建新 branch。
+- PR #59 继续保持 Draft、Open、未合并。
+- 不自动 merge，不标记 Ready，不 close。
+- 不修改 `main`。
+- 本次收口只允许状态文档与 PR body 变化；生产代码、Compose、Catalog、Manifest、Room、Gradle、测试逻辑和 AndroidTest baseline 均不得修改。
 
-- `app/src/main/java/com/elio/jianyu/ui/App.kt`
-- `app/src/main/java/com/elio/jianyu/ui/screens/skills/SkillRoleDetailRoute.kt`
-- `app/src/main/java/com/elio/jianyu/viewmodel/RoundtableViewModelSkillRoleActions.kt`
-- `app/src/main/java/com/elio/jianyu/skill/role/OfficialSkillConversationRoleAdapter.kt`
-- `app/src/main/java/com/elio/jianyu/ui/screens/skills/SkillRoleCatalogRoute.kt`
-- `app/src/main/java/com/elio/jianyu/ui/screens/skills/SkillRoleCatalogUiState.kt`
-- `app/src/main/assets/skill_role_presentation_v1.json`
+## 8. 下一步
 
-## 6. 已有测试/验证事实
+下一步仅等待总规划 AI 的 merge-readiness 决策，并根据 UI-01 shared Root Navigation 与 AndroidTest baseline 的最终处理状态决定 Task 7 是否可以完成。
 
-第二轮本地结果：
-
-```text
-COMPILE_DEBUG_KOTLIN: PASS
-JVM_TARGETED: PASS
-LINT_DEBUG: PASS
-ASSEMBLE_DEBUG: PASS
-ASSEMBLE_DEBUG_ANDROID_TEST: BLOCKED_BASELINE
-VISUAL_A_PAGE: PASS
-VISUAL_B_PAGE: FAIL
-VISUAL_DETAIL: PASS
-RAW_DOMAIN_TAGS_HIDDEN: PASS
-MANUAL_START_NEW_BRIDGE: FAIL
-MANUAL_ADD_CURRENT_BRIDGE: FAIL
-RECENT_USE_SEMANTICS: FAIL
-MODEL_CALL: NOT_RUN
-```
-
-不要重复执行已证明无关的正常日志采集；只有代码变化后才重跑对应验证。
-
-## 7. Drive 视觉证据
-
-第二轮 runtime 根目录：
-
-`https://drive.google.com/drive/folders/1dW5L7-grPB00N4l1iMgAKpN-l5W0rcr4`
-
-其中已有：
-
-- `00-environment`
-- `01-role-catalog`
-- `02-role-category`
-- `03-role-detail`
-- `04-conversation-bridge`
-- `05-recent-empty`
-
-本轮共 12 张 runtime screenshot，另有 UI dump / logcat 证据。
-
-未来每轮修复继续新建独立 Drive run，禁止覆盖历史证据。
-
-## 8. 分支 / PR 规则
-
-- 当前 PR #59 保持 Draft。
-- 不自动 merge。
-- 如果规划师决定继续同一个 UI-02 修复，可继续当前 `codex/ui-02-role-spec`；不要为了形式重复开重叠 PR。
-- 若单独修 AndroidTest 基线或 UI-01，使用独立 branch/PR，避免污染 UI-02 功能修复。
-- 任何“完成”声明必须引用实际测试/截图/CI 证据。
-
-## 9. UI-02 最终完成门禁
-
-只有以下全部满足，Task 7 才可勾选完成：
-
-- [ ] LIFE_TOOLS 5/5 在运行时可见。
-- [ ] `meeting-to-action` start-new 真正进入 Dialog participant。
-- [ ] `study-planner` add-current 真正进入同一 session participant。
-- [ ] recent-use 成功/失败语义人工可归因验证通过。
-- [ ] 至少一个 21～44 角色实际模型调用能走正式 Skill asset。
-- [ ] A/B/详情关键视觉复验通过。
-- [ ] raw internal tags 仍未泄漏。
-- [ ] JVM / compile / lint / assemble 回归通过。
-- [ ] AndroidTest 状态有明确结论（PASS 或已单独记录并处理基线阻塞）。
-- [ ] UI-01 共享导航依赖有明确集成状态。
-- [ ] GPT 自审 + 本地 AI 只读验收完成。
-- [ ] Plan / Status / PR body 与事实同步。
-
-在此之前：**不要把 PR #59 标记 ready，不要 merge，不要宣称 UI-02 完成。**
+在此之前：**不要把 PR #59 标记 ready，不要 merge，不要宣称 Task 7 完成。**
