@@ -50,8 +50,6 @@ import com.elio.jianyu.skill.role.SkillRoleDiscoveryCategory
 import com.elio.jianyu.ui.components.JianyuRoleAvatar
 import com.elio.jianyu.ui.components.JianyuShellTestTags
 
-private val RoleDetailBackground = Color(0xFFFCFBFE)
-
 @Composable
 internal fun SkillRoleDetailScreen(
     role: SkillRoleCardUi,
@@ -67,7 +65,7 @@ internal fun SkillRoleDetailScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(RoleDetailBackground)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .padding(horizontal = 16.dp),
     ) {
@@ -402,7 +400,7 @@ private fun RoleDetailActions(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding(),
-        color = RoleDetailBackground,
+        color = MaterialTheme.colorScheme.background,
     ) {
         Column(
             modifier = Modifier.padding(top = 10.dp, bottom = 10.dp),

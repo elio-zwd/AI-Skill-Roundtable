@@ -62,8 +62,6 @@ import com.elio.jianyu.skill.role.SkillRoleDiscoveryCategory
 import com.elio.jianyu.ui.components.JianyuRoleAvatar
 import com.elio.jianyu.ui.components.JianyuStateCard
 
-private val RolePageBackground = Color(0xFFFCFBFE)
-
 /**
  * UI-02 专用 Screen。
  *
@@ -79,7 +77,7 @@ internal fun SkillRolePageScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(RolePageBackground)
+            .background(MaterialTheme.colorScheme.background)
             .testTag(OfficialSkillCatalogTestTags.ROOT),
     ) {
         when {
