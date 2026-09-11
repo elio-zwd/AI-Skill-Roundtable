@@ -109,12 +109,13 @@ private suspend fun RoundtableViewModel.refreshSessionRosterAndAwait(
     skillId: String,
 ): Boolean {
     selectSession(sessionId)
-    val publishedSession = withTimeoutOrNull(ROLE_ACTION_SETTLE_TIMEOUT_MS) {
+    val sessionPublished = withTimeoutOrNull(ROLE_ACTION_SETTLE_TIMEOUT_MS) {
         currentSession.first { session -> session?.id == sessionId }
-    } ?: return false
+        true
+    } == true
+    if (!sessionPublished) return false
 
-    return publishedSession.id == sessionId &&
-        currentSessionId.value == sessionId &&
+    return currentSessionId.value == sessionId &&
         skillId in currentParticipantIds.value
 }
 
