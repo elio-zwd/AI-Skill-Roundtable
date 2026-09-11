@@ -10,29 +10,36 @@ enum class AppDestination(
     HOME(
         routePattern = "home",
         launchRoute = "home",
-        label = "首页",
+        label = "对话",
         testTagSuffix = "home",
-        showsBottomNavigation = false,
+        showsBottomNavigation = true,
     ),
     ISSUES(
         routePattern = "issues",
         launchRoute = JianyuNavigationRoutes.ISSUES_GRAPH,
         label = "议题",
         testTagSuffix = "issues",
-        showsBottomNavigation = true,
+        showsBottomNavigation = false,
     ),
     SKILLS(
         routePattern = "skills",
         launchRoute = JianyuNavigationRoutes.SKILLS_GRAPH,
-        label = "Skill",
+        label = "角色",
         testTagSuffix = "skills",
         showsBottomNavigation = true,
     ),
     RESOURCES(
         routePattern = "resources?tab={tab}",
         launchRoute = JianyuNavigationRoutes.resources(ResourceTab.MATERIALS),
-        label = "资料与成果",
+        label = "资料",
         testTagSuffix = "resources",
+        showsBottomNavigation = true,
+    ),
+    MINE(
+        routePattern = "mine",
+        launchRoute = "mine",
+        label = "我的",
+        testTagSuffix = "mine",
         showsBottomNavigation = true,
     ),
     SETTINGS(
@@ -63,9 +70,9 @@ enum class AppDestination(
 
         val topLevelDestinations: List<AppDestination> = listOf(
             HOME,
-            ISSUES,
             SKILLS,
             RESOURCES,
+            MINE,
         )
 
         fun fromRoutePattern(routePattern: String?): AppDestination? =

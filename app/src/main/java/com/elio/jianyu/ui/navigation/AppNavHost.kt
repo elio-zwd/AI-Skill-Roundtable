@@ -17,11 +17,12 @@ fun AppNavHost(
     navController: NavHostController,
     modifier: Modifier = Modifier,
     homeContent: @Composable () -> Unit,
-    issuesContent: @Composable () -> Unit,
+    issuesContent: @Composable (issueId: String?, stageId: String?) -> Unit,
     issueContent: @Composable (issueId: String?, stageId: String?) -> Unit,
     skillsContent: @Composable () -> Unit,
     skillDetailContent: @Composable (skillId: String?) -> Unit,
     resourcesContent: @Composable (ResourceTab) -> Unit,
+    mineContent: @Composable () -> Unit,
     settingsContent: @Composable () -> Unit,
     aiManagementContent: @Composable () -> Unit,
     telemetryContent: @Composable () -> Unit,
@@ -38,8 +39,30 @@ fun AppNavHost(
             route = JianyuNavigationRoutes.ISSUES_GRAPH,
             startDestination = AppDestination.ISSUES.routePattern,
         ) {
-            composable(AppDestination.ISSUES.routePattern) {
-                issuesContent()
+            composable(
+                route = AppDestination.ISSUES.routePattern,
+                arguments = listOf(
+                    navArgument(JianyuNavigationRoutes.ISSUE_ID_ARGUMENT) {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    },
+                    navArgument(JianyuNavigationRoutes.STAGE_ID_ARGUMENT) {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    },
+                ),
+                deepLinks = listOf(
+                    navDeepLink {
+                        uriPattern = JianyuNavigationRoutes.ISSUE_DEEP_LINK_PATTERN
+                    },
+                ),
+            ) { entry ->
+                issuesContent(
+                    entry.arguments?.getString(JianyuNavigationRoutes.ISSUE_ID_ARGUMENT),
+                    entry.arguments?.getString(JianyuNavigationRoutes.STAGE_ID_ARGUMENT),
+                )
             }
             composable(
                 route = JianyuNavigationRoutes.ISSUE_DETAIL_PATTERN,
@@ -51,11 +74,6 @@ fun AppNavHost(
                         type = NavType.StringType
                         nullable = true
                         defaultValue = null
-                    },
-                ),
-                deepLinks = listOf(
-                    navDeepLink {
-                        uriPattern = JianyuNavigationRoutes.ISSUE_DEEP_LINK_PATTERN
                     },
                 ),
             ) { entry ->
@@ -109,6 +127,9 @@ fun AppNavHost(
                     entry.arguments?.getString(JianyuNavigationRoutes.RESOURCE_TAB_ARGUMENT),
                 ),
             )
+        }
+        composable(AppDestination.MINE.routePattern) {
+            mineContent()
         }
         composable(AppDestination.SETTINGS.routePattern) {
             settingsContent()
@@ -168,10 +189,7 @@ fun NavHostController.navigateToSecondary(destination: AppDestination) {
 }
 
 fun NavHostController.navigateToIssue(issueId: String, stageId: String? = null) {
-    ensureTopLevelParent(
-        graphRoute = JianyuNavigationRoutes.ISSUES_GRAPH,
-        destination = AppDestination.ISSUES,
-    )
+    ensureInternalGraphParent(JianyuNavigationRoutes.ISSUES_GRAPH)
     navigate(JianyuNavigationRoutes.issue(issueId, stageId)) {
         launchSingleTop = true
     }
@@ -196,5 +214,21 @@ private fun NavHostController.ensureTopLevelParent(
     } == true
     if (!alreadyInGraph) {
         navigateToTopLevel(destination)
+    }
+}
+
+private fun NavHostController.ensureInternalGraphParent(graphRoute: String) {
+    val alreadyInGraph = currentDestination?.hierarchy?.any { entry ->
+        entry.route == graphRoute
+    } == true
+    if (!alreadyInGraph) {
+        // Issue 是二级内部能力，不能通过 Root BottomNav 的 top-level 合同进入。
+        navigate(graphRoute) {
+            popUpTo(graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
+        }
     }
 }

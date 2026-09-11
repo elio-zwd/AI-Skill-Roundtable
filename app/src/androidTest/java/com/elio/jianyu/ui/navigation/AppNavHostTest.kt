@@ -3,6 +3,11 @@ package com.elio.jianyu.ui.navigation
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -40,7 +45,18 @@ class AppNavHostTest {
                 AppNavHost(
                     navController = navController,
                     homeContent = { DestinationMarker(AppDestination.HOME.routePattern) },
-                    issuesContent = { DestinationMarker(AppDestination.ISSUES.routePattern) },
+                    issuesContent = { issueId, stageId ->
+                        var deepLinkConsumed by rememberSaveable(issueId, stageId) {
+                            mutableStateOf(false)
+                        }
+                        LaunchedEffect(issueId, stageId) {
+                            if (issueId != null && !deepLinkConsumed) {
+                                deepLinkConsumed = true
+                                navController.navigateToIssue(issueId, stageId)
+                            }
+                        }
+                        DestinationMarker(AppDestination.ISSUES.routePattern)
+                    },
                     issueContent = { issueId, stageId ->
                         DestinationMarker(issueMarker(issueId, stageId))
                     },
@@ -51,6 +67,7 @@ class AppNavHostTest {
                     resourcesContent = { tab ->
                         DestinationMarker(resourcesMarker(tab))
                     },
+                    mineContent = { DestinationMarker(AppDestination.MINE.routePattern) },
                     settingsContent = { DestinationMarker(AppDestination.SETTINGS.routePattern) },
                     aiManagementContent = { DestinationMarker(AppDestination.API_KEYS.routePattern) },
                     telemetryContent = { DestinationMarker(AppDestination.TELEMETRY.routePattern) },
@@ -69,13 +86,6 @@ class AppNavHostTest {
     @Test
     fun topLevelNavigation_switchesAcrossFourDestinations() {
         composeRule.runOnIdle {
-            navController.navigateToTopLevel(AppDestination.ISSUES)
-        }
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag(AppDestination.ISSUES.routePattern).assertIsDisplayed()
-        assertCurrentRoute(AppDestination.ISSUES.routePattern)
-
-        composeRule.runOnIdle {
             navController.navigateToTopLevel(AppDestination.SKILLS)
         }
         composeRule.waitForIdle()
@@ -88,16 +98,30 @@ class AppNavHostTest {
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(resourcesMarker(ResourceTab.MATERIALS)).assertIsDisplayed()
         assertCurrentRoute(AppDestination.RESOURCES.routePattern)
+
+        composeRule.runOnIdle {
+            navController.navigateToTopLevel(AppDestination.MINE)
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(AppDestination.MINE.routePattern).assertIsDisplayed()
+        assertCurrentRoute(AppDestination.MINE.routePattern)
+
+        composeRule.runOnIdle {
+            navController.navigateToTopLevel(AppDestination.HOME)
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(AppDestination.HOME.routePattern).assertIsDisplayed()
+        assertCurrentRoute(AppDestination.HOME.routePattern)
     }
 
     @Test
     fun repeatedTopLevelNavigation_doesNotCreateDuplicateDestination() {
         composeRule.runOnIdle {
-            navController.navigateToTopLevel(AppDestination.ISSUES)
-            navController.navigateToTopLevel(AppDestination.ISSUES)
+            navController.navigateToTopLevel(AppDestination.MINE)
+            navController.navigateToTopLevel(AppDestination.MINE)
         }
         composeRule.waitForIdle()
-        assertCurrentRoute(AppDestination.ISSUES.routePattern)
+        assertCurrentRoute(AppDestination.MINE.routePattern)
 
         composeRule.runOnIdle {
             assertTrue(navController.popBackStack())
@@ -134,6 +158,42 @@ class AppNavHostTest {
         assertCurrentRoute(JianyuNavigationRoutes.ISSUE_DETAIL_PATTERN)
 
         composeRule.runOnIdle { navController.popBackStack() }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(AppDestination.ISSUES.routePattern).assertIsDisplayed()
+        assertCurrentRoute(AppDestination.ISSUES.routePattern)
+    }
+
+    @Test
+    fun issueRoute_usesInternalGraphParentAfterIssueLeavesRootNavigation() {
+        composeRule.runOnIdle {
+            navController.navigateToIssue("issue-parent")
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(issueMarker("issue-parent", "")).assertIsDisplayed()
+        assertCurrentRoute(JianyuNavigationRoutes.ISSUE_DETAIL_PATTERN)
+
+        composeRule.runOnIdle { assertTrue(navController.popBackStack()) }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(AppDestination.ISSUES.routePattern).assertIsDisplayed()
+        assertCurrentRoute(AppDestination.ISSUES.routePattern)
+    }
+
+    @Test
+    fun issueDeepLink_preservesStageIdWithoutRootBottomNavigationEntry() {
+        val deepLink = Intent(
+            Intent.ACTION_VIEW,
+            Uri.parse("jianyu://issues/issue-deep-link?stageId=stage-7"),
+        )
+
+        composeRule.runOnIdle {
+            assertTrue(navController.handleDeepLink(deepLink))
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(issueMarker("issue-deep-link", "stage-7")).assertIsDisplayed()
+        assertCurrentRoute(JianyuNavigationRoutes.ISSUE_DETAIL_PATTERN)
+
+        composeRule.runOnIdle { assertTrue(navController.popBackStack()) }
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(AppDestination.ISSUES.routePattern).assertIsDisplayed()
         assertCurrentRoute(AppDestination.ISSUES.routePattern)

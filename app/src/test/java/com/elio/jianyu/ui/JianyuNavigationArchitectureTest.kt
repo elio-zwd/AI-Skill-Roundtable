@@ -16,13 +16,13 @@ class JianyuNavigationArchitectureTest {
     fun app_assemblesCurrentJianyuRoutesWithoutLegacyEntries() {
         val source = uiRoot.resolve("App.kt").readText()
         listOf(
-            "HomeRoute",
             "IssuesRoute",
             "IssueExecutionRoute",
             "ResourcesRoute",
             "SettingsRoute",
             "OfficialSkillNavigationRoute",
             "DialogRoute",
+            "MineRoute",
             "AiManagementRoute",
             "TelemetryRoute",
         ).forEach { route ->
@@ -87,7 +87,7 @@ class JianyuNavigationArchitectureTest {
 
     @Test
     fun navigationShellScreens_doNotAccessDaosOrRepositoryWriteMethods() {
-        val domains = listOf("home", "issues", "resources", "settings")
+        val domains = listOf("home", "issues", "resources", "settings", "mine")
         val forbidden = listOf(
             ".chatDao(",
             ".characterDao(",
@@ -141,7 +141,7 @@ class JianyuNavigationArchitectureTest {
                 "const val BOTTOM_NAVIGATION = \"app_bottom_navigation\"",
             ),
         )
-        listOf("home", "issues", "skills", "resources").forEach { suffix ->
+        listOf("home", "skills", "resources", "mine").forEach { suffix ->
             assertTrue(
                 "缺少稳定一级目的地标签后缀：$suffix",
                 uiRoot.resolve("navigation/AppDestination.kt").readText()

@@ -23,6 +23,7 @@ object JianyuAutomationTags {
         const val ISSUES = "app_destination_issues"
         const val SKILLS = "app_destination_skills"
         const val RESOURCES = "app_destination_resources"
+        const val MINE = "app_destination_mine"
 
         fun destination(destinationSuffix: String): String =
             "app_destination_${normalizedStableId(destinationSuffix)}"
@@ -40,6 +41,20 @@ object JianyuAutomationTags {
         const val SKILLS = "official_skill_catalog"
         const val RESOURCES = "resources_screen"
         const val SETTINGS = "settings_screen"
+        const val MINE = "mine_screen"
+    }
+
+    object Mine {
+        const val PERSONAL_BACKGROUND_HERO = "mine_personal_background_hero"
+        const val PERSONAL_BACKGROUND_ACTION = "mine_personal_background_action"
+        const val AVATAR_SWITCH_UNAVAILABLE = "mine_avatar_switch_unavailable"
+        const val AI_MANAGEMENT_CARD = "mine_ai_management_card"
+        const val DATA_PRIVACY_CARD = "mine_data_privacy_card"
+        const val BACKUP_RESTORE_CARD = "mine_backup_restore_card"
+        const val TELEMETRY_CARD = "mine_telemetry_card"
+        const val SETTINGS_BUTTON = "mine_settings_button"
+        const val SETTINGS_ENTRY = "mine_settings_entry"
+        const val ABOUT_ENTRY = "mine_about_entry"
     }
 
     object Home {
@@ -271,6 +286,7 @@ object JianyuAutomationTags {
         Navigation.ISSUES,
         Navigation.SKILLS,
         Navigation.RESOURCES,
+        Navigation.MINE,
         Shell.GLOBAL_SETTINGS_BUTTON,
         Shell.PAGE_BACK_BUTTON,
         Screen.HOME,
@@ -279,6 +295,17 @@ object JianyuAutomationTags {
         Screen.SKILLS,
         Screen.RESOURCES,
         Screen.SETTINGS,
+        Screen.MINE,
+        Mine.PERSONAL_BACKGROUND_HERO,
+        Mine.PERSONAL_BACKGROUND_ACTION,
+        Mine.AVATAR_SWITCH_UNAVAILABLE,
+        Mine.AI_MANAGEMENT_CARD,
+        Mine.DATA_PRIVACY_CARD,
+        Mine.BACKUP_RESTORE_CARD,
+        Mine.TELEMETRY_CARD,
+        Mine.SETTINGS_BUTTON,
+        Mine.SETTINGS_ENTRY,
+        Mine.ABOUT_ENTRY,
         Home.QUESTION_INPUT,
         Home.QUESTION_CLEAR_BUTTON,
         Home.DIRECTION_REALITY_SUPPORT,

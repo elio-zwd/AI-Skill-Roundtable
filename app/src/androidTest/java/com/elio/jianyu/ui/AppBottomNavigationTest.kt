@@ -52,9 +52,13 @@ class AppBottomNavigationTest {
 
         composeRule
             .onNodeWithTag(AppTestTags.destination(AppDestination.ISSUES))
+            .assertDoesNotExist()
+
+        composeRule
+            .onNodeWithTag(AppTestTags.destination(AppDestination.MINE))
             .performClick()
         composeRule.runOnIdle {
-            assertEquals(AppDestination.ISSUES, selectedDestination)
+            assertEquals(AppDestination.MINE, selectedDestination)
         }
     }
 }

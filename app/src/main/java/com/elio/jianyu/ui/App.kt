@@ -1,6 +1,7 @@
 package com.elio.jianyu.ui
 
 import android.app.Application
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,9 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -26,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -61,14 +61,13 @@ import com.elio.jianyu.ui.components.JianyuNavigationIcons
 import com.elio.jianyu.ui.navigation.AppDestination
 import com.elio.jianyu.ui.navigation.AppNavHost
 import com.elio.jianyu.ui.navigation.JianyuNavigationRoutes
-import com.elio.jianyu.ui.navigation.ResourceTab
 import com.elio.jianyu.ui.navigation.navigateToIssue
 import com.elio.jianyu.ui.navigation.navigateToSecondary
 import com.elio.jianyu.ui.navigation.navigateToSkillDetail
 import com.elio.jianyu.ui.navigation.navigateToTopLevel
 import com.elio.jianyu.ui.screens.execution.AudioEnabledIssueExecutionRoute
-import com.elio.jianyu.ui.screens.home.HomeRoute
 import com.elio.jianyu.ui.screens.issues.IssuesRoute
+import com.elio.jianyu.ui.screens.mine.MineRoute
 import com.elio.jianyu.ui.screens.resources.ResourcesRoute
 import com.elio.jianyu.ui.screens.settings.AiManagementRoute
 import com.elio.jianyu.ui.screens.settings.SettingsRoute
@@ -229,7 +228,9 @@ internal fun MainAppContent(
     val currentSessionId by viewModel.currentSessionId.collectAsState()
 
     val navController = rememberNavController()
+    val hostActivity = LocalContext.current as? ComponentActivity
     val roleActionScope = rememberCoroutineScope()
+    var initialIntentHandled by rememberSaveable { mutableStateOf(false) }
     var pendingSkillId by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingSkillIntent by rememberSaveable { mutableStateOf<String?>(null) }
     val onUseOfficialSkill: (OfficialSkillUseRequest) -> Unit = { request ->
@@ -249,6 +250,13 @@ internal fun MainAppContent(
         ?: if (currentRoutePattern == null) AppDestination.startDestination else null
     val currentTopLevel = currentDestination?.takeIf { it.showsBottomNavigation }
     val showsBottomNavigation = currentTopLevel != null
+    // 外部 URI 要等 NavHost 建立首个目的地后再消费，避免空 back stack 竞态。
+    LaunchedEffect(navController, currentRoutePattern) {
+        if (currentRoutePattern != null && !initialIntentHandled) {
+            initialIntentHandled = true
+            hostActivity?.intent?.let(navController::handleDeepLink)
+        }
+    }
     val contentWindowInsets = if (showsBottomNavigation) {
         ScaffoldDefaults.contentWindowInsets
     } else {
@@ -283,20 +291,23 @@ internal fun MainAppContent(
                     homeContent = {
                         com.elio.jianyu.ui.screens.dialog.DialogRoute(
                             viewModel = viewModel,
-                            onNavigateBottomTab = { tabIndex ->
-                                when (tabIndex) {
-                                    1 -> navController.navigate(
-                                        JianyuNavigationRoutes.resources(ResourceTab.MATERIALS),
-                                    )
-                                    2 -> navController.navigate(
-                                        JianyuNavigationRoutes.resources(ResourceTab.ARTIFACTS),
-                                    )
-                                    3 -> navController.navigateToSecondary(AppDestination.SETTINGS)
-                                }
-                            },
                         )
                     },
-                    issuesContent = {
+                    issuesContent = { deepLinkedIssueId, deepLinkedStageId ->
+                        var deepLinkConsumed by rememberSaveable(
+                            deepLinkedIssueId,
+                            deepLinkedStageId,
+                        ) { mutableStateOf(false) }
+                        // Navigation 的嵌套深链默认会跳过 Issue 根页；先消费一次参数再进入详情，保留返回链。
+                        LaunchedEffect(deepLinkedIssueId, deepLinkedStageId) {
+                            if (deepLinkedIssueId != null && !deepLinkConsumed) {
+                                deepLinkConsumed = true
+                                navController.navigateToIssue(
+                                    issueId = deepLinkedIssueId,
+                                    stageId = deepLinkedStageId,
+                                )
+                            }
+                        }
                         IssuesRoute(
                             repository = appRuntime.repository,
                             lifecycleRuntime = appRuntime.lifecycleRuntime,
@@ -380,6 +391,20 @@ internal fun MainAppContent(
                             onOpenIssue = navController::navigateToIssue,
                         )
                     },
+                    mineContent = {
+                        MineRoute(
+                            repository = appRuntime.repository,
+                            onOpenSettings = {
+                                navController.navigateToSecondary(AppDestination.SETTINGS)
+                            },
+                            onOpenAiManagement = {
+                                navController.navigateToSecondary(AppDestination.API_KEYS)
+                            },
+                            onOpenTelemetry = {
+                                navController.navigateToSecondary(AppDestination.TELEMETRY)
+                            },
+                        )
+                    },
                     settingsContent = {
                         SettingsRoute(
                             onBack = { navController.popBackStack() },
@@ -427,9 +452,9 @@ internal fun AppBottomNavigation(
             AppDestination.topLevelDestinations.forEach { destination ->
                 val icon = when (destination) {
                     AppDestination.HOME -> Icons.Default.Home
-                    AppDestination.ISSUES -> JianyuNavigationIcons.Issues
                     AppDestination.SKILLS -> JianyuNavigationIcons.Skills
                     AppDestination.RESOURCES -> JianyuNavigationIcons.Resources
+                    AppDestination.MINE -> Icons.Default.Person
                     else -> error("非一级目的地不能显示在底部导航")
                 }
                 NavigationBarItem(
