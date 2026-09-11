@@ -37,7 +37,7 @@ internal fun SkillRoleCatalogRoute(
 ) {
     val runtime = when (runtimeResult) {
         is OfficialSkillCatalogRuntimeResult.Failure -> {
-            OfficialSkillCatalogScreen(
+            SkillRolePageScreen(
                 uiState = OfficialSkillCatalogUiState(
                     isLoading = false,
                     catalogError = runtimeResult.message,
@@ -56,7 +56,7 @@ internal fun SkillRoleCatalogRoute(
     }
     val presentationCatalog = when (presentationResult) {
         is SkillRolePresentationLoadResult.Failure -> {
-            OfficialSkillCatalogScreen(
+            SkillRolePageScreen(
                 uiState = OfficialSkillCatalogUiState(
                     isLoading = false,
                     catalogError = presentationResult.message,
@@ -90,7 +90,7 @@ internal fun SkillRoleCatalogRoute(
         recentUses = recentUses,
     )
 
-    OfficialSkillCatalogScreen(
+    SkillRolePageScreen(
         uiState = OfficialSkillCatalogUiState(
             isLoading = false,
             query = query,
