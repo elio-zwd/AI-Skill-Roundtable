@@ -67,6 +67,35 @@ class SkillRoleCatalogProjectionTest {
     }
 
     @Test
+    fun lifeTools_defaultProjectionContainsExactlyApprovedFiveRoles() {
+        val projection = projectSkillRoleCatalog(
+            catalog = officialCatalog,
+            presentationCatalog = presentationCatalog,
+            query = "",
+            selectedCategory = SkillRoleDiscoveryCategory.LIFE_TOOLS,
+        )
+
+        assertEquals(
+            listOf(
+                "budget-consumption-coach",
+                "habit-wellbeing-coach",
+                "relationship-dialogue-practice",
+                "chinese-social-etiquette",
+                "culture-fortune-entertainment",
+            ),
+            projection.visibleRoles.map { it.skillId },
+        )
+        assertEquals(5, projection.visibleRoles.map { it.skillId }.distinct().size)
+
+        val cultureFortune = projection.visibleRoles.single {
+            it.skillId == "culture-fortune-entertainment"
+        }.officialSkill
+        assertTrue(cultureFortune.availability.discoverable)
+        assertTrue(cultureFortune.availability.searchable)
+        assertTrue(cultureFortune.availability.executable)
+    }
+
+    @Test
     fun searchAndDiscoveryCategory_areIntersected() {
         val projection = projectSkillRoleCatalog(
             catalog = officialCatalog,
