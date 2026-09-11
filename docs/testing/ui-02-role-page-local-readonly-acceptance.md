@@ -39,26 +39,11 @@ git status --short
 
 如果不是该分支、`pull --ff-only` 失败或开始前不 clean：直接 FAIL，不做自动处理。
 
-## 已知基线阻塞（不要修）
+## AndroidTest 基线说明
 
-当前 `main` 与本分支都存在一个与 UI-02 无关的 AndroidTest 源码失配：
+PR #60 已合入 main，修复了 `app/src/androidTest/java/com/elio/jianyu/ui/screens/execution/IssueExecutionStopAvailabilityTest.kt:49` 的旧 fixture，使其符合当前生产构造器 `IssueExecutionBudgetUi(usedApiCalls: Int, closed: Boolean)`。
 
-```text
-app/src/androidTest/java/com/elio/jianyu/ui/screens/execution/IssueExecutionStopAvailabilityTest.kt:49
-IssueExecutionBudgetUi(30, 1, 1, false)
-```
-
-而当前生产构造器为：
-
-```text
-IssueExecutionBudgetUi(usedApiCalls: Int, closed: Boolean)
-```
-
-GitHub `Android UI Test Compile` 已证明 UI-02 生产 `:app:compileDebugKotlin` 可通过；聚合 `assembleDebugAndroidTest` 随后仅被上述既有测试阻塞。
-
-**本验收不得修改、注释、删除或临时排除这个旧测试。**
-
-若本地 `assembleDebugAndroidTest` 也只出现上述已知错误：记录 `ASSEMBLE_ANDROID_TEST: BLOCKED_BASELINE`，不要把它记作 UI-02 FAIL；并将所有需要 AndroidTest APK 的 instrumentation 项记为 `BLOCKED_BASELINE`。若同时出现任何 UI-02 文件的新编译错误，则 UI-02 判 FAIL。
+因此当前验收应真实执行 `assembleDebugAndroidTest` 与相关 instrumentation；不得再把该旧构造参数失配记录为 `BLOCKED_BASELINE`。主 Android CI 的 `tools/check-app-identity.ps1` 历史身份门禁若失败，需单独记录，不归因于 UI-02。
 
 ## 1. 精确 JVM 契约
 
@@ -96,7 +81,7 @@ GitHub `Android UI Test Compile` 已证明 UI-02 生产 `:app:compileDebugKotlin
 
 每条只记录：命令、exit code、PASS/FAIL；失败时补首个关键错误、文件、行号。
 
-`assembleDebugAndroidTest` 按“已知基线阻塞”规则可记录为 `BLOCKED_BASELINE`。除此之外的命令必须按真实结果 PASS/FAIL。
+`assembleDebugAndroidTest` 必须按真实结果记录 PASS/FAIL；除此之外的命令也必须按真实结果记录。
 
 ## 3. 相关 Instrumentation
 
@@ -108,7 +93,7 @@ adb devices
 
 需要至少一个 `device` 状态目标。
 
-只有当 `assembleDebugAndroidTest` 成功时，才分别执行：
+当 `assembleDebugAndroidTest` 成功时，分别执行：
 
 ```powershell
 .\gradlew.bat --no-daemon :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.elio.jianyu.ui.components.JianyuRoleAvatarTest
@@ -121,8 +106,6 @@ adb devices
 
 .\gradlew.bat --no-daemon :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.elio.jianyu.viewmodel.RoundtableViewModelSkillRoleActionsTest
 ```
-
-若 `assembleDebugAndroidTest` 只被已知 `IssueExecutionStopAvailabilityTest.kt:49` 阻塞，则**不要尝试修改测试来运行 instrumentation**；五项均记录 `BLOCKED_BASELINE`，转到第 4 节做真机手工验收。
 
 若可运行 instrumentation，重点证明：
 
@@ -143,7 +126,7 @@ adb devices
 
 目标：Xiaomi 14 Ultra，竖屏，1440×3200。
 
-只要 `assembleDebug` 成功，即使 AndroidTest 被基线阻塞，也继续本节。
+只要 `assembleDebug` 成功，就继续本节。
 
 安装 Debug APK：
 
@@ -205,19 +188,19 @@ COMPILE_DEBUG_KOTLIN: PASS / FAIL
 UNIT_ALL: PASS / FAIL
 LINT_DEBUG: PASS / FAIL
 ASSEMBLE_DEBUG: PASS / FAIL
-ASSEMBLE_ANDROID_TEST: PASS / FAIL / BLOCKED_BASELINE
-INSTRUMENTATION_ROLE_AVATAR: PASS / FAIL / BLOCKED_BASELINE / NOT_RUN
-INSTRUMENTATION_ROLE_CATALOG: PASS / FAIL / BLOCKED_BASELINE / NOT_RUN
-INSTRUMENTATION_ROLE_DETAIL: PASS / FAIL / BLOCKED_BASELINE / NOT_RUN
-INSTRUMENTATION_ROLE_ADAPTER: PASS / FAIL / BLOCKED_BASELINE / NOT_RUN
-INSTRUMENTATION_ROLE_SESSION_ACTIONS: PASS / FAIL / BLOCKED_BASELINE / NOT_RUN
+ASSEMBLE_ANDROID_TEST: PASS / FAIL
+INSTRUMENTATION_ROLE_AVATAR: PASS / FAIL / NOT_RUN
+INSTRUMENTATION_ROLE_CATALOG: PASS / FAIL / NOT_RUN
+INSTRUMENTATION_ROLE_DETAIL: PASS / FAIL / NOT_RUN
+INSTRUMENTATION_ROLE_ADAPTER: PASS / FAIL / NOT_RUN
+INSTRUMENTATION_ROLE_SESSION_ACTIONS: PASS / FAIL / NOT_RUN
 VISUAL_XIAOMI_14_ULTRA: PASS / FAIL / NOT_RUN
 MANUAL_ROLE_CONVERSATION_BRIDGE: PASS / FAIL / NOT_RUN
 RECENT_USE_SEMANTICS: PASS / FAIL / NOT_RUN
 UI01_NAV_DEPENDENCY: PRESENT / RESOLVED
 
 FIRST_UI02_FAILURE_COMMAND: <none or command>
-BASELINE_BLOCKER: <none or IssueExecutionStopAvailabilityTest.kt:49>
+BASELINE_BLOCKER: <none or independently confirmed historical gate>
 ERROR_FILE_LINE: <none or path:line>
 KEY_ERROR: <最多 8 行>
 VISUAL_ISSUES: <none or concise bullets>
@@ -227,5 +210,5 @@ OVERALL_UI02: PASS / FAIL
 
 规则：
 
-- 如果唯一 AndroidTest 问题是已知基线阻塞，而 JVM、生产编译、单测、lint、APK 与手工 UI/功能均通过，可以把 `OVERALL_UI02` 判为 `PASS`，同时保留 `BASELINE_BLOCKER`。
+- 如果全量 AndroidTest 出现与 UI-02 无关的既有数据库、身份或旧导航失败，必须逐项记录真实失败；不能用定向通过替代全量结果，也不能把这些失败归因于本次 UI-02 改动。
 - 不要附完整 Gradle 日志、logcat 或整份截图分析。

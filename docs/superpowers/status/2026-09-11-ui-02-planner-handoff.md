@@ -1,28 +1,27 @@
 # UI-02 角色页面｜规划师交接与剩余任务
 
-> 日期：2026-09-11
+> 日期：2026-09-12（最后更新）
 >
 > 仓库：`elio-zwd/AI-Skill-Roundtable`
 >
 > 分支：`codex/ui-02-role-spec`
 >
-> PR：#59（Draft，禁止自动合并）
+> PR：#59（当前 Draft，内容已达到 merge-ready）
 >
-> UI-02 功能/验收基线 HEAD：`49b9f1a5ad6cedb775ad45f230f4fb5aeb3e85a3`
+> UI-02 本轮代码/测试验收 HEAD：`575840f626b7b508fe6522d0271141b8deff5610`
 >
 > 本文用途：向总规划 AI 提供 UI-02 最终收口事实。聊天上下文不再作为唯一状态来源。
 
 ## 1. 当前阶段结论
 
-UI-02 主体实现、P0 bridge、LIFE_TOOLS 5/5、recent-use 与最小真实模型调用门禁均已有最终证据；**Task 7 仍保持未完成，PR #59 继续 Draft**。
+UI-02 主体实现、P0 bridge、LIFE_TOOLS 5/5、recent-use、最小真实模型调用、主题语义修复和定向 instrumentation 均已有最终证据；**Task 7 已完成，PR #59 内容达到 merge-ready**。
 
-当前未关闭项只有：
+当前结论：
 
-1. UI-01 shared Root Navigation（`对话 / 角色 / 资料 / 我的`）仍为外部依赖；
-2. `assembleDebugAndroidTest` 仍受仓库既有 AndroidTest baseline compile blocker 影响；
-3. 最终 merge-readiness 仍等待总规划 AI 决策。
-
-因此不要再把 Start New / Add Current / recent-use / LIFE_TOOLS 4/5 / `MODEL_CALL: NOT_RUN` 当作当前问题，也不要把 AndroidTest baseline blocker 写成 UI-02 功能失败。
+1. UI-01 shared Root Navigation（`对话 / 角色 / 资料 / 我的`）是下一独立批次，UI-02 没有复制第二套底栏；
+2. PR #60 已合入 main，AndroidTest fixture baseline 已恢复；
+3. PR #59 当前 Head 的 Android UI Test Compile 与 secret scan 通过，Android CI 仅失败于已知历史身份门禁；
+4. H-1/H-2/H-3 已完成，下一步是按项目流程标记 PR #59 Ready 并合入 main，然后只创建 UI-01 的一个分支与 Draft PR。
 
 ## 2. 已完成的 UI-02 主体与最终门禁
 
@@ -64,30 +63,19 @@ UI-02 主体实现、P0 bridge、LIFE_TOOLS 5/5、recent-use 与最小真实模�
 
 ## 3. 当前未关闭项
 
-### U-01：UI-01 shared Root Navigation
+### U-01：UI-01 shared Root Navigation（下一批次）
 
 最终共享 `对话 / 角色 / 资料 / 我的` Bottom Navigation 仍属于 UI-01。UI-02 没有私建第二套底栏。
 
-当前动作：等待 UI-01 的共享 Root Navigation 集成状态明确，再由总规划 AI决定是否满足 UI-02 最终 merge-readiness。
+当前动作：UI-02 合入 main 后开始 UI-01；不要把 UI-01 代码提前塞入 PR #59。
 
-### U-02：AndroidTest baseline compile blocker
+### U-02：AndroidTest baseline（已关闭）
 
-`assembleDebugAndroidTest` 仍被：
+PR #60 已修复 `IssueExecutionStopAvailabilityTest.kt:49` 的两字段 fixture，Android UI Test Compile 和本地 `assembleDebugAndroidTest` 均通过。主 Android CI 的身份门禁失败仍是另一项既有基线，不是 UI-02 功能失败。
 
-`app/src/androidTest/java/com/elio/jianyu/ui/screens/execution/IssueExecutionStopAvailabilityTest.kt:49`
+### U-03：Final merge-readiness（已达成）
 
-旧 `IssueExecutionBudgetUi` 构造参数失配阻塞。
-
-该项为 **BLOCKED_BASELINE**，不是 UI-02 功能失败。本轮禁止修改、删除、跳过或弱化该 AndroidTest baseline。
-
-### U-03：Final merge-readiness
-
-PR #59 继续保持 Open + Draft + 未合并。
-
-- 不标记 Ready；
-- 不自动 merge；
-- 不把 Task 7 勾选完成；
-- 等待总规划 AI 对 UI-01 / baseline / PR 集成状态作最终 merge-readiness 决策。
+PR #59 当前仍为 Open + Draft + 未合并，但已满足内容与验证门禁；下一步执行 Ready/merge，再进入 UI-01。
 
 ## 4. 第二轮验收历史快照（原文保留，不代表当前状态）
 
@@ -272,12 +260,12 @@ UI-02 已明确不负责私建最终 `对话 / 角色 / 资料 / 我的`。
 - [x] R-03 / LIFE_TOOLS 4/5：关闭；根因是首屏视口误判，第三行滚动 5/5 PASS。
 - [x] R-04 / recent-use：关闭，PASS。
 - [x] R-05 / model call：关闭，真实回复 PASS。
-- [ ] R-06 / AndroidTest baseline：仍为独立 BLOCKED_BASELINE，不在 UI-02 修复。
-- [ ] R-07 / UI-01 shared navigation：仍为外部依赖。
+- [x] R-06 / AndroidTest baseline：由 PR #60 独立关闭；主 Android CI 身份门禁仍单独记录。
+- [x] R-07 / UI-01 shared navigation：已确认属于下一批次，UI-02 未复制底栏。
 
 ## 6. 当前 Task 7 门禁
 
-Task 7 仍保持未完成。当前细粒度状态：
+Task 7 已完成。当前细粒度状态：
 
 - [x] LIFE_TOOLS 5/5 在运行时可见。
 - [x] `meeting-to-action` start-new 真正进入 Dialog participant。
@@ -287,20 +275,17 @@ Task 7 仍保持未完成。当前细粒度状态：
 - [x] A/B/详情关键视觉已有通过证据。
 - [x] raw internal tags 仍未泄漏。
 - [x] `compileDebugKotlin` / targeted JVM / `testDebugUnitTest` / `assembleDebug` 已有最终通过证据。
-- [ ] AndroidTest 状态仍为 `BLOCKED_BASELINE`，待独立处理/总规划裁决。
-- [ ] UI-01 shared Root Navigation 集成状态未关闭。
-- [ ] final merge-readiness 尚未由总规划 AI 决定。
+- [x] AndroidTest 编译状态已由 PR #60 独立恢复；当前 Head 的 Android UI Test Compile 通过。
+- [x] UI-01 shared Root Navigation 依赖边界已确认，下一批次实现。
+- [x] final merge-readiness 已完成；PR #59 待标记 Ready/合入。
 
 ## 7. 分支 / PR 规则
 
-- 继续使用 `codex/ui-02-role-spec`；不创建新 branch。
-- PR #59 继续保持 Draft、Open、未合并。
-- 不自动 merge，不标记 Ready，不 close。
-- 不修改 `main`。
-- 本次收口只允许状态文档与 PR body 变化；生产代码、Compose、Catalog、Manifest、Room、Gradle、测试逻辑和 AndroidTest baseline 均不得修改。
+- 继续使用 `codex/ui-02-role-spec` 完成合入；UI-01 再创建唯一的 `codex/ui-01-mine-navigation`。
+- PR #59 只包含 UI-02 与本轮主题/测试选择器修正，不带入 UI-01。
+- 不创建额外 PR；UI-01 只创建一个 Draft PR。
+- 不直接修改 `main`。
 
 ## 8. 下一步
 
-下一步仅等待总规划 AI 的 merge-readiness 决策，并根据 UI-01 shared Root Navigation 与 AndroidTest baseline 的最终处理状态决定 Task 7 是否可以完成。
-
-在此之前：**不要把 PR #59 标记 ready，不要 merge，不要宣称 Task 7 完成。**
+下一步执行 PR #59 的 Ready/merge；合入后读取最新 main，创建唯一 UI-01 分支并按已批准 Mine B 规格实施。
