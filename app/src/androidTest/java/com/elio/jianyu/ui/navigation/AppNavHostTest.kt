@@ -1,6 +1,8 @@
 package com.elio.jianyu.ui.navigation
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -151,6 +153,28 @@ class AppNavHostTest {
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(AppDestination.SKILLS.routePattern).assertIsDisplayed()
         assertCurrentRoute(AppDestination.SKILLS.routePattern)
+    }
+
+    @Test
+    fun skillDeepLink_afterSuccessfulAction_navigatesToConversationRoot() {
+        val deepLink = Intent(
+            Intent.ACTION_VIEW,
+            Uri.parse("jianyu://skills/meeting-to-action"),
+        )
+
+        composeRule.runOnIdle {
+            assertTrue(navController.handleDeepLink(deepLink))
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(skillMarker("meeting-to-action")).assertIsDisplayed()
+        assertCurrentRoute(JianyuNavigationRoutes.SKILL_DETAIL_PATTERN)
+
+        composeRule.runOnIdle {
+            navController.navigateToTopLevel(AppDestination.HOME)
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(AppDestination.HOME.routePattern).assertIsDisplayed()
+        assertCurrentRoute(AppDestination.HOME.routePattern)
     }
 
     @Test
