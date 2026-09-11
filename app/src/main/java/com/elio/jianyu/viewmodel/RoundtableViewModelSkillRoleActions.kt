@@ -11,7 +11,6 @@ import com.elio.jianyu.skill.catalog.OfficialSkillCatalogRuntimeResult
 import com.elio.jianyu.skill.catalog.OfficialSkillDefinition
 import com.elio.jianyu.skill.role.OfficialSkillConversationRoleAdapter
 import com.elio.jianyu.telemetry.PrivacySafeLogger
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -20,9 +19,9 @@ private const val ROLE_ACTION_SETTLE_TIMEOUT_MS = 5_000L
 /**
  * 为【角色】页提供可等待的真实会话动作。
  *
- * 这里先把官方 Skill 按需桥接为 legacy Character，再复用 RoundtableViewModel 已有的
- * session / participant 状态发布逻辑。Boolean 只在目标 participant 已进入当前会话状态后
- * 返回 true，调用方因此可以安全地把 recent-use 写在成功之后。
+ * 这里先把官方 Skill 按需桥接为 legacy Character，再把 participant 持久化到目标会话，
+ * 最后只走 selectSession 的单一 rehydrate 路径发布 current session / roster。Boolean 仅在
+ * 该次 rehydrate 完成且目标 participant 已进入当前会话状态后返回 true。
  */
 suspend fun RoundtableViewModel.createNewSessionWithSkillRole(
     skillId: String,
@@ -44,13 +43,7 @@ suspend fun RoundtableViewModel.createNewSessionWithSkillRole(
         ?: return roleActionFailure("start_new", "session_create_failed")
     conversationPreferences.setParticipantIds(sessionId, listOf(skillId))
 
-    // participant 先持久化，再发布 current session。selectSession 会先清空 ViewModel roster，
-    // 因此同时走现有 addSkillRoleToCurrentSession 的直接发布路径，避免把成功依赖于一次
-    // 二次异步 rehydrate；两条路径最终都读取同一个已持久化 participant 集合。
-    selectSession(sessionId)
-    addSkillRoleToCurrentSession(skillId)
-
-    return if (awaitSkillRoleInSession(sessionId, skillId)) {
+    return if (refreshSessionRosterAndAwait(sessionId, skillId)) {
         true
     } else {
         roleActionFailure("start_new", "session_roster_not_settled")
@@ -60,9 +53,9 @@ suspend fun RoundtableViewModel.createNewSessionWithSkillRole(
 /**
  * 始终把 participant 变更绑定到动作开始时捕获的 session ID。
  *
- * 兼容角色准备完成后再次核对 session；随后调用现有 addSkillRoleToCurrentSession。
- * 该方法会在调用瞬间捕获 currentSessionId，并在真正写入前再次核对，因此既不会把角色
- * 写入后来切换的新会话，也不需要通过 selectSession 清空并重载整个会话状态。
+ * participant 先写入捕获会话的偏好，再通过 selectSession 统一刷新 ViewModel。这样不会
+ * 同时启动“直接 add”与“session rehydrate”两条互相竞争的异步发布路径；成功返回前等待
+ * currentSession 对应本次 refresh 重新发布，再核对 roster。
  */
 suspend fun RoundtableViewModel.addSkillRoleToCurrentSessionAwait(
     skillId: String,
@@ -82,35 +75,47 @@ suspend fun RoundtableViewModel.addSkillRoleToCurrentSessionAwait(
         return roleActionFailure("add_current", "session_changed_before_mutation")
     }
 
-    val currentParticipants = currentParticipantIds.value.distinct()
-    if (skillId !in currentParticipants && currentParticipants.size >= 15) {
+    val conversationPreferences = ConversationSessionPreferences(application)
+    val originalParticipantIds = conversationPreferences.getParticipantIds(
+        sessionId = sessionId,
+        defaultIds = currentParticipantIds.value,
+    ).distinct()
+    val updatedParticipantIds = (originalParticipantIds + skillId).distinct().take(15)
+    if (skillId !in updatedParticipantIds) {
         return roleActionFailure("add_current", "participant_limit_reached")
     }
 
-    // 这里到方法调用之间没有挂起点；旧方法同步捕获同一个 sessionId，随后在异步写入前
-    // 还会再次检查 currentSessionId，并直接更新 _currentParticipantIds。
-    addSkillRoleToCurrentSession(skillId)
+    conversationPreferences.setParticipantIds(sessionId, updatedParticipantIds)
+    if (currentSessionId.value != sessionId) {
+        conversationPreferences.setParticipantIds(sessionId, originalParticipantIds)
+        return roleActionFailure("add_current", "session_changed_before_refresh")
+    }
 
-    return if (awaitSkillRoleInSession(sessionId, skillId)) {
+    return if (refreshSessionRosterAndAwait(sessionId, skillId)) {
         true
     } else {
         roleActionFailure("add_current", "session_roster_not_settled")
     }
 }
 
-private suspend fun RoundtableViewModel.awaitSkillRoleInSession(
+/**
+ * selectSession 会同步清空 currentSession，并在 participant 解析完成后依次重新发布
+ * currentSession 与 currentParticipantIds。等待 currentSession 的这次重新发布，相当于等待
+ * 单一 rehydrate 流程完成；随后直接检查最终 roster，避免把完成信号建立在两个并发 flow
+ * 的 combine 时序上。
+ */
+private suspend fun RoundtableViewModel.refreshSessionRosterAndAwait(
     sessionId: Long,
     skillId: String,
 ): Boolean {
-    val settled = withTimeoutOrNull(ROLE_ACTION_SETTLE_TIMEOUT_MS) {
-        combine(currentSessionId, currentParticipantIds) { currentId, participantIds ->
-            currentId to participantIds
-        }.first { (currentId, participantIds) ->
-            currentId != sessionId || skillId in participantIds
-        }
+    selectSession(sessionId)
+    val publishedSession = withTimeoutOrNull(ROLE_ACTION_SETTLE_TIMEOUT_MS) {
+        currentSession.first { session -> session?.id == sessionId }
     } ?: return false
 
-    return settled.first == sessionId && skillId in settled.second
+    return publishedSession.id == sessionId &&
+        currentSessionId.value == sessionId &&
+        skillId in currentParticipantIds.value
 }
 
 private fun roleActionFailure(action: String, reason: String): Boolean {
