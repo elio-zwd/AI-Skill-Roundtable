@@ -53,7 +53,12 @@ class JianyuAutomationTagsTest {
             JianyuAutomationTags.Navigation.HOME,
             AppTestTags.destination(AppDestination.HOME),
         )
+        assertEquals(
+            JianyuAutomationTags.Navigation.MINE,
+            AppTestTags.destination(AppDestination.MINE),
+        )
         assertEquals(JianyuAutomationTags.Screen.HOME, HomeTestTags.SCREEN)
+        assertTrue(JianyuAutomationTags.frozenStaticTags.contains(JianyuAutomationTags.Screen.MINE))
         assertEquals(JianyuAutomationTags.Home.QUESTION_INPUT, HomeTestTags.QUESTION_INPUT)
         assertEquals(
             JianyuAutomationTags.Home.RECOMMENDATION_REQUEST_BUTTON,

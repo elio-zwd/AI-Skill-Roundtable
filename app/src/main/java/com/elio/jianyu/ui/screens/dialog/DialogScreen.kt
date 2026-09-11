@@ -8,9 +8,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -20,9 +18,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.screens.dialog.components.DialogComposer
-import com.elio.jianyu.ui.screens.dialog.components.DialogBottomBar
 import com.elio.jianyu.ui.screens.dialog.components.DialogTopBar
 import com.elio.jianyu.ui.screens.dialog.components.SkillMessageCard
 import com.elio.jianyu.ui.screens.dialog.components.SkillRoleStrip
@@ -56,8 +55,7 @@ fun DialogScreen(
         modifier = modifier
             .fillMaxSize()
             .background(DialogTokens.PageBackground)
-            .statusBarsPadding()
-            .navigationBarsPadding()
+            .testTag(JianyuAutomationTags.Screen.HOME)
             .imePadding(),
     ) {
         // 主内容纵向布局
@@ -92,10 +90,6 @@ fun DialogScreen(
                     DialogComposer(
                         composerState = uiState.composerState,
                         searchState = uiState.searchState,
-                        onEvent = onEvent,
-                    )
-                    DialogBottomBar(
-                        selectedTabIndex = 0,
                         onEvent = onEvent,
                     )
                 }

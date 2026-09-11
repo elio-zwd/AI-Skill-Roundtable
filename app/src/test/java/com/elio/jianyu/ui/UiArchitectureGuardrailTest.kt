@@ -74,7 +74,7 @@ class UiArchitectureGuardrailTest {
 
     @Test
     fun pageDomains_doNotImportOtherPageInternals() {
-        val domains = setOf("dialog", "issues", "resources", "settings", "skills")
+        val domains = setOf("dialog", "issues", "resources", "settings", "skills", "mine")
         val importPattern = Regex(
             "import com\\.elio\\.jianyu\\.ui\\.screens\\.([a-z]+)\\.",
         )

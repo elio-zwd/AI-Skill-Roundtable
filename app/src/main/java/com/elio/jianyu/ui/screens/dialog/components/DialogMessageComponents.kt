@@ -1,6 +1,5 @@
 package com.elio.jianyu.ui.screens.dialog.components
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,12 +28,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.elio.jianyu.R
+import com.elio.jianyu.ui.components.UserAvatar
 import com.elio.jianyu.ui.screens.dialog.DialogEvent
 import com.elio.jianyu.ui.screens.dialog.DialogIcons
 import com.elio.jianyu.ui.screens.dialog.DialogMessageItem
@@ -99,11 +97,8 @@ fun UserMessageBubble(
 
         Spacer(modifier = Modifier.width(10.dp))
 
-        // 用户真实肖像头像
-        Image(
-            painter = painterResource(id = R.drawable.avatar_user),
-            contentDescription = "用户头像",
-            contentScale = ContentScale.Crop,
+        // 用户头像由公共组件统一提供，避免对话页与「我的」页出现不同来源。
+        UserAvatar(
             modifier = Modifier
                 .size(38.dp)
                 .clip(CircleShape)

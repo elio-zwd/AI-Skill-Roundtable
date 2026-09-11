@@ -39,16 +39,16 @@ class JianyuUiAutomationNavigationTest {
     @Test
     fun topLevelNavigation_exposesEveryDestinationRoot() {
         navigateAndAssert(
-            destinationTag = JianyuAutomationTags.Navigation.ISSUES,
-            screenTag = JianyuAutomationTags.Screen.ISSUES,
-        )
-        navigateAndAssert(
             destinationTag = JianyuAutomationTags.Navigation.SKILLS,
             screenTag = JianyuAutomationTags.Screen.SKILLS,
         )
         navigateAndAssert(
             destinationTag = JianyuAutomationTags.Navigation.RESOURCES,
             screenTag = JianyuAutomationTags.Screen.RESOURCES,
+        )
+        navigateAndAssert(
+            destinationTag = JianyuAutomationTags.Navigation.MINE,
+            screenTag = JianyuAutomationTags.Screen.MINE,
         )
         navigateAndAssert(
             destinationTag = JianyuAutomationTags.Navigation.HOME,
@@ -59,7 +59,13 @@ class JianyuUiAutomationNavigationTest {
     @Test
     fun settingsOpenAndBack_restoreOriginWithoutBottomNavigationDuplication() {
         composeRule
-            .onNodeWithTag(JianyuAutomationTags.Shell.GLOBAL_SETTINGS_BUTTON)
+            .onNodeWithTag(JianyuAutomationTags.Navigation.MINE)
+            .performClick()
+        composeRule
+            .onNodeWithTag(JianyuAutomationTags.Screen.MINE)
+            .assertIsDisplayed()
+        composeRule
+            .onNodeWithTag(JianyuAutomationTags.Mine.SETTINGS_BUTTON)
             .performClick()
         composeRule
             .onNodeWithTag(JianyuAutomationTags.Screen.SETTINGS)
@@ -73,7 +79,7 @@ class JianyuUiAutomationNavigationTest {
             .performClick()
 
         composeRule
-            .onNodeWithTag(JianyuAutomationTags.Screen.HOME)
+            .onNodeWithTag(JianyuAutomationTags.Screen.MINE)
             .assertIsDisplayed()
         composeRule
             .onAllNodesWithTag(JianyuAutomationTags.App.BOTTOM_NAVIGATION)

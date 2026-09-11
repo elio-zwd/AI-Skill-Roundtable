@@ -9,6 +9,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.MainActivity
 import com.elio.jianyu.ui.components.JianyuShellTestTags
 import com.elio.jianyu.ui.navigation.AppDestination
+import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.screens.resources.ResourcesTestTags
 import com.elio.jianyu.ui.screens.settings.SettingsShellTestTags
 import org.junit.Rule
@@ -56,6 +57,22 @@ class MainNavigationRestorationTest {
         composeRule.onNodeWithTag(ResourcesTestTags.SCREEN).assertIsDisplayed()
         composeRule
             .onNodeWithTag(AppTestTags.destination(AppDestination.RESOURCES))
+            .assertIsSelected()
+    }
+
+    @Test
+    fun activityRecreation_keepsMineDestination() {
+        composeRule
+            .onNodeWithTag(AppTestTags.destination(AppDestination.MINE))
+            .performClick()
+        composeRule.onNodeWithTag(JianyuAutomationTags.Screen.MINE).assertIsDisplayed()
+
+        composeRule.activityRule.scenario.recreate()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(JianyuAutomationTags.Screen.MINE).assertIsDisplayed()
+        composeRule
+            .onNodeWithTag(AppTestTags.destination(AppDestination.MINE))
             .assertIsSelected()
     }
 }

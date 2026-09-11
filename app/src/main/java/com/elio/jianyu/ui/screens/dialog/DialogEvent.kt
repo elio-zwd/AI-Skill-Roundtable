@@ -53,6 +53,4 @@ sealed interface DialogEvent {
     object ViewReferenceContent : DialogEvent
     object TriggerCrossDiscussion : DialogEvent // 交叉讨论
 
-    // 底部一级导航
-    data class NavigateBottomTab(val tabIndex: Int) : DialogEvent
 }
