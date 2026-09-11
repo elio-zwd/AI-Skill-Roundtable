@@ -1,6 +1,10 @@
 package com.elio.jianyu.ui.screens.skills
 
+import androidx.compose.ui.test.assertAny
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -60,7 +64,9 @@ class SkillRoleCatalogScreenTest {
         composeRule.onNodeWithText("最近使用").assertDoesNotExist()
         composeRule.onNodeWithText("全部角色").assertExists()
         projection.featuredRoles.forEach { role ->
-            composeRule.onNodeWithText(role.name).assertExists()
+            composeRule
+                .onAllNodesWithText(role.name)
+                .assertAny(hasTestTag(OfficialSkillCatalogTestTags.skill(role.skillId)))
         }
     }
 
@@ -112,7 +118,7 @@ class SkillRoleCatalogScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("生活工具").assertExists()
+        composeRule.onAllNodesWithText("生活工具").assertCountEquals(2)
         composeRule
             .onNodeWithText("消费、自我管理、关系、礼仪与文化类日常辅助")
             .assertExists()
