@@ -18,6 +18,7 @@ import com.elio.jianyu.skill.catalog.OfficialSkillPublicationStatus
 import com.elio.jianyu.skill.catalog.OfficialSkillRiskLevel
 import com.elio.jianyu.skill.catalog.OfficialSkillSourceStatus
 import com.elio.jianyu.skill.catalog.OfficialSkillUseMode
+import com.elio.jianyu.skill.role.SkillRoleDiscoveryCategory
 import com.elio.jianyu.ui.theme.SkillRoundtableTheme
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -44,7 +45,7 @@ class OfficialSkillCatalogScreenTest {
     )
 
     @Test
-    fun listShowsExplicitAvailabilityAndSpecialBoundary() {
+    fun missingRoleProjectionShowsSafeErrorInsteadOfFallingBackToLegacyList() {
         composeRule.setContent {
             SkillRoundtableTheme {
                 OfficialSkillCatalogScreen(
@@ -53,22 +54,20 @@ class OfficialSkillCatalogScreenTest {
                         allSkills = listOf(naturalizer),
                         visibleSkills = listOf(naturalizer),
                         totalSkillCount = 44,
+                        roleCatalog = null,
                     ),
                     onEvent = {},
                 )
             }
         }
 
-        composeRule.onNodeWithTag(OfficialSkillCatalogTestTags.ROOT).assertExists()
-        composeRule.onNodeWithTag(OfficialSkillCatalogTestTags.skill(naturalizer.id)).assertExists()
-        composeRule.onNodeWithText("待门禁").assertExists()
-        composeRule.onNodeWithText(
-            "只整理真实内容；不规避检测、不伪造事实或经历。",
-        ).assertExists()
+        composeRule.onNodeWithTag(OfficialSkillCatalogTestTags.ERROR).assertExists()
+        composeRule.onNodeWithText("角色展示数据尚未完成加载。").assertExists()
+        composeRule.onNodeWithTag(OfficialSkillCatalogTestTags.skill(naturalizer.id)).assertDoesNotExist()
     }
 
     @Test
-    fun detailShowsIntegrityBoundariesAndDisabledUseState() {
+    fun explicitLegacyDetailStateStillPreservesIntegrityBoundaryCompatibility() {
         composeRule.setContent {
             SkillRoundtableTheme {
                 OfficialSkillCatalogScreen(
@@ -76,6 +75,7 @@ class OfficialSkillCatalogScreenTest {
                         isLoading = false,
                         allSkills = listOf(naturalizer),
                         visibleSkills = listOf(naturalizer),
+                        roleCatalog = roleCatalogFor(naturalizer),
                         selectedSkill = naturalizer,
                         totalSkillCount = 44,
                     ),
@@ -91,7 +91,7 @@ class OfficialSkillCatalogScreenTest {
     }
 
     @Test
-    fun filterAndFavoriteActionsEmitEvents() {
+    fun filterAndFavoriteActionsEmitEventsFromRolePage() {
         val events = mutableListOf<OfficialSkillCatalogEvent>()
         composeRule.setContent {
             SkillRoundtableTheme {
@@ -100,6 +100,7 @@ class OfficialSkillCatalogScreenTest {
                         isLoading = false,
                         allSkills = listOf(naturalizer),
                         visibleSkills = listOf(naturalizer),
+                        roleCatalog = roleCatalogFor(naturalizer),
                         totalSkillCount = 44,
                     ),
                     onEvent = events::add,
@@ -116,7 +117,7 @@ class OfficialSkillCatalogScreenTest {
     }
 
     @Test
-    fun combinationEditorShowsMemberBoundaryAndResponsibilityDisclaimer() {
+    fun combinationEditorRemainsCompatibleOutsideNewRolePagePrimaryStructure() {
         composeRule.setContent {
             SkillRoundtableTheme {
                 OfficialSkillCatalogScreen(
@@ -124,6 +125,7 @@ class OfficialSkillCatalogScreenTest {
                         isLoading = false,
                         allSkills = listOf(naturalizer),
                         visibleSkills = listOf(naturalizer),
+                        roleCatalog = roleCatalogFor(naturalizer),
                         totalSkillCount = 44,
                         combinationEditor = OfficialSkillCombinationEditorState(
                             combinationId = "combo",
@@ -150,6 +152,30 @@ class OfficialSkillCatalogScreenTest {
                     hasText("只整理真实内容；不规避检测、不伪造事实或经历。"),
                 ),
         ).assertExists()
+    }
+
+    private fun roleCatalogFor(skill: OfficialSkillDefinition): SkillRoleCatalogUiState {
+        val role = SkillRoleCardUi(
+            skillId = skill.id,
+            name = skill.nameZh,
+            summary = skill.summary,
+            primaryType = skill.primaryType,
+            primaryDiscoveryCategory = SkillRoleDiscoveryCategory.COMMUNICATION,
+            isPersonSimulation = false,
+            avatarAssetPath = null,
+            isFavorite = false,
+            lastUsedAt = null,
+            isExecutable = skill.availability.executable,
+            featuredOrder = null,
+            officialSkill = skill,
+        )
+        return SkillRoleCatalogUiState(
+            allRoles = listOf(role),
+            visibleRoles = listOf(role),
+            featuredRoles = emptyList(),
+            recentRoles = emptyList(),
+            selectedCategory = null,
+        )
     }
 
     private fun skill(

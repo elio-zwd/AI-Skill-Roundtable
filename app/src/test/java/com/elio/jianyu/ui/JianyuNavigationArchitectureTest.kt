@@ -132,6 +132,8 @@ class JianyuNavigationArchitectureTest {
         val resourcesSource = uiRoot.resolve("screens/resources/ResourcesRoute.kt").readText()
         val skillNavigationSource = uiRoot.resolve("screens/skills/OfficialSkillNavigationRoute.kt")
             .readText()
+        val skillDetailSource = uiRoot.resolve("screens/skills/SkillRoleDetailScreen.kt")
+            .readText()
 
         assertTrue(appSource.contains("JianyuAutomationTags.App.BOTTOM_NAVIGATION"))
         assertTrue(
@@ -147,8 +149,9 @@ class JianyuNavigationArchitectureTest {
             )
         }
         assertTrue(shellSource.contains("global_settings_button"))
-        assertTrue(skillNavigationSource.contains("GLOBAL_SETTINGS_BUTTON"))
-        assertTrue(skillNavigationSource.contains("PAGE_BACK_BUTTON"))
+        assertTrue(automationTagsSource.contains("GLOBAL_SETTINGS_BUTTON"))
+        assertTrue(skillNavigationSource.contains("SkillRoleCatalogRoute"))
+        assertTrue(skillDetailSource.contains("PAGE_BACK_BUTTON"))
         assertTrue(resourcesSource.contains("resources_tab_materials"))
         assertTrue(resourcesSource.contains("resources_tab_artifacts"))
     }

@@ -127,6 +127,23 @@ fun NavHostController.navigateToTopLevel(destination: AppDestination) {
     require(destination in AppDestination.topLevelDestinations) {
         "${destination.name} 不是见域一级目的地"
     }
+
+    if (destination == AppDestination.HOME) {
+        val alreadyAtConversation = currentDestination?.route == AppDestination.HOME.routePattern
+        if (alreadyAtConversation) return
+
+        // 外部 deep link 可以直接构造二级目的地栈，此时 start destination 不一定是当前栈中的
+        // 可恢复入口。回到对话页必须以根图为边界重建 HOME，避免 save/restore top-level 逻辑
+        // 在业务动作已经成功后仍把用户留在 Skill 详情页。
+        navigate(AppDestination.HOME.launchRoute) {
+            popUpTo(graph.id) {
+                inclusive = false
+            }
+            launchSingleTop = true
+        }
+        return
+    }
+
     val alreadySelected = currentDestination?.hierarchy?.any { entry ->
         entry.route == destination.routePattern || entry.route == destination.launchRoute
     } == true

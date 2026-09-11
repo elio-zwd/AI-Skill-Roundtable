@@ -68,6 +68,7 @@ internal data class OfficialSkillCatalogUiState(
     val totalSkillCount: Int = 0,
     val favoriteIds: Set<String> = emptySet(),
     val recentUses: List<RecentOfficialSkillUse> = emptyList(),
+    val roleCatalog: SkillRoleCatalogUiState? = null,
     val selectedSkill: OfficialSkillDefinition? = null,
     val combinations: List<OfficialSkillCombinationSnapshot> = emptyList(),
     val combinationsLoading: Boolean = false,
