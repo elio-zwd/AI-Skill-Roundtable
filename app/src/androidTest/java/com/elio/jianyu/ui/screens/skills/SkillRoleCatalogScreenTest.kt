@@ -44,7 +44,7 @@ class SkillRoleCatalogScreenTest {
 
         composeRule.setContent {
             SkillRoundtableTheme {
-                OfficialSkillCatalogScreen(
+                SkillRolePageScreen(
                     uiState = OfficialSkillCatalogUiState(
                         isLoading = false,
                         totalSkillCount = 44,
@@ -65,6 +65,32 @@ class SkillRoleCatalogScreenTest {
     }
 
     @Test
+    fun featuredCards_doNotExposeRawDomainTagTokens() {
+        val projection = projectSkillRoleCatalog(catalog, presentationCatalog)
+        val rawTokens = projection.featuredRoles
+            .flatMap { it.officialSkill.domainTags }
+            .filter { '_' in it }
+            .distinct()
+
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                SkillRolePageScreen(
+                    uiState = OfficialSkillCatalogUiState(
+                        isLoading = false,
+                        totalSkillCount = 44,
+                        roleCatalog = projection,
+                    ),
+                    onEvent = {},
+                )
+            }
+        }
+
+        rawTokens.forEach { token ->
+            composeRule.onNodeWithText(token).assertDoesNotExist()
+        }
+    }
+
+    @Test
     fun specificCategory_showsDescriptionAndOnlyProjectedCategoryRoles() {
         val projection = projectSkillRoleCatalog(
             catalog = catalog,
@@ -75,7 +101,7 @@ class SkillRoleCatalogScreenTest {
 
         composeRule.setContent {
             SkillRoundtableTheme {
-                OfficialSkillCatalogScreen(
+                SkillRolePageScreen(
                     uiState = OfficialSkillCatalogUiState(
                         isLoading = false,
                         totalSkillCount = 44,
@@ -103,7 +129,7 @@ class SkillRoleCatalogScreenTest {
 
         composeRule.setContent {
             SkillRoundtableTheme {
-                OfficialSkillCatalogScreen(
+                SkillRolePageScreen(
                     uiState = OfficialSkillCatalogUiState(
                         isLoading = false,
                         totalSkillCount = 44,
