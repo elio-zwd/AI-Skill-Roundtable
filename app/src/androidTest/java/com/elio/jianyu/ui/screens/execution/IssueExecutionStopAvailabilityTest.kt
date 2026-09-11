@@ -46,7 +46,10 @@ class IssueExecutionStopAvailabilityTest {
                                 errorMessage = null,
                             ),
                         ),
-                        budget = IssueExecutionBudgetUi(30, 1, 1, false),
+                        budget = IssueExecutionBudgetUi(
+                            usedApiCalls = 30,
+                            closed = false,
+                        ),
                         failureCode = null,
                         failureMessage = null,
                         executionAvailable = true,
