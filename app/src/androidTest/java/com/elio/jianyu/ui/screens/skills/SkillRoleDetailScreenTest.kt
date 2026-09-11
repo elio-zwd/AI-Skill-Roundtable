@@ -61,6 +61,9 @@ class SkillRoleDetailScreenTest {
         composeRule.onNodeWithText("工作方式").assertExists()
         composeRule.onNodeWithText("来源与能力依据").assertExists()
         composeRule.onNodeWithText(role.officialSkill.sourceSummary).assertExists()
+        role.officialSkill.domainTags.filter { '_' in it }.forEach { rawTag ->
+            composeRule.onNodeWithText(rawTag).assertDoesNotExist()
+        }
         composeRule.onNodeWithText("开始新对话").performClick()
         composeRule.onNodeWithText("增加到当前会话").assertIsNotEnabled()
         composeRule.onNodeWithText("当前没有可加入的会话").assertExists()
@@ -94,6 +97,9 @@ class SkillRoleDetailScreenTest {
         composeRule.onNodeWithText("来源与能力依据").assertExists()
         composeRule.onNodeWithText("开始新对话").assertExists()
         composeRule.onNodeWithText("增加到当前会话").assertExists()
+        role.officialSkill.domainTags.filter { '_' in it }.forEach { rawTag ->
+            composeRule.onNodeWithText(rawTag).assertDoesNotExist()
+        }
         composeRule.runOnIdle {
             assertTrue(role.officialSkill.typicalScenarios.isNotEmpty())
             assertTrue(role.officialSkill.sourceSummary.isNotBlank())
