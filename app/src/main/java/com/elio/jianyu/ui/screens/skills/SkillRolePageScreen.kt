@@ -486,9 +486,11 @@ private fun RoleFeaturedSecondaryRow(
         if (singleColumn) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 roles.forEach { role ->
-                    RoleFeatureMiniCard(role, { onOpenDetail(role.skillId) }) {
-                        onToggleFavorite(role.skillId)
-                    }
+                    RoleFeatureMiniCard(
+                        role = role,
+                        onOpenDetail = { onOpenDetail(role.skillId) },
+                        onToggleFavorite = { onToggleFavorite(role.skillId) },
+                    )
                 }
             }
         } else {
