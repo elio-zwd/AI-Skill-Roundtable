@@ -240,6 +240,11 @@ internal fun MainAppContent(
     }
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoutePattern = backStackEntry?.destination?.route
+    androidx.compose.runtime.LaunchedEffect(viewModel, currentRoutePattern) {
+        if (currentRoutePattern == JianyuNavigationRoutes.SKILL_DETAIL_PATTERN) {
+            viewModel.ensureConversationReady()
+        }
+    }
     val currentDestination = AppDestination.fromRoutePattern(currentRoutePattern)
         ?: if (currentRoutePattern == null) AppDestination.startDestination else null
     val currentTopLevel = currentDestination?.takeIf { it.showsBottomNavigation }
