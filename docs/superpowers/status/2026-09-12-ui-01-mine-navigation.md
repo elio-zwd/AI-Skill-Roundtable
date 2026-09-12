@@ -1,52 +1,67 @@
-# UI-01《我的 B + 四项一级导航》验收状态
+# UI-01《我的 B + 四项一级导航》历史状态与 Post-Merge 修正
 
-> 更新日期：2026-09-12
+> 原批次：`codex/ui-01-mine-navigation`
 >
-> 分支：`codex/ui-01-mine-navigation`
+> 原 PR：[#61](https://github.com/elio-zwd/AI-Skill-Roundtable/pull/61)
 >
-> PR：[#61](https://github.com/elio-zwd/AI-Skill-Roundtable/pull/61)（Open + Draft）
+> PR #61 已于 **2026-09-11** 合入 `main`；merge commit：`871057b33d37396f9e560ac18887d3aa0083c6ef`。
 >
-> 代码提交：`98dfbb3` `feat: 实现我的页与四项一级导航`
+> 本文件保留 UI-01 当时的验收证据，但 **不再作为当前修复分支完成状态来源**。当前状态见：`docs/superpowers/status/2026-09-12-ui-postmerge-audit-fixes.md`。
 
-## 当前结论
+## 已落入 main 的 UI-01 主体
 
-UI-01 的核心范围已完成，现有 PR #61 内容达到 merge-ready。四项根导航、Mine B、Issue 内部图、唯一 Root BottomNav、canonical UserAvatar、真实能力入口和不可用能力标记均已落地；UI-03 未开始。
+- Root BottomNav 固定为 `对话 / 角色 / 资料 / 我的`；`ISSUES` 为内部 Issue 图入口。
+- Issue root/detail/Execution/deep link/`stageId`/返回链保留。
+- Dialog 第二套 BottomNav、旧数字 bridge 已退役。
+- Mine 与 Dialog 共用 canonical `UserAvatar`。
+- Mine 接入个人背景 repository、当前模型、可用 Key 数量与遥测状态。
+- 设置、AI 管理、遥测与诊断进入已有真实页面；未实现能力保持 unavailable。
+- UI-03 未包含在 UI-01 中。
 
-本批次继续遵守“只保留一个 Draft PR”的约束，不创建额外 PR，也不在本状态收口中扩大到 UI-03。
+## 2026-09-12 Post-Merge Audit 修正
 
-## 完成映射
+UI-01 合入后重新审查 `4bb47dd..871057b`，确认原状态文档有两类过度结论：
 
-- [x] Root BottomNav 固定为 `对话 / 角色 / 资料 / 我的`，`ISSUES` 仅保留为内部 Issue 图入口。
-- [x] Issue root、detail、Execution、deep link、`stageId` 和返回链保留；外部 Issue 深链先进入内部根页，再进入详情，避免 Navigation 默认合成栈跳过根页。
-- [x] 删除 `DialogBottomBar`、`NavigateBottomTab`、`onNavigateBottomTab` 和旧 numeric bridge，Dialog 不再拥有第二套底栏。
-- [x] 新增公共 `UserAvatar`，Mine Hero 与 Dialog 用户消息统一使用 `R.drawable.avatar_user`；没有头像目录、持久化或自定义图片源。
-- [x] Mine B 已接入个人背景数据投影、当前模型、可用 Key 数量和遥测状态；读取失败显示明确状态，不伪造成功。
-- [x] 设置、AI 管理、遥测与诊断进入现有真实页面；数据与隐私、备份与恢复、关于见域和个人背景查看/编辑按当前产品决策显示为不可用，不添加假页面。
-- [x] 根导航、二级页返回、Activity 重建、Issue 深链和 UI-02 角色/对话回归测试已补齐。
+1. **Mine 个人背景摘要并非完全真实投影。** 合入版本仍固定展示 `职业目标 / 可用时间 / 表达偏好` 三个示例 Chip，即使 repository 没有对应 PersonalContext；这与 UI-01 Spec“不得把设计示例冒充用户数据”冲突。
+2. **快捷卡冻结文案偏移。** Spec 为 `模型与 API Key`，合入实现写成 `AI 管理`。
 
-## 验证证据
+上述两项已在唯一修复分支 `codex/ui-postmerge-audit-fixes` 中修复：摘要 Chip 只来自 repository 返回的真实、非敏感、非空 PersonalContext title，最多 3 项；0 项时不再伪造示例 Chip；快捷卡恢复 `模型与 API Key`。
 
-### AGY MCP
+## 原批次验证证据（历史）
 
-AGY 只负责执行昂贵验证并回传压缩证据，未修改源码：
+以下证据只证明当时 UI-01 分支/环境，不证明 post-merge 修复分支：
 
-- `jianyu_compile_test`：PASS，task `task-814b392706204bae94912bfd376dd49f`，exit code 0，0 errors，26 warnings，约 89 秒。
-- `jianyu_lint_assemble`：PASS，task `task-d70d39505f8445adbc43be4c9ac82b8d`，exit code 0，0 errors，19 warnings，约 239 秒。
+- AGY `jianyu_compile_test`：当时 PASS。
+- AGY `jianyu_lint_assemble`：当时 PASS。
+- `assembleDebugAndroidTest`：当时 PASS。
+- 定向 `connectedDebugAndroidTest`：当时 20/20 PASS。
+- 设备环境：`emulator-5554`，**1080×2400**。
+- 当时验证了四项根导航、Mine 页面、设置/AI 管理/遥测入口、unavailable 状态、Activity 重建、Issue deep link/back 链。
 
-### 本地设备与构建
+### 视觉证据边界
 
-- `pwsh.exe -NoProfile -Command "& .\\gradlew.bat --no-daemon :app:assembleDebugAndroidTest"`：PASS，`BUILD SUCCESSFUL`。
-- 定向 `connectedDebugAndroidTest`：PASS，`20/20`，0 failed；设备为 `emulator-5554`，分辨率 `1080×2400`。
-- 设备 UI：PASS。四项根导航、Mine 页面、设置/AI 管理/遥测入口、禁用状态、Activity 重建和返回链均已通过 UI dump/截图核对。
-- 外部 URI `jianyu://issues/issue-deep-link?stageId=stage-7`：PASS，真实 Activity 能解析并进入 Issue Execution；返回后 UI dump 为内部 `issues_screen`，没有 Root BottomNav。
-- Mine 视觉证据：`C:\Users\70455\.codex\visualizations\2026\09\12\ui-01-mine.png`。
+原批次运行设备是 **1080×2400 Android Emulator**。因此原文中的“设备 UI PASS”只能解释为该 emulator 上的历史运行证据，**不能等价为 Xiaomi 14 Ultra 1440×3200 portrait zh-CN 真机最终验收**。
 
-AGY 的 26/19 条 warning 为编译/静态检查警告，不含错误；其中包含现有依赖或弃用提示。没有将远端 CI 状态写成本地验证结果。历史 `tools/check-app-identity.ps1` Android CI 身份门禁仍按 `PRE_EXISTING_BASELINE` 记录，本任务未修改它。
+当前项目唯一最终视觉目标仍是：
 
-## 产品决策与合并门禁
+```text
+Xiaomi 14 Ultra
+1440 × 3200
+portrait
+zh-CN
+```
 
-- `AVATAR_SWITCH: BLOCKED_PRODUCT_DECISION`：当前不实现头像切换，避免伪造头像目录、存储和自定义图片源。
-- `MERGE_READY: YES`
-- `BLOCKERS: UI-01 核心范围无阻塞；PR #61 按目标约束保持 Draft，等待最终合入授权。`
-- `EXTRA_PRS_CREATED: 0`
+该目标设备的 post-merge 修复验证当前为：`NOT_RUN`，待本地 AI 只读验收。
 
+## 当前事实
+
+```text
+PR_61: MERGED
+MAIN_MERGE_COMMIT: 871057b33d37396f9e560ac18887d3aa0083c6ef
+POSTMERGE_AUDIT: FOUND_UI01_SPEC_DRIFT
+POSTMERGE_FIX_BRANCH: codex/ui-postmerge-audit-fixes
+CURRENT_LOCAL_BUILD: NOT_RUN
+CURRENT_XIAOMI_14_ULTRA_UI: NOT_RUN
+```
+
+不得再使用本文件旧的 `Open + Draft` / `MERGE_READY` 表述描述当前仓库状态。
