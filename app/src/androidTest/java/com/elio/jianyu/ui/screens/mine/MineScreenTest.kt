@@ -5,8 +5,8 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.telemetry.TelemetryLevel
 import com.elio.jianyu.ui.theme.SkillRoundtableTheme
@@ -27,6 +27,7 @@ class MineScreenTest {
                 MineScreen(
                     uiState = MineUiState(
                         personalContextCount = 4,
+                        personalContextSummaryLabels = listOf("职业方向", "学习计划"),
                         modelDisplayName = "Gemini 3.6 Flash",
                         availableKeyCount = 2,
                         telemetryLevel = TelemetryLevel.OFF,
@@ -42,10 +43,13 @@ class MineScreenTest {
         composeRule.onNodeWithText("我的").assertIsDisplayed()
         composeRule.onNodeWithTag(MineTestTags.PERSONAL_BACKGROUND_HERO).assertIsDisplayed()
         composeRule.onNodeWithText("已保存 4 项").assertIsDisplayed()
-        composeRule.onNodeWithText("职业目标").assertIsDisplayed()
-        composeRule.onNodeWithText("可用时间").assertIsDisplayed()
-        composeRule.onNodeWithText("表达偏好").assertIsDisplayed()
-        composeRule.onNodeWithText("AI 管理").assertIsDisplayed()
+        composeRule.onNodeWithText("职业方向").assertIsDisplayed()
+        composeRule.onNodeWithText("学习计划").assertIsDisplayed()
+        composeRule.onNodeWithText("职业目标").assertDoesNotExist()
+        composeRule.onNodeWithText("可用时间").assertDoesNotExist()
+        composeRule.onNodeWithText("表达偏好").assertDoesNotExist()
+        composeRule.onNodeWithText("模型与 API Key").assertIsDisplayed()
+        composeRule.onNodeWithText("AI 管理").assertDoesNotExist()
         composeRule.onNodeWithText("数据与隐私").assertIsDisplayed()
         composeRule.onNodeWithText("备份与恢复").assertIsDisplayed()
         composeRule.onNodeWithText("遥测与诊断").assertIsDisplayed()
@@ -61,6 +65,25 @@ class MineScreenTest {
         ).forEach { tag ->
             composeRule.onNodeWithTag(tag).assertIsNotEnabled()
         }
+    }
+
+    @Test
+    fun minePage_withoutSummaryLabels_doesNotInventPersonalContextChips() {
+        composeRule.setContent {
+            SkillRoundtableTheme(darkTheme = false) {
+                MineScreen(
+                    uiState = MineUiState(personalContextCount = 0),
+                    onOpenSettings = {},
+                    onOpenAiManagement = {},
+                    onOpenTelemetry = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("还没有个人背景").assertIsDisplayed()
+        composeRule.onNodeWithText("职业目标").assertDoesNotExist()
+        composeRule.onNodeWithText("可用时间").assertDoesNotExist()
+        composeRule.onNodeWithText("表达偏好").assertDoesNotExist()
     }
 
     @Test
