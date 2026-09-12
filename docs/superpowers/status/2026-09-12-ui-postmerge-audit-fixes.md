@@ -14,7 +14,7 @@
 
 ## 当前目标
 
-重新审查 UI-02 / AndroidTest baseline / UI-01 合入后的 `4bb47dd..871057b`，修复已确认的规格漂移和角色会话动作一致性问题；最终 UI 只以 Xiaomi 14 Ultra 1440×3200 portrait zh-CN 为验收目标。
+重新审查 UI-02 / AndroidTest baseline / UI-01 合入后的 `4bb47dd..871057b`，修复已确认的规格漂移和角色会话动作一致性问题。产品目标设备仍是 Xiaomi 14 Ultra 1440×3200 portrait zh-CN；但用户于 2026-09-12 明确批准当前 1080×2400 emulator 作为本轮 UI 布局/比例与 connected AndroidTest 的验收设备，因为两者同为 9:20 纵横比。本轮不做其他屏幕适配。
 
 ## Superpowers 来源
 
@@ -101,8 +101,17 @@
 
 1. **“修复 `toMineSummaryLabels` 接口不一致”——不执行。** 该 unresolved reference 只发生在 RED `512c84f...`，用于证明实现前接口不存在。GREEN `88cb501...` 已定义 `List<PersonalContext>.toMineSummaryLabels()`，且定向 JVM 测试在 GREEN 通过。
 2. **“修复 `personalContextSummaryLabels` / `actionInProgress` / `actionMessage` / `settleTimeoutMs` 参数不一致”——不执行。** 这些编译错误同样只属于 RED。GREEN 已具有全部对应 production 接口，并且 `:app:compileDebugKotlin` 与 `:app:assembleDebugAndroidTest` 均通过。
-3. **“连接 Xiaomi 14 Ultra 1440×3200 后执行 connected AndroidTest 与 A-F UI 验收”——保留为当前唯一验证阻塞项。** 当前 ADB 只有 `emulator-5554`，报告为 1080×2400、Android 9；不作为目标设备证据。
-4. **“修复后提供新的 GREEN HEAD”——当前不适用。** 因行动项 1/2 不构成 GREEN 缺陷，本轮没有生产代码修复；已验证 GREEN 仍为 `88cb5014fdd84a70311f4e09e2ec1fb5493565c3`。本状态文档更新会产生新的 docs-only branch HEAD，但不会改变需要设备复验的生产代码/测试基线。
+3. **设备阻塞裁决已被用户后续指令覆盖。** 首轮报告因当前设备为 `1080×2400 emulator` 而阻塞；用户随后明确确认 1080×2400 与 1440×3200 比例一致，可作为本轮 UI/测试验收设备。两者均为 9:20，因此本轮不再因绝对像素或非真机型号直接 BLOCK。
+4. **不需要新的 production GREEN SHA。** 行动项 1/2 不构成 GREEN 缺陷；设备门禁变化只是验收策略变化。生产/测试复验仍基于 `88cb5014fdd84a70311f4e09e2ec1fb5493565c3`。本状态文档更新产生 docs-only branch HEAD，不改变待测代码。
+
+## 设备验收口径修订（用户 2026-09-12 明确批准）
+
+- 产品目标设备仍记录为 Xiaomi 14 Ultra 1440×3200。
+- 本轮 Post-Merge Audit 的 UI 布局/比例验收允许使用当前 `1080×2400` emulator；1080×2400 与 1440×3200 同为 9:20。
+- 不要求通过 `adb wm size` 伪造 1440×3200；保持 emulator 原生 1080×2400 即可。
+- connected AndroidTest 可直接在该 emulator 上执行。
+- 该批准仅解除本轮“设备必须是真实 Xiaomi 14 Ultra / 绝对像素必须 1440×3200”的门禁，不代表要新增其他尺寸适配，也不把旧 APK/旧截图当作当前 GREEN 的新鲜证据。
+- Android 版本、density 与真实机不同不再自动判本轮 FAIL；若它们导致具体功能/Compose 测试失败，则按实际失败调查。
 
 ## 远端审查范围
 
@@ -127,36 +136,37 @@
 - PR #60：已合并，merge commit `e742008b38603ccb1d531e1972adb44e3037971b`。
 - PR #61：已合并，merge commit `871057b33d37396f9e560ac18887d3aa0083c6ef`。
 - UI-01 / UI-02 历史 status 已改为历史证据，不再写 Open/Draft 当前态。
-- UI-01 Plan 的 Xiaomi 真机门禁已重新置为未完成。
-- 历史 `emulator-5554 / 1080×2400` 只能作为 emulator 证据，不能替代 Xiaomi 14 Ultra 1440×3200 真机最终验收。
+- UI-01 Plan 先前重新打开的 Xiaomi 真机门禁，由本状态中的 2026-09-12 用户新指令覆盖：本轮可用同 9:20 的 1080×2400 emulator 完成 Post-Merge Audit 验收。
+- 历史 emulator 证据本身仍只是历史证据；必须对 GREEN `88cb501...` 重新执行 connected tests 和 UI 流程，不能直接沿用旧结果。
 
 ## 当前验证状态
 
 ```text
-REMOTE_CODE_REVIEW: PASS_WITH_DEVICE_VERIFICATION_PENDING
+REMOTE_CODE_REVIEW: PASS_WITH_RUNTIME_VERIFICATION_PENDING
 RED_STATIC_APP_SIDE_EFFECT: PASS
 RED_JVM: EXPECTED_FAIL
 RED_ANDROIDTEST_COMPILE: EXPECTED_FAIL
 COMPILE_DEBUG_KOTLIN: PASS
 TARGETED_JVM: PASS
 ASSEMBLE_DEBUG_ANDROID_TEST: PASS
-TARGETED_ANDROID_TEST: BLOCKED_ENV
-XIAOMI_14_ULTRA_UI: BLOCKED_ENV
-MODEL_CALL: BLOCKED_ENV
-MANUAL_CANCEL_COMPENSATION: BLOCKED_ENV/AUTOMATED_TEST_PENDING
+TARGETED_ANDROID_TEST: NOT_RUN_READY_ON_APPROVED_EMULATOR
+APP_UI_ACCEPTANCE: NOT_RUN_READY_ON_APPROVED_EMULATOR
+MODEL_CALL: NOT_RUN_ENV_DEPENDENT
+MANUAL_CANCEL_COMPENSATION: NOT_RUN/AUTOMATED_TEST_PENDING
 PR_CREATED: NO
 MERGED: NO
 ```
 
-证据来源：2026-09-12 本地只读验收报告 `result.md`。其中 GREEN `compileDebugKotlin`、两个指定 JVM 测试类、`assembleDebugAndroidTest` 均报告 `BUILD SUCCESSFUL`；六组 `connectedDebugAndroidTest` 未执行，因此不得写成 AndroidTest 已通过。
+证据来源：2026-09-12 本地只读验收报告 `result.md`。其中 GREEN `compileDebugKotlin`、两个指定 JVM 测试类、`assembleDebugAndroidTest` 均报告 `BUILD SUCCESSFUL`；六组 `connectedDebugAndroidTest` 和 UI 流程尚未执行，因此不得提前写成 PASS。
 
 ## 下一步门禁
 
-当前不做新的生产代码修改。下一轮只在满足真实目标设备条件后继续：
+当前不做新的生产代码修改。由本地 AI 在用户已批准的当前 1080×2400 emulator 上继续只读验收：
 
-1. 连接真实 Xiaomi 14 Ultra，保持 1440×3200 physical size、portrait、zh-CN；不得用 `wm size` 覆盖伪造目标环境。
-2. 基于生产/测试基线 `88cb5014fdd84a70311f4e09e2ec1fb5493565c3` 执行六组指定 `connectedDebugAndroidTest`。
-3. 完成 Root Nav、Mine B、角色 Catalog/详情、Start New、Add Current、快速重复点击等 A-F 手工流程；安全可复现时检查取消补偿，否则以自动化补偿测试作为证据。
-4. 真实 Gemini/model-call 仅在网络/API Key 环境可用时验收；环境不可用则单独记录 `BLOCKED_ENV`，不得等同代码失败。
-5. 截图/UI hierarchy XML 上传 Google Drive，并返回压缩 PASS/FAIL 与关键失败证据。
-6. 收到上述证据后再次执行 `verification-before-completion`。在此之前，本轮不能标记“全部完成”，也不创建 PR。
+1. checkout/detach 到生产/测试基线 `88cb5014fdd84a70311f4e09e2ec1fb5493565c3`，确认 worktree clean；不需要再次执行 RED。
+2. 为保证新鲜证据，重跑 `:app:compileDebugKotlin`、两个指定 JVM 测试类、`:app:assembleDebugAndroidTest`。
+3. 在当前 emulator 上执行六组指定 `connectedDebugAndroidTest`。
+4. 安装该 GREEN 对应 APK，完成 Root Nav、Mine B、角色 Catalog/详情、Start New、Add Current、快速重复点击等 A-F 手工流程。
+5. 真实 Gemini/model-call 仅在网络/API Key 环境可用时验收；环境不可用则单独记录 `BLOCKED_ENV`，不得等同代码失败。
+6. 截图/UI hierarchy XML 上传 Google Drive，并返回压缩 PASS/FAIL 与关键失败证据。
+7. 收到上述证据后再次执行 `verification-before-completion`。在此之前，本轮不能标记“全部完成”，也不创建 PR。
