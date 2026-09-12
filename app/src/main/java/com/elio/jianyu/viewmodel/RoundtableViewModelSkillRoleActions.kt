@@ -12,7 +12,9 @@ import com.elio.jianyu.skill.catalog.OfficialSkillDefinition
 import com.elio.jianyu.skill.role.OfficialSkillConversationRoleAdapter
 import com.elio.jianyu.telemetry.PrivacySafeLogger
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 private const val ROLE_ACTION_SETTLE_TIMEOUT_MS = 5_000L
@@ -42,31 +44,35 @@ suspend fun RoundtableViewModel.createNewSessionWithSkillRole(
     val previousSessionId = currentSessionId.value
     val chatRepository = ChatRepository(database.chatDao())
     val conversationPreferences = ConversationSessionPreferences(application)
-    val sessionId = runCatching { chatRepository.createSession(title) }.getOrNull()
-        ?: return roleActionFailure("start_new", "session_create_failed")
-    conversationPreferences.setParticipantIds(sessionId, listOf(skillId))
-
-    if (refreshSessionRosterAndAwait(sessionId, skillId, settleTimeoutMs)) {
-        return true
-    }
-
-    conversationPreferences.clearSession(sessionId)
-    try {
-        chatRepository.deleteSession(sessionId)
+    val sessionId = try {
+        chatRepository.createSession(title)
     } catch (cancelled: CancellationException) {
         throw cancelled
-    } catch (error: Exception) {
-        PrivacySafeLogger.e(
-            "RoundtableViewModel",
-            "Failed to compensate incomplete skill-role session",
-            error,
-        )
+    } catch (_: Exception) {
+        return roleActionFailure("start_new", "session_create_failed")
     }
-    restoreSessionSelectionAfterRoleAction(
-        expectedCurrentSessionId = sessionId,
-        restoreSessionId = previousSessionId,
-    )
-    return roleActionFailure("start_new", "session_roster_not_settled")
+    conversationPreferences.setParticipantIds(sessionId, listOf(skillId))
+
+    try {
+        if (refreshSessionRosterAndAwait(sessionId, skillId, settleTimeoutMs)) {
+            return true
+        }
+        compensateCreatedRoleSession(
+            chatRepository = chatRepository,
+            conversationPreferences = conversationPreferences,
+            createdSessionId = sessionId,
+            previousSessionId = previousSessionId,
+        )
+        return roleActionFailure("start_new", "session_roster_not_settled")
+    } catch (cancelled: CancellationException) {
+        compensateCreatedRoleSession(
+            chatRepository = chatRepository,
+            conversationPreferences = conversationPreferences,
+            createdSessionId = sessionId,
+            previousSessionId = previousSessionId,
+        )
+        throw cancelled
+    }
 }
 
 /**
@@ -111,16 +117,62 @@ suspend fun RoundtableViewModel.addSkillRoleToCurrentSessionAwait(
         return roleActionFailure("add_current", "session_changed_before_refresh")
     }
 
-    if (refreshSessionRosterAndAwait(sessionId, skillId, settleTimeoutMs)) {
-        return true
+    try {
+        if (refreshSessionRosterAndAwait(sessionId, skillId, settleTimeoutMs)) {
+            return true
+        }
+        compensateAddedRole(
+            conversationPreferences = conversationPreferences,
+            sessionId = sessionId,
+            originalParticipantIds = originalParticipantIds,
+        )
+        return roleActionFailure("add_current", "session_roster_not_settled")
+    } catch (cancelled: CancellationException) {
+        compensateAddedRole(
+            conversationPreferences = conversationPreferences,
+            sessionId = sessionId,
+            originalParticipantIds = originalParticipantIds,
+        )
+        throw cancelled
     }
+}
 
-    conversationPreferences.setParticipantIds(sessionId, originalParticipantIds)
-    restoreSessionSelectionAfterRoleAction(
-        expectedCurrentSessionId = sessionId,
-        restoreSessionId = sessionId,
-    )
-    return roleActionFailure("add_current", "session_roster_not_settled")
+private suspend fun RoundtableViewModel.compensateCreatedRoleSession(
+    chatRepository: ChatRepository,
+    conversationPreferences: ConversationSessionPreferences,
+    createdSessionId: Long,
+    previousSessionId: Long?,
+) {
+    withContext(NonCancellable) {
+        conversationPreferences.clearSession(createdSessionId)
+        try {
+            chatRepository.deleteSession(createdSessionId)
+        } catch (error: Exception) {
+            PrivacySafeLogger.e(
+                "RoundtableViewModel",
+                "Failed to compensate incomplete skill-role session",
+                error,
+            )
+        }
+        restoreSessionSelectionAfterRoleAction(
+            expectedCurrentSessionId = createdSessionId,
+            restoreSessionId = previousSessionId,
+        )
+    }
+}
+
+private suspend fun RoundtableViewModel.compensateAddedRole(
+    conversationPreferences: ConversationSessionPreferences,
+    sessionId: Long,
+    originalParticipantIds: List<String>,
+) {
+    withContext(NonCancellable) {
+        conversationPreferences.setParticipantIds(sessionId, originalParticipantIds)
+        restoreSessionSelectionAfterRoleAction(
+            expectedCurrentSessionId = sessionId,
+            restoreSessionId = sessionId,
+        )
+    }
 }
 
 /**
