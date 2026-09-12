@@ -8,7 +8,9 @@
 >
 > RED 边界：`512c84f98cb681781efd4ad055c5462b1319f96b`
 >
-> 当前远端 HEAD：以本文件提交后的 branch HEAD 为准；本轮尚未创建 PR。
+> 本地验收所验证的 GREEN：`88cb5014fdd84a70311f4e09e2ec1fb5493565c3`
+>
+> 本轮尚未创建 PR。
 
 ## 当前目标
 
@@ -24,6 +26,7 @@
 - `test-driven-development`
 - `writing-good-tests`
 - `executing-plans`
+- `receiving-code-review`
 - `verification-before-completion`
 
 仓库内旧 Superpowers 快照不作为本轮方法论权威来源。
@@ -50,7 +53,15 @@
 - `MineUiStateTest`：PersonalContext 摘要只取真实、非敏感、trim/去重 title。
 - `MineScreenTest`：不显示三项静态假摘要；显示 `模型与 API Key`。
 
-RED 命令尚未在本地执行；最终本地 AI 必须回切此 SHA 补齐 RED 证据。
+### 本地 RED 证据（2026-09-12）
+
+本地只读验收已经回切 RED SHA 并提供以下新鲜证据：
+
+- `git grep -n "viewModel.ensureConversationReady()" app/src/main/java/com/elio/jianyu/ui/App.kt` 在 RED 命中 `App.kt:246`。
+- 定向 JVM RED 按预期在测试编译阶段失败：`MineUiStateTest.kt:53:22` 无法解析 `toMineSummaryLabels`。
+- `:app:compileDebugAndroidTestKotlin` 按预期失败，缺失的正是本轮待实现接口：`personalContextSummaryLabels`、`actionInProgress`、`actionMessage`、`settleTimeoutMs`。
+
+这些错误属于计划允许的“目标接口尚不存在” RED，不是 GREEN 缺陷。
 
 ## 远端已完成的代码修改
 
@@ -84,6 +95,15 @@ RED 命令尚未在本地执行；最终本地 AI 必须回切此 SHA 补齐 RED
 - 0 项/失败时不渲染假摘要 Chip。
 - 快捷卡恢复正式文案 `模型与 API Key`。
 
+## 本地验收反馈裁决（2026-09-12）
+
+本地报告给出了四项行动建议。按 Superpowers v6.3 `receiving-code-review` 先核对 GREEN 代码与验收证据后，裁决如下：
+
+1. **“修复 `toMineSummaryLabels` 接口不一致”——不执行。** 该 unresolved reference 只发生在 RED `512c84f...`，用于证明实现前接口不存在。GREEN `88cb501...` 已定义 `List<PersonalContext>.toMineSummaryLabels()`，且定向 JVM 测试在 GREEN 通过。
+2. **“修复 `personalContextSummaryLabels` / `actionInProgress` / `actionMessage` / `settleTimeoutMs` 参数不一致”——不执行。** 这些编译错误同样只属于 RED。GREEN 已具有全部对应 production 接口，并且 `:app:compileDebugKotlin` 与 `:app:assembleDebugAndroidTest` 均通过。
+3. **“连接 Xiaomi 14 Ultra 1440×3200 后执行 connected AndroidTest 与 A-F UI 验收”——保留为当前唯一验证阻塞项。** 当前 ADB 只有 `emulator-5554`，报告为 1080×2400、Android 9；不作为目标设备证据。
+4. **“修复后提供新的 GREEN HEAD”——当前不适用。** 因行动项 1/2 不构成 GREEN 缺陷，本轮没有生产代码修复；已验证 GREEN 仍为 `88cb5014fdd84a70311f4e09e2ec1fb5493565c3`。本状态文档更新会产生新的 docs-only branch HEAD，但不会改变需要设备复验的生产代码/测试基线。
+
 ## 远端审查范围
 
 相对 `main@871057b...`，生产代码只触碰：
@@ -113,27 +133,30 @@ RED 命令尚未在本地执行；最终本地 AI 必须回切此 SHA 补齐 RED
 ## 当前验证状态
 
 ```text
-REMOTE_CODE_REVIEW: PASS_WITH_LOCAL_VERIFICATION_PENDING
-RED_TEST_EXECUTION: NOT_RUN
-LOCAL_BUILD: NOT_RUN
-TARGETED_JVM: NOT_RUN
-TARGETED_ANDROID_TEST: NOT_RUN
-ASSEMBLE_DEBUG_ANDROID_TEST: NOT_RUN
-XIAOMI_14_ULTRA_UI: NOT_RUN
+REMOTE_CODE_REVIEW: PASS_WITH_DEVICE_VERIFICATION_PENDING
+RED_STATIC_APP_SIDE_EFFECT: PASS
+RED_JVM: EXPECTED_FAIL
+RED_ANDROIDTEST_COMPILE: EXPECTED_FAIL
+COMPILE_DEBUG_KOTLIN: PASS
+TARGETED_JVM: PASS
+ASSEMBLE_DEBUG_ANDROID_TEST: PASS
+TARGETED_ANDROID_TEST: BLOCKED_ENV
+XIAOMI_14_ULTRA_UI: BLOCKED_ENV
+MODEL_CALL: BLOCKED_ENV
+MANUAL_CANCEL_COMPENSATION: BLOCKED_ENV/AUTOMATED_TEST_PENDING
 PR_CREATED: NO
 MERGED: NO
 ```
 
-“REMOTE_CODE_REVIEW PASS”仅表示代码范围/调用链/静态 diff 已审查，不表示可编译或测试通过。
+证据来源：2026-09-12 本地只读验收报告 `result.md`。其中 GREEN `compileDebugKotlin`、两个指定 JVM 测试类、`assembleDebugAndroidTest` 均报告 `BUILD SUCCESSFUL`；六组 `connectedDebugAndroidTest` 未执行，因此不得写成 AndroidTest 已通过。
 
 ## 下一步门禁
 
-由本地 AI **只读**完成：
+当前不做新的生产代码修改。下一轮只在满足真实目标设备条件后继续：
 
-1. 在 RED SHA 上跑定向测试，证明新增测试确实因目标行为缺失而失败；
-2. 回到最新修复 HEAD，执行 compile + 定向 JVM + 定向 AndroidTest + AndroidTest assemble；
-3. 使用真实 Xiaomi 14 Ultra 1440×3200 portrait zh-CN 完成 Root Nav、Mine B、角色浏览/Start New/Add Current/重复提交等验证；
-4. 截图/UI dump 上传 Google Drive；只返回压缩 PASS/FAIL 和关键证据；
-5. 任一失败都回到 `systematic-debugging`，不得直接宣布完成。
-
-只有收到这些新鲜证据并通过 `verification-before-completion` 后，才能把本轮状态改为完成。
+1. 连接真实 Xiaomi 14 Ultra，保持 1440×3200 physical size、portrait、zh-CN；不得用 `wm size` 覆盖伪造目标环境。
+2. 基于生产/测试基线 `88cb5014fdd84a70311f4e09e2ec1fb5493565c3` 执行六组指定 `connectedDebugAndroidTest`。
+3. 完成 Root Nav、Mine B、角色 Catalog/详情、Start New、Add Current、快速重复点击等 A-F 手工流程；安全可复现时检查取消补偿，否则以自动化补偿测试作为证据。
+4. 真实 Gemini/model-call 仅在网络/API Key 环境可用时验收；环境不可用则单独记录 `BLOCKED_ENV`，不得等同代码失败。
+5. 截图/UI hierarchy XML 上传 Google Drive，并返回压缩 PASS/FAIL 与关键失败证据。
+6. 收到上述证据后再次执行 `verification-before-completion`。在此之前，本轮不能标记“全部完成”，也不创建 PR。
