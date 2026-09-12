@@ -89,5 +89,6 @@ class RoundtableViewModelSkillRoleActionsTest {
         withTimeout(5_000L) {
             viewModel.currentParticipantIds.first { it == original }
         }
+        Unit
     }
 }
