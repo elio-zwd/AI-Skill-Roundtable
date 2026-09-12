@@ -3,14 +3,17 @@ package com.elio.jianyu.ui.screens.skills
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.elio.jianyu.skill.catalog.OfficialSkillCatalogRuntimeResult
 import com.elio.jianyu.skill.role.SkillRolePresentationCatalogLoader
 import com.elio.jianyu.skill.role.SkillRolePresentationLoadResult
 import com.elio.jianyu.ui.components.JianyuStateCard
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 /** UI-02 二级全屏详情 Route；不写 recent-use。 */
@@ -20,8 +23,9 @@ internal fun SkillRoleDetailRoute(
     skillId: String?,
     canAddToCurrentConversation: Boolean,
     onBack: () -> Unit,
-    onStartNewConversation: (String) -> Unit,
-    onAddToCurrentConversation: (String) -> Unit,
+    onStartNewConversation: suspend (String) -> Boolean,
+    onAddToCurrentConversation: suspend (String) -> Boolean,
+    onConversationReady: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val runtime = when (runtimeResult) {
@@ -78,10 +82,37 @@ internal fun SkillRoleDetailRoute(
     }
 
     val scope = rememberCoroutineScope()
+    var actionInProgress by remember(resolvedSkillId) { mutableStateOf(false) }
+    var actionMessage by remember(resolvedSkillId) { mutableStateOf<String?>(null) }
+
+    val launchConversationAction: (suspend (String) -> Boolean) -> Unit = { action ->
+        if (!actionInProgress) {
+            actionInProgress = true
+            actionMessage = null
+            scope.launch {
+                try {
+                    if (action(resolvedSkillId)) {
+                        onConversationReady()
+                    } else {
+                        actionMessage = "操作未完成，请重试"
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    actionMessage = "操作未完成，请重试"
+                } finally {
+                    actionInProgress = false
+                }
+            }
+        }
+    }
+
     SkillRoleDetailScreen(
         role = role.copy(isFavorite = resolvedSkillId in favoriteIds),
         isFavorite = resolvedSkillId in favoriteIds,
         canAddToCurrentConversation = canAddToCurrentConversation,
+        actionInProgress = actionInProgress,
+        actionMessage = actionMessage,
         onBack = onBack,
         onToggleFavorite = {
             scope.launch {
@@ -91,8 +122,8 @@ internal fun SkillRoleDetailRoute(
                 )
             }
         },
-        onStartNewConversation = { onStartNewConversation(resolvedSkillId) },
-        onAddToCurrentConversation = { onAddToCurrentConversation(resolvedSkillId) },
+        onStartNewConversation = { launchConversationAction(onStartNewConversation) },
+        onAddToCurrentConversation = { launchConversationAction(onAddToCurrentConversation) },
         modifier = modifier,
     )
 }
