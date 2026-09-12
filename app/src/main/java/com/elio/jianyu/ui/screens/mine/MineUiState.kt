@@ -1,12 +1,14 @@
 package com.elio.jianyu.ui.screens.mine
 
 import androidx.compose.runtime.Immutable
+import com.elio.jianyu.data.PersonalContext
 import com.elio.jianyu.telemetry.TelemetryLevel
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
 
 @Immutable
 data class MineUiState(
     val personalContextCount: Int? = null,
+    val personalContextSummaryLabels: List<String> = emptyList(),
     val personalContextLoadFailed: Boolean = false,
     val modelDisplayName: String = "Gemini",
     val availableKeyCount: Int = 0,
@@ -34,6 +36,15 @@ data class MineUiState(
             TelemetryLevel.CONTENT_DEBUG -> "正文调试已开启"
         }
 }
+
+internal fun List<PersonalContext>.toMineSummaryLabels(): List<String> =
+    asSequence()
+        .filter { context -> !context.sensitive }
+        .map { context -> context.title.trim() }
+        .filter(String::isNotEmpty)
+        .distinct()
+        .take(3)
+        .toList()
 
 internal object MineTestTags {
     const val SCREEN = JianyuAutomationTags.Screen.MINE
