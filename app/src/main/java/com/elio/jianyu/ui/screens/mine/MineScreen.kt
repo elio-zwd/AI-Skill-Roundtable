@@ -200,19 +200,21 @@ private fun PersonalBackgroundHero(uiState: MineUiState) {
                     }
                 }
             }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 18.dp)
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                listOf("职业目标", "可用时间", "表达偏好").forEach { label ->
-                    AssistChip(
-                        onClick = {},
-                        enabled = false,
-                        label = { Text(label) },
-                    )
+            if (uiState.personalContextSummaryLabels.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 18.dp)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    uiState.personalContextSummaryLabels.forEach { label ->
+                        AssistChip(
+                            onClick = {},
+                            enabled = false,
+                            label = { Text(label) },
+                        )
+                    }
                 }
             }
         }
@@ -231,7 +233,7 @@ private fun QuickControls(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             QuickControlCard(
-                title = "AI 管理",
+                title = "模型与 API Key",
                 subtitle = uiState.aiManagementStatus,
                 icon = Icons.Default.Settings,
                 enabled = true,
