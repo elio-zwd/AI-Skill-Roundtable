@@ -11,6 +11,7 @@ import com.elio.jianyu.skill.catalog.OfficialSkillCatalogRuntimeResult
 import com.elio.jianyu.skill.catalog.OfficialSkillDefinition
 import com.elio.jianyu.skill.role.OfficialSkillConversationRoleAdapter
 import com.elio.jianyu.telemetry.PrivacySafeLogger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -26,6 +27,7 @@ private const val ROLE_ACTION_SETTLE_TIMEOUT_MS = 5_000L
 suspend fun RoundtableViewModel.createNewSessionWithSkillRole(
     skillId: String,
     title: String = "新建对话",
+    settleTimeoutMs: Long = ROLE_ACTION_SETTLE_TIMEOUT_MS,
 ): Boolean {
     val definition = resolveExecutableOfficialSkill(skillId)
         ?: return roleActionFailure("start_new", "official_role_unavailable")
@@ -37,17 +39,34 @@ suspend fun RoundtableViewModel.createNewSessionWithSkillRole(
         return roleActionFailure("start_new", "compatibility_adapter_rejected")
     }
 
+    val previousSessionId = currentSessionId.value
     val chatRepository = ChatRepository(database.chatDao())
     val conversationPreferences = ConversationSessionPreferences(application)
     val sessionId = runCatching { chatRepository.createSession(title) }.getOrNull()
         ?: return roleActionFailure("start_new", "session_create_failed")
     conversationPreferences.setParticipantIds(sessionId, listOf(skillId))
 
-    return if (refreshSessionRosterAndAwait(sessionId, skillId)) {
-        true
-    } else {
-        roleActionFailure("start_new", "session_roster_not_settled")
+    if (refreshSessionRosterAndAwait(sessionId, skillId, settleTimeoutMs)) {
+        return true
     }
+
+    conversationPreferences.clearSession(sessionId)
+    try {
+        chatRepository.deleteSession(sessionId)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (error: Exception) {
+        PrivacySafeLogger.e(
+            "RoundtableViewModel",
+            "Failed to compensate incomplete skill-role session",
+            error,
+        )
+    }
+    restoreSessionSelectionAfterRoleAction(
+        expectedCurrentSessionId = sessionId,
+        restoreSessionId = previousSessionId,
+    )
+    return roleActionFailure("start_new", "session_roster_not_settled")
 }
 
 /**
@@ -59,6 +78,7 @@ suspend fun RoundtableViewModel.createNewSessionWithSkillRole(
  */
 suspend fun RoundtableViewModel.addSkillRoleToCurrentSessionAwait(
     skillId: String,
+    settleTimeoutMs: Long = ROLE_ACTION_SETTLE_TIMEOUT_MS,
 ): Boolean {
     val sessionId = currentSessionId.value
         ?: return roleActionFailure("add_current", "no_current_session")
@@ -91,11 +111,16 @@ suspend fun RoundtableViewModel.addSkillRoleToCurrentSessionAwait(
         return roleActionFailure("add_current", "session_changed_before_refresh")
     }
 
-    return if (refreshSessionRosterAndAwait(sessionId, skillId)) {
-        true
-    } else {
-        roleActionFailure("add_current", "session_roster_not_settled")
+    if (refreshSessionRosterAndAwait(sessionId, skillId, settleTimeoutMs)) {
+        return true
     }
+
+    conversationPreferences.setParticipantIds(sessionId, originalParticipantIds)
+    restoreSessionSelectionAfterRoleAction(
+        expectedCurrentSessionId = sessionId,
+        restoreSessionId = sessionId,
+    )
+    return roleActionFailure("add_current", "session_roster_not_settled")
 }
 
 /**
@@ -107,9 +132,10 @@ suspend fun RoundtableViewModel.addSkillRoleToCurrentSessionAwait(
 private suspend fun RoundtableViewModel.refreshSessionRosterAndAwait(
     sessionId: Long,
     skillId: String,
+    settleTimeoutMs: Long,
 ): Boolean {
     selectSession(sessionId)
-    val sessionPublished = withTimeoutOrNull(ROLE_ACTION_SETTLE_TIMEOUT_MS) {
+    val sessionPublished = withTimeoutOrNull(settleTimeoutMs) {
         currentSession.first { session -> session?.id == sessionId }
         true
     } == true
