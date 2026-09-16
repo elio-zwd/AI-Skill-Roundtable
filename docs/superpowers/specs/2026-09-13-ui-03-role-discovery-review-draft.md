@@ -1,16 +1,16 @@
 # UI-03｜角色发现：搜索 / 筛选 / 收藏 / 最近 — 用户审查草稿
 
-> 状态：**DRAFT — PENDING USER REVIEW**
+> 状态：**APPROVED BY USER (2026-09-16)**
 >
-> 日期：2026-09-13
+> 日期：2026-09-16（更新已批准状态）
 >
 > Task：`UI-03-SPEC`
 >
-> 基线：`main@871057b33d37396f9e560ac18887d3aa0083c6ef`
+> 基线：`main@9a73d3a5364cc56b77444b322b212193aefdf20d`
 >
 > 规划分支：`codex/ui-03-spec`
 >
-> 本文只冻结待审查的产品与交互契约；**不代表 Android 生产实现已经获批或完成**。未在“用户审查决策表”中确认的高风险项，在后续实现前仍是 Gate。
+> 本文交互契约与产品决策门禁已全部获用户批准（G1～G8 均采用推荐方案 B）。
 
 ## 1. 目的与范围
 
@@ -556,20 +556,20 @@ Route 持有查询、筛选、Preferences Flow 和副作用；Screen 只接收�
 
 ## 7. 用户审查决策表
 
-> 用户只需逐项写“同意 / 改为……”。在全部 Gate 确认前，后续 Implementation Task 不得开始 Android 生产实现。
+> 用户已于 2026-09-16 明确回复“全部同意”，G1～G8 决策门禁全部按推荐方案（方案 B）通过批准。
 
-| Gate | 当前事实 | 候选 / 可选方向 | 开发 AI 推荐 | 推荐理由 | 需要用户确认 |
+| Gate | 当前事实 | 候选 / 可选方向 | 开发 AI 推荐 | 推荐理由 | 用户确认结果 (2026-09-16) |
 |---|---|---|---|---|---|
-| G1 搜索入口 | 根角色页 inline search | A 保持 inline；B 独立二级搜索页 | **B** | 搜索拥有筛选、结果、无结果、键盘等完整状态；二级页更清晰，符合候选 05 | **是** |
-| G2 收藏 / 最近形态 | 收藏是根模式；最近只显示最多 2 卡 | A 根模式；B 两个二级页 | **B** | 与搜索同层、状态隔离、返回语义清楚；根页继续保留少量最近入口 | **是** |
-| G3 筛选容器 | 当前 AlertDialog，toggle 即时作用 | A 继续 Dialog；B Modal Bottom Sheet + draft/apply | **B** | 候选视觉一致；取消/重置/查看 N 个角色才有真实语义 | **是** |
-| G4 相关性 / 匹配依据 | 当前无分数，按 defaultOrder；无理由模型 | A 不声称相关；B 本地确定性 rank + 0～2 条证据 | **B** | 可解释、可测试、不调用 LLM、不制造百分比 | **是** |
-| G5 最近场景 | 只有 skillId + usedAt | A 伪装 summary 为场景；B 不显示场景；C 扩数据模型 | **B** | 不伪造事实，也避免本批扩大到会话历史 Schema | **是** |
-| G6 清除最近 | 无 clear API | A 本批不提供；B 增加 Preferences `clearRecentUses` + 确认 | **B** | 用户控制明确，改动局部且不需 Room；但必须单独批准 | **是** |
-| G7 加载失败恢复 | fatal runtime 无 retry，也无可用 Preferences runtime | A 假“检查网络”；B 真实 reload 才显示重试，否则稳定错误态 | **B** | 不做假按钮、不误报网络原因；不在 Catalog 缺失时伪装可展示最近 | **是** |
-| G8 收藏 / 最近页筛选 | 当前没有独立页 | A 无筛选；B 共享角色属性筛选，隐藏页面恒真条件 | **B** | 用户可缩小长列表，但不会在收藏页重复“已收藏”这种无意义条件 | **是** |
+| G1 搜索入口 | 根角色页 inline search | A 保持 inline；B 独立二级搜索页 | **B** | 搜索拥有筛选、结果、无结果、键盘等完整状态；二级页更清晰，符合候选 05 | **已批准 B（独立二级搜索页）** |
+| G2 收藏 / 最近形态 | 收藏是根模式；最近只显示最多 2 卡 | A 根模式；B 两个二级页 | **B** | 与搜索同层、状态隔离、返回语义清楚；根页继续保留少量最近入口 | **已批准 B（两个独立二级页）** |
+| G3 筛选容器 | 当前 AlertDialog，toggle 即时作用 | A 继续 Dialog；B Modal Bottom Sheet + draft/apply | **B** | 候选视觉一致；取消/重置/查看 N 个角色才有真实语义 | **已批准 B（Modal Bottom Sheet + staged apply）** |
+| G4 相关性 / 匹配依据 | 当前无分数，按 defaultOrder；无理由模型 | A 不声称相关；B 本地确定性 rank + 0～2 条证据 | **B** | 可解释、可测试、不调用 LLM、不制造百分比 | **已批准 B（本地确定性 rank + 0～2 条真实匹配依据）** |
+| G5 最近场景 | 只有 skillId + usedAt | A 伪装 summary 为场景；B 不显示场景；C 扩数据模型 | **B** | 不伪造事实，也避免本批扩大到会话历史 Schema | **已批准 B（本批不显示场景文字）** |
+| G6 清除最近 | 无 clear API | A 本批不提供；B 增加 Preferences `clearRecentUses` + 确认 | **B** | 用户控制明确，改动局部且不需 Room；但必须单独批准 | **已批准 B（增加 Preferences `clearRecentUses` + 二次确认）** |
+| G7 加载失败恢复 | fatal runtime 无 retry，也无可用 Preferences runtime | A 假“检查网络”；B 真实 reload 才显示重试，否则稳定错误态 | **B** | 不做假按钮、不误报网络原因；不在 Catalog 缺失时伪装可展示最近 | **已批准 B（真实 reload 才显示重试，否则稳定错误态）** |
+| G8 收藏 / 最近页筛选 | 当前没有独立页 | A 无筛选；B 共享角色属性筛选，隐藏页面恒真条件 | **B** | 用户可缩小长列表，但不会在收藏页重复“已收藏”这种无意义条件 | **已批准 B（共享角色属性筛选，隐藏页面恒真条件）** |
 
-### 7.1 若用户全部接受推荐项
+### 7.1 用户决策落地要求
 
 后续 Implementation Task 的冻结方向为：
 
@@ -581,10 +581,6 @@ Route 持有查询、筛选、Preferences Flow 和副作用；Screen 只接收�
 - 增加 `clearRecentUses()`；
 - fatal error 只提供真实可执行的恢复动作；
 - 收藏/最近页复用属性筛选但移除恒真条件。
-
-### 7.2 若用户修改任一 Gate
-
-先修订本文与 Implementation Plan，再进入开发；不允许开发 AI在代码阶段自行替用户做产品决策。
 
 ## 8. 验收口径（供后续实现使用）
 
@@ -607,12 +603,6 @@ Route 持有查询、筛选、Preferences Flow 和副作用；Screen 只接收�
 
 ## 9. 当前状态
 
-**DRAFT — PENDING USER REVIEW**
+**APPROVED — READY FOR IMPLEMENTATION**
 
-本文可以进入文档 Local Acceptance，但 Local Acceptance PASS 只代表：
-
-- 草稿内容完整；
-- 当前事实与 Git diff 边界正确；
-- 实施计划可执行。
-
-它**不等于用户已批准 G1～G8，也不授权生产代码实施**。
+本文规格与门禁已全部通过用户审查，可作为 UI-03 生产实现的权威契约。

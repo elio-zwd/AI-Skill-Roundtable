@@ -1,14 +1,14 @@
 # UI-03｜角色发现：搜索 / 筛选 / 收藏 / 最近 — Implementation Plan
 
-> 状态：**DRAFT — BLOCKED BY USER REVIEW GATES**
+> 状态：**APPROVED — READY FOR DISPATCH**
 >
-> 日期：2026-09-13
+> 日期：2026-09-16（更新已批准状态）
 >
 > 对应规格：`docs/superpowers/specs/2026-09-13-ui-03-role-discovery-review-draft.md`
 >
-> 规格基线：`main@871057b33d37396f9e560ac18887d3aa0083c6ef`
+> 规格基线：`main@9a73d3a5364cc56b77444b322b212193aefdf20d`
 >
-> 本 Plan 只规划**未来一个** UI-03 Implementation Task。用户未确认规格 G1～G8 前，不得开始 Android 生产代码、测试代码或 Preferences API 修改。
+> 本 Plan 规划角色发现的单一实现任务。用户已于 2026-09-16 确认规格 G1～G8（全部采纳推荐方案 B），门禁已解除，可从最新 main 切出实现分支执行。
 
 ## 1. Goal
 
@@ -35,20 +35,18 @@
 
 ## 2. User-review gates
 
-生产实现开始前必须把规格中的 G1～G8 逐项改为用户已确认状态：
+生产实现开始前规格中的 G1～G8 决策门禁已全部获用户批准通过：
 
-- [ ] G1：根页 inline search vs 独立二级搜索；
-- [ ] G2：收藏 / 最近根模式 vs 独立二级页；
-- [ ] G3：Filter AlertDialog vs Modal Bottom Sheet + staged apply；
-- [ ] G4：相关性排序与匹配依据；
-- [ ] G5：最近使用场景处理；
-- [ ] G6：是否新增 `clearRecentUses()`；
-- [ ] G7：fatal load failure 的真实恢复动作；
-- [ ] G8：收藏 / 最近页筛选范围。
+- [x] G1：独立二级搜索页（方案 B）；
+- [x] G2：收藏 / 最近两个独立二级页（方案 B）；
+- [x] G3：Filter Modal Bottom Sheet + staged apply（方案 B）；
+- [x] G4：本地确定性相关性排序与真实匹配依据（方案 B）；
+- [x] G5：本批不显示最近使用场景（方案 B）；
+- [x] G6：新增 Preferences `clearRecentUses()` + 二次确认（方案 B）；
+- [x] G7：真实 reload 才重试，否则稳定错误态（方案 B）；
+- [x] G8：收藏 / 最近页复用属性筛选并隐藏恒真条件（方案 B）。
 
-**Gate 未全通过：Implementation Task 状态保持 `PLANNED/HOLD`，不得改 Android。**
-
-如果用户对任一 Gate 选择不同方向，先更新 Review Draft 与本 Plan，再 Dispatch 实现。
+**Gate 全部门禁已通过，进入 implementation branch 创建与代码实施。**
 
 ## 3. Branch / PR policy（未来 Implementation Task）
 
@@ -533,8 +531,8 @@ git status --short
 - Git diff 只包含未来 Dispatch 授权文件；
 - 形成单一 reviewable PR，未 merge。
 
-当前本文自身仍处于：
+当前本文状态已更新为：
 
-**DRAFT — BLOCKED BY USER REVIEW GATES**
+**APPROVED — READY FOR DISPATCH**
 
-在用户批准 Review Draft 前，以上 Implementation Tasks 只是计划，不是执行授权。
+用户已于 2026-09-16 批准 Review Draft 与 G1～G8 决策，本 Plan 正式生效作为未来 Implementation Task 的执行蓝图。
