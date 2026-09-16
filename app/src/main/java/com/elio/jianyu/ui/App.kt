@@ -17,8 +17,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Text
@@ -229,7 +229,6 @@ internal fun MainAppContent(
 
     val navController = rememberNavController()
     val hostActivity = LocalContext.current as? ComponentActivity
-    val roleActionScope = rememberCoroutineScope()
     var initialIntentHandled by rememberSaveable { mutableStateOf(false) }
     var pendingSkillId by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingSkillIntent by rememberSaveable { mutableStateOf<String?>(null) }
@@ -241,11 +240,6 @@ internal fun MainAppContent(
     }
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoutePattern = backStackEntry?.destination?.route
-    androidx.compose.runtime.LaunchedEffect(viewModel, currentRoutePattern) {
-        if (currentRoutePattern == JianyuNavigationRoutes.SKILL_DETAIL_PATTERN) {
-            viewModel.ensureConversationReady()
-        }
-    }
     val currentDestination = AppDestination.fromRoutePattern(currentRoutePattern)
         ?: if (currentRoutePattern == null) AppDestination.startDestination else null
     val currentTopLevel = currentDestination?.takeIf { it.showsBottomNavigation }
@@ -342,42 +336,37 @@ internal fun MainAppContent(
                         )
                     },
                     skillDetailContent = { skillId ->
+                        val runtime = (
+                            appRuntime.officialSkillCatalogRuntimeResult
+                                as? OfficialSkillCatalogRuntimeResult.Success
+                            )?.runtime
                         SkillRoleDetailRoute(
                             runtimeResult = appRuntime.officialSkillCatalogRuntimeResult,
                             skillId = skillId,
                             canAddToCurrentConversation = currentSessionId != null,
                             onBack = { navController.popBackStack() },
                             onStartNewConversation = { selectedSkillId ->
-                                roleActionScope.launch {
-                                    val success = viewModel.createNewSessionWithSkillRole(selectedSkillId)
-                                    if (success) {
-                                        val runtime = (
-                                            appRuntime.officialSkillCatalogRuntimeResult
-                                                as? OfficialSkillCatalogRuntimeResult.Success
-                                            )?.runtime
-                                        runtime?.preferences?.recordSkillUsed(
-                                            selectedSkillId,
-                                            System.currentTimeMillis(),
-                                        )
-                                        navController.navigateToTopLevel(AppDestination.HOME)
-                                    }
+                                val success = viewModel.createNewSessionWithSkillRole(selectedSkillId)
+                                if (success) {
+                                    runtime?.preferences?.recordSkillUsed(
+                                        selectedSkillId,
+                                        System.currentTimeMillis(),
+                                    )
                                 }
+                                success
                             },
                             onAddToCurrentConversation = { selectedSkillId ->
-                                roleActionScope.launch {
-                                    val success = viewModel.addSkillRoleToCurrentSessionAwait(selectedSkillId)
-                                    if (success) {
-                                        val runtime = (
-                                            appRuntime.officialSkillCatalogRuntimeResult
-                                                as? OfficialSkillCatalogRuntimeResult.Success
-                                            )?.runtime
-                                        runtime?.preferences?.recordSkillUsed(
-                                            selectedSkillId,
-                                            System.currentTimeMillis(),
-                                        )
-                                        navController.navigateToTopLevel(AppDestination.HOME)
-                                    }
+                                val success = viewModel.addSkillRoleToCurrentSessionAwait(selectedSkillId)
+                                if (success) {
+                                    runtime?.preferences?.recordSkillUsed(
+                                        selectedSkillId,
+                                        System.currentTimeMillis(),
+                                    )
                                 }
+                                success
+                            },
+                            onConversationReady = {
+                                navController.navigateToTopLevel(AppDestination.HOME)
                             },
                         )
                     },

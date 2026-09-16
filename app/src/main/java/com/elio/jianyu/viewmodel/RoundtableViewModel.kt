@@ -448,6 +448,25 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    /**
+     * 角色使用动作失败时只恢复它自己仍占用的会话选择；如果用户已经切换到其他会话，
+     * 不允许较旧动作覆盖新的导航状态。
+     */
+    internal fun restoreSessionSelectionAfterRoleAction(
+        expectedCurrentSessionId: Long,
+        restoreSessionId: Long?,
+    ) {
+        if (_currentSessionId.value != expectedCurrentSessionId) return
+        if (restoreSessionId == null) {
+            sessionNavigationVersion += 1
+            _currentSessionId.value = null
+            _currentSession.value = null
+            _currentParticipantIds.value = emptyList()
+        } else {
+            selectSession(restoreSessionId)
+        }
+    }
+
     fun createNewSession(title: String) {
         val navigationVersion = ++sessionNavigationVersion
         viewModelScope.launch {

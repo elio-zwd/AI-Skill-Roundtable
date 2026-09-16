@@ -36,6 +36,7 @@ fun MineRoute(
     val telemetryLevel by TelemetryRepository.level.collectAsState()
 
     var personalContextCount by remember { mutableStateOf<Int?>(null) }
+    var personalContextSummaryLabels by remember { mutableStateOf(emptyList<String>()) }
     var personalContextLoadFailed by remember { mutableStateOf(false) }
 
     LaunchedEffect(repository) {
@@ -45,10 +46,12 @@ fun MineRoute(
         when (result) {
             is RepositoryResult.Success -> {
                 personalContextCount = result.value.size
+                personalContextSummaryLabels = result.value.toMineSummaryLabels()
                 personalContextLoadFailed = false
             }
             is RepositoryResult.Failure -> {
                 personalContextCount = null
+                personalContextSummaryLabels = emptyList()
                 personalContextLoadFailed = true
             }
         }
@@ -57,6 +60,7 @@ fun MineRoute(
     MineScreen(
         uiState = MineUiState(
             personalContextCount = personalContextCount,
+            personalContextSummaryLabels = personalContextSummaryLabels,
             personalContextLoadFailed = personalContextLoadFailed,
             modelDisplayName = selectedModel.displayName,
             availableKeyCount = keySummaries.count { summary ->

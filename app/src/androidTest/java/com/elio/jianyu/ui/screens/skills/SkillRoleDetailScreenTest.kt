@@ -46,6 +46,8 @@ class SkillRoleDetailScreenTest {
                     role = role,
                     isFavorite = false,
                     canAddToCurrentConversation = false,
+                    actionInProgress = false,
+                    actionMessage = null,
                     onBack = {},
                     onToggleFavorite = {},
                     onStartNewConversation = { started++ },
@@ -80,6 +82,8 @@ class SkillRoleDetailScreenTest {
                     role = role,
                     isFavorite = false,
                     canAddToCurrentConversation = true,
+                    actionInProgress = false,
+                    actionMessage = null,
                     onBack = {},
                     onToggleFavorite = {},
                     onStartNewConversation = {},
@@ -104,5 +108,30 @@ class SkillRoleDetailScreenTest {
             assertTrue(role.officialSkill.typicalScenarios.isNotEmpty())
             assertTrue(role.officialSkill.sourceSummary.isNotBlank())
         }
+    }
+
+    @Test
+    fun actionInProgress_disablesBothConversationActionsAndShowsFailure() {
+        val role = projection.allRoles.first { it.isExecutable && !it.isPersonSimulation }
+
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                SkillRoleDetailScreen(
+                    role = role,
+                    isFavorite = false,
+                    canAddToCurrentConversation = true,
+                    actionInProgress = true,
+                    actionMessage = "操作未完成，请重试",
+                    onBack = {},
+                    onToggleFavorite = {},
+                    onStartNewConversation = {},
+                    onAddToCurrentConversation = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("开始新对话").assertIsNotEnabled()
+        composeRule.onNodeWithText("增加到当前会话").assertIsNotEnabled()
+        composeRule.onNodeWithText("操作未完成，请重试").assertExists()
     }
 }
