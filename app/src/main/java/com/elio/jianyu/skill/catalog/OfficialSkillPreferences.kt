@@ -16,6 +16,9 @@ interface OfficialSkillPreferences {
 
     suspend fun recordSkillUsed(skillId: String, usedAt: Long): Boolean
 
+    /** 清空最近使用记录；不影响收藏、会话历史与当前参与者。 */
+    suspend fun clearRecentUses(): Boolean
+
     /** 查看详情不等于真正进入使用流程，故该事件不得写入最近使用。 */
     suspend fun onSkillDetailViewed(skillId: String) = Unit
 }
@@ -50,6 +53,11 @@ class InMemoryOfficialSkillPreferences(
             listOf(RecentOfficialSkillUse(skillId, usedAt)) +
                 _recentUses.value.filterNot { it.skillId == skillId }
             ).normalized(catalog, maxRecent)
+        return true
+    }
+
+    override suspend fun clearRecentUses(): Boolean {
+        _recentUses.value = emptyList()
         return true
     }
 
@@ -106,6 +114,16 @@ class SharedPreferencesOfficialSkillPreferences(
                 .putString(KEY_RECENT_USES, json.encodeToString(updated))
                 .commit()
             if (committed) _recentUses.value = updated
+            committed
+        }
+    }
+
+    override suspend fun clearRecentUses(): Boolean {
+        return synchronized(lock) {
+            val committed = preferences.edit()
+                .remove(KEY_RECENT_USES)
+                .commit()
+            if (committed) _recentUses.value = emptyList()
             committed
         }
     }

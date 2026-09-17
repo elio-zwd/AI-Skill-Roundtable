@@ -28,6 +28,8 @@ internal data class SkillRoleCardUi(
     val isExecutable: Boolean,
     val featuredOrder: Int?,
     val officialSkill: OfficialSkillDefinition,
+    val matchEvidences: List<SkillRoleMatchEvidence> = emptyList(),
+    val relevanceTier: SkillRoleRelevanceTier = SkillRoleRelevanceTier.NO_MATCH,
 )
 
 internal data class SkillRoleCatalogUiState(

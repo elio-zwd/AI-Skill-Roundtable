@@ -62,6 +62,22 @@ class OfficialSkillPreferencesTest {
         assertEquals(listOf(RecentOfficialSkillUse("second", 30L)), preferences.recentUses.value)
     }
 
+    @Test
+    fun clearRecentUsesClearsHistoryWithoutAffectingFavorites() = runBlocking {
+        val preferences = InMemoryOfficialSkillPreferences(
+            catalog = catalog,
+            initialFavoriteIds = setOf("first"),
+            initialRecentUses = listOf(
+                RecentOfficialSkillUse("first", 10L),
+                RecentOfficialSkillUse("second", 20L),
+            ),
+        )
+
+        assertTrue(preferences.clearRecentUses())
+        assertTrue(preferences.recentUses.value.isEmpty())
+        assertEquals(setOf("first"), preferences.favoriteIds.value)
+    }
+
     private fun minimalSkill(id: String, order: Int) = OfficialSkillDefinition(
         id = id,
         nameZh = id,
