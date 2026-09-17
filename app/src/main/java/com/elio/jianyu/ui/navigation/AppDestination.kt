@@ -63,6 +63,27 @@ enum class AppDestination(
         testTagSuffix = "telemetry",
         showsBottomNavigation = false,
     ),
+    SKILL_SEARCH(
+        routePattern = JianyuNavigationRoutes.SKILL_SEARCH_PATTERN,
+        launchRoute = JianyuNavigationRoutes.SKILL_SEARCH_PATTERN,
+        label = "搜索角色",
+        testTagSuffix = "skill_search",
+        showsBottomNavigation = false,
+    ),
+    SKILL_FAVORITES(
+        routePattern = JianyuNavigationRoutes.SKILL_FAVORITES_PATTERN,
+        launchRoute = JianyuNavigationRoutes.SKILL_FAVORITES_PATTERN,
+        label = "收藏的角色",
+        testTagSuffix = "skill_favorites",
+        showsBottomNavigation = false,
+    ),
+    SKILL_RECENT(
+        routePattern = JianyuNavigationRoutes.SKILL_RECENT_PATTERN,
+        launchRoute = JianyuNavigationRoutes.SKILL_RECENT_PATTERN,
+        label = "最近使用",
+        testTagSuffix = "skill_recent",
+        showsBottomNavigation = false,
+    ),
     ;
 
     companion object {

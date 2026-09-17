@@ -107,6 +107,9 @@ internal sealed interface OfficialSkillCatalogEvent {
     ) : OfficialSkillCatalogEvent
     data object SaveCombination : OfficialSkillCatalogEvent
     data object DismissMessage : OfficialSkillCatalogEvent
+    data object NavigateToSearch : OfficialSkillCatalogEvent
+    data object NavigateToFavorites : OfficialSkillCatalogEvent
+    data object NavigateToRecent : OfficialSkillCatalogEvent
 }
 
 internal fun OfficialSkillDefinition.statusLabels(): List<String> = buildList {

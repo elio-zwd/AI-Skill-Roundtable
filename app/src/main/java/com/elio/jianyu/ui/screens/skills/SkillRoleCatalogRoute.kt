@@ -34,6 +34,9 @@ internal fun SkillRoleCatalogRoute(
     runtimeResult: OfficialSkillCatalogRuntimeResult,
     onOpenSkillDetail: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onNavigateToSearch: () -> Unit = {},
+    onNavigateToFavorites: () -> Unit = {},
+    onNavigateToRecent: () -> Unit = {},
 ) {
     val runtime = when (runtimeResult) {
         is OfficialSkillCatalogRuntimeResult.Failure -> {
@@ -166,6 +169,9 @@ internal fun SkillRoleCatalogRoute(
                 is OfficialSkillCatalogEvent.CombinationResponsibilityChanged,
                 OfficialSkillCatalogEvent.SaveCombination -> Unit
                 OfficialSkillCatalogEvent.DismissMessage -> message = null
+                OfficialSkillCatalogEvent.NavigateToSearch -> onNavigateToSearch()
+                OfficialSkillCatalogEvent.NavigateToFavorites -> onNavigateToFavorites()
+                OfficialSkillCatalogEvent.NavigateToRecent -> onNavigateToRecent()
             }
         },
         modifier = modifier,

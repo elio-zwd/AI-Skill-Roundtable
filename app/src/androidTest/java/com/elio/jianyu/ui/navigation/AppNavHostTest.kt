@@ -61,6 +61,9 @@ class AppNavHostTest {
                         DestinationMarker(issueMarker(issueId, stageId))
                     },
                     skillsContent = { DestinationMarker(AppDestination.SKILLS.routePattern) },
+                    skillSearchContent = { DestinationMarker(AppDestination.SKILL_SEARCH.routePattern) },
+                    skillFavoritesContent = { DestinationMarker(AppDestination.SKILL_FAVORITES.routePattern) },
+                    skillRecentContent = { DestinationMarker(AppDestination.SKILL_RECENT.routePattern) },
                     skillDetailContent = { skillId ->
                         DestinationMarker(skillMarker(skillId))
                     },
@@ -250,6 +253,60 @@ class AppNavHostTest {
         }
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(resourcesMarker(ResourceTab.MATERIALS)).assertIsDisplayed()
+    }
+
+    @Test
+    fun skillDiscoverySecondaryDestinations_navigateAndPopBackCorrectly() {
+        composeRule.runOnIdle {
+            navController.navigateToTopLevel(AppDestination.SKILLS)
+        }
+        composeRule.waitForIdle()
+        assertCurrentRoute(AppDestination.SKILLS.routePattern)
+
+        // 导航至搜索二级页
+        composeRule.runOnIdle {
+            navController.navigateToSkillSearch()
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(AppDestination.SKILL_SEARCH.routePattern).assertIsDisplayed()
+        assertCurrentRoute(AppDestination.SKILL_SEARCH.routePattern)
+
+        // 返回 Skills 根页
+        composeRule.runOnIdle {
+            navController.popBackStack()
+        }
+        composeRule.waitForIdle()
+        assertCurrentRoute(AppDestination.SKILLS.routePattern)
+
+        // 导航至收藏二级页
+        composeRule.runOnIdle {
+            navController.navigateToSkillFavorites()
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(AppDestination.SKILL_FAVORITES.routePattern).assertIsDisplayed()
+        assertCurrentRoute(AppDestination.SKILL_FAVORITES.routePattern)
+
+        // 返回 Skills 根页
+        composeRule.runOnIdle {
+            navController.popBackStack()
+        }
+        composeRule.waitForIdle()
+        assertCurrentRoute(AppDestination.SKILLS.routePattern)
+
+        // 导航至最近二级页
+        composeRule.runOnIdle {
+            navController.navigateToSkillRecent()
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(AppDestination.SKILL_RECENT.routePattern).assertIsDisplayed()
+        assertCurrentRoute(AppDestination.SKILL_RECENT.routePattern)
+
+        // 返回 Skills 根页
+        composeRule.runOnIdle {
+            navController.popBackStack()
+        }
+        composeRule.waitForIdle()
+        assertCurrentRoute(AppDestination.SKILLS.routePattern)
     }
 
     private fun assertCurrentRoute(expectedRoutePattern: String) {

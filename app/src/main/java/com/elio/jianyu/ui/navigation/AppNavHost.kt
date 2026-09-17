@@ -20,6 +20,9 @@ fun AppNavHost(
     issuesContent: @Composable (issueId: String?, stageId: String?) -> Unit,
     issueContent: @Composable (issueId: String?, stageId: String?) -> Unit,
     skillsContent: @Composable () -> Unit,
+    skillSearchContent: @Composable () -> Unit,
+    skillFavoritesContent: @Composable () -> Unit,
+    skillRecentContent: @Composable () -> Unit,
     skillDetailContent: @Composable (skillId: String?) -> Unit,
     resourcesContent: @Composable (ResourceTab) -> Unit,
     mineContent: @Composable () -> Unit,
@@ -89,6 +92,15 @@ fun AppNavHost(
         ) {
             composable(AppDestination.SKILLS.routePattern) {
                 skillsContent()
+            }
+            composable(AppDestination.SKILL_SEARCH.routePattern) {
+                skillSearchContent()
+            }
+            composable(AppDestination.SKILL_FAVORITES.routePattern) {
+                skillFavoritesContent()
+            }
+            composable(AppDestination.SKILL_RECENT.routePattern) {
+                skillRecentContent()
             }
             composable(
                 route = JianyuNavigationRoutes.SKILL_DETAIL_PATTERN,
@@ -201,6 +213,36 @@ fun NavHostController.navigateToSkillDetail(skillId: String) {
         destination = AppDestination.SKILLS,
     )
     navigate(JianyuNavigationRoutes.skillDetail(skillId)) {
+        launchSingleTop = true
+    }
+}
+
+fun NavHostController.navigateToSkillSearch() {
+    ensureTopLevelParent(
+        graphRoute = JianyuNavigationRoutes.SKILLS_GRAPH,
+        destination = AppDestination.SKILLS,
+    )
+    navigate(AppDestination.SKILL_SEARCH.launchRoute) {
+        launchSingleTop = true
+    }
+}
+
+fun NavHostController.navigateToSkillFavorites() {
+    ensureTopLevelParent(
+        graphRoute = JianyuNavigationRoutes.SKILLS_GRAPH,
+        destination = AppDestination.SKILLS,
+    )
+    navigate(AppDestination.SKILL_FAVORITES.launchRoute) {
+        launchSingleTop = true
+    }
+}
+
+fun NavHostController.navigateToSkillRecent() {
+    ensureTopLevelParent(
+        graphRoute = JianyuNavigationRoutes.SKILLS_GRAPH,
+        destination = AppDestination.SKILLS,
+    )
+    navigate(AppDestination.SKILL_RECENT.launchRoute) {
         launchSingleTop = true
     }
 }

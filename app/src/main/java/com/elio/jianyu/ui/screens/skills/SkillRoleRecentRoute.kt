@@ -1,0 +1,84 @@
+package com.elio.jianyu.ui.screens.skills
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import com.elio.jianyu.skill.catalog.OfficialSkillCatalogRuntimeResult
+import com.elio.jianyu.skill.role.SkillRolePresentationCatalogLoader
+import com.elio.jianyu.skill.role.SkillRolePresentationLoadResult
+import kotlinx.coroutines.launch
+
+@Composable
+internal fun SkillRoleRecentRoute(
+    runtimeResult: OfficialSkillCatalogRuntimeResult,
+    onBack: () -> Unit,
+    onOpenSkillDetail: (String) -> Unit,
+    onStartNewConversation: suspend (String) -> Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val runtime = when (runtimeResult) {
+        is OfficialSkillCatalogRuntimeResult.Failure -> {
+            Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("角色目录暂不可用：${runtimeResult.message}")
+            }
+            return
+        }
+        is OfficialSkillCatalogRuntimeResult.Success -> runtimeResult.runtime
+    }
+
+    val appContext = LocalContext.current.applicationContext
+    val presentationResult = remember(appContext, runtime.catalog) {
+        SkillRolePresentationCatalogLoader.load(appContext, runtime.catalog)
+    }
+    val presentationCatalog = when (presentationResult) {
+        is SkillRolePresentationLoadResult.Failure -> {
+            Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("角色配置暂不可用：${presentationResult.message}")
+            }
+            return
+        }
+        is SkillRolePresentationLoadResult.Success -> presentationResult.catalog
+    }
+
+    val scope = rememberCoroutineScope()
+    val favoriteIds by runtime.preferences.favoriteIds.collectAsState()
+    val recentUses by runtime.preferences.recentUses.collectAsState()
+
+    // 基础角色全集投影
+    val roleCatalog = projectSkillRoleCatalog(
+        catalog = runtime.catalog,
+        presentationCatalog = presentationCatalog,
+        favoriteIds = favoriteIds,
+        recentUses = recentUses,
+    )
+
+    // 按本地日期分组
+    val sections = remember(roleCatalog.recentRoles) {
+        groupRecentRolesByDate(roleCatalog.recentRoles)
+    }
+
+    SkillRoleRecentScreen(
+        sections = sections,
+        onBack = onBack,
+        onOpenDetail = onOpenSkillDetail,
+        onStartNewConversation = { skillId ->
+            scope.launch {
+                onStartNewConversation(skillId)
+            }
+        },
+        onClearRecent = {
+            scope.launch {
+                runtime.preferences.clearRecentUses()
+            }
+        },
+        modifier = modifier,
+    )
+}

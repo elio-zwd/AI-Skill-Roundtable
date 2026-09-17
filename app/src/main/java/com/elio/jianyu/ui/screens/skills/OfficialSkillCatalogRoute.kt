@@ -516,6 +516,9 @@ fun OfficialSkillCatalogRoute(
                     }
                 }
                 OfficialSkillCatalogEvent.DismissMessage -> message = null
+                OfficialSkillCatalogEvent.NavigateToSearch,
+                OfficialSkillCatalogEvent.NavigateToFavorites,
+                OfficialSkillCatalogEvent.NavigateToRecent -> Unit
             }
         },
     )

@@ -159,14 +159,7 @@ private fun SkillRolePageContent(
 
     RolePageHeader(
         favoritesOnly = favoritesOnly,
-        onToggleFavorites = {
-            onEvent(
-                OfficialSkillCatalogEvent.SectionChanged(
-                    if (favoritesOnly) OfficialSkillCatalogSection.DISCOVER
-                    else OfficialSkillCatalogSection.FAVORITES,
-                ),
-            )
-        },
+        onToggleFavorites = { onEvent(OfficialSkillCatalogEvent.NavigateToFavorites) },
         onOpenFilters = { onEvent(OfficialSkillCatalogEvent.FilterDialogChanged(true)) },
     )
 
@@ -183,6 +176,7 @@ private fun SkillRolePageContent(
                 selectedCategory = selectedCategory,
                 onQueryChanged = { onEvent(OfficialSkillCatalogEvent.SearchChanged(it)) },
                 onCategorySelected = { category -> selectedCategoryName = category?.name.orEmpty() },
+                onSearchClicked = { onEvent(OfficialSkillCatalogEvent.NavigateToSearch) },
             )
         }
 
@@ -245,7 +239,21 @@ private fun SkillRolePageContent(
 
             if (recentRoles.isNotEmpty()) {
                 item(key = "recent_title") {
-                    RoleSectionTitle("最近使用", Modifier.padding(top = 8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RoleSectionTitle("最近使用")
+                        TextButton(
+                            onClick = { onEvent(OfficialSkillCatalogEvent.NavigateToRecent) },
+                            modifier = Modifier.testTag("role_page_recent_more_button"),
+                        ) {
+                            Text("查看全部")
+                        }
+                    }
                 }
                 item(key = "recent_cards") {
                     RoleRecentCards(recentRoles, onEvent)
@@ -339,26 +347,41 @@ private fun RoleSearchAndCategories(
     selectedCategory: SkillRoleDiscoveryCategory?,
     onQueryChanged: (String) -> Unit,
     onCategorySelected: (SkillRoleDiscoveryCategory?) -> Unit,
+    onSearchClicked: () -> Unit = {},
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        OutlinedTextField(
-            value = query,
-            onValueChange = onQueryChanged,
-            singleLine = true,
-            placeholder = { Text("搜索角色、能力或问题") },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-            shape = RoundedCornerShape(24.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
-                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-            ),
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 52.dp)
-                .testTag(OfficialSkillCatalogTestTags.SEARCH),
-        )
+                .clip(RoundedCornerShape(24.dp))
+                .clickable(onClick = onSearchClicked),
+        ) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = onQueryChanged,
+                singleLine = true,
+                readOnly = true,
+                placeholder = { Text("搜索角色、能力或问题") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                shape = RoundedCornerShape(24.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 52.dp)
+                    .testTag(OfficialSkillCatalogTestTags.SEARCH),
+            )
+            // 覆盖透明层捕获所有点击，触发打开搜索二级页
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clickable(onClick = onSearchClicked),
+            )
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()

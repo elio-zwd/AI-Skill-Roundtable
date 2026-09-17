@@ -64,6 +64,9 @@ import com.elio.jianyu.ui.navigation.JianyuNavigationRoutes
 import com.elio.jianyu.ui.navigation.navigateToIssue
 import com.elio.jianyu.ui.navigation.navigateToSecondary
 import com.elio.jianyu.ui.navigation.navigateToSkillDetail
+import com.elio.jianyu.ui.navigation.navigateToSkillFavorites
+import com.elio.jianyu.ui.navigation.navigateToSkillRecent
+import com.elio.jianyu.ui.navigation.navigateToSkillSearch
 import com.elio.jianyu.ui.navigation.navigateToTopLevel
 import com.elio.jianyu.ui.screens.execution.AudioEnabledIssueExecutionRoute
 import com.elio.jianyu.ui.screens.issues.IssuesRoute
@@ -74,6 +77,9 @@ import com.elio.jianyu.ui.screens.settings.SettingsRoute
 import com.elio.jianyu.ui.screens.settings.TelemetryRoute
 import com.elio.jianyu.ui.screens.skills.OfficialSkillNavigationRoute
 import com.elio.jianyu.ui.screens.skills.SkillRoleDetailRoute
+import com.elio.jianyu.ui.screens.skills.SkillRoleFavoritesRoute
+import com.elio.jianyu.ui.screens.skills.SkillRoleRecentRoute
+import com.elio.jianyu.ui.screens.skills.SkillRoleSearchRoute
 import com.elio.jianyu.viewmodel.RoundtableViewModel
 import com.elio.jianyu.viewmodel.addSkillRoleToCurrentSessionAwait
 import com.elio.jianyu.viewmodel.createNewSessionWithSkillRole
@@ -333,6 +339,48 @@ internal fun MainAppContent(
                             },
                             onUseSkill = onUseOfficialSkill,
                             onOpenSkillDetail = navController::navigateToSkillDetail,
+                            onNavigateToSearch = navController::navigateToSkillSearch,
+                            onNavigateToFavorites = navController::navigateToSkillFavorites,
+                            onNavigateToRecent = navController::navigateToSkillRecent,
+                        )
+                    },
+                    skillSearchContent = {
+                        SkillRoleSearchRoute(
+                            runtimeResult = appRuntime.officialSkillCatalogRuntimeResult,
+                            onBack = { navController.popBackStack() },
+                            onOpenSkillDetail = navController::navigateToSkillDetail,
+                        )
+                    },
+                    skillFavoritesContent = {
+                        SkillRoleFavoritesRoute(
+                            runtimeResult = appRuntime.officialSkillCatalogRuntimeResult,
+                            onBack = { navController.popBackStack() },
+                            onOpenSkillDetail = navController::navigateToSkillDetail,
+                            onBrowseAllRoles = {
+                                navController.popBackStack(AppDestination.SKILLS.routePattern, inclusive = false)
+                            },
+                        )
+                    },
+                    skillRecentContent = {
+                        val runtime = (
+                            appRuntime.officialSkillCatalogRuntimeResult
+                                as? OfficialSkillCatalogRuntimeResult.Success
+                            )?.runtime
+                        SkillRoleRecentRoute(
+                            runtimeResult = appRuntime.officialSkillCatalogRuntimeResult,
+                            onBack = { navController.popBackStack() },
+                            onOpenSkillDetail = navController::navigateToSkillDetail,
+                            onStartNewConversation = { selectedSkillId ->
+                                val success = viewModel.createNewSessionWithSkillRole(selectedSkillId)
+                                if (success) {
+                                    runtime?.preferences?.recordSkillUsed(
+                                        selectedSkillId,
+                                        System.currentTimeMillis(),
+                                    )
+                                    navController.navigateToTopLevel(AppDestination.HOME)
+                                }
+                                success
+                            },
                         )
                     },
                     skillDetailContent = { skillId ->
