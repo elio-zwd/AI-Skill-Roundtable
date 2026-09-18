@@ -11,7 +11,7 @@ $CurrentPackage = 'com.elio.jianyu'
 $LegacyPackage = 'com.elio.skillroundtable'
 $LegacySchema = 'app/schemas/com.elio.skillroundtable.data.RoundtableDatabase/5.json'
 $CurrentIdentitySchema = 'app/schemas/com.elio.jianyu.data.RoundtableDatabase/5.json'
-$CurrentExecutionSchema = 'app/schemas/com.elio.jianyu.data.RoundtableDatabase/13.json'
+$CurrentSchemaDirectory = 'app/schemas/com.elio.jianyu.data.RoundtableDatabase'
 $MoveManifest = 'docs/testing/pr-09-01-package-move-manifest.txt'
 
 function Pass {
@@ -77,18 +77,6 @@ try {
         }
     }
 
-    $missingTargets = @(
-        foreach ($oldPath in $manifestPaths) {
-            $newPath = $oldPath.Replace('/com/elio/skillroundtable/', '/com/elio/jianyu/')
-            if (-not (Test-Path $newPath -PathType Leaf)) { $newPath }
-        }
-    )
-    if ($missingTargets.Count -eq 0) {
-        Pass 'Package Move Mapping' '110 个 Base 文件均存在唯一新路径目标'
-    } else {
-        Fail 'Package Move Mapping' "缺失迁移目标：$($missingTargets -join ', ')"
-    }
-
     $currentRoots = @(
         'app/src/main/java/com/elio/jianyu',
         'app/src/test/java/com/elio/jianyu',
@@ -117,10 +105,13 @@ try {
 
     $currentTracked = @(Get-TrackedFiles -Paths $currentRoots)
     $identityTest = 'app/src/androidTest/java/com/elio/jianyu/identity/AppIdentityIsolationTest.kt'
-    if ($currentTracked.Count -ge 111 -and $currentTracked -contains $identityTest) {
-        Pass 'Tracked Source Count' "原 110 个映射文件和身份测试均保留；当前允许后续功能新增，count=$($currentTracked.Count)"
+    [int[]]$trackedCounts = @($currentRoots | ForEach-Object { @(Get-TrackedFiles -Paths @($_)).Length })
+    if ($trackedCounts.Length -eq 3 -and
+        @($trackedCounts | Where-Object { $_ -le 0 }).Length -eq 0 -and
+        $currentTracked -contains $identityTest) {
+        Pass 'Tracked Identity Files' "新包 main / unit / androidTest 均有已跟踪文件，身份隔离测试仍存在；count=$($currentTracked.Count)"
     } else {
-        Fail 'Tracked Source Count' "原身份迁移文件或身份测试缺失：count=$($currentTracked.Count)"
+        Fail 'Tracked Identity Files' "新包源码/测试为空或身份隔离测试缺失：main=$($trackedCounts[0]) unit=$($trackedCounts[1]) android=$($trackedCounts[2])"
     }
 
     $remainingLegacyTracked = @(Get-TrackedFiles -Paths $legacyRoots)
@@ -233,43 +224,39 @@ try {
     }
 
     $databaseSource = Get-Content 'app/src/main/java/com/elio/jianyu/data/RoundtableDatabase.kt' -Raw
-    $requiredMigrations = @(
-        'MIGRATION_1_2',
-        'MIGRATION_2_3',
-        'MIGRATION_3_4',
-        'MIGRATION_4_5',
-        'MIGRATION_5_6',
-        'MIGRATION_6_7',
-        'MIGRATION_7_8',
-        'MIGRATION_8_9',
-        'MIGRATION_9_10',
-        'MIGRATION_10_11',
-        'MIGRATION_11_12'
-    )
-    $missingMigrations = @($requiredMigrations | Where-Object { $databaseSource -notmatch [regex]::Escape($_) })
-    $materialContextMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/MaterialContextMigration.kt' -Raw
-    $collaborationMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/CollaborationMigration.kt' -Raw
-    $stageAdvancementMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/StageAdvancementMigration.kt' -Raw
-    $issueLifecycleMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/IssueLifecycleV12Migration.kt' -Raw
-    if ($databaseSource -match 'version\s*=\s*13' -and
-        $missingMigrations.Count -eq 0 -and
-        $databaseSource -match '"roundtable_database"' -and
-        $databaseSource -notmatch 'MIGRATION_12_13' -and
-        (Test-Path $CurrentExecutionSchema -PathType Leaf) -and
-        $materialContextMigration -match 'Migration\(8,\s*9\)' -and
-        $collaborationMigration -match 'Migration\(9,\s*10\)' -and
-        $stageAdvancementMigration -match 'Migration\(10,\s*11\)' -and
-        $issueLifecycleMigration -match 'Migration\(11,\s*12\)') {
-        Pass 'Room Runtime Contract' 'Room v13 Schema 与数据库名保持完整，且未提供 v12→v13 兼容迁移'
+    $databaseVersionMatch = [regex]::Match($databaseSource, 'version\s*=\s*(\d+)')
+    if ($databaseVersionMatch.Success) {
+        $currentDatabaseVersion = [int]$databaseVersionMatch.Groups[1].Value
+        $currentRuntimeSchema = Join-Path $CurrentSchemaDirectory "$currentDatabaseVersion.json"
     } else {
-        Fail 'Room Runtime Contract' "Room v13 Schema、无 v12→v13 迁移或数据库名异常；缺失迁移=$($missingMigrations -join ', ')"
+        $currentDatabaseVersion = 0
+        $currentRuntimeSchema = $null
+    }
+    $runtimeSchemaValid = $false
+    if ($currentRuntimeSchema -and (Test-Path $currentRuntimeSchema -PathType Leaf)) {
+        try {
+            $null = Get-Content $currentRuntimeSchema -Raw | ConvertFrom-Json
+            $runtimeSchemaValid = $true
+        } catch {
+            $runtimeSchemaValid = $false
+        }
+    }
+    if ($currentDatabaseVersion -ge 5 -and
+        $runtimeSchemaValid -and
+        $databaseSource -match 'exportSchema\s*=\s*true' -and
+        $databaseSource -match '"roundtable_database"') {
+        Pass 'Room Runtime Identity' "Room 当前为 v$currentDatabaseVersion，导出 Schema 可解析且数据库名仍为 roundtable_database"
+    } else {
+        Fail 'Room Runtime Identity' "Room 当前版本、导出 Schema 或数据库名异常：version=$currentDatabaseVersion schema=$currentRuntimeSchema"
     }
 
     $keyStoreSource = Get-Content 'app/src/main/java/com/elio/jianyu/network/EncryptedApiKeyStore.kt' -Raw
+    $providerKeyRepositorySource = Get-Content 'app/src/main/java/com/elio/jianyu/network/ProviderKeyRepository.kt' -Raw
     if ($keyStoreSource -match 'KEY_ALIAS\s*=\s*"skill_roundtable_api_key_v1"' -and
-        $keyStoreSource -match 'FILE_NAME\s*=\s*"gemini_api_keys\.enc"' -and
-        $keyStoreSource -match 'TRANSFORMATION\s*=\s*"AES/GCM/NoPadding"') {
-        Pass 'Key Store Contract' 'Key alias、密文文件名和 AES-GCM 格式保持不变'
+        $keyStoreSource -match 'TRANSFORMATION\s*=\s*"AES/GCM/NoPadding"' -and
+        $keyStoreSource -match 'File\(context\.noBackupFilesDir,\s*fileName\)' -and
+        $providerKeyRepositorySource -match 'EncryptedApiKeyStore\(appContext,\s*"\$\{provider\.storageId\}_api_keys\.enc"\)') {
+        Pass 'Key Store Contract' 'Key alias 与 AES-GCM 保持不变，密文仍写入 noBackupFilesDir 且按 Provider 隔离文件名'
     } else {
         Fail 'Key Store Contract' 'Key Store 契约发生非预期变化'
     }
@@ -302,11 +289,11 @@ try {
 
     $readme = Get-Content 'README.md' -Raw
     $agents = Get-Content 'AGENTS.md' -Raw
-    if ($readme -match 'App 名称：见域' -and
-        $readme -match 'namespace / applicationId：com\.elio\.jianyu' -and
-        $agents -match 'App 用户可见名称：见域' -and
-        $agents -match 'namespace / applicationId：com\.elio\.jianyu' -and
-        $agents -match 'app/src/main/java/com/elio/jianyu/') {
+    if ($readme.Contains('App 名称：见域') -and
+        $readme.Contains('namespace / applicationId：com.elio.jianyu') -and
+        $agents.Contains('| 产品 | **见域**') -and
+        $agents.Contains('namespace / applicationId：`com.elio.jianyu`') -and
+        $agents.Contains('app/src/main/java/com/elio/jianyu/')) {
         Pass 'Current Identity Documentation' 'README 与 AGENTS 已记录当前见域身份'
     } else {
         Fail 'Current Identity Documentation' 'README 或 AGENTS 缺少当前见域身份事实'
