@@ -69,6 +69,8 @@ internal data class OfficialSkillCatalogUiState(
     val favoriteIds: Set<String> = emptySet(),
     val recentUses: List<RecentOfficialSkillUse> = emptyList(),
     val roleCatalog: SkillRoleCatalogUiState? = null,
+    val discoveryFilters: RoleDiscoveryFilters = RoleDiscoveryFilters(),
+    val discoveryFilterSheetVisible: Boolean = false,
     val selectedSkill: OfficialSkillDefinition? = null,
     val combinations: List<OfficialSkillCombinationSnapshot> = emptyList(),
     val combinationsLoading: Boolean = false,
@@ -110,6 +112,8 @@ internal sealed interface OfficialSkillCatalogEvent {
     data object NavigateToSearch : OfficialSkillCatalogEvent
     data object NavigateToFavorites : OfficialSkillCatalogEvent
     data object NavigateToRecent : OfficialSkillCatalogEvent
+    data class DiscoveryFilterSheetChanged(val visible: Boolean) : OfficialSkillCatalogEvent
+    data class DiscoveryFiltersApplied(val filters: RoleDiscoveryFilters) : OfficialSkillCatalogEvent
 }
 
 internal fun OfficialSkillDefinition.statusLabels(): List<String> = buildList {

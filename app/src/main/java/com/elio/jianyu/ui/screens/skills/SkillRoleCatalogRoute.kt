@@ -10,15 +10,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import com.elio.jianyu.skill.catalog.OfficialSkillCatalogFilters
 import com.elio.jianyu.skill.catalog.OfficialSkillCatalogRuntimeResult
-import com.elio.jianyu.skill.catalog.OfficialSkillMaterialRequirement
-import com.elio.jianyu.skill.catalog.OfficialSkillNetworkRequirement
-import com.elio.jianyu.skill.catalog.OfficialSkillPrimaryType
-import com.elio.jianyu.skill.catalog.OfficialSkillPrimaryValue
-import com.elio.jianyu.skill.catalog.OfficialSkillPublicationStatus
-import com.elio.jianyu.skill.catalog.OfficialSkillRiskLevel
-import com.elio.jianyu.skill.catalog.OfficialSkillUseMode
 import com.elio.jianyu.skill.role.SkillRolePresentationCatalogLoader
 import com.elio.jianyu.skill.role.SkillRolePresentationLoadResult
 import kotlinx.coroutines.launch
@@ -76,74 +68,47 @@ internal fun SkillRoleCatalogRoute(
     val favoriteIds by runtime.preferences.favoriteIds.collectAsState()
     val recentUses by runtime.preferences.recentUses.collectAsState()
 
-    var query by rememberSaveable { mutableStateOf("") }
-    var sectionName by rememberSaveable { mutableStateOf(OfficialSkillCatalogSection.DISCOVER.name) }
-    val section = runCatching { OfficialSkillCatalogSection.valueOf(sectionName) }
-        .getOrDefault(OfficialSkillCatalogSection.DISCOVER)
-    var filters by remember { mutableStateOf(OfficialSkillCatalogFilters()) }
-    var filterDialogVisible by rememberSaveable { mutableStateOf(false) }
+    var discoveryFilters by remember { mutableStateOf(RoleDiscoveryFilters()) }
+    var discoveryFilterSheetVisible by rememberSaveable { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
 
-    val roleCatalog = projectSkillRoleCatalog(
+    val unfilteredRoleCatalog = projectSkillRoleCatalog(
         catalog = runtime.catalog,
         presentationCatalog = presentationCatalog,
-        query = query,
-        filters = filters,
         favoriteIds = favoriteIds,
         recentUses = recentUses,
+    )
+    val roleCatalog = unfilteredRoleCatalog.copy(
+        visibleRoles = applyDiscoveryFilters(unfilteredRoleCatalog.allRoles, discoveryFilters),
     )
 
     SkillRolePageScreen(
         uiState = OfficialSkillCatalogUiState(
             isLoading = false,
-            query = query,
-            filters = filters,
-            filterDialogVisible = filterDialogVisible,
-            section = section,
             visibleSkills = roleCatalog.visibleRoles.map(SkillRoleCardUi::officialSkill),
             allSkills = runtime.catalog.skills,
             totalSkillCount = runtime.catalog.skills.size,
             favoriteIds = favoriteIds,
             recentUses = recentUses,
             roleCatalog = roleCatalog,
+            discoveryFilters = discoveryFilters,
+            discoveryFilterSheetVisible = discoveryFilterSheetVisible,
             message = message,
         ),
         onEvent = { event ->
             when (event) {
-                is OfficialSkillCatalogEvent.SearchChanged -> query = event.value
-                is OfficialSkillCatalogEvent.SectionChanged -> sectionName = event.value.name
-                is OfficialSkillCatalogEvent.FilterDialogChanged -> filterDialogVisible = event.visible
-                is OfficialSkillCatalogEvent.TogglePrimaryType -> {
-                    filters = filters.copy(primaryTypes = filters.primaryTypes.toggleRoleFilter(event.value))
-                }
-                is OfficialSkillCatalogEvent.TogglePrimaryValue -> {
-                    filters = filters.copy(primaryValues = filters.primaryValues.toggleRoleFilter(event.value))
-                }
-                is OfficialSkillCatalogEvent.ToggleUseMode -> {
-                    filters = filters.copy(useModes = filters.useModes.toggleRoleFilter(event.value))
-                }
-                is OfficialSkillCatalogEvent.ToggleNetwork -> {
-                    filters = filters.copy(
-                        networkRequirements = filters.networkRequirements.toggleRoleFilter(event.value),
-                    )
-                }
-                is OfficialSkillCatalogEvent.ToggleMaterial -> {
-                    filters = filters.copy(
-                        materialRequirements = filters.materialRequirements.toggleRoleFilter(event.value),
-                    )
-                }
-                is OfficialSkillCatalogEvent.ToggleRisk -> {
-                    filters = filters.copy(risks = filters.risks.toggleRoleFilter(event.value))
-                }
-                is OfficialSkillCatalogEvent.TogglePublication -> {
-                    filters = filters.copy(
-                        publicationStatuses = filters.publicationStatuses.toggleRoleFilter(event.value),
-                    )
-                }
-                OfficialSkillCatalogEvent.ToggleExecutableOnly -> {
-                    filters = filters.copy(executableOnly = !filters.executableOnly)
-                }
-                OfficialSkillCatalogEvent.ClearFilters -> filters = OfficialSkillCatalogFilters()
+                is OfficialSkillCatalogEvent.SearchChanged,
+                is OfficialSkillCatalogEvent.SectionChanged,
+                is OfficialSkillCatalogEvent.FilterDialogChanged,
+                is OfficialSkillCatalogEvent.TogglePrimaryType,
+                is OfficialSkillCatalogEvent.TogglePrimaryValue,
+                is OfficialSkillCatalogEvent.ToggleUseMode,
+                is OfficialSkillCatalogEvent.ToggleNetwork,
+                is OfficialSkillCatalogEvent.ToggleMaterial,
+                is OfficialSkillCatalogEvent.ToggleRisk,
+                is OfficialSkillCatalogEvent.TogglePublication,
+                OfficialSkillCatalogEvent.ToggleExecutableOnly,
+                OfficialSkillCatalogEvent.ClearFilters -> Unit
                 is OfficialSkillCatalogEvent.OpenDetail -> {
                     if (runtime.catalog.containsOfficialId(event.skillId)) {
                         onOpenSkillDetail(event.skillId)
@@ -172,11 +137,15 @@ internal fun SkillRoleCatalogRoute(
                 OfficialSkillCatalogEvent.NavigateToSearch -> onNavigateToSearch()
                 OfficialSkillCatalogEvent.NavigateToFavorites -> onNavigateToFavorites()
                 OfficialSkillCatalogEvent.NavigateToRecent -> onNavigateToRecent()
+                is OfficialSkillCatalogEvent.DiscoveryFilterSheetChanged -> {
+                    discoveryFilterSheetVisible = event.visible
+                }
+                is OfficialSkillCatalogEvent.DiscoveryFiltersApplied -> {
+                    discoveryFilters = event.filters
+                    discoveryFilterSheetVisible = false
+                }
             }
         },
         modifier = modifier,
     )
 }
-
-private fun <T> Set<T>.toggleRoleFilter(value: T): Set<T> =
-    if (value in this) this - value else this + value

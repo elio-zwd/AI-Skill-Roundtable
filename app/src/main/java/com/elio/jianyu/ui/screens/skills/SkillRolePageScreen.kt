@@ -28,6 +28,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -119,8 +121,22 @@ internal fun SkillRolePageScreen(
         }
     }
 
-    if (uiState.filterDialogVisible) {
-        SkillRoleFilterDialog(filters = uiState.filters, onEvent = onEvent)
+    val roleCatalog = uiState.roleCatalog
+    if (uiState.discoveryFilterSheetVisible && roleCatalog != null) {
+        SkillRoleFilterSheet(
+            visible = true,
+            appliedFilters = uiState.discoveryFilters,
+            onDismiss = {
+                onEvent(OfficialSkillCatalogEvent.DiscoveryFilterSheetChanged(false))
+            },
+            onApply = { filters ->
+                onEvent(OfficialSkillCatalogEvent.DiscoveryFiltersApplied(filters))
+            },
+            matchCountProvider = { filters ->
+                applyDiscoveryFilters(roleCatalog.allRoles, filters).size
+            },
+            showMyUsageFilters = true,
+        )
     }
 
     uiState.message?.let { message ->
@@ -159,8 +175,9 @@ private fun SkillRolePageContent(
 
     RolePageHeader(
         favoritesOnly = favoritesOnly,
+        activeFilterCount = uiState.discoveryFilters.activeCount(),
         onToggleFavorites = { onEvent(OfficialSkillCatalogEvent.NavigateToFavorites) },
-        onOpenFilters = { onEvent(OfficialSkillCatalogEvent.FilterDialogChanged(true)) },
+        onOpenFilters = { onEvent(OfficialSkillCatalogEvent.DiscoveryFilterSheetChanged(true)) },
     )
 
     LazyColumn(
@@ -296,6 +313,7 @@ private fun SkillRolePageContent(
 @Composable
 private fun RolePageHeader(
     favoritesOnly: Boolean,
+    activeFilterCount: Int,
     onToggleFavorites: () -> Unit,
     onOpenFilters: () -> Unit,
 ) {
@@ -330,13 +348,21 @@ private fun RolePageHeader(
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
-        TextButton(
-            onClick = onOpenFilters,
-            modifier = Modifier
-                .heightIn(min = 48.dp)
-                .testTag(OfficialSkillCatalogTestTags.FILTER_BUTTON),
+        BadgedBox(
+            badge = {
+                if (activeFilterCount > 0) {
+                    Badge { Text(activeFilterCount.toString()) }
+                }
+            },
         ) {
-            Text("筛选")
+            TextButton(
+                onClick = onOpenFilters,
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .testTag(OfficialSkillCatalogTestTags.FILTER_BUTTON),
+            ) {
+                Text("筛选")
+            }
         }
     }
 }
