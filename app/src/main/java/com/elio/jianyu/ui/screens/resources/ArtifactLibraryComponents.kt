@@ -121,7 +121,7 @@ private fun ArtifactLibraryBody(
         partialFailureCode?.let {
             JianyuStateCard(
                 title = "部分成果未能读取",
-                message = "已显示成功恢复的成果；其他议题或来源关系可稍后重试。",
+                message = "已显示成功恢复的成果；其他会话或来源关系可稍后重试。",
                 actionLabel = null,
             )
         }
@@ -209,7 +209,7 @@ private fun ArtifactCard(
         ) {
             Text(item.title, style = MaterialTheme.typography.titleMedium)
             JianyuMetadataRow("成果类型", item.artifactType?.displayName ?: item.rawArtifactType)
-            JianyuMetadataRow("所属议题", item.issueTitle)
+            JianyuMetadataRow("所属会话", item.issueTitle)
             JianyuMetadataRow("所属阶段", item.stageTitle)
             JianyuMetadataRow("版本", "v${item.revisionNumber}${if (item.latest) " · 最新" else " · 历史"}")
             Text(
@@ -241,7 +241,7 @@ private fun ArtifactDetailDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 JianyuMetadataRow("成果类型", item.artifactType?.displayName ?: item.rawArtifactType)
-                JianyuMetadataRow("所属议题", item.issueTitle)
+                JianyuMetadataRow("所属会话", item.issueTitle)
                 JianyuMetadataRow("所属阶段", item.stageTitle)
                 JianyuMetadataRow("版本", "v${item.revisionNumber}")
                 item.revisionOfArtifactId?.let {
@@ -261,7 +261,7 @@ private fun ArtifactDetailDialog(
                 onClick = onOpenIssue,
                 modifier = Modifier.testTag(ArtifactLibraryTestTags.OPEN_ISSUE),
             ) {
-                Text("返回对应议题")
+                Text("返回对应会话")
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("关闭") } },

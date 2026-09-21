@@ -13,7 +13,10 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.data.ContextSourceLifecycle
@@ -25,8 +28,18 @@ import com.elio.jianyu.ui.navigation.ResourceTab
 
 @Composable
 fun ResourcesScreen(
+    showOverview: Boolean = false,
+    addMaterialSheetVisible: Boolean = false,
+    requestMaterialSearchFocus: Boolean = false,
     selectedTab: ResourceTab,
     onSelectTab: (ResourceTab) -> Unit,
+    onBackToOverview: () -> Unit = {},
+    onShowMaterials: () -> Unit = {},
+    onShowArtifacts: () -> Unit = {},
+    onSearchMaterials: () -> Unit = {},
+    onOpenAddMaterialSheet: () -> Unit = {},
+    onDismissAddMaterialSheet: () -> Unit = {},
+    onChooseMaterialKind: (String) -> Unit = {},
     onOpenSettings: () -> Unit,
     state: ResourcesUiState = ResourcesUiState.Content(),
     artifactState: ArtifactLibraryUiState =
@@ -37,6 +50,8 @@ fun ResourcesScreen(
     onLifecyclesChange: (Set<ContextSourceLifecycle>) -> Unit = {},
     onAdd: () -> Unit = {},
     onEditMaterial: (MaterialUiItem) -> Unit = {},
+    onOpenMaterial: (MaterialUiItem) -> Unit = {},
+    onDismissMaterial: () -> Unit = {},
     onEditPersonalContext: (PersonalContextUiItem) -> Unit = {},
     onMaterialLifecycle: (MaterialUiItem, ContextSourceLifecycle) -> Unit = { _, _ -> },
     onPersonalContextLifecycle: (PersonalContextUiItem, ContextSourceLifecycle) -> Unit = { _, _ -> },
@@ -55,13 +70,29 @@ fun ResourcesScreen(
     onDismissArtifact: () -> Unit = {},
     onOpenArtifactIssue: (String, String) -> Unit = { _, _ -> },
 ) {
-    JianyuPageShell(
-        title = "资料与成果",
+    if (showOverview) {
+        ResourcesOverviewScreen(
+            overview = buildResourceOverview(state, artifactState),
+            onSearchMaterials = onSearchMaterials,
+            onAddMaterial = onOpenAddMaterialSheet,
+            onShowMaterials = onShowMaterials,
+            onShowArtifacts = onShowArtifacts,
+            onOpenMaterial = onOpenMaterial,
+            onOpenArtifact = onOpenArtifact,
+        )
+    } else {
+        JianyuPageShell(
+        title = when {
+            selectedTab == ResourceTab.ARTIFACTS -> "全部成果"
+            state is ResourcesUiState.Content &&
+                state.section == ResourceLibrarySection.PERSONAL_CONTEXTS -> "个人背景"
+            else -> "全部资料"
+        },
         subtitle = null,
-        onOpenSettings = onOpenSettings,
+        onBack = onBackToOverview,
         contentScrollable = true,
         modifier = Modifier.testTag(ResourcesTestTags.SCREEN),
-    ) {
+        ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -126,6 +157,8 @@ fun ResourcesScreen(
                 onQueryChange = onQueryChange,
                 onLifecyclesChange = onLifecyclesChange,
                 onAdd = onAdd,
+                requestSearchFocus = requestMaterialSearchFocus,
+                onOpenMaterial = onOpenMaterial,
                 onEditMaterial = onEditMaterial,
                 onEditPersonalContext = onEditPersonalContext,
                 onMaterialLifecycle = onMaterialLifecycle,
@@ -135,12 +168,30 @@ fun ResourcesScreen(
             )
         }
     }
+    }
 
     val content = state as? ResourcesUiState.Content
+    content?.selectedMaterial?.let { material ->
+        MaterialDetailDialog(
+            item = material,
+            onDismiss = onDismissMaterial,
+            onEdit = { onEditMaterial(material) },
+            onLifecycle = { onMaterialLifecycle(material, it) },
+            onRequestPurge = { onRequestMaterialPurge(material) },
+        )
+    }
+
+    if (addMaterialSheetVisible) {
+        AddMaterialSheet(
+            onDismiss = onDismissAddMaterialSheet,
+            onChoose = onChooseMaterialKind,
+        )
+    }
     content?.editor?.let { draft ->
         ResourceEditorDialog(
             draft = draft,
             issues = content.issues,
+            message = content.partialFailure,
             onChange = onEditorChange,
             onDismiss = onDismissEditor,
             onSave = onSaveEditor,
@@ -163,6 +214,8 @@ private fun ResourceLibraryContent(
     onQueryChange: (String) -> Unit,
     onLifecyclesChange: (Set<ContextSourceLifecycle>) -> Unit,
     onAdd: () -> Unit,
+    requestSearchFocus: Boolean,
+    onOpenMaterial: (MaterialUiItem) -> Unit,
     onEditMaterial: (MaterialUiItem) -> Unit,
     onEditPersonalContext: (PersonalContextUiItem) -> Unit,
     onMaterialLifecycle: (MaterialUiItem, ContextSourceLifecycle) -> Unit,
@@ -186,11 +239,15 @@ private fun ResourceLibraryContent(
             onAction = onRetry,
         )
         is ResourcesUiState.Content -> {
+            val searchFocusRequester = androidx.compose.runtime.remember { FocusRequester() }
+            LaunchedEffect(requestSearchFocus) {
+                if (requestSearchFocus) searchFocusRequester.requestFocus()
+            }
             Text(
                 if (state.section == ResourceLibrarySection.MATERIALS) {
-                    "资料必须关联议题，可选关联阶段；已关联不等于自动发送。"
+                    "资料必须关联会话，可选关联对话节点；已关联不等于自动发送。"
                 } else {
-                    "个人背景可跨议题复用，但每次执行默认不勾选。"
+                    "个人背景可跨会话复用，但每次执行默认不勾选。"
                 },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -200,6 +257,7 @@ private fun ResourceLibraryContent(
                 label = { Text("搜索标题或来源类型") },
                 modifier = Modifier
                     .fillMaxWidth()
+                    .focusRequester(searchFocusRequester)
                     .testTag(ResourcesTestTags.SEARCH),
             )
             ResourceLifecycleFilters(state.lifecycles, onLifecyclesChange)
@@ -239,6 +297,7 @@ private fun ResourceLibraryContent(
                         state.visibleMaterials.forEach { item ->
                             MaterialCard(
                                 item = item,
+                                onOpen = { onOpenMaterial(item) },
                                 onEdit = { onEditMaterial(item) },
                                 onLifecycle = { onMaterialLifecycle(item, it) },
                                 onRequestPurge = { onRequestMaterialPurge(item) },
@@ -255,7 +314,7 @@ private fun ResourceLibraryContent(
                     if (state.visiblePersonalContexts.isEmpty()) {
                         JianyuStateCard(
                             title = "暂无匹配个人背景",
-                            message = "背景条目不会在应用启动或创建议题时自动加入模型上下文。",
+                            message = "背景条目不会在应用启动或创建会话时自动加入模型上下文。",
                             modifier = Modifier.testTag(ResourcesTestTags.EMPTY_STATE),
                         )
                     } else {

@@ -1,17 +1,22 @@
 package com.elio.jianyu.ui.screens.resources
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.data.ContextSourceLifecycle
+import com.elio.jianyu.result.ArtifactLibraryItem
+import com.elio.jianyu.result.ArtifactLibrarySnapshot
+import com.elio.jianyu.result.ArtifactType
 import com.elio.jianyu.ui.navigation.ResourceTab
 import com.elio.jianyu.ui.theme.SkillRoundtableTheme
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.junit.Assert.assertEquals
 
 @RunWith(AndroidJUnit4::class)
 class ResourcesScreenTest {
@@ -33,9 +38,9 @@ class ResourcesScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("个人背景可跨议题复用，但每次执行默认不勾选。")
+        composeRule.onNodeWithText("个人背景可跨会话复用，但每次执行默认不勾选。")
             .assertIsDisplayed()
-        composeRule.onNodeWithText("背景条目不会在应用启动或创建议题时自动加入模型上下文。")
+        composeRule.onNodeWithText("背景条目不会在应用启动或创建会话时自动加入模型上下文。")
             .assertIsDisplayed()
     }
 
@@ -75,4 +80,161 @@ class ResourcesScreenTest {
         composeRule.onNodeWithText("恢复").assertIsDisplayed()
         composeRule.onNodeWithText("彻底清除").performClick()
     }
+
+    @Test
+    fun overviewShowsRealObjectsAndRoutesToTheirLibraries() {
+        var requestedPage = ""
+        val material = material("material-overview", sensitive = false)
+        val artifact = artifact("artifact-overview")
+
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                ResourcesScreen(
+                    showOverview = true,
+                    selectedTab = ResourceTab.MATERIALS,
+                    onSelectTab = {},
+                    onOpenSettings = {},
+                    state = ResourcesUiState.Content(materials = listOf(material)),
+                    artifactState = ArtifactLibraryUiState.Content(
+                        ArtifactLibrarySnapshot(listOf(artifact), emptyList()),
+                    ),
+                    onShowMaterials = { requestedPage = "materials" },
+                    onShowArtifacts = { requestedPage = "artifacts" },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(ResourcesOverviewTestTags.SCREEN).assertIsDisplayed()
+        composeRule.onNodeWithTag(ResourcesOverviewTestTags.material(material.id)).assertIsDisplayed()
+        composeRule.onNodeWithTag(ResourcesOverviewTestTags.artifact(artifact.artifactId)).assertIsDisplayed()
+
+        composeRule.onNodeWithTag(ResourcesOverviewTestTags.ARTIFACT_SUMMARY).performClick()
+        composeRule.runOnIdle { assertEquals("artifacts", requestedPage) }
+    }
+
+    @Test
+    fun addSheetExposesOnlyApprovedMaterialSources() {
+        var selectedKind = ""
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                ResourcesScreen(
+                    showOverview = true,
+                    addMaterialSheetVisible = true,
+                    selectedTab = ResourceTab.MATERIALS,
+                    onSelectTab = {},
+                    onOpenSettings = {},
+                    onChooseMaterialKind = { selectedKind = it },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(ResourcesTestTags.ADD_SHEET).assertIsDisplayed()
+        composeRule.onNodeWithText("添加链接").performClick()
+        composeRule.runOnIdle { assertEquals("url", selectedKind) }
+        composeRule.onNodeWithText("个人背景").assertDoesNotExist()
+    }
+
+    @Test
+    fun materialDetailHidesSensitivePreviewAndKeepsInputBoundaryVisible() {
+        val material = material("sensitive", sensitive = true)
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                ResourcesScreen(
+                    showOverview = true,
+                    selectedTab = ResourceTab.MATERIALS,
+                    onSelectTab = {},
+                    onOpenSettings = {},
+                    state = ResourcesUiState.Content(
+                        materials = listOf(material),
+                        selectedMaterialId = material.id,
+                    ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(ResourcesTestTags.MATERIAL_DETAIL).assertIsDisplayed()
+        composeRule.onNodeWithText("敏感内容已隐藏，点击编辑后查看。").assertIsDisplayed()
+        composeRule.onNodeWithText(
+            "资料只是对话的输入与依据，不会自动发送给任何 Skill 角色。",
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun sensitiveMaterialCardNeverExposesItsPreview() {
+        val material = material("card-sensitive", sensitive = true)
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                ResourcesScreen(
+                    selectedTab = ResourceTab.MATERIALS,
+                    onSelectTab = {},
+                    onOpenSettings = {},
+                    state = ResourcesUiState.Content(materials = listOf(material)),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("敏感内容已隐藏").assertIsDisplayed()
+        composeRule.onNodeWithText("预览正文").assertDoesNotExist()
+    }
+
+    @Test
+    fun linkEditorUsesUserFacingFieldsAndDisablesSaveWithoutConversation() {
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                ResourcesScreen(
+                    showOverview = true,
+                    selectedTab = ResourceTab.MATERIALS,
+                    onSelectTab = {},
+                    onOpenSettings = {},
+                    state = ResourcesUiState.Content(
+                        editor = ResourceEditorDraft(
+                            sourceType = com.elio.jianyu.data.ContextSourceType.MATERIAL,
+                            sourceKind = "url",
+                        ),
+                    ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(ResourcesTestTags.EDITOR).assertIsDisplayed()
+        composeRule.onNodeWithText("添加链接").assertIsDisplayed()
+        composeRule.onNodeWithText("所属会话").assertIsDisplayed()
+        composeRule.onNodeWithText(
+            "当前没有可用会话。请先返回【对话】开始一个会话，再添加资料。",
+        ).assertIsDisplayed()
+        composeRule.onNodeWithText("保存").assertIsNotEnabled()
+        composeRule.onNodeWithText("所属议题").assertDoesNotExist()
+    }
+
+    private fun material(id: String, sensitive: Boolean) = MaterialUiItem(
+        id = id,
+        issueId = "issue-1",
+        stageId = null,
+        title = "资料-$id",
+        sourceType = "excerpt",
+        sourceLocator = null,
+        contentPreview = "预览正文",
+        content = "完整正文",
+        sourcePublishedAt = null,
+        sourceCapturedAt = 1L,
+        sensitive = sensitive,
+        lifecycle = ContextSourceLifecycle.ACTIVE,
+        updatedAt = 2L,
+    )
+
+    private fun artifact(id: String) = ArtifactLibraryItem(
+        artifactId = id,
+        issueId = "issue-1",
+        issueTitle = "测试会话",
+        stageId = "stage-1",
+        stageTitle = "当前节点",
+        title = "成果-$id",
+        contentSummary = "成果摘要",
+        artifactType = ArtifactType.GENERAL_SUMMARY,
+        rawArtifactType = ArtifactType.GENERAL_SUMMARY.storageValue,
+        confirmedAt = 2L,
+        revisionOfArtifactId = null,
+        revisionNumber = 1,
+        latest = true,
+    )
 }

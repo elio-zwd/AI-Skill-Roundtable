@@ -8,6 +8,18 @@ import com.elio.jianyu.result.ArtifactLibraryItem
 import com.elio.jianyu.result.ArtifactLibrarySnapshot
 import com.elio.jianyu.result.ArtifactType
 
+data class ResourceOverviewUiState(
+    val materialCount: Int,
+    val artifactCount: Int,
+    val recentMaterials: List<MaterialUiItem>,
+    val recentArtifacts: List<ArtifactLibraryItem>,
+    val materialsLoading: Boolean,
+    val artifactsLoading: Boolean,
+    val materialsUnavailable: Boolean,
+    val artifactsUnavailable: Boolean,
+    val message: String?,
+)
+
 enum class ResourceLibrarySection {
     MATERIALS,
     PERSONAL_CONTEXTS,
@@ -58,6 +70,7 @@ data class ResourceEditorDraft(
     val title: String = "",
     val sourceKind: String = "note",
     val sourceLocator: String = "",
+    val importedFileSummary: String? = null,
     val content: String = "",
     val sensitive: Boolean = false,
     val expectedUpdatedAt: Long? = null,
@@ -124,6 +137,7 @@ sealed interface ResourcesUiState {
         val purgeConfirmation: ResourcePurgeConfirmation? = null,
         val partialFailure: String? = null,
         val operationInProgress: Boolean = false,
+        val selectedMaterialId: String? = null,
     ) : ResourcesUiState {
         val visibleMaterials: List<MaterialUiItem>
             get() = materials.filter { item ->
@@ -140,5 +154,56 @@ sealed interface ResourcesUiState {
                     query.isBlank() || item.title.contains(query, ignoreCase = true)
                     )
             }
+
+        val selectedMaterial: MaterialUiItem?
+            get() = materials.firstOrNull { it.id == selectedMaterialId }
     }
+}
+
+fun buildResourceOverview(
+    resourcesState: ResourcesUiState,
+    artifactState: ArtifactLibraryUiState,
+): ResourceOverviewUiState {
+    val content = resourcesState as? ResourcesUiState.Content
+    val materials = content?.materials.orEmpty()
+        .filter { it.lifecycle != ContextSourceLifecycle.PURGED }
+    val artifactContent = when (artifactState) {
+        is ArtifactLibraryUiState.Content -> artifactState
+        is ArtifactLibraryUiState.PartialFailure -> artifactState.content
+        ArtifactLibraryUiState.Loading,
+        ArtifactLibraryUiState.Empty,
+        is ArtifactLibraryUiState.Failure -> null
+    }
+    val artifacts = artifactContent?.snapshot?.items.orEmpty()
+        .filter(ArtifactLibraryItem::latest)
+
+    return ResourceOverviewUiState(
+        materialCount = materials.size,
+        artifactCount = artifacts.size,
+        recentMaterials = materials
+            .filter { it.lifecycle == ContextSourceLifecycle.ACTIVE }
+            .sortedWith(compareByDescending<MaterialUiItem> { it.updatedAt }.thenBy { it.id })
+            .take(2),
+        recentArtifacts = artifacts
+            .sortedWith(compareByDescending<ArtifactLibraryItem> { it.confirmedAt }.thenBy { it.artifactId })
+            .take(2),
+        materialsLoading = resourcesState is ResourcesUiState.Loading,
+        artifactsLoading = artifactState is ArtifactLibraryUiState.Loading,
+        materialsUnavailable = resourcesState is ResourcesUiState.Failure,
+        artifactsUnavailable = artifactState is ArtifactLibraryUiState.Failure,
+        message = listOfNotNull(
+            content?.partialFailure,
+            (resourcesState as? ResourcesUiState.Failure)?.message,
+            if (artifactState is ArtifactLibraryUiState.Failure) {
+                "成果库暂时无法读取，资料仍可正常使用。"
+            } else {
+                null
+            },
+            if (artifactState is ArtifactLibraryUiState.PartialFailure) {
+                "部分成果未能读取，已显示成功恢复的内容。"
+            } else {
+                null
+            },
+        ).distinct().joinToString("\n").ifBlank { null },
+    )
 }

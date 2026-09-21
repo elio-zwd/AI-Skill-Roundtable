@@ -3,9 +3,13 @@ package com.elio.jianyu.ui.screens.resources
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -21,6 +25,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import com.elio.jianyu.data.ContextSourceLifecycle
 import com.elio.jianyu.data.ContextSourceType
 import com.elio.jianyu.ui.components.JianyuMetadataRow
@@ -36,6 +49,8 @@ object ResourcesTestTags {
     const val EMPTY_STATE = "resources_empty_state"
     const val EDITOR = "resources_editor"
     const val PURGE_CONFIRMATION = "resources_purge_confirmation"
+    const val MATERIAL_DETAIL = "resources_material_detail"
+    const val ADD_SHEET = "resources_add_sheet"
 
     fun material(id: String): String = "resources_material_$id"
     fun personalContext(id: String): String = "resources_personal_context_$id"
@@ -81,6 +96,7 @@ internal fun ResourceLifecycleFilters(
 @Composable
 internal fun MaterialCard(
     item: MaterialUiItem,
+    onOpen: () -> Unit,
     onEdit: () -> Unit,
     onLifecycle: (ContextSourceLifecycle) -> Unit,
     onRequestPurge: () -> Unit,
@@ -88,6 +104,7 @@ internal fun MaterialCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onOpen)
             .testTag(ResourcesTestTags.material(item.id)),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
@@ -98,18 +115,157 @@ internal fun MaterialCard(
             Text(item.title, style = MaterialTheme.typography.titleMedium)
             JianyuMetadataRow("状态", item.lifecycle.label())
             JianyuMetadataRow("来源类型", item.sourceType.ifBlank { "匿名占位" })
-            JianyuMetadataRow("所属议题", item.issueId)
-            JianyuMetadataRow("所属阶段", item.stageId ?: "整个议题")
+            JianyuMetadataRow("所属会话", item.issueId)
+            JianyuMetadataRow("对话节点", item.stageId ?: "整个会话")
             item.sourceLocator?.let { JianyuMetadataRow("来源定位", it) }
             JianyuMetadataRow("采集时间", item.sourceCapturedAt?.toString() ?: "未知")
             JianyuMetadataRow("来源日期", item.sourcePublishedAt?.toString() ?: "未知")
-            Text(item.contentPreview, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                if (item.sensitive) "敏感内容已隐藏" else item.contentPreview,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             ResourceActions(
                 lifecycle = item.lifecycle,
                 onEdit = onEdit,
                 onLifecycle = onLifecycle,
                 onRequestPurge = onRequestPurge,
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun AddMaterialSheet(
+    onDismiss: () -> Unit,
+    onChoose: (String) -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.testTag(ResourcesTestTags.ADD_SHEET),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text("新增资料", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "选择资料来源，添加后仍由你决定是否带入对话。",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            AddMaterialChoice("上传文件", "选择 PDF、Word 或文本；仅可提取正文的格式能够保存") { onChoose("file") }
+            AddMaterialChoice("添加链接", "保存网页地址与来源信息") { onChoose("url") }
+            AddMaterialChoice("粘贴文本", "添加摘录、笔记或一段参考内容") { onChoose("excerpt") }
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                shape = MaterialTheme.shapes.medium,
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Text("资料是对话的输入与依据，不会自动成为成果。")
+                    Text(
+                        "敏感资料需要你在使用时再次确认。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Spacer(Modifier.padding(bottom = 8.dp))
+        }
+    }
+}
+
+@Composable
+private fun AddMaterialChoice(title: String, description: String, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        color = MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+internal fun MaterialDetailDialog(
+    item: MaterialUiItem,
+    onDismiss: () -> Unit,
+    onEdit: () -> Unit,
+    onLifecycle: (ContextSourceLifecycle) -> Unit,
+    onRequestPurge: () -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag(ResourcesTestTags.MATERIAL_DETAIL),
+            color = MaterialTheme.colorScheme.background,
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                    }
+                    Text("资料详情", style = MaterialTheme.typography.titleLarge)
+                }
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(item.title, style = MaterialTheme.typography.titleLarge)
+                        JianyuMetadataRow("类型", materialKindLabel(item.sourceType))
+                        JianyuMetadataRow("状态", item.lifecycle.label())
+                        JianyuMetadataRow("所属会话", item.issueId)
+                        item.sourceLocator?.takeIf(String::isNotBlank)?.let {
+                            JianyuMetadataRow("来源", it)
+                        }
+                        JianyuMetadataRow("更新时间", formatResourceTime(item.updatedAt))
+                        if (item.sensitive) {
+                            Text("敏感资料：正文仅在你明确选择后才可用于对话。", color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
+                Text("内容预览", style = MaterialTheme.typography.titleMedium)
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.surface,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                ) {
+                    Text(
+                        if (item.sensitive) "敏感内容已隐藏，点击编辑后查看。" else item.contentPreview,
+                        modifier = Modifier.padding(16.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                ResourceActions(
+                    lifecycle = item.lifecycle,
+                    onEdit = onEdit,
+                    onLifecycle = onLifecycle,
+                    onRequestPurge = onRequestPurge,
+                )
+                Text(
+                    "资料只是对话的输入与依据，不会自动发送给任何 Skill 角色。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -215,98 +371,169 @@ private fun ResourceActions(
 internal fun ResourceEditorDialog(
     draft: ResourceEditorDraft,
     issues: List<ResourceIssueOption>,
+    message: String?,
     onChange: (ResourceEditorDraft) -> Unit,
     onDismiss: () -> Unit,
     onSave: () -> Unit,
 ) {
-    AlertDialog(
-        modifier = Modifier
-            .widthIn(max = 640.dp)
-            .testTag(ResourcesTestTags.EDITOR),
+    val isMaterial = draft.sourceType == ContextSourceType.MATERIAL
+    Dialog(
         onDismissRequest = onDismiss,
-        title = {
-            Text(
-                if (draft.sourceId == null) "新建${draft.sourceType.label()}"
-                else "编辑${draft.sourceType.label()}",
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (draft.sourceType == ContextSourceType.MATERIAL) {
-                    Text("所属议题", style = MaterialTheme.typography.labelLarge)
-                    issues.forEach { issue ->
-                        FilterChip(
-                            selected = draft.issueId == issue.issueId,
-                            onClick = {
-                                onChange(
-                                    draft.copy(
-                                        issueId = issue.issueId,
-                                        stageId = issue.stages.firstOrNull()?.stageId,
-                                    ),
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag(ResourcesTestTags.EDITOR),
+            color = MaterialTheme.colorScheme.background,
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "取消")
+                    }
+                    Text(
+                        resourceEditorTitle(draft),
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                }
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    message?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error)
+                    }
+                    if (isMaterial) {
+                        Text(
+                            "${materialKindLabel(draft.sourceKind)}只保存在本地，保存后不会自动带入对话。",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text("所属会话", style = MaterialTheme.typography.labelLarge)
+                        if (issues.isEmpty()) {
+                            Text(
+                                "当前没有可用会话。请先返回【对话】开始一个会话，再添加资料。",
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                        issues.forEach { issue ->
+                            FilterChip(
+                                selected = draft.issueId == issue.issueId,
+                                onClick = {
+                                    onChange(
+                                        draft.copy(
+                                            issueId = issue.issueId,
+                                            stageId = issue.stages.firstOrNull()?.stageId,
+                                        ),
+                                    )
+                                },
+                                label = { Text(issue.title) },
+                            )
+                        }
+                        issues.firstOrNull { it.issueId == draft.issueId }?.let { issue ->
+                            Text("关联对话节点（可选）", style = MaterialTheme.typography.labelLarge)
+                            FilterChip(
+                                selected = draft.stageId == null,
+                                onClick = { onChange(draft.copy(stageId = null)) },
+                                label = { Text("整个会话") },
+                            )
+                            issue.stages.forEach { stage ->
+                                FilterChip(
+                                    selected = draft.stageId == stage.stageId,
+                                    onClick = { onChange(draft.copy(stageId = stage.stageId)) },
+                                    label = { Text(stage.title) },
+                                )
+                            }
+                        }
+                        OutlinedTextField(
+                            value = draft.sourceLocator,
+                            onValueChange = { onChange(draft.copy(sourceLocator = it)) },
+                            label = {
+                                Text(
+                                    when (draft.sourceKind) {
+                                        "url" -> "链接地址"
+                                        "file" -> "本地文件"
+                                        else -> "来源说明（可选）"
+                                    },
                                 )
                             },
-                            label = { Text(issue.title) },
+                            enabled = draft.sourceKind != "file",
+                            supportingText = if (draft.sourceKind == "url") {
+                                { Text("这里只保存地址，不会联网抓取网页。") }
+                            } else {
+                                null
+                            },
+                            modifier = Modifier.fillMaxWidth(),
                         )
-                    }
-                    issues.firstOrNull { it.issueId == draft.issueId }?.let { issue ->
-                        Text("关联阶段（可选）", style = MaterialTheme.typography.labelLarge)
-                        FilterChip(
-                            selected = draft.stageId == null,
-                            onClick = { onChange(draft.copy(stageId = null)) },
-                            label = { Text("整个议题") },
-                        )
-                        issue.stages.forEach { stage ->
-                            FilterChip(
-                                selected = draft.stageId == stage.stageId,
-                                onClick = { onChange(draft.copy(stageId = stage.stageId)) },
-                                label = { Text(stage.title) },
+                        draft.importedFileSummary?.let { summary ->
+                            Text(
+                                summary,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
                             )
                         }
                     }
                     OutlinedTextField(
-                        value = draft.sourceKind,
-                        onValueChange = { onChange(draft.copy(sourceKind = it)) },
-                        label = { Text("来源类型") },
-                        supportingText = { Text("例如 note、url、excerpt") },
+                        value = draft.title,
+                        onValueChange = { onChange(draft.copy(title = it)) },
+                        label = { Text("标题") },
                         modifier = Modifier.fillMaxWidth(),
                     )
                     OutlinedTextField(
-                        value = draft.sourceLocator,
-                        onValueChange = { onChange(draft.copy(sourceLocator = it)) },
-                        label = { Text("来源定位（可选）") },
+                        value = draft.content,
+                        onValueChange = { onChange(draft.copy(content = it)) },
+                        label = {
+                            Text(if (draft.sourceKind == "url") "备注或确认摘录" else "正文或确认摘录")
+                        },
+                        minLines = 5,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                }
-                OutlinedTextField(
-                    value = draft.title,
-                    onValueChange = { onChange(draft.copy(title = it)) },
-                    label = { Text("标题") },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = draft.content,
-                    onValueChange = { onChange(draft.copy(content = it)) },
-                    label = { Text("正文或确认摘录") },
-                    minLines = 5,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Row {
-                    Checkbox(
-                        checked = draft.sensitive,
-                        onCheckedChange = { onChange(draft.copy(sensitive = it)) },
+                    Row {
+                        Checkbox(
+                            checked = draft.sensitive,
+                            onCheckedChange = { onChange(draft.copy(sensitive = it)) },
+                        )
+                        Text("标记为敏感内容", modifier = Modifier.padding(top = 12.dp))
+                    }
+                    Text(
+                        "正文仅保存在本地；是否发送给模型将在每次执行前单独确认。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Text("标记为敏感内容", modifier = Modifier.padding(top = 12.dp))
                 }
-                Text(
-                    "正文仅保存在本地；是否发送给模型将在每次执行前单独确认。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
+                        Text("取消")
+                    }
+                    Button(
+                        onClick = onSave,
+                        enabled = !isMaterial || draft.issueId.isNotBlank(),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("保存")
+                    }
+                }
             }
-        },
-        confirmButton = { Button(onClick = onSave) { Text("保存") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
-    )
+        }
+    }
+}
+
+private fun resourceEditorTitle(draft: ResourceEditorDraft): String {
+    if (draft.sourceId != null) return "编辑${draft.sourceType.label()}"
+    if (draft.sourceType == ContextSourceType.PERSONAL_CONTEXT) return "新建个人背景"
+    return when (draft.sourceKind) {
+        "file" -> "确认文件资料"
+        "url" -> "添加链接"
+        "excerpt" -> "粘贴文本"
+        else -> "新建资料"
+    }
 }
 
 @Composable
@@ -322,8 +549,8 @@ internal fun PurgeConfirmationDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("此操作不可恢复，历史回答保留，但相关正文会变成匿名占位。")
-                JianyuMetadataRow("关联议题", confirmation.impact.issueCount.toString())
-                JianyuMetadataRow("关联阶段", confirmation.impact.stageCount.toString())
+                JianyuMetadataRow("关联会话", confirmation.impact.issueCount.toString())
+                JianyuMetadataRow("关联对话节点", confirmation.impact.stageCount.toString())
                 JianyuMetadataRow("使用快照", confirmation.impact.usageSnapshotCount.toString())
                 JianyuMetadataRow("关联运行", confirmation.impact.runCount.toString())
                 Text(

@@ -93,10 +93,12 @@ class ResourcesViewModel internal constructor(
         copy(lifecycles = lifecycles.ifEmpty { setOf(ContextSourceLifecycle.ACTIVE) })
     }
 
-    fun openNewMaterial() = updateContent {
+    fun openNewMaterial(sourceKind: String = "note") = updateContent {
         copy(
+            partialFailure = null,
             editor = ResourceEditorDraft(
                 sourceType = ContextSourceType.MATERIAL,
+                sourceKind = sourceKind,
                 issueId = issues.firstOrNull()?.issueId.orEmpty(),
                 stageId = issues.firstOrNull()?.stages?.firstOrNull()?.stageId,
             ),
@@ -104,11 +106,16 @@ class ResourcesViewModel internal constructor(
     }
 
     fun openNewPersonalContext() = updateContent {
-        copy(editor = ResourceEditorDraft(sourceType = ContextSourceType.PERSONAL_CONTEXT))
+        copy(
+            partialFailure = null,
+            editor = ResourceEditorDraft(sourceType = ContextSourceType.PERSONAL_CONTEXT),
+        )
     }
 
     fun editMaterial(item: MaterialUiItem) = updateContent {
         copy(
+            partialFailure = null,
+            selectedMaterialId = null,
             editor = ResourceEditorDraft(
                 sourceType = ContextSourceType.MATERIAL,
                 sourceId = item.id,
@@ -124,8 +131,35 @@ class ResourcesViewModel internal constructor(
         )
     }
 
+    internal fun openImportedMaterial(file: ImportedMaterialFile) = updateContent {
+        copy(
+            partialFailure = null,
+            editor = ResourceEditorDraft(
+                sourceType = ContextSourceType.MATERIAL,
+                issueId = issues.firstOrNull()?.issueId.orEmpty(),
+                stageId = issues.firstOrNull()?.stages?.firstOrNull()?.stageId,
+                title = file.title,
+                sourceKind = "file",
+                sourceLocator = file.sourceLocator,
+                importedFileSummary = "${file.mimeType} · ${formatFileSize(file.sizeBytes)} · 已提取正文",
+                content = file.content,
+            ),
+        )
+    }
+
+    internal fun reportMaterialImportFailure(message: String) = updateContent {
+        copy(partialFailure = message)
+    }
+
+    fun openMaterial(item: MaterialUiItem) = updateContent {
+        copy(selectedMaterialId = item.id)
+    }
+
+    fun dismissMaterial() = updateContent { copy(selectedMaterialId = null) }
+
     fun editPersonalContext(item: PersonalContextUiItem) = updateContent {
         copy(
+            partialFailure = null,
             editor = ResourceEditorDraft(
                 sourceType = ContextSourceType.PERSONAL_CONTEXT,
                 sourceId = item.id,
@@ -149,7 +183,15 @@ class ResourcesViewModel internal constructor(
             return
         }
         if (editor.sourceType == ContextSourceType.MATERIAL && editor.issueId.isBlank()) {
-            updateContent { copy(partialFailure = "资料必须关联一个议题。") }
+            updateContent { copy(partialFailure = "资料必须关联一个会话。") }
+            return
+        }
+        if (
+            editor.sourceType == ContextSourceType.MATERIAL &&
+            editor.sourceKind == "url" &&
+            !isWebUrl(editor.sourceLocator)
+        ) {
+            updateContent { copy(partialFailure = "请输入以 http:// 或 https:// 开头的链接地址。") }
             return
         }
         runOperation {
@@ -380,6 +422,15 @@ class ResourcesViewModel internal constructor(
             }
     }
 }
+
+private fun formatFileSize(sizeBytes: Long): String = when {
+    sizeBytes >= 1024 * 1024 -> "%.1f MB".format(sizeBytes / (1024.0 * 1024.0))
+    sizeBytes >= 1024 -> "%.1f KB".format(sizeBytes / 1024.0)
+    else -> "$sizeBytes B"
+}
+
+private fun isWebUrl(value: String): Boolean =
+    value.trim().let { it.startsWith("https://", ignoreCase = true) || it.startsWith("http://", ignoreCase = true) }
 
 private fun Material.toUi(): MaterialUiItem = MaterialUiItem(
     id = id,
