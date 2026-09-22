@@ -24,15 +24,16 @@ class DialogCompletionContractTest {
     }
 
     @Test
-    fun backupRestore_mergesThroughRepositoryService() {
+    fun backupRouteUsesFormalExportAndKeepsImportExplicitlyClosed() {
         val root = findAppRoot()
         val route = root.resolve("src/main/java/com/elio/jianyu/ui/screens/mine/BackupRoute.kt").readText()
-        val service = root.resolve("src/main/java/com/elio/jianyu/data/BackupImportService.kt").readText()
+        val service = root.resolve("src/main/java/com/elio/jianyu/backup/PortableBackupService.kt").readText()
 
-        assertTrue(route.contains("repository.importBackup"))
-        assertFalse(route.contains("repository.confirmArtifact("))
-        assertTrue(service.contains("suspend fun JianyuRepository.importBackup"))
-        assertTrue(service.contains("restored_conversation"))
+        assertTrue(route.contains("PortableBackupService"))
+        assertTrue(route.contains("DeviceSnapshotService"))
+        assertTrue(route.contains("PR09-14A/14B"))
+        assertTrue(service.contains("createToUri"))
+        assertFalse(service.contains("importBackup"))
     }
 
     private fun findAppRoot(): File {

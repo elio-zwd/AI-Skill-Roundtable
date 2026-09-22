@@ -1,7 +1,5 @@
 package com.elio.jianyu.ui.screens.mine
 
-import android.content.Context
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -28,140 +26,157 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.elio.jianyu.backup.BackupErrorCode
+import com.elio.jianyu.backup.BackupException
+import com.elio.jianyu.backup.BackupProtocol
+import com.elio.jianyu.backup.DeviceSnapshotService
+import com.elio.jianyu.backup.PortableBackupService
+import com.elio.jianyu.backup.SnapshotCatalog
 import com.elio.jianyu.data.JianyuRepository
 import com.elio.jianyu.ui.components.JianyuPageShell
 import com.elio.jianyu.ui.components.JianyuStateCard
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-import java.security.SecureRandom
-import javax.crypto.Cipher
-import javax.crypto.SecretKeyFactory
-import javax.crypto.spec.GCMParameterSpec
-import javax.crypto.spec.PBEKeySpec
-import javax.crypto.spec.SecretKeySpec
-import com.elio.jianyu.data.BackupImportArtifact
-import com.elio.jianyu.data.BackupImportIssue
-import com.elio.jianyu.data.BackupImportMaterial
-import com.elio.jianyu.data.BackupImportMessage
-import com.elio.jianyu.data.BackupImportPayload
-import com.elio.jianyu.data.BackupImportPersonalContext
-import com.elio.jianyu.data.importBackup
-import kotlinx.serialization.json.Json
 
 object BackupTestTags {
     const val SCREEN = "backup_screen"
     const val CREATE = "backup_create"
     const val RESTORE = "backup_restore"
+    const val SNAPSHOT_CREATE = "backup_snapshot_create"
+    const val SNAPSHOT_DELETE = "backup_snapshot_delete"
     const val PASSWORD_SHEET = "backup_password_sheet"
 }
-
-private const val BACKUP_MAGIC = "JIANBAK1"
-private const val BACKUP_VERSION: Short = 1
-private const val PBKDF2_ITERATIONS = 120_000
-private const val KEY_BITS = 256
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BackupRoute(
-    repository: JianyuRepository,
+    @Suppress("UNUSED_PARAMETER") repository: JianyuRepository,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var passwordSheet by remember { mutableStateOf(false) }
-    var restorePassword by rememberSaveable { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
-    var pendingRestoreUri by remember { mutableStateOf<Uri?>(null) }
-    var showRestorePassword by remember { mutableStateOf(false) }
+    var pendingTarget by remember { mutableStateOf<android.net.Uri?>(null) }
+    var snapshots by remember { mutableStateOf(SnapshotCatalog.list(context)) }
+    var showImportInfo by remember { mutableStateOf(false) }
 
     val createLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/octet-stream"),
+        ActivityResultContracts.CreateDocument(BackupProtocol.portableMime),
     ) { uri ->
         if (uri != null) {
+            pendingTarget = uri
             passwordSheet = true
-            pendingRestoreUri = uri
-        }
-    }
-    val openLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument(),
-    ) { uri ->
-        if (uri != null) {
-            pendingRestoreUri = uri
-            restorePassword = ""
-            showRestorePassword = true
         }
     }
 
     JianyuPageShell(
         title = "备份与恢复",
-        subtitle = "本地加密文件，不自动同步",
+        subtitle = "正式加密导出与设备绑定快照",
         onBack = onBack,
         contentScrollable = true,
         modifier = Modifier.testTag(BackupTestTags.SCREEN),
     ) {
         JianyuStateCard(
-            title = "创建本地备份",
-            message = "备份会包含会话、资料与成果、个人背景和非敏感应用偏好；完整 API Key 不会写入备份文件。",
+            title = "创建可移植备份",
+            message = "使用 Argon2id 与 AES-256-GCM 加密，会话、资料、成果和已确认个人背景按白名单导出；API Key、Keystore、令牌和临时数据永不写入。",
             actionLabel = "创建备份",
             actionTestTag = BackupTestTags.CREATE,
-            onAction = { createLauncher.launch("jianyu-backup-${System.currentTimeMillis()}.jybak") },
+            onAction = { createLauncher.launch("jianyu-backup-${System.currentTimeMillis()}${BackupProtocol.portableExtension}") },
         )
-        Text("备份文件使用你输入的独立密码加密。密码不会保存到 App，也无法从备份文件中恢复。", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text("从备份恢复", style = MaterialTheme.typography.titleMedium)
+        Text("备份密码只在本次操作内存中使用，不会保存，也不能从文件恢复。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+        JianyuStateCard(
+            title = "设备绑定恢复快照",
+            message = "快照保存在 App 私有 noBackup 目录，使用独立 Android Keystore 密钥；创建前会冻结活动工作、执行 WAL checkpoint，并在重开数据库后完成完整校验。",
+            actionLabel = "创建设备快照",
+            actionTestTag = BackupTestTags.SNAPSHOT_CREATE,
+            onAction = {
+                scope.launch {
+                    busy = true
+                    message = withContext(Dispatchers.IO) {
+                        runCatching {
+                            val result = DeviceSnapshotService(context).createSnapshot()
+                            snapshots = SnapshotCatalog.list(context)
+                            "设备快照已验证并保存：${result.snapshotId}"
+                        }.getOrElse(::formatBackupError)
+                    }
+                    busy = false
+                }
+            },
+        )
+        snapshots.forEach { entry ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(entry.snapshotId, style = MaterialTheme.typography.titleSmall)
+                    Text("${entry.sizeBytes} bytes", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (entry.note.isNotBlank()) Text(entry.note, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            busy = true
+                            message = withContext(Dispatchers.IO) {
+                                runCatching {
+                                    SnapshotCatalog.delete(context, entry.snapshotId)
+                                    snapshots = SnapshotCatalog.list(context)
+                                    "设备快照已删除。"
+                                }.getOrElse(::formatBackupError)
+                            }
+                            busy = false
+                        }
+                    },
+                    enabled = !busy,
+                    modifier = Modifier.testTag(BackupTestTags.SNAPSHOT_DELETE),
+                ) { Text("删除") }
+            }
+        }
+
+        Text("导入与数据库替换", style = MaterialTheme.typography.titleMedium)
         Button(
-            onClick = { openLauncher.launch(arrayOf("application/octet-stream", "application/json")) },
+            onClick = { showImportInfo = true },
             enabled = !busy,
             modifier = Modifier.testTag(BackupTestTags.RESTORE),
-        ) { Text("选择备份文件") }
+        ) { Text("查看导入说明") }
         JianyuStateCard(
             title = "恢复边界",
-            message = "选择文件后会先验证密码和格式，再将资料、个人背景、议题摘要与成果合并到当前 App；不会删除或覆盖当前数据，也不会访问旧包。",
+            message = "当前版本只创建并验证正式 Portable Backup 与 Device Snapshot；Portable 导入、差异预览和数据库替换属于 PR09-14A/14B，尚未开放，不会误删当前数据。",
         )
         message?.let { JianyuStateCard("操作结果", it) }
     }
 
-    if (passwordSheet && pendingRestoreUri != null) {
+    if (passwordSheet && pendingTarget != null) {
         BackupPasswordSheet(
-            title = "为备份设置密码",
-            confirmLabel = "加密并保存",
             operation = busy,
-            onDismiss = { if (!busy) passwordSheet = false },
+            onDismiss = { if (!busy) { passwordSheet = false; pendingTarget = null } },
             onConfirm = { password ->
                 scope.launch {
                     busy = true
-                    val result = withContext(Dispatchers.IO) {
-                        createEncryptedBackup(context, repository, pendingRestoreUri!!, password)
+                    message = withContext(Dispatchers.IO) {
+                        runCatching {
+                            PortableBackupService(context).createToUri(password, pendingTarget!!)
+                            "可移植备份已加密、完整验证并保存。"
+                        }.getOrElse(::formatBackupError)
                     }
                     busy = false
                     passwordSheet = false
-                    message = result
+                    pendingTarget = null
                 }
             },
         )
     }
 
-    if (showRestorePassword && pendingRestoreUri != null) {
-        BackupPasswordSheet(
-            title = "验证备份密码",
-            confirmLabel = "验证并导入",
-            operation = busy,
-            onDismiss = { if (!busy) showRestorePassword = false },
-            onConfirm = { password ->
-                scope.launch {
-                    busy = true
-                    val result = withContext(Dispatchers.IO) {
-                        restoreEncryptedBackup(context, repository, pendingRestoreUri!!, password)
-                    }
-                    busy = false
-                    showRestorePassword = false
-                    message = result
-                }
-            },
+    if (showImportInfo) {
+        AlertDialog(
+            onDismissRequest = { showImportInfo = false },
+            title = { Text("导入尚未开放") },
+            text = { Text("为了避免未经预览就合并或替换当前数据，Portable 导入、冲突预览和数据库替换会在后续 PR09-14A/14B 通过隔离校验后开放。已有备份文件不会被删除。") },
+            confirmButton = { TextButton(onClick = { showImportInfo = false }) { Text("知道了") } },
         )
     }
 }
@@ -169,13 +184,11 @@ fun BackupRoute(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BackupPasswordSheet(
-    title: String,
-    confirmLabel: String,
     operation: Boolean,
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
 ) {
-    var password by remember { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         modifier = Modifier.testTag(BackupTestTags.PASSWORD_SHEET),
@@ -184,7 +197,7 @@ private fun BackupPasswordSheet(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(title, style = MaterialTheme.typography.titleLarge)
+            Text("为备份设置密码", style = MaterialTheme.typography.titleLarge)
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
@@ -192,106 +205,27 @@ private fun BackupPasswordSheet(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Text("密码至少 8 个字符；不要使用 API Key 作为备份密码。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("密码经 Unicode NFC 规范化后派生 Argon2id 密钥；不要使用 API Key 作为备份密码。", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 TextButton(onClick = onDismiss, enabled = !operation, modifier = Modifier.weight(1f)) { Text("取消") }
                 Button(
                     onClick = { onConfirm(password) },
-                    enabled = password.length >= 8 && !operation,
+                    enabled = password.isNotEmpty() && !operation,
                     modifier = Modifier.weight(1f),
-                ) { Text(if (operation) "处理中…" else confirmLabel) }
+                ) { Text(if (operation) "处理中…" else "加密并保存") }
             }
         }
     }
 }
 
-private suspend fun createEncryptedBackup(
-    context: Context,
-    repository: JianyuRepository,
-    uri: Uri,
-    password: String,
-): String {
-    return try {
-        val plaintext = buildExportJson(repository).toByteArray(Charsets.UTF_8)
-        val salt = ByteArray(16).also(SecureRandom()::nextBytes)
-        val nonce = ByteArray(12).also(SecureRandom()::nextBytes)
-        val key = deriveKey(password, salt)
-        val ciphertext = aesGcm(Cipher.ENCRYPT_MODE, key, nonce, plaintext)
-        val envelope = ByteArrayOutputStream().apply {
-            write(BACKUP_MAGIC.toByteArray(Charsets.US_ASCII))
-            write(ByteBuffer.allocate(2).order(ByteOrder.BIG_ENDIAN).putShort(BACKUP_VERSION).array())
-            write(salt)
-            write(nonce)
-            write(ciphertext)
-        }.toByteArray()
-        context.contentResolver.openOutputStream(uri)?.use { it.write(envelope) }
-            ?: return "无法打开备份位置，请重新选择文件。"
-        "备份已加密保存；完整 API Key 未包含在文件中。"
-    } catch (_: Throwable) {
-        "备份失败，当前数据未被删除。"
+private fun formatBackupError(error: Throwable): String {
+    val code = (error as? BackupException)?.code ?: return "操作失败，当前数据未被删除。"
+    return when (code) {
+        BackupErrorCode.ACTIVE_WORK_IN_PROGRESS -> "当前有运行中的对话、待处理消息或音频任务，请完成后重试。"
+        BackupErrorCode.PURGE_IN_PROGRESS -> "有议题正在彻底清除，请完成后重试。"
+        BackupErrorCode.OPERATION_ALREADY_RUNNING -> "已有备份或快照操作正在进行。"
+        BackupErrorCode.SNAPSHOT_KEY_UNAVAILABLE -> "设备快照密钥不可用，未创建替代密钥。"
+        BackupErrorCode.OPERATION_CANCELED -> "操作已取消，未发布有效备份。"
+        else -> "操作失败（${code.storageValue}），当前数据未被删除。"
     }
 }
-
-private suspend fun restoreEncryptedBackup(
-    context: Context,
-    repository: JianyuRepository,
-    uri: Uri,
-    password: String,
-): String {
-    return try {
-        val payload = Json { ignoreUnknownKeys = true }
-            .decodeFromString<ExportPayload>(decryptEncryptedBackup(context, uri, password).toString(Charsets.UTF_8))
-        val stats = repository.importBackup(
-            BackupImportPayload(
-                issues = payload.issues.map { issue ->
-                    BackupImportIssue(
-                        id = issue.id,
-                        title = issue.title,
-                        messages = issue.messages.map { BackupImportMessage(it.sender, it.text) },
-                        artifacts = issue.artifacts.map { BackupImportArtifact(it.id, it.title, it.type, it.content) },
-                    )
-                },
-                materials = payload.materials.map {
-                    BackupImportMaterial(it.id, it.title, it.sourceType, it.content)
-                },
-                personalContexts = payload.personalContexts.map {
-                    BackupImportPersonalContext(it.id, it.title, it.sensitive, it.content)
-                },
-            )
-        )
-        "备份已验证并合并：议题 ${stats.issues} 个、成果 ${stats.artifacts} 个、资料 ${stats.materials} 项、个人背景 ${stats.personalContexts} 项。当前数据未被删除。"
-    } catch (_: Throwable) {
-        "密码错误、备份格式不支持或导入失败；当前数据未被删除。"
-    }
-}
-
-private fun decryptEncryptedBackup(context: Context, uri: Uri, password: String): ByteArray {
-    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-        ?: throw IllegalStateException("backup_read_failed")
-    require(bytes.size >= 8 + 2 + 16 + 12 + 16) { "backup_incomplete" }
-    require(bytes.copyOfRange(0, 8).contentEquals(BACKUP_MAGIC.toByteArray(Charsets.US_ASCII))) {
-        "backup_magic_invalid"
-    }
-    val version = ByteBuffer.wrap(bytes, 8, 2).order(ByteOrder.BIG_ENDIAN).short
-    require(version == BACKUP_VERSION) { "backup_version_unsupported" }
-    val salt = bytes.copyOfRange(10, 26)
-    val nonce = bytes.copyOfRange(26, 38)
-    val ciphertext = bytes.copyOfRange(38, bytes.size)
-    return aesGcm(Cipher.DECRYPT_MODE, deriveKey(password, salt), nonce, ciphertext)
-}
-
-private fun deriveKey(password: String, salt: ByteArray): ByteArray {
-    val spec = PBEKeySpec(password.toCharArray(), salt, PBKDF2_ITERATIONS, KEY_BITS)
-    return try {
-        SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
-            .generateSecret(spec).encoded
-    } finally {
-        spec.clearPassword()
-    }
-}
-
-private fun aesGcm(mode: Int, key: ByteArray, nonce: ByteArray, input: ByteArray): ByteArray =
-    Cipher.getInstance("AES/GCM/NoPadding").run {
-        init(mode, SecretKeySpec(key, "AES"), GCMParameterSpec(128, nonce))
-        doFinal(input)
-    }
