@@ -62,6 +62,8 @@ fun BackupRoute(
     var pendingTarget by remember { mutableStateOf<android.net.Uri?>(null) }
     var snapshots by remember { mutableStateOf(SnapshotCatalog.list(context)) }
     var showImportInfo by remember { mutableStateOf(false) }
+    var noteTarget by remember { mutableStateOf<String?>(null) }
+    var noteText by rememberSaveable { mutableStateOf("") }
 
     val createLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument(BackupProtocol.portableMime),
@@ -134,6 +136,13 @@ fun BackupRoute(
                     enabled = !busy,
                     modifier = Modifier.testTag(BackupTestTags.SNAPSHOT_DELETE),
                 ) { Text("删除") }
+                TextButton(
+                    onClick = {
+                        noteTarget = entry.snapshotId
+                        noteText = entry.note
+                    },
+                    enabled = !busy,
+                ) { Text("备注") }
             }
         }
 
@@ -177,6 +186,36 @@ fun BackupRoute(
             title = { Text("导入尚未开放") },
             text = { Text("为了避免未经预览就合并或替换当前数据，Portable 导入、冲突预览和数据库替换会在后续 PR09-14A/14B 通过隔离校验后开放。已有备份文件不会被删除。") },
             confirmButton = { TextButton(onClick = { showImportInfo = false }) { Text("知道了") } },
+        )
+    }
+
+    if (noteTarget != null) {
+        AlertDialog(
+            onDismissRequest = { noteTarget = null },
+            title = { Text("编辑快照备注") },
+            text = {
+                OutlinedTextField(
+                    value = noteText,
+                    onValueChange = { noteText = it.take(200) },
+                    label = { Text("备注（可选）") },
+                    singleLine = false,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        noteTarget?.let { target ->
+                            scope.launch {
+                                withContext(Dispatchers.IO) { SnapshotCatalog.updateNote(context, target, noteText) }
+                                snapshots = SnapshotCatalog.list(context)
+                                noteTarget = null
+                            }
+                        }
+                    },
+                ) { Text("保存") }
+            },
+            dismissButton = { TextButton(onClick = { noteTarget = null }) { Text("取消") } },
         )
     }
 }
