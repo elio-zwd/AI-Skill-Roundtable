@@ -36,6 +36,7 @@ internal const val MAX_PROVIDER_KEY_COUNT = 50
 
 internal object AiManagementTestTags {
     const val ROOT = "ai_management"
+    const val CONTENT = "ai_management_content"
     const val IMPORT_INPUT = "ai_management_import_input"
     const val IMPORT_BUTTON = "ai_management_import_button"
     const val CLEAR_CONFIRM = "ai_management_clear_confirm"

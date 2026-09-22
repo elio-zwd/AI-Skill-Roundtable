@@ -178,9 +178,10 @@ class IssuePurgeDatabaseCleanerTest {
             "INSERT INTO execution_runs " +
                 "(id, issueId, stageId, triggerMessageId, idempotencyKey, status, retryOfRunId, createdAt, " +
                 "updatedAt, startedAt, finishedAt, stoppedAt, failureCode, failureMessage, runKind, " +
-                "parentRunId, discussionId, historyScope) " +
-                "VALUES (?, ?, ?, NULL, ?, 'stopped', ?, 100, 100, 100, 100, 100, NULL, NULL, " +
-                "'standard', NULL, NULL, 'full_stage')",
+                "parentRunId, discussionId, historyScope, actualModelId, actualThinkingLevel, " +
+                "thinkingLevelSource) " +
+            "VALUES (?, ?, ?, NULL, ?, 'stopped', ?, 100, 100, 100, 100, 100, NULL, NULL, " +
+                "'standard', NULL, NULL, 'full_stage', 'gemini-3.6-flash', 'medium', 'auto_routed')",
             arrayOf(id, issueId, stageId, "idempotency-$id", retryOfRunId),
         )
     }

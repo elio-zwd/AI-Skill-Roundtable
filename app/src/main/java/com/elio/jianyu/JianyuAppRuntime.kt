@@ -31,6 +31,7 @@ import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -70,6 +71,7 @@ object JianyuAppRuntimeProvider {
     private var runtime: JianyuAppRuntime? = null
     private var generation: Long = 0L
     private var leaseRegistry = RuntimeLeaseRegistry()
+    private val recoveryJobs = mutableMapOf<RoundtableDatabase, Job>()
 
     fun observe(context: Context): StateFlow<JianyuRuntimeState> {
         if (_state.value is JianyuRuntimeState.Uninitialized) {
@@ -160,6 +162,13 @@ object JianyuAppRuntimeProvider {
             }
 
             try {
+                awaitRecovery(ready.runtime.database)
+            } catch (error: CancellationException) {
+                restoreExistingReady(ready)
+                throw error
+            }
+
+            try {
                 beforeClose(ready.runtime.database)
             } catch (error: CancellationException) {
                 restoreExistingReady(ready)
@@ -202,10 +211,14 @@ object JianyuAppRuntimeProvider {
 
             val reopenedRuntimeResult = withContext(NonCancellable + Dispatchers.IO) {
                 runCatching {
-                    create(
+                    val candidate = create(
                         context = applicationContext,
                         recoverPendingOperations = false,
                     )
+                    // Room 的 databaseBuilder 默认延迟打开；在发布新世代前先强制建立
+                    // 可用连接，避免 afterReopen 观察到尚未打开的句柄。
+                    candidate.database.openHelper.writableDatabase
+                    candidate
                 }
             }
             val reopenedRuntime = reopenedRuntimeResult.getOrNull()
@@ -331,12 +344,14 @@ object JianyuAppRuntimeProvider {
             }
             if (currentReady != null) {
                 leaseRegistry.awaitReleased(currentReady.generation)
+                awaitRecovery(currentReady.runtime.database)
                 closeDatabaseBestEffort(currentReady.runtime.database)
             }
             synchronized(stateMonitor) {
                 runtime = null
                 generation = 0L
                 leaseRegistry = RuntimeLeaseRegistry()
+                recoveryJobs.clear()
                 _state.value = JianyuRuntimeState.Uninitialized
             }
         } finally {
@@ -525,8 +540,15 @@ object JianyuAppRuntimeProvider {
                 collaborationCoordinator = collaborationCoordinator,
             )
             if (recoverPendingOperations) {
-                databaseScope.launch {
+                lateinit var recoveryJob: Job
+                recoveryJob = databaseScope.launch {
                     lifecycleRuntime.purgeCoordinator.recoverPendingOperations()
+                }
+                synchronized(stateMonitor) {
+                    recoveryJobs[database] = recoveryJob
+                    if (recoveryJob.isCompleted) {
+                        recoveryJobs.remove(database)
+                    }
                 }
             }
             return JianyuAppRuntime(
@@ -542,6 +564,21 @@ object JianyuAppRuntimeProvider {
         } catch (error: Throwable) {
             closeDatabaseBestEffort(database)
             throw error
+        }
+    }
+
+    private suspend fun awaitRecovery(database: RoundtableDatabase) {
+        val job = synchronized(stateMonitor) {
+            recoveryJobs[database]
+        } ?: return
+        try {
+            job.join()
+        } finally {
+            synchronized(stateMonitor) {
+                if (recoveryJobs[database] === job) {
+                    recoveryJobs.remove(database)
+                }
+            }
         }
     }
 }

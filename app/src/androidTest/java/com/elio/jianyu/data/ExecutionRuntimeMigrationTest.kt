@@ -145,7 +145,9 @@ class ExecutionRuntimeMigrationTest {
     }
 
     private fun insertVersion13Fixture(database: androidx.sqlite.db.SupportSQLiteDatabase) {
-        database.execSQL("INSERT INTO issues VALUES ('$ISSUE_ID','Issue',100,100,NULL)")
+        database.execSQL(
+            "INSERT INTO issues VALUES ('$ISSUE_ID','Issue',100,100,NULL,'auto')",
+        )
         database.execSQL(
             "INSERT INTO stages VALUES ('$STAGE_ID','$ISSUE_ID',0,'Stage','Objective',100,100)",
         )

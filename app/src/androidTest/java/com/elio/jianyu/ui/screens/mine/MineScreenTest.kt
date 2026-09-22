@@ -1,6 +1,7 @@
 package com.elio.jianyu.ui.screens.mine
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -21,7 +22,7 @@ class MineScreenTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun minePage_exposesApprovedContentAndUnavailableActions() {
+    fun minePage_exposesApprovedContentAndImplementedActions() {
         composeRule.setContent {
             SkillRoundtableTheme(darkTheme = false) {
                 MineScreen(
@@ -58,13 +59,11 @@ class MineScreenTest {
 
         listOf(
             MineTestTags.PERSONAL_BACKGROUND_ACTION,
-            MineTestTags.AVATAR_SWITCH_UNAVAILABLE,
             MineTestTags.DATA_PRIVACY_CARD,
             MineTestTags.BACKUP_RESTORE_CARD,
             MineTestTags.ABOUT_ENTRY,
-        ).forEach { tag ->
-            composeRule.onNodeWithTag(tag).assertIsNotEnabled()
-        }
+        ).forEach { tag -> composeRule.onNodeWithTag(tag).assertIsEnabled() }
+        composeRule.onNodeWithTag(MineTestTags.AVATAR_SWITCH_UNAVAILABLE).assertIsNotEnabled()
     }
 
     @Test

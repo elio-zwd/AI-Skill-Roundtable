@@ -3,6 +3,7 @@ package com.elio.jianyu.ui.screens.execution
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.data.ExecutionParticipantStatus
@@ -67,6 +68,7 @@ class IssueExecutionStopAvailabilityTest {
             }
         }
 
+        composeRule.onNodeWithText("助手与成果").performClick()
         composeRule.onNodeWithTag(IssueExecutionTestTags.STOP)
             .assertIsEnabled()
             .performClick()

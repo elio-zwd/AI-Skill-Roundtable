@@ -57,11 +57,13 @@ fun ResourcesOverviewScreen(
     onShowArtifacts: () -> Unit,
     onOpenMaterial: (MaterialUiItem) -> Unit,
     onOpenArtifact: (String) -> Unit,
+    onOpenSettings: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     JianyuPageShell(
         title = "资料",
         subtitle = "你的依据与沉淀",
+        onOpenSettings = onOpenSettings,
         contentScrollable = true,
         modifier = modifier.testTag(ResourcesOverviewTestTags.SCREEN),
     ) {

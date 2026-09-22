@@ -6,6 +6,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.data.IssueLifecycleState
 import com.elio.jianyu.home.HomeWorkflow
@@ -161,7 +162,10 @@ class JianyuNavigationShellScreenTest {
 
         composeRule.onNodeWithTag(SettingsShellTestTags.SCREEN).assertExists()
         composeRule.onNodeWithTag(SettingsShellTestTags.AI_MANAGEMENT_ACTION).performClick()
-        composeRule.onNodeWithTag(SettingsShellTestTags.TELEMETRY_ACTION).performClick()
+        composeRule
+            .onNodeWithTag(SettingsShellTestTags.TELEMETRY_ACTION)
+            .performScrollTo()
+            .performClick()
         composeRule.onNodeWithTag(JianyuShellTestTags.PAGE_BACK_BUTTON).performClick()
         composeRule.runOnIdle {
             assertEquals(1, apiKeyCount)

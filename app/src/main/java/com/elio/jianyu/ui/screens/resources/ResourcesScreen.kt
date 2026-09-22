@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -72,15 +73,18 @@ fun ResourcesScreen(
     onCopyArtifact: (com.elio.jianyu.result.ArtifactLibraryItem) -> Unit = {},
 ) {
     if (showOverview) {
-        ResourcesOverviewScreen(
-            overview = buildResourceOverview(state, artifactState),
-            onSearchMaterials = onSearchMaterials,
-            onAddMaterial = onOpenAddMaterialSheet,
-            onShowMaterials = onShowMaterials,
-            onShowArtifacts = onShowArtifacts,
-            onOpenMaterial = onOpenMaterial,
-            onOpenArtifact = onOpenArtifact,
-        )
+        Box(modifier = Modifier.fillMaxSize().testTag(ResourcesTestTags.SCREEN)) {
+            ResourcesOverviewScreen(
+                overview = buildResourceOverview(state, artifactState),
+                onSearchMaterials = onSearchMaterials,
+                onAddMaterial = onOpenAddMaterialSheet,
+                onShowMaterials = onShowMaterials,
+                onShowArtifacts = onShowArtifacts,
+                onOpenMaterial = onOpenMaterial,
+                onOpenArtifact = onOpenArtifact,
+                onOpenSettings = onOpenSettings,
+            )
+        }
     } else {
         JianyuPageShell(
         title = when {
@@ -91,6 +95,7 @@ fun ResourcesScreen(
         },
         subtitle = null,
         onBack = onBackToOverview,
+        onOpenSettings = onOpenSettings,
         contentScrollable = true,
         modifier = Modifier.testTag(ResourcesTestTags.SCREEN),
         ) {

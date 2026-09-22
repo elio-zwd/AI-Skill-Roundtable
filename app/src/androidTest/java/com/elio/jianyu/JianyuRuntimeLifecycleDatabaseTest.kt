@@ -34,19 +34,19 @@ class JianyuRuntimeLifecycleDatabaseTest {
         get() = InstrumentationRegistry.getInstrumentation().targetContext
 
     @Before
-    fun setUp() = runBlocking {
+    fun setUp(): Unit = runBlocking {
         JianyuAppRuntimeProvider.resetForTests(context)
         context.deleteDatabase(DATABASE_NAME)
     }
 
     @After
-    fun tearDown() = runBlocking {
+    fun tearDown(): Unit = runBlocking {
         JianyuAppRuntimeProvider.resetForTests(context)
         context.deleteDatabase(DATABASE_NAME)
     }
 
     @Test
-    fun maintenanceWaitsForLeaseThenReopensNewRuntimeAndKeepsDataWritable() = runBlocking {
+    fun maintenanceWaitsForLeaseThenReopensNewRuntimeAndKeepsDataWritable(): Unit = runBlocking {
         val initialState = JianyuAppRuntimeProvider.observe(context).value as JianyuRuntimeState.Ready
         val oldRuntime = initialState.runtime
         val oldRepository = oldRuntime.repository
@@ -70,7 +70,10 @@ class JianyuRuntimeLifecycleDatabaseTest {
                     "snapshot-source-ready"
                 },
                 afterReopen = { reopened ->
-                    assertTrue(reopened.database.isOpen)
+                    assertTrue(
+                        "重开后的数据库句柄已关闭: explicitlyClosed=${reopened.database.isExplicitlyClosed}",
+                        reopened.database.isOpen,
+                    )
                     assertDatabaseHealthy(reopened)
                 },
             )
@@ -107,7 +110,7 @@ class JianyuRuntimeLifecycleDatabaseTest {
     }
 
     @Test
-    fun beforeCloseFailureRestoresOriginalReadyGenerationWithoutClosingDatabase() = runBlocking {
+    fun beforeCloseFailureRestoresOriginalReadyGenerationWithoutClosingDatabase(): Unit = runBlocking {
         val initial = JianyuAppRuntimeProvider.observe(context).value as JianyuRuntimeState.Ready
 
         val outcome = withContext(Dispatchers.IO) {
@@ -129,7 +132,7 @@ class JianyuRuntimeLifecycleDatabaseTest {
     }
 
     @Test
-    fun whileClosedFailureStillReopensAndPublishesUsableNewGeneration() = runBlocking {
+    fun whileClosedFailureStillReopensAndPublishesUsableNewGeneration(): Unit = runBlocking {
         val initial = JianyuAppRuntimeProvider.observe(context).value as JianyuRuntimeState.Ready
         initial.runtime.repository.saveIssue(issueCommand("issue-1", "stage-1", 10L)).successValue()
 
@@ -154,7 +157,7 @@ class JianyuRuntimeLifecycleDatabaseTest {
     }
 
     @Test
-    fun cancellationInsideClosedStageStillReopensBeforeCancellationEscapes() = runBlocking {
+    fun cancellationInsideClosedStageStillReopensBeforeCancellationEscapes(): Unit = runBlocking {
         val initial = JianyuAppRuntimeProvider.observe(context).value as JianyuRuntimeState.Ready
         val entered = CompletableDeferred<Unit>()
 
@@ -181,7 +184,7 @@ class JianyuRuntimeLifecycleDatabaseTest {
     }
 
     @Test
-    fun afterReopenVerificationFailureClosesCandidateUntilValidatedRetry() = runBlocking {
+    fun afterReopenVerificationFailureClosesCandidateUntilValidatedRetry(): Unit = runBlocking {
         val initial = JianyuAppRuntimeProvider.observe(context).value as JianyuRuntimeState.Ready
         var rejectedDatabase: RoundtableDatabase? = null
 
@@ -222,7 +225,7 @@ class JianyuRuntimeLifecycleDatabaseTest {
     }
 
     @Test
-    fun maintenanceRejectsDirectGetInsteadOfReturningClosingRuntime() = runBlocking {
+    fun maintenanceRejectsDirectGetInsteadOfReturningClosingRuntime(): Unit = runBlocking {
         val initial = JianyuAppRuntimeProvider.observe(context).value as JianyuRuntimeState.Ready
         val entered = CompletableDeferred<Unit>()
         val continueClosed = CompletableDeferred<Unit>()
@@ -256,10 +259,10 @@ class JianyuRuntimeLifecycleDatabaseTest {
     private fun assertDatabaseHealthy(runtime: JianyuAppRuntime) {
         runtime.database.openHelper.writableDatabase
             .query("SELECT 1")
-            .use { cursor -> assertTrue(cursor.moveToFirst()) }
+            .use { cursor -> assertTrue("最小查询没有返回结果", cursor.moveToFirst()) }
         runtime.database.openHelper.writableDatabase
             .query("PRAGMA foreign_key_check")
-            .use { cursor -> assertEquals(0, cursor.count) }
+            .use { cursor -> assertEquals("外键检查发现损坏关系", 0, cursor.count) }
     }
 
     private fun issueCommand(issueId: String, stageId: String, createdAt: Long) = SaveIssueCommand(
@@ -278,7 +281,13 @@ class JianyuRuntimeLifecycleDatabaseTest {
         (this as RepositoryResult.Failure).error
 
     private fun <T> DatabaseMaintenanceOutcome<T>.successValue(): T =
-        (this as DatabaseMaintenanceOutcome.Success<T>).value
+        when (this) {
+            is DatabaseMaintenanceOutcome.Success -> value
+            is DatabaseMaintenanceOutcome.Failure -> error(
+                "维护未成功: stage=${stage}, reopened=${reopened}, " +
+                    "cause=${cause::class.java.simpleName}:${cause.message}",
+            )
+        }
 
     private companion object {
         const val DATABASE_NAME = "roundtable_database"

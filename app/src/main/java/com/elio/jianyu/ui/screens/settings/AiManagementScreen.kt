@@ -65,7 +65,9 @@ fun AiManagementScreen(
         Column(modifier = Modifier.fillMaxSize().testTag(AiManagementTestTags.ROOT)) {
             SettingsTopBar(title = "AI 管理", onBack = onBack)
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .testTag(AiManagementTestTags.CONTENT),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {

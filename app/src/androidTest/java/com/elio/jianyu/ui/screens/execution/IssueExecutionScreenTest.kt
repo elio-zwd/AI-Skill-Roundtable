@@ -81,13 +81,13 @@ class IssueExecutionScreenTest {
         }
 
         composeRule.onNodeWithTag(IssueExecutionTestTags.SCREEN).assertIsDisplayed()
-        composeRule.onNodeWithTag(IssueExecutionTestTags.STATUS).assertIsDisplayed()
-        composeRule.onNodeWithText("已发起 1 次 API 调用")
-            .assertIsDisplayed()
         composeRule.onNodeWithTag(IssueExecutionTestTags.CONTENT_LIST).performScrollToIndex(4)
         composeRule.onNodeWithTag(IssueExecutionTestTags.participant("participant-1"))
             .assertIsDisplayed()
-        composeRule.onNodeWithTag(IssueExecutionTestTags.CONTENT_LIST).performScrollToIndex(0)
+        openControls()
+        composeRule.onNodeWithTag(IssueExecutionTestTags.STATUS).assertIsDisplayed()
+        composeRule.onNodeWithText("已发起 1 次 API 调用")
+            .assertIsDisplayed()
         composeRule.onNodeWithTag(IssueExecutionTestTags.STOP).performClick()
         composeRule.onNodeWithTag(IssueExecutionTestTags.RECOVER).performClick()
 
@@ -117,11 +117,11 @@ class IssueExecutionScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("存在可重试成员").assertIsDisplayed()
         composeRule.onNodeWithTag(IssueExecutionTestTags.CONTENT_LIST).performScrollToIndex(4)
         composeRule.onNodeWithText("内容未完整生成，已保留用于恢复和审计。")
             .assertIsDisplayed()
-        composeRule.onNodeWithTag(IssueExecutionTestTags.CONTENT_LIST).performScrollToIndex(0)
+        openControls()
+        composeRule.onNodeWithText("存在可重试成员").assertIsDisplayed()
         composeRule.onNodeWithTag(IssueExecutionTestTags.RETRY).performClick()
 
         assertEquals(1, retryClicks)
@@ -289,10 +289,15 @@ class IssueExecutionScreenTest {
             }
         }
 
+        openControls()
         composeRule.onNodeWithText("官方 Skill 目录未能加载", substring = true)
             .assertIsDisplayed()
         composeRule.onNodeWithText("不会调用模型", substring = true)
             .assertIsDisplayed()
+    }
+
+    private fun openControls() {
+        composeRule.onNodeWithText("助手与成果").performClick()
     }
 
     private fun contentState(

@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.MainActivity
+import com.elio.jianyu.ui.screens.resources.ResourcesOverviewTestTags
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -92,6 +93,9 @@ class JianyuUiAutomationNavigationTest {
             destinationTag = JianyuAutomationTags.Navigation.RESOURCES,
             screenTag = JianyuAutomationTags.Screen.RESOURCES,
         )
+        composeRule
+            .onNodeWithTag(ResourcesOverviewTestTags.MATERIAL_SUMMARY)
+            .performClick()
         waitForTag(JianyuAutomationTags.Resources.MATERIALS_CONTENT)
         composeRule
             .onNodeWithTag(JianyuAutomationTags.Resources.MATERIALS_CONTENT)

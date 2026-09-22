@@ -10,8 +10,6 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.elio.jianyu.telemetry.PrivacySafeLogger
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 @Database(
     entities = [
@@ -228,55 +226,54 @@ abstract class RoundtableDatabase : RoomDatabase() {
 
         private fun buildDatabase(
             context: Context,
-            scope: CoroutineScope,
+            @Suppress("UNUSED_PARAMETER") scope: CoroutineScope,
         ): RoundtableDatabase = Room.databaseBuilder(
             context.applicationContext,
             RoundtableDatabase::class.java,
             "roundtable_database",
         )
             .addMigrations(*ALL_MIGRATIONS)
-            .addCallback(DatabaseCallback(scope, context.applicationContext))
+            .addCallback(DatabaseCallback(context.applicationContext))
             .build()
     }
 
     private class DatabaseCallback(
-        private val scope: CoroutineScope,
         private val context: Context,
     ) : RoomDatabase.Callback() {
         override fun onCreate(db: SupportSQLiteDatabase) {
             super.onCreate(db)
-            scope.launch(Dispatchers.IO) {
-                val configs = com.elio.jianyu.skill.SkillLoader.loadSkillsConfig(context)
-                db.beginTransaction()
-                try {
-                    configs.forEach { config ->
-                        db.execSQL(
-                            "INSERT OR REPLACE INTO characters " +
-                                "(id, name, avatar, tagline, systemPrompt, skillAssetPath, `order`, " +
-                                "isActive, skillDescriptionVector, voiceConfig) " +
-                                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                            arrayOf(
-                                config.id,
-                                config.name,
-                                config.avatar,
-                                config.tagline,
-                                "",
-                                config.skillAssetPath,
-                                config.order,
-                                if (config.isActive) 1 else 0,
-                                config.descriptionVector.joinToString(","),
-                                config.voiceConfig,
-                            ),
-                        )
-                    }
-                    LegacyDatabaseMigrationSupport.seedPresetGroups(db)
-                    db.setTransactionSuccessful()
-                    PrivacySafeLogger.d("RoundtableDatabase", "Database seed completed")
-                } catch (error: Exception) {
-                    PrivacySafeLogger.e("RoundtableDatabase", "Database seed failed", error)
-                } finally {
-                    db.endTransaction()
+            // 建库回调必须在数据库创建生命周期内完成。异步启动会让运行时关闭旧实例后，
+            // 后台任务继续访问已关闭的 SupportSQLiteDatabase，导致重开数据库竞态崩溃。
+            val configs = com.elio.jianyu.skill.SkillLoader.loadSkillsConfig(context)
+            db.beginTransaction()
+            try {
+                configs.forEach { config ->
+                    db.execSQL(
+                        "INSERT OR REPLACE INTO characters " +
+                            "(id, name, avatar, tagline, systemPrompt, skillAssetPath, `order`, " +
+                            "isActive, skillDescriptionVector, voiceConfig) " +
+                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        arrayOf(
+                            config.id,
+                            config.name,
+                            config.avatar,
+                            config.tagline,
+                            "",
+                            config.skillAssetPath,
+                            config.order,
+                            if (config.isActive) 1 else 0,
+                            config.descriptionVector.joinToString(","),
+                            config.voiceConfig,
+                        ),
+                    )
                 }
+                LegacyDatabaseMigrationSupport.seedPresetGroups(db)
+                db.setTransactionSuccessful()
+                PrivacySafeLogger.d("RoundtableDatabase", "Database seed completed")
+            } catch (error: Exception) {
+                PrivacySafeLogger.e("RoundtableDatabase", "Database seed failed", error)
+            } finally {
+                db.endTransaction()
             }
         }
     }
