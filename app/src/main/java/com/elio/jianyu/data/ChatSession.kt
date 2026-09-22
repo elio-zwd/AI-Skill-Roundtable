@@ -95,16 +95,14 @@ interface ChatDao {
 
     @Query(
         "SELECT EXISTS(SELECT 1 FROM issues " +
-            "WHERE legacyChatSessionId = :sessionId AND id NOT LIKE 'legacy-chat-%' " +
-            "AND id NOT LIKE 'dialog-session-%')"
+            "WHERE legacyChatSessionId = :sessionId AND id NOT LIKE 'legacy-chat-%')"
     )
     suspend fun isDomainCompatibilitySession(sessionId: Long): Boolean
 
     @Query(
         "DELETE FROM chat_sessions WHERE id = :id AND NOT EXISTS (" +
             "SELECT 1 FROM issues " +
-            "WHERE legacyChatSessionId = :id AND id NOT LIKE 'legacy-chat-%' " +
-            "AND id NOT LIKE 'dialog-session-%'" +
+            "WHERE legacyChatSessionId = :id AND id NOT LIKE 'legacy-chat-%'" +
             ")"
     )
     suspend fun deleteSessionById(id: Long)
@@ -121,8 +119,7 @@ interface ChatDao {
     @Query(
         "DELETE FROM messages WHERE chatId = :chatId AND NOT EXISTS (" +
             "SELECT 1 FROM issues " +
-            "WHERE legacyChatSessionId = :chatId AND id NOT LIKE 'legacy-chat-%' " +
-            "AND id NOT LIKE 'dialog-session-%'" +
+            "WHERE legacyChatSessionId = :chatId AND id NOT LIKE 'legacy-chat-%'" +
             ")"
     )
     suspend fun deleteMessagesByChatId(chatId: Long)

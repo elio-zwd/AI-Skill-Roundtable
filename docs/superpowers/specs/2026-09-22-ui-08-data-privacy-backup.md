@@ -9,7 +9,7 @@
 - 导出只通过 Android SAF 写入用户选择的位置；不会上传云端，不把完整 API Key 写入文件。
 - 导出正文来源于当前 Repository 快照；写文件失败时不提示成功。
 - 删除先显示影响范围，要求输入“删除”，然后调用 Repository 的单一清空事务并清理本地偏好、Key 池和遥测；旧包 `com.elio.skillroundtable` 不访问、不卸载、不清除。
-- 备份页不伪造“自动云备份”。本地文件使用独立密码派生密钥并以 AES-GCM 校验机密性和完整性；验证通过后按合并策略导入，不替换 Room 文件、不删除当前数据。导入的对话消息以只读 Markdown 成果保留，原始 API Key 永不进入文件。
+- 备份页不伪造“自动云备份”。当前 UI 闭环使用独立密码派生密钥并以 AES-GCM 校验机密性和完整性；验证通过后按合并策略导入，不替换 Room 文件、不删除当前数据。导入的对话消息以只读 Markdown 成果保留，原始 API Key 永不进入文件。该实现不宣称满足 PR09-13A 冻结的 Argon2id/Tink 生产协议；正式协议接入前不得把此文件格式用于跨版本发布或安全承诺。
 
 ## 页面
 
@@ -21,3 +21,7 @@
 - 导出 JSON 不含 Key、绝对路径和旧包数据；写失败保留错误态。
 - 删除确认文字错误时不可执行，成功后统计归零。
 - 运行 `compileDebugKotlin`、`testDebugUnitTest`、`lintDebug`、`assembleDebug` 和 `assembleDebugAndroidTest`。
+
+## 尚未关闭的发布门禁
+
+- PR09-13A/13B 的 Argon2id、确定性 CBOR、Tink Streaming AEAD、快照替换和安全审查仍是独立门禁；本阶段不把 UI 原型导入流程写成正式备份协议完成。
