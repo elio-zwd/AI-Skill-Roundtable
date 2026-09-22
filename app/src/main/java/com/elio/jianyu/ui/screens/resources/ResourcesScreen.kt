@@ -69,6 +69,7 @@ fun ResourcesScreen(
     onOpenArtifact: (String) -> Unit = {},
     onDismissArtifact: () -> Unit = {},
     onOpenArtifactIssue: (String, String) -> Unit = { _, _ -> },
+    onCopyArtifact: (com.elio.jianyu.result.ArtifactLibraryItem) -> Unit = {},
 ) {
     if (showOverview) {
         ResourcesOverviewScreen(
@@ -149,6 +150,7 @@ fun ResourcesScreen(
                 onOpenArtifact = onOpenArtifact,
                 onDismissArtifact = onDismissArtifact,
                 onOpenIssue = onOpenArtifactIssue,
+                onCopyArtifact = onCopyArtifact,
             )
             ResourceTab.MATERIALS -> ResourceLibraryContent(
                 state = state,

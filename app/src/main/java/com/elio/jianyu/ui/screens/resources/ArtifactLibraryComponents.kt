@@ -3,13 +3,11 @@ package com.elio.jianyu.ui.screens.resources
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -20,14 +18,23 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.elio.jianyu.result.ArtifactLibraryItem
 import com.elio.jianyu.result.ArtifactType
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.components.JianyuMetadataRow
 import com.elio.jianyu.ui.components.JianyuStateCard
+import dev.jeziellago.compose.markdowntext.MarkdownText
 
 object ArtifactLibraryTestTags {
     const val LIBRARY = JianyuAutomationTags.Artifacts.LIBRARY
@@ -53,6 +60,7 @@ internal fun ArtifactLibraryContent(
     onOpenArtifact: (String) -> Unit,
     onDismissArtifact: () -> Unit,
     onOpenIssue: (String, String) -> Unit,
+    onCopyArtifact: (ArtifactLibraryItem) -> Unit = {},
 ) {
     when (state) {
         ArtifactLibraryUiState.Loading -> Column(
@@ -87,6 +95,7 @@ internal fun ArtifactLibraryContent(
             onOpenArtifact = onOpenArtifact,
             onDismissArtifact = onDismissArtifact,
             onOpenIssue = onOpenIssue,
+            onCopyArtifact = onCopyArtifact,
         )
         is ArtifactLibraryUiState.PartialFailure -> ArtifactLibraryBody(
             content = state.content,
@@ -97,6 +106,7 @@ internal fun ArtifactLibraryContent(
             onOpenArtifact = onOpenArtifact,
             onDismissArtifact = onDismissArtifact,
             onOpenIssue = onOpenIssue,
+            onCopyArtifact = onCopyArtifact,
         )
     }
 }
@@ -111,6 +121,7 @@ private fun ArtifactLibraryBody(
     onOpenArtifact: (String) -> Unit,
     onDismissArtifact: () -> Unit,
     onOpenIssue: (String, String) -> Unit,
+    onCopyArtifact: (ArtifactLibraryItem) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -188,6 +199,7 @@ private fun ArtifactLibraryBody(
             item = item,
             onDismiss = onDismissArtifact,
             onOpenIssue = { onOpenIssue(item.issueId, item.stageId) },
+            onCopy = { onCopyArtifact(item) },
         )
     }
 }
@@ -210,7 +222,7 @@ private fun ArtifactCard(
             Text(item.title, style = MaterialTheme.typography.titleMedium)
             JianyuMetadataRow("成果类型", item.artifactType?.displayName ?: item.rawArtifactType)
             JianyuMetadataRow("所属会话", item.issueTitle)
-            JianyuMetadataRow("所属阶段", item.stageTitle)
+            JianyuMetadataRow("对话节点", item.stageTitle)
             JianyuMetadataRow("版本", "v${item.revisionNumber}${if (item.latest) " · 最新" else " · 历史"}")
             Text(
                 item.contentSummary.ifBlank { "无可展示摘要" },
@@ -226,46 +238,101 @@ private fun ArtifactDetailDialog(
     item: ArtifactLibraryItem,
     onDismiss: () -> Unit,
     onOpenIssue: () -> Unit,
+    onCopy: () -> Unit,
 ) {
-    AlertDialog(
-        modifier = Modifier
-            .widthIn(max = 680.dp)
-            .testTag(ArtifactLibraryTestTags.DETAIL),
+    Dialog(
         onDismissRequest = onDismiss,
-        title = { Text(item.title) },
-        text = {
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag(ArtifactLibraryTestTags.DETAIL),
+            color = MaterialTheme.colorScheme.background,
+        ) {
             Column(
                 modifier = Modifier
-                    .heightIn(max = 480.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                JianyuMetadataRow("成果类型", item.artifactType?.displayName ?: item.rawArtifactType)
-                JianyuMetadataRow("所属会话", item.issueTitle)
-                JianyuMetadataRow("所属阶段", item.stageTitle)
-                JianyuMetadataRow("版本", "v${item.revisionNumber}")
-                item.revisionOfArtifactId?.let {
-                    JianyuMetadataRow("直接前序", it)
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                    }
+                    Text(
+                        "成果详情",
+                        modifier = Modifier.padding(top = 12.dp),
+                        style = MaterialTheme.typography.titleLarge,
+                    )
                 }
-                Text("正文", style = MaterialTheme.typography.labelLarge)
-                Text(item.content)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    ),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Text(item.title, style = MaterialTheme.typography.headlineSmall)
+                        Text(
+                            "已保存成果",
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                        JianyuMetadataRow("成果类型", item.artifactType?.displayName ?: item.rawArtifactType)
+                        JianyuMetadataRow("所属会话", item.issueTitle)
+                        JianyuMetadataRow("对话节点", item.stageTitle)
+                        JianyuMetadataRow("保存时间", formatResourceTime(item.confirmedAt))
+                        JianyuMetadataRow("版本", "v${item.revisionNumber}${if (item.latest) " · 最新" else " · 历史"}")
+                        item.revisionOfArtifactId?.let {
+                            JianyuMetadataRow("直接前序", it)
+                        }
+                    }
+                }
+                Text("正文", style = MaterialTheme.typography.titleMedium)
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.surface,
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.outlineVariant,
+                    ),
+                ) {
+                    MarkdownText(
+                        markdown = item.content,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
                 JianyuStateCard(
-                    title = "来源追溯",
+                    title = "来自这段对话",
                     message = artifactSourceDescription(item),
                     modifier = Modifier.testTag(ArtifactLibraryTestTags.SOURCES),
                 )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    TextButton(onClick = onCopy, modifier = Modifier.weight(1f)) {
+                        Text("复制")
+                    }
+                    Button(
+                        onClick = onOpenIssue,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag(ArtifactLibraryTestTags.OPEN_ISSUE),
+                    ) {
+                        Text("打开来源会话")
+                    }
+                }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = onOpenIssue,
-                modifier = Modifier.testTag(ArtifactLibraryTestTags.OPEN_ISSUE),
-            ) {
-                Text("返回对应会话")
-            }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("关闭") } },
-    )
+        }
+    }
 }
 
 private fun artifactSourceDescription(item: ArtifactLibraryItem): String {
@@ -273,21 +340,21 @@ private fun artifactSourceDescription(item: ArtifactLibraryItem): String {
         return "来源关系暂时无法读取；未根据成果正文或界面状态猜测来源。"
     }
     return buildString {
-        append("消息 ")
+        append("保存时关联消息 ")
         append(item.sourceMessageIds.size)
-        append(" 条；Run ")
+        append(" 条；执行记录 ")
         append(item.sourceRunIds.size)
-        append(" 个；草稿 Revision ")
+        append(" 个；草稿修订 ")
         append(item.sourceDraftRevisionIds.size)
         append(" 个；资料使用快照 ")
         append(item.sourceMaterialUsageSnapshotIds.size)
         append(" 个。")
         if (item.sourceRunIds.isNotEmpty()) {
-            append("\nRun：")
+            append("\n执行记录：")
             append(item.sourceRunIds.joinToString())
         }
         if (item.sourceDraftRevisionIds.isNotEmpty()) {
-            append("\n草稿 Revision：")
+            append("\n草稿修订：")
             append(item.sourceDraftRevisionIds.joinToString())
         }
     }

@@ -4,6 +4,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import com.elio.jianyu.result.ArtifactRevisionResolver
 import com.elio.jianyu.result.ArtifactType
 import com.elio.jianyu.result.StageResultWorkspace
@@ -117,6 +118,10 @@ class StageResultComponentsTest {
         composeRule.onNodeWithTag(StageResultTestTags.DRAFT_ABANDON_CONFIRMATION)
             .assertIsDisplayed()
         composeRule.onNodeWithTag(StageResultTestTags.ARTIFACT_CONFIRMATION_DIALOG)
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("保存为成果").assertIsDisplayed()
+        composeRule.onNodeWithText("确认保存").assertIsDisplayed()
+        composeRule.onNodeWithText("确认后，这段内容才会成为正式成果。")
             .assertIsDisplayed()
     }
 

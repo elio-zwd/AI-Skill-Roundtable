@@ -14,6 +14,8 @@ import androidx.compose.runtime.setValue
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elio.jianyu.data.JianyuRepository
 import com.elio.jianyu.ui.navigation.ResourceTab
@@ -41,6 +43,7 @@ fun ResourcesRoute(
     val state by viewModel.state.collectAsState()
     val artifactState by artifactViewModel.state.collectAsState()
     val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -138,5 +141,6 @@ fun ResourcesRoute(
         onOpenArtifact = artifactViewModel::openArtifact,
         onDismissArtifact = artifactViewModel::dismissArtifact,
         onOpenArtifactIssue = onOpenIssue,
+        onCopyArtifact = { artifact -> clipboard.setText(AnnotatedString(artifact.content)) },
     )
 }

@@ -16,6 +16,8 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -103,11 +105,11 @@ private fun StageResultContent(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
-            "阶段记录",
+            "对话节点记录",
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
         )
-        Text("阶段草稿与成果", style = MaterialTheme.typography.titleMedium)
+        Text("节点草稿与成果", style = MaterialTheme.typography.titleMedium)
         Text(
             "草稿只在本地保存；只有最终确认后才会成为正式成果。",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -120,15 +122,15 @@ private fun StageResultContent(
         )
         if (!state.hasDraft) {
             JianyuStateCard(
-                title = "尚未创建阶段草稿",
-                message = "可以从通用结构开始，也可以先选择当前阶段的已完成消息。",
+                title = "尚未创建节点草稿",
+                message = "可以从通用结构开始，也可以先选择当前对话节点的已完成消息。",
                 modifier = Modifier.testTag(StageResultTestTags.DRAFT_EMPTY),
             )
             Button(
                 onClick = callbacks.onCreateGenericDraft,
                 modifier = Modifier.testTag(StageResultTestTags.DRAFT_CREATE),
             ) {
-                Text("创建阶段总结草稿")
+                Text("创建节点总结草稿")
             }
             if (state.selectedMessageIds.isNotEmpty()) {
                 Button(
@@ -142,7 +144,7 @@ private fun StageResultContent(
             OutlinedTextField(
                 value = state.editorContent,
                 onValueChange = callbacks.onContentChange,
-                label = { Text("阶段草稿") },
+                    label = { Text("节点草稿") },
                 minLines = 12,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -181,7 +183,7 @@ private fun StageResultContent(
                         .heightIn(min = 48.dp)
                         .testTag(StageResultTestTags.ARTIFACT_CONFIRM),
                 ) {
-                    Text("确认正式成果")
+                    Text("保存为成果")
                 }
             } else {
                 Text(
@@ -314,10 +316,10 @@ private fun StageArtifactList(
     onCreateRevision: (String) -> Unit,
     onOpenArtifact: (String) -> Unit,
 ) {
-    Text("当前阶段正式成果", style = MaterialTheme.typography.titleMedium)
+    Text("当前对话节点的正式成果", style = MaterialTheme.typography.titleMedium)
     if (artifacts.isEmpty()) {
         Text(
-            "当前阶段可以没有正式成果；这不会阻止后续推进。",
+            "当前对话节点可以没有正式成果；这不会阻止后续推进。",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         return
@@ -365,26 +367,26 @@ private fun StageArtifactList(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ArtifactConfirmationDialog(
     state: StageResultUiState.Content,
     callbacks: StageResultCallbacks,
 ) {
-    AlertDialog(
+    ModalBottomSheet(
         modifier = Modifier.testTag(StageResultTestTags.ARTIFACT_CONFIRMATION_DIALOG),
         onDismissRequest = callbacks.onDismissArtifactConfirmation,
-        containerColor = MaterialTheme.colorScheme.surface,
-        titleContentColor = MaterialTheme.colorScheme.onSurface,
-        textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        title = { Text("确认正式成果") },
-        text = {
-            Column(
-                modifier = Modifier
-                    .heightIn(max = 520.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text("最终确认前不会创建成果，也不会推进阶段。")
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 680.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+                Text("保存为成果", style = MaterialTheme.typography.titleLarge)
+                Text("只有你确认保存后，这份节点草稿才会成为正式成果。")
                 OutlinedTextField(
                     value = state.artifactTitle,
                     onValueChange = callbacks.onArtifactTitleChange,
@@ -392,12 +394,35 @@ private fun ArtifactConfirmationDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text("成果类型", style = MaterialTheme.typography.labelLarge)
-                ArtifactType.entries.forEach { type ->
-                    FilterChip(
-                        selected = state.artifactType == type,
-                        onClick = { callbacks.onArtifactTypeChange(type) },
-                        label = { Text(type.displayName) },
-                    )
+                ArtifactType.entries.chunked(2).forEach { rowTypes ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        rowTypes.forEach { type ->
+                            FilterChip(
+                                selected = state.artifactType == type,
+                                onClick = { callbacks.onArtifactTypeChange(type) },
+                                label = { Text(type.displayName) },
+                            )
+                        }
+                    }
+                }
+                Text("保存内容预览", style = MaterialTheme.typography.labelLarge)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    ),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            if (state.revisionOfArtifactId == null) "来自当前节点草稿" else "来自成果修订草稿",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(state.editorContent, maxLines = 6)
+                    }
                 }
                 val selectedUsageCount = state.selectedMessageIds.sumOf { messageId ->
                     state.workspace.messageSourceMetadata[messageId]
@@ -405,9 +430,9 @@ private fun ArtifactConfirmationDialog(
                         ?: 0
                 }
                 JianyuStateCard(
-                    title = "来源预览",
+                    title = "来源关系",
                     message = buildString {
-                        append("草稿 Revision ")
+                        append("当前会话 · 当前对话节点；草稿 Revision ")
                         append(state.currentRevision)
                         append("；选定参与者输出 ")
                         append(state.selectedMessageIds.size)
@@ -421,31 +446,40 @@ private fun ArtifactConfirmationDialog(
                     StageArtifactConfirmationStatus.Confirming -> Text("正在确认正式成果")
                     is StageArtifactConfirmationStatus.Confirmed -> Text("成果已确认")
                     is StageArtifactConfirmationStatus.Failure -> JianyuStateCard(
-                        title = "成果确认失败",
+                        title = "成果保存失败",
                         message = "草稿仍保留，可以修正来源或稍后重试。",
                     )
                 }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = callbacks.onConfirmArtifact,
-                enabled = state.artifactTitle.isNotBlank() &&
-                    state.artifactStatus !is StageArtifactConfirmationStatus.Confirming,
-                modifier = Modifier.testTag(StageResultTestTags.ARTIFACT_CONFIRMATION_CONFIRM),
-            ) {
-                Text("最终确认")
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = callbacks.onDismissArtifactConfirmation,
-                modifier = Modifier.testTag(StageResultTestTags.ARTIFACT_CONFIRMATION_CANCEL),
-            ) {
-                Text("取消")
-            }
-        },
-    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    TextButton(
+                        onClick = callbacks.onDismissArtifactConfirmation,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag(StageResultTestTags.ARTIFACT_CONFIRMATION_CANCEL),
+                    ) {
+                        Text("取消")
+                    }
+                    Button(
+                        onClick = callbacks.onConfirmArtifact,
+                        enabled = state.artifactTitle.isNotBlank() &&
+                            state.artifactStatus !is StageArtifactConfirmationStatus.Confirming,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag(StageResultTestTags.ARTIFACT_CONFIRMATION_CONFIRM),
+                    ) {
+                        Text("确认保存")
+                    }
+                }
+                Text(
+                    "确认后，这段内容才会成为正式成果。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+        }
+    }
 }
 
 private fun ExecutionRunKind.displayName(): String = when (this) {
