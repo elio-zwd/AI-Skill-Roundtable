@@ -65,6 +65,14 @@ object AppPreferences {
         it.copy(confirmSensitiveContext = enabled)
     }
 
+    fun reset(context: Context) {
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .apply()
+        _state.value = AppPreferencesState()
+    }
+
     private fun update(context: Context, transform: (AppPreferencesState) -> AppPreferencesState) {
         val next = transform(_state.value)
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

@@ -212,6 +212,8 @@ data class IssueNavigationItem(
 )
 
 interface JianyuRepository {
+    suspend fun clearAllData(): RepositoryResult<Unit>
+
     suspend fun saveIssue(command: SaveIssueCommand): RepositoryResult<SavedIssue>
 
     suspend fun updateIssueThinkingPolicy(

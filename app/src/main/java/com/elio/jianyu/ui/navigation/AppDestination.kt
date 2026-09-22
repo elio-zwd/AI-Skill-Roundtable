@@ -77,6 +77,20 @@ enum class AppDestination(
         testTagSuffix = "about",
         showsBottomNavigation = false,
     ),
+    DATA_PRIVACY(
+        routePattern = "mine/data-privacy",
+        launchRoute = "mine/data-privacy",
+        label = "数据与隐私",
+        testTagSuffix = "data_privacy",
+        showsBottomNavigation = false,
+    ),
+    BACKUP_RESTORE(
+        routePattern = "mine/backup-restore",
+        launchRoute = "mine/backup-restore",
+        label = "备份与恢复",
+        testTagSuffix = "backup_restore",
+        showsBottomNavigation = false,
+    ),
     SKILL_SEARCH(
         routePattern = JianyuNavigationRoutes.SKILL_SEARCH_PATTERN,
         launchRoute = JianyuNavigationRoutes.SKILL_SEARCH_PATTERN,

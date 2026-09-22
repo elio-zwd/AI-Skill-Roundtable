@@ -31,6 +31,8 @@ fun AppNavHost(
     telemetryContent: @Composable () -> Unit,
     personalContextContent: @Composable () -> Unit = {},
     aboutContent: @Composable () -> Unit = {},
+    dataPrivacyContent: @Composable () -> Unit = {},
+    backupContent: @Composable () -> Unit = {},
 ) {
     NavHost(
         navController = navController,
@@ -160,6 +162,12 @@ fun AppNavHost(
         }
         composable(AppDestination.ABOUT.routePattern) {
             aboutContent()
+        }
+        composable(AppDestination.DATA_PRIVACY.routePattern) {
+            dataPrivacyContent()
+        }
+        composable(AppDestination.BACKUP_RESTORE.routePattern) {
+            backupContent()
         }
     }
 }

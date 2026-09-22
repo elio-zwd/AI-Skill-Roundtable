@@ -51,6 +51,8 @@ fun MineScreen(
     uiState: MineUiState,
     onOpenPersonalContext: () -> Unit = {},
     onOpenAbout: () -> Unit = {},
+    onOpenDataPrivacy: () -> Unit = {},
+    onOpenBackup: () -> Unit = {},
     onOpenSettings: () -> Unit,
     onOpenAiManagement: () -> Unit,
     onOpenTelemetry: () -> Unit,
@@ -85,6 +87,8 @@ fun MineScreen(
                         uiState = uiState,
                         onOpenAiManagement = onOpenAiManagement,
                         onOpenTelemetry = onOpenTelemetry,
+                        onOpenDataPrivacy = onOpenDataPrivacy,
+                        onOpenBackup = onOpenBackup,
                     )
                 }
                 item {
@@ -231,6 +235,8 @@ private fun QuickControls(
     uiState: MineUiState,
     onOpenAiManagement: () -> Unit,
     onOpenTelemetry: () -> Unit,
+    onOpenDataPrivacy: () -> Unit,
+    onOpenBackup: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
@@ -249,10 +255,10 @@ private fun QuickControls(
             )
             QuickControlCard(
                 title = "数据与隐私",
-                subtitle = "当前不可用",
+                subtitle = "导出、删除与权限",
                 icon = Icons.Default.Info,
-                enabled = false,
-                onClick = {},
+                enabled = true,
+                onClick = onOpenDataPrivacy,
                 modifier = Modifier
                     .weight(1f)
                     .testTag(MineTestTags.DATA_PRIVACY_CARD),
@@ -264,10 +270,10 @@ private fun QuickControls(
         ) {
             QuickControlCard(
                 title = "备份与恢复",
-                subtitle = "当前不可用",
+                subtitle = "本地加密备份",
                 icon = Icons.Default.List,
-                enabled = false,
-                onClick = {},
+                enabled = true,
+                onClick = onOpenBackup,
                 modifier = Modifier
                     .weight(1f)
                     .testTag(MineTestTags.BACKUP_RESTORE_CARD),

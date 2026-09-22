@@ -42,6 +42,12 @@ class RoomJianyuRepository(
         lifecycleRecovery = lifecycleRecovery,
     )
 
+    override suspend fun clearAllData(): RepositoryResult<Unit> =
+        transactions.databaseTransaction("clear_all_data") {
+            clearAllTables()
+            RepositoryResult.Success(Unit)
+        }
+
     override suspend fun saveIssue(command: SaveIssueCommand): RepositoryResult<SavedIssue> {
         if (command.issueId.startsWith(LEGACY_ISSUE_ID_PREFIX)) {
             return RepositoryResult.Failure(

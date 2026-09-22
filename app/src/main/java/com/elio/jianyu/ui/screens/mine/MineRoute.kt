@@ -23,6 +23,8 @@ fun MineRoute(
     repository: JianyuRepository,
     onOpenPersonalContext: () -> Unit,
     onOpenAbout: () -> Unit,
+    onOpenDataPrivacy: () -> Unit,
+    onOpenBackup: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenAiManagement: () -> Unit,
     onOpenTelemetry: () -> Unit,
@@ -75,6 +77,8 @@ fun MineRoute(
         onOpenSettings = onOpenSettings,
         onOpenPersonalContext = onOpenPersonalContext,
         onOpenAbout = onOpenAbout,
+        onOpenDataPrivacy = onOpenDataPrivacy,
+        onOpenBackup = onOpenBackup,
         onOpenAiManagement = onOpenAiManagement,
         onOpenTelemetry = onOpenTelemetry,
     )

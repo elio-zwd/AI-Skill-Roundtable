@@ -72,6 +72,8 @@ import com.elio.jianyu.ui.screens.execution.AudioEnabledIssueExecutionRoute
 import com.elio.jianyu.ui.screens.issues.IssuesRoute
 import com.elio.jianyu.ui.screens.mine.MineRoute
 import com.elio.jianyu.ui.screens.mine.PersonalContextRoute
+import com.elio.jianyu.ui.screens.mine.DataPrivacyRoute
+import com.elio.jianyu.ui.screens.mine.BackupRoute
 import com.elio.jianyu.ui.screens.resources.ResourcesRoute
 import com.elio.jianyu.ui.screens.settings.AiManagementRoute
 import com.elio.jianyu.ui.screens.settings.AboutRoute
@@ -439,6 +441,12 @@ internal fun MainAppContent(
                             onOpenAbout = {
                                 navController.navigateToSecondary(AppDestination.ABOUT)
                             },
+                            onOpenDataPrivacy = {
+                                navController.navigateToSecondary(AppDestination.DATA_PRIVACY)
+                            },
+                            onOpenBackup = {
+                                navController.navigateToSecondary(AppDestination.BACKUP_RESTORE)
+                            },
                             onOpenSettings = {
                                 navController.navigateToSecondary(AppDestination.SETTINGS)
                             },
@@ -481,6 +489,24 @@ internal fun MainAppContent(
                     },
                     aboutContent = {
                         AboutRoute(onBack = { navController.popBackStack() })
+                    },
+                    dataPrivacyContent = {
+                        DataPrivacyRoute(
+                            repository = appRuntime.repository,
+                            onBack = { navController.popBackStack() },
+                            onOpenBackup = {
+                                navController.navigateToSecondary(AppDestination.BACKUP_RESTORE)
+                            },
+                            onOpenTelemetry = {
+                                navController.navigateToSecondary(AppDestination.TELEMETRY)
+                            },
+                        )
+                    },
+                    backupContent = {
+                        BackupRoute(
+                            repository = appRuntime.repository,
+                            onBack = { navController.popBackStack() },
+                        )
                     },
                 )
             }
