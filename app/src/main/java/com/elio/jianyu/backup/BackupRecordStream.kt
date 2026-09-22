@@ -73,6 +73,9 @@ object BackupRecordStream {
         var sequence = 0L
         entities.forEach { entity ->
             validateLogicalId(entity.logicalEntryId)
+            if (entity.entityType !in BackupProtocol.entityTypes || entity.schemaVersion != 1L) {
+                throw BackupException(BackupErrorCode.UNSUPPORTED_REQUIRED_FEATURE)
+            }
             val payload = BackupCanonicalCbor.encode(entity.payload)
             val value = BackupCborValue.MapValue(
                 linkedMapOf(
@@ -181,23 +184,29 @@ object BackupRecordStream {
                     recordCount++
                 }
                 BackupProtocol.recordEntity -> {
+                    requireKeys(map, (1L..7L).toSet())
                     requireSequence(map, sequence++)
                     validateLogicalId(map.requiredText(3L))
                     val payload = map.values[6L] ?: throw BackupException(BackupErrorCode.VERIFICATION_FAILED)
                     val expectedHash = map.requiredBytes(7L)
                     if (expectedHash.size != 32 || !expectedHash.contentEquals(sha256(BackupCanonicalCbor.encode(payload)))) throw BackupException(BackupErrorCode.VERIFICATION_FAILED)
                     if (map.requiredUInt(5L) != 1L || map.requiredText(4L).isBlank()) throw BackupException(BackupErrorCode.VERIFICATION_FAILED)
+                    if (map.requiredText(4L) !in BackupProtocol.entityTypes) throw BackupException(BackupErrorCode.UNSUPPORTED_REQUIRED_FEATURE)
                     entityCount++; recordCount++
+                    if (entityCount + blobCount > BackupProtocol.maxLogicalEntries) throw BackupException(BackupErrorCode.ENTRY_LIMIT_EXCEEDED)
                 }
                 BackupProtocol.recordBlobStart -> {
+                    requireKeys(map, (1L..8L).toSet())
                     requireSequence(map, sequence++)
                     val id = map.requiredText(3L); validateLogicalId(id)
                     if (blobs.containsKey(id)) throw BackupException(BackupErrorCode.DUPLICATE_CHUNK)
                     val size = map.requiredUInt(6L); val hash = map.requiredBytes(7L); val chunkSize = map.requiredUInt(8L)
                     if (size > BackupProtocol.maxSingleBlobBytes || hash.size != 32 || chunkSize != BackupProtocol.blobChunkBytes.toLong()) throw BackupException(BackupErrorCode.ENTRY_SIZE_EXCEEDED)
                     blobs[id] = BlobState(size, hash); blobCount++; recordCount++
+                    if (blobCount > BackupProtocol.maxBlobs || entityCount + blobCount > BackupProtocol.maxLogicalEntries) throw BackupException(BackupErrorCode.ENTRY_LIMIT_EXCEEDED)
                 }
                 BackupProtocol.recordBlobChunk -> {
+                    requireKeys(map, (1L..5L).toSet())
                     requireSequence(map, sequence++)
                     val id = map.requiredText(3L); validateLogicalId(id)
                     val state = blobs[id] ?: throw BackupException(BackupErrorCode.CHUNK_ORDER_INVALID)
@@ -210,6 +219,7 @@ object BackupRecordStream {
                     state.nextChunk++; recordCount++
                 }
                 BackupProtocol.recordBlobEnd -> {
+                    requireKeys(map, (1L..6L).toSet())
                     requireSequence(map, sequence++)
                     val id = map.requiredText(3L); validateLogicalId(id)
                     val state = blobs.remove(id) ?: throw BackupException(BackupErrorCode.CHUNK_ORDER_INVALID)
@@ -247,6 +257,10 @@ object BackupRecordStream {
 
     private fun requireSequence(map: BackupCborValue.MapValue, expected: Long) {
         if (map.requiredUInt(2L) != expected) throw BackupException(BackupErrorCode.CHUNK_ORDER_INVALID)
+    }
+
+    private fun requireKeys(map: BackupCborValue.MapValue, expected: Set<Long>) {
+        if (map.values.keys != expected) throw BackupException(BackupErrorCode.VERIFICATION_FAILED)
     }
 
     private fun validateLogicalId(value: String) {
