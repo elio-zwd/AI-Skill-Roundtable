@@ -49,9 +49,9 @@ suspend fun JianyuRepository.importBackup(payload: BackupImportPayload): BackupI
     payload.issues.forEach { exported ->
         val safeOriginalId = exported.id.replace(Regex("[^A-Za-z0-9_-]"), "_")
         val issueId = if (exported.id.startsWith("legacy-chat-")) {
-            "restored-dialog-$safeOriginalId-$stamp"
+            "restored-dialog-$safeOriginalId"
         } else {
-            exported.id.ifBlank { "restored-dialog-$safeOriginalId-$stamp" }
+            exported.id.ifBlank { "restored-dialog-$safeOriginalId" }
         }
         val stageId = "$issueId-stage-0"
         val result = saveIssue(
@@ -64,17 +64,25 @@ suspend fun JianyuRepository.importBackup(payload: BackupImportPayload): BackupI
                 createdAt = stamp,
             )
         )
-        if (result is RepositoryResult.Success) {
-            issueTargets[exported.id] = issueId to stageId
+        val target = when (result) {
+            is RepositoryResult.Success -> issueId to stageId
+            is RepositoryResult.Failure -> if (result.error is RepositoryError.IdempotencyConflict) {
+                (recoverIssue(issueId) as? RepositoryResult.Success)?.value?.core?.let { recovery ->
+                    recovery.issue.id to (recovery.currentStage?.id ?: stageId)
+                }
+            } else null
+        }
+        if (target != null) {
+            issueTargets[exported.id] = target
             issueCount++
             val transcript = exported.messages.joinToString("\n\n") { message ->
                 "### ${message.sender}\n${message.text}"
             }
             if (transcript.isNotBlank()) {
                 val transcriptArtifact = ConfirmedArtifactEntity(
-                    id = "restored-transcript-$safeOriginalId-$stamp",
-                    issueId = issueId,
-                    stageId = stageId,
+                    id = "restored-transcript-$safeOriginalId",
+                        issueId = target.first,
+                        stageId = target.second,
                     title = "${exported.title.ifBlank { "对话" }}（消息记录）",
                     content = transcript,
                     artifactType = "restored_conversation",
@@ -88,11 +96,11 @@ suspend fun JianyuRepository.importBackup(payload: BackupImportPayload): BackupI
                     ) is RepositoryResult.Success
                 ) artifactCount++
             }
-            exported.artifacts.forEach { artifact ->
-                val restoredArtifact = ConfirmedArtifactEntity(
-                    id = artifact.id.ifBlank { "restored-artifact-$safeOriginalId-$stamp" },
-                    issueId = issueId,
-                    stageId = stageId,
+                exported.artifacts.forEachIndexed { artifactIndex, artifact ->
+                    val restoredArtifact = ConfirmedArtifactEntity(
+                    id = artifact.id.ifBlank { "restored-artifact-$safeOriginalId-$artifactIndex" },
+                    issueId = target.first,
+                    stageId = target.second,
                     title = artifact.title.ifBlank { "导入成果" },
                     content = artifact.content,
                     artifactType = artifact.type.ifBlank { "restored_artifact" },
@@ -110,9 +118,9 @@ suspend fun JianyuRepository.importBackup(payload: BackupImportPayload): BackupI
     }
 
     val defaultTarget = issueTargets.values.firstOrNull() ?: run {
-        val issueId = "restored-import-$stamp"
+        val issueId = "restored-import"
         val stageId = "$issueId-stage-0"
-        if (saveIssue(
+        val result = saveIssue(
                 SaveIssueCommand(
                     issueId = issueId,
                     title = "导入备份资料",
@@ -121,12 +129,19 @@ suspend fun JianyuRepository.importBackup(payload: BackupImportPayload): BackupI
                     initialObjective = "承载从本地备份导入的资料",
                     createdAt = stamp,
                 )
-            ) is RepositoryResult.Success
-        ) issueId to stageId else null
+            )
+        when (result) {
+            is RepositoryResult.Success -> issueId to stageId
+            is RepositoryResult.Failure -> if (result.error is RepositoryError.IdempotencyConflict) {
+                (recoverIssue(issueId) as? RepositoryResult.Success)?.value?.core?.let { recovery ->
+                    recovery.issue.id to (recovery.currentStage?.id ?: stageId)
+                }
+            } else null
+        }
     }
 
     payload.materials.forEach { material ->
-        val target = issueTargets[material.id] ?: defaultTarget ?: return@forEach
+        val target = defaultTarget ?: return@forEach
         val result = createMaterial(
             CreateMaterialCommand(
                 id = material.id.ifBlank { "restored-material-$stamp-$materialCount" },
