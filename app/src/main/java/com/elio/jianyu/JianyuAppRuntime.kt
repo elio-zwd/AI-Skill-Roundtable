@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.annotation.VisibleForTesting
 import com.elio.jianyu.audio.runtime.JianyuAudioRuntime
 import com.elio.jianyu.audio.runtime.createJianyuAudioRuntime
+import com.elio.jianyu.backup.BackupOperationGate
+import com.elio.jianyu.backup.BackupOperationGateRegistry
 import com.elio.jianyu.collaboration.IssueCollaborationCoordinator
 import com.elio.jianyu.collaboration.OfficialCollaborationSkillEligibility
 import com.elio.jianyu.data.JianyuRepository
@@ -191,6 +193,7 @@ object JianyuAppRuntimeProvider {
 
             try {
                 RoundtableDatabase.closeAndClear(ready.runtime.database)
+                BackupOperationGateRegistry.remove(ready.runtime.database)
             } catch (error: Throwable) {
                 closeFailure = error
             }
@@ -483,6 +486,7 @@ object JianyuAppRuntimeProvider {
             context = context,
             scope = databaseScope,
         )
+        BackupOperationGateRegistry.register(database, BackupOperationGate.forContext(context))
         try {
             val repository = when (catalogRuntimeResult) {
                 is OfficialSkillCatalogRuntimeResult.Success -> RoomJianyuRepository(
@@ -580,5 +584,6 @@ object JianyuAppRuntimeProvider {
                 }
             }
         }
+        BackupOperationGateRegistry.remove(database)
     }
 }

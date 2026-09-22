@@ -3,6 +3,7 @@ package com.elio.jianyu.data
 import android.database.sqlite.SQLiteConstraintException
 import android.database.sqlite.SQLiteException
 import androidx.room.withTransaction
+import com.elio.jianyu.backup.BackupOperationGateRegistry
 import kotlinx.coroutines.CancellationException
 
 /**
@@ -14,6 +15,7 @@ import kotlinx.coroutines.CancellationException
 internal class JianyuRepositoryTransactions(
     private val database: RoundtableDatabase
 ) {
+    private val backupGate = BackupOperationGateRegistry.find(database)
     private val dao: JianyuRepositoryDao
         get() = database.jianyuRepositoryDao()
 
@@ -35,10 +37,12 @@ internal class JianyuRepositoryTransactions(
     suspend fun <T> databaseRead(
         block: suspend RoundtableDatabase.() -> T,
     ): T {
-        if (database.isExplicitlyClosed) {
-            throw RepositoryStorageUnavailableAbort()
+        return withBusinessReadLock {
+            if (database.isExplicitlyClosed) {
+                throw RepositoryStorageUnavailableAbort()
+            }
+            database.block()
         }
-        return database.block()
     }
 
     suspend fun <T> databaseTransaction(
@@ -46,13 +50,15 @@ internal class JianyuRepositoryTransactions(
         block: suspend RoundtableDatabase.() -> RepositoryResult<T>,
     ): RepositoryResult<T> {
         return execute(operation) {
-            if (database.isExplicitlyClosed) {
-                throw RepositoryStorageUnavailableAbort()
-            }
-            database.withTransaction {
-                when (val result = database.block()) {
-                    is RepositoryResult.Success -> result
-                    is RepositoryResult.Failure -> throw RepositoryTransactionFailureAbort(result.error)
+            withBusinessReadLock {
+                if (database.isExplicitlyClosed) {
+                    throw RepositoryStorageUnavailableAbort()
+                }
+                database.withTransaction {
+                    when (val result = database.block()) {
+                        is RepositoryResult.Success -> result
+                        is RepositoryResult.Failure -> throw RepositoryTransactionFailureAbort(result.error)
+                    }
                 }
             }
         }
@@ -63,14 +69,16 @@ internal class JianyuRepositoryTransactions(
         block: suspend CollaborationTransactionScope.() -> RepositoryResult<T>,
     ): RepositoryResult<T> {
         return execute(operation) {
-            if (database.isExplicitlyClosed) {
-                throw RepositoryStorageUnavailableAbort()
-            }
-            database.withTransaction {
-                val scope = CollaborationTransactionScope(dao, collaborationDao)
-                when (val result = scope.block()) {
-                    is RepositoryResult.Success -> result
-                    is RepositoryResult.Failure -> throw RepositoryTransactionFailureAbort(result.error)
+            withBusinessReadLock {
+                if (database.isExplicitlyClosed) {
+                    throw RepositoryStorageUnavailableAbort()
+                }
+                database.withTransaction {
+                    val scope = CollaborationTransactionScope(dao, collaborationDao)
+                    when (val result = scope.block()) {
+                        is RepositoryResult.Success -> result
+                        is RepositoryResult.Failure -> throw RepositoryTransactionFailureAbort(result.error)
+                    }
                 }
             }
         }
@@ -81,13 +89,15 @@ internal class JianyuRepositoryTransactions(
         block: suspend StageAdvancementDao.() -> RepositoryResult<T>,
     ): RepositoryResult<T> {
         return execute(operation) {
-            if (database.isExplicitlyClosed) {
-                throw RepositoryStorageUnavailableAbort()
-            }
-            database.withTransaction {
-                when (val result = stageAdvancementDao.block()) {
-                    is RepositoryResult.Success -> result
-                    is RepositoryResult.Failure -> throw RepositoryTransactionFailureAbort(result.error)
+            withBusinessReadLock {
+                if (database.isExplicitlyClosed) {
+                    throw RepositoryStorageUnavailableAbort()
+                }
+                database.withTransaction {
+                    when (val result = stageAdvancementDao.block()) {
+                        is RepositoryResult.Success -> result
+                        is RepositoryResult.Failure -> throw RepositoryTransactionFailureAbort(result.error)
+                    }
                 }
             }
         }
@@ -137,16 +147,21 @@ internal class JianyuRepositoryTransactions(
     suspend fun <T> transactionRaw(
         block: suspend JianyuRepositoryDao.() -> RepositoryResult<T>
     ): RepositoryResult<T> {
-        if (database.isExplicitlyClosed) {
-            throw RepositoryStorageUnavailableAbort()
-        }
-        return database.withTransaction {
-            when (val result = dao.block()) {
-                is RepositoryResult.Success -> result
-                is RepositoryResult.Failure -> throw RepositoryTransactionFailureAbort(result.error)
+        return withBusinessReadLock {
+            if (database.isExplicitlyClosed) {
+                throw RepositoryStorageUnavailableAbort()
+            }
+            database.withTransaction {
+                when (val result = dao.block()) {
+                    is RepositoryResult.Success -> result
+                    is RepositoryResult.Failure -> throw RepositoryTransactionFailureAbort(result.error)
+                }
             }
         }
     }
+
+    private suspend fun <T> withBusinessReadLock(block: suspend () -> T): T =
+        backupGate?.withReadLock(block) ?: block()
 }
 
 internal class CollaborationTransactionScope(

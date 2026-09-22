@@ -13,7 +13,7 @@ import kotlinx.coroutines.withContext
  * The single process/external-process gate for backup and snapshot operations.
  * Business writers take the read side; backup and snapshot writers take the write side.
  */
-class BackupOperationGate private constructor(private val lockFile: java.io.File) {
+class BackupOperationGate internal constructor(private val lockFile: java.io.File) {
     private val processLock = ReentrantReadWriteLock(true)
 
     suspend fun <T> withWriteLock(block: suspend () -> T): T = withContext(Dispatchers.IO) {
