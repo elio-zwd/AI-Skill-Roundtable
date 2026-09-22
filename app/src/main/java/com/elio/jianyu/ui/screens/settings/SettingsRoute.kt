@@ -1,10 +1,18 @@
 package com.elio.jianyu.ui.screens.settings
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import com.elio.jianyu.ui.components.JianyuPageShell
 import com.elio.jianyu.ui.components.JianyuStateCard
+import com.elio.jianyu.ui.settings.AppPreferences
+import com.elio.jianyu.ui.settings.AppPreferencesState
+import com.elio.jianyu.ui.settings.ThemeMode
 
 object SettingsShellTestTags {
     const val SCREEN = "settings_screen"
@@ -20,18 +28,32 @@ fun SettingsRoute(
     onOpenAiManagement: () -> Unit,
     onOpenTelemetry: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val preferences by AppPreferences.state.collectAsState()
     SettingsScreen(
+        preferences = preferences,
         onBack = onBack,
         onOpenAiManagement = onOpenAiManagement,
         onOpenTelemetry = onOpenTelemetry,
+        onThemeModeChange = { AppPreferences.setThemeMode(context, it) },
+        onReducedMotionChange = { AppPreferences.setReducedMotion(context, it) },
+        onHighContrastChange = { AppPreferences.setHighContrastText(context, it) },
+        onSensitiveContextChange = { AppPreferences.setConfirmSensitiveContext(context, it) },
+        onTimestampChange = { AppPreferences.setShowMessageTimestamps(context, it) },
     )
 }
 
 @Composable
 fun SettingsScreen(
+    preferences: AppPreferencesState = AppPreferencesState(),
     onBack: () -> Unit,
     onOpenAiManagement: () -> Unit,
     onOpenTelemetry: () -> Unit,
+    onThemeModeChange: (ThemeMode) -> Unit = {},
+    onReducedMotionChange: (Boolean) -> Unit = {},
+    onHighContrastChange: (Boolean) -> Unit = {},
+    onSensitiveContextChange: (Boolean) -> Unit = {},
+    onTimestampChange: (Boolean) -> Unit = {},
 ) {
     JianyuPageShell(
         title = "设置",
@@ -54,10 +76,26 @@ fun SettingsScreen(
             text = "外观与无障碍",
             style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
         )
-        JianyuStateCard(
-            title = "字体与显示",
-            message = "跟随系统浅暗主题与字号；减少动效会在支持的页面使用静态状态反馈。",
+        SettingsChoiceRow(
+            title = "主题",
+            value = when (preferences.themeMode) {
+                ThemeMode.SYSTEM -> "跟随系统"
+                ThemeMode.LIGHT -> "浅色"
+                ThemeMode.DARK -> "深色"
+            },
+            onClick = {
+                val next = when (preferences.themeMode) {
+                    ThemeMode.SYSTEM -> ThemeMode.LIGHT
+                    ThemeMode.LIGHT -> ThemeMode.DARK
+                    ThemeMode.DARK -> ThemeMode.SYSTEM
+                }
+                onThemeModeChange(next)
+            },
         )
+        SettingsSwitchRow("减少动效", preferences.reducedMotion, onReducedMotionChange)
+        SettingsSwitchRow("增强文字对比度", preferences.highContrastText, onHighContrastChange)
+        SettingsSwitchRow("发送前确认敏感资料", preferences.confirmSensitiveContext, onSensitiveContextChange)
+        SettingsSwitchRow("默认显示消息时间", preferences.showMessageTimestamps, onTimestampChange)
         androidx.compose.material3.Text(
             text = "模型与 API Key",
             style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
@@ -80,7 +118,37 @@ fun SettingsScreen(
         )
         JianyuStateCard(
             title = "数据与恢复",
-            message = "本地数据、备份、导入导出与应用锁将在后续独立实现；当前不会承诺自动迁移或恢复。",
+            message = "数据导出、备份与恢复请从“我的”页进入；旧包不会自动迁移。",
         )
     }
+}
+
+@Composable
+private fun SettingsChoiceRow(
+    title: String,
+    value: String,
+    onClick: () -> Unit,
+) {
+    androidx.compose.material3.ListItem(
+        headlineContent = { androidx.compose.material3.Text(title) },
+        supportingContent = { androidx.compose.material3.Text("点击切换 · $value") },
+        trailingContent = { androidx.compose.material3.Text(value) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+    )
+}
+
+@Composable
+private fun SettingsSwitchRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    androidx.compose.material3.ListItem(
+        headlineContent = { androidx.compose.material3.Text(title) },
+        trailingContent = {
+            androidx.compose.material3.Switch(checked = checked, onCheckedChange = onCheckedChange)
+        },
+    )
 }

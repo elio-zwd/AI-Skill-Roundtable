@@ -50,6 +50,7 @@ import com.elio.jianyu.ui.components.UserAvatar
 fun MineScreen(
     uiState: MineUiState,
     onOpenPersonalContext: () -> Unit = {},
+    onOpenAbout: () -> Unit = {},
     onOpenSettings: () -> Unit,
     onOpenAiManagement: () -> Unit,
     onOpenTelemetry: () -> Unit,
@@ -95,7 +96,7 @@ fun MineScreen(
                     )
                 }
                 item {
-                    PreferenceGroup(onOpenSettings = onOpenSettings)
+                    PreferenceGroup(onOpenSettings = onOpenSettings, onOpenAbout = onOpenAbout)
                 }
                 item { Spacer(modifier = Modifier.height(4.dp)) }
             }
@@ -341,7 +342,10 @@ private fun QuickControlCard(
 }
 
 @Composable
-private fun PreferenceGroup(onOpenSettings: () -> Unit) {
+private fun PreferenceGroup(
+    onOpenSettings: () -> Unit,
+    onOpenAbout: () -> Unit,
+) {
     Card(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -359,10 +363,10 @@ private fun PreferenceGroup(onOpenSettings: () -> Unit) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             PreferenceRow(
                 title = "关于见域",
-                subtitle = "当前不可用",
+                subtitle = "版本、许可与角色说明",
                 icon = Icons.Default.Info,
-                enabled = false,
-                onClick = {},
+                enabled = true,
+                onClick = onOpenAbout,
                 modifier = Modifier.testTag(MineTestTags.ABOUT_ENTRY),
             )
         }

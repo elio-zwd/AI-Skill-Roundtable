@@ -30,6 +30,7 @@ fun AppNavHost(
     aiManagementContent: @Composable () -> Unit,
     telemetryContent: @Composable () -> Unit,
     personalContextContent: @Composable () -> Unit = {},
+    aboutContent: @Composable () -> Unit = {},
 ) {
     NavHost(
         navController = navController,
@@ -156,6 +157,9 @@ fun AppNavHost(
         }
         composable(AppDestination.PERSONAL_CONTEXT.routePattern) {
             personalContextContent()
+        }
+        composable(AppDestination.ABOUT.routePattern) {
+            aboutContent()
         }
     }
 }

@@ -70,6 +70,13 @@ enum class AppDestination(
         testTagSuffix = "personal_context",
         showsBottomNavigation = false,
     ),
+    ABOUT(
+        routePattern = "mine/about",
+        launchRoute = "mine/about",
+        label = "关于见域",
+        testTagSuffix = "about",
+        showsBottomNavigation = false,
+    ),
     SKILL_SEARCH(
         routePattern = JianyuNavigationRoutes.SKILL_SEARCH_PATTERN,
         launchRoute = JianyuNavigationRoutes.SKILL_SEARCH_PATTERN,

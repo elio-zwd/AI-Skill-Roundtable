@@ -74,6 +74,7 @@ import com.elio.jianyu.ui.screens.mine.MineRoute
 import com.elio.jianyu.ui.screens.mine.PersonalContextRoute
 import com.elio.jianyu.ui.screens.resources.ResourcesRoute
 import com.elio.jianyu.ui.screens.settings.AiManagementRoute
+import com.elio.jianyu.ui.screens.settings.AboutRoute
 import com.elio.jianyu.ui.screens.settings.SettingsRoute
 import com.elio.jianyu.ui.screens.settings.TelemetryRoute
 import com.elio.jianyu.ui.screens.skills.OfficialSkillNavigationRoute
@@ -435,6 +436,9 @@ internal fun MainAppContent(
                             onOpenPersonalContext = {
                                 navController.navigateToSecondary(AppDestination.PERSONAL_CONTEXT)
                             },
+                            onOpenAbout = {
+                                navController.navigateToSecondary(AppDestination.ABOUT)
+                            },
                             onOpenSettings = {
                                 navController.navigateToSecondary(AppDestination.SETTINGS)
                             },
@@ -474,6 +478,9 @@ internal fun MainAppContent(
                             repository = appRuntime.repository,
                             onBack = { navController.popBackStack() },
                         )
+                    },
+                    aboutContent = {
+                        AboutRoute(onBack = { navController.popBackStack() })
                     },
                 )
             }
