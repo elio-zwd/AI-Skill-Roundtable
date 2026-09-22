@@ -1,6 +1,7 @@
 package com.elio.jianyu.backup
 
 import java.io.File
+import javax.crypto.spec.SecretKeySpec
 import org.json.JSONObject
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -60,6 +61,31 @@ class BackupProductionProtocolTest {
         val stats = BackupRecordStream.verify(stream, BackupProtocol.portableFormatId)
         assertEquals(1L, stats.entityCount)
         assertEquals(1L, stats.blobCount)
+    }
+
+    @Test
+    fun productionWriterCreatesPortableAndSnapshotFilesThatVerifyToAuthenticatedEof() {
+        val input = PortableBackupInput(
+            manifest = BackupManifest(
+                formatId = BackupProtocol.portableFormatId,
+                createdAt = 1L,
+                appVersionName = "test",
+                appVersionCode = 1L,
+                sourceRoomVersion = 14L,
+                logicalEntryCount = 0L,
+                blobCount = 0L,
+            ),
+            entities = emptyList(),
+        )
+        val portable = BackupEnvelopeWriter.createPortable("password", input)
+        BackupRecordStream.verify(BackupCrypto.decryptPortable("password", portable), BackupProtocol.portableFormatId)
+
+        val key = SecretKeySpec(ByteArray(32) { it.toByte() }, "AES")
+        val snapshot = BackupEnvelopeWriter.createSnapshot(
+            key,
+            SnapshotBackupInput(input.manifest.copy(formatId = BackupProtocol.snapshotFormatId), emptyList()),
+        )
+        BackupRecordStream.verify(BackupCrypto.decryptSnapshot(key, snapshot), BackupProtocol.snapshotFormatId)
     }
 
     private fun load(name: String): JSONObject {

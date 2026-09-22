@@ -38,6 +38,8 @@ class PortableBackupService(
             val bytes = JianyuAppRuntimeProvider.withRuntime(context.applicationContext) { runtime ->
                 BackupEnvelopeWriter.createPortable(password, RepositoryBackupMapper.collect(runtime))
             }
+            val plaintext = com.elio.jianyu.backup.BackupCrypto.decryptPortable(password, bytes)
+            BackupRecordStream.verify(plaintext, BackupProtocol.portableFormatId)
             context.contentResolver.openOutputStream(destination, "w")?.use { output ->
                 output.write(bytes)
                 output.flush()

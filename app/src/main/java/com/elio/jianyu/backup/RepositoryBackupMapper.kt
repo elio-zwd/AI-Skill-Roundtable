@@ -12,7 +12,7 @@ import com.elio.jianyu.data.listArtifactSourcesForIssue
 import com.elio.jianyu.data.listStageAdvancements
 import com.elio.jianyu.data.MaterialFilter
 import com.elio.jianyu.data.PersonalContextFilter
-import java.io.File
+import java.net.URI
 
 /** Explicit whitelist mapper; Room table names never become format identifiers. */
 object RepositoryBackupMapper {
@@ -219,12 +219,8 @@ object RepositoryBackupMapper {
 
     private fun safeLocator(sourceType: String, locator: String?): Pair<String, Boolean> {
         if (locator.isNullOrBlank()) return "" to false
-        val normalized = sourceType.lowercase()
-        return if ((normalized == "http" || normalized == "https") && locator.startsWith("$normalized://")) {
-            locator to false
-        } else {
-            "" to true
-        }
+        val scheme = runCatching { URI(locator).scheme?.lowercase() }.getOrNull()
+        return if (scheme == "http" || scheme == "https") locator to false else "" to true
     }
 
     private fun <T> requireSuccess(result: RepositoryResult<T>): T = when (result) {
