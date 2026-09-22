@@ -63,6 +63,13 @@ enum class AppDestination(
         testTagSuffix = "telemetry",
         showsBottomNavigation = false,
     ),
+    PERSONAL_CONTEXT(
+        routePattern = "mine/personal-context",
+        launchRoute = "mine/personal-context",
+        label = "个人背景",
+        testTagSuffix = "personal_context",
+        showsBottomNavigation = false,
+    ),
     SKILL_SEARCH(
         routePattern = JianyuNavigationRoutes.SKILL_SEARCH_PATTERN,
         launchRoute = JianyuNavigationRoutes.SKILL_SEARCH_PATTERN,

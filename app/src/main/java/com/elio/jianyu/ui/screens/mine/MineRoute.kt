@@ -21,6 +21,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun MineRoute(
     repository: JianyuRepository,
+    onOpenPersonalContext: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenAiManagement: () -> Unit,
     onOpenTelemetry: () -> Unit,
@@ -71,6 +72,7 @@ fun MineRoute(
             telemetryLevel = telemetryLevel,
         ),
         onOpenSettings = onOpenSettings,
+        onOpenPersonalContext = onOpenPersonalContext,
         onOpenAiManagement = onOpenAiManagement,
         onOpenTelemetry = onOpenTelemetry,
     )

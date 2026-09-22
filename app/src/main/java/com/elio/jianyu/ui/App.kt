@@ -71,6 +71,7 @@ import com.elio.jianyu.ui.navigation.navigateToTopLevel
 import com.elio.jianyu.ui.screens.execution.AudioEnabledIssueExecutionRoute
 import com.elio.jianyu.ui.screens.issues.IssuesRoute
 import com.elio.jianyu.ui.screens.mine.MineRoute
+import com.elio.jianyu.ui.screens.mine.PersonalContextRoute
 import com.elio.jianyu.ui.screens.resources.ResourcesRoute
 import com.elio.jianyu.ui.screens.settings.AiManagementRoute
 import com.elio.jianyu.ui.screens.settings.SettingsRoute
@@ -431,6 +432,9 @@ internal fun MainAppContent(
                     mineContent = {
                         MineRoute(
                             repository = appRuntime.repository,
+                            onOpenPersonalContext = {
+                                navController.navigateToSecondary(AppDestination.PERSONAL_CONTEXT)
+                            },
                             onOpenSettings = {
                                 navController.navigateToSecondary(AppDestination.SETTINGS)
                             },
@@ -462,6 +466,12 @@ internal fun MainAppContent(
                     telemetryContent = {
                         TelemetryRoute(
                             currentSessionId = currentSessionId,
+                            onBack = { navController.popBackStack() },
+                        )
+                    },
+                    personalContextContent = {
+                        PersonalContextRoute(
+                            repository = appRuntime.repository,
                             onBack = { navController.popBackStack() },
                         )
                     },

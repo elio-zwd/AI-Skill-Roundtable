@@ -49,6 +49,7 @@ import com.elio.jianyu.ui.components.UserAvatar
 @Composable
 fun MineScreen(
     uiState: MineUiState,
+    onOpenPersonalContext: () -> Unit = {},
     onOpenSettings: () -> Unit,
     onOpenAiManagement: () -> Unit,
     onOpenTelemetry: () -> Unit,
@@ -68,7 +69,7 @@ fun MineScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 item {
-                    PersonalBackgroundHero(uiState = uiState)
+                    PersonalBackgroundHero(uiState = uiState, onOpenPersonalContext = onOpenPersonalContext)
                 }
                 item {
                     Text(
@@ -132,7 +133,10 @@ private fun MineHeader(onOpenSettings: () -> Unit) {
 }
 
 @Composable
-private fun PersonalBackgroundHero(uiState: MineUiState) {
+private fun PersonalBackgroundHero(
+    uiState: MineUiState,
+    onOpenPersonalContext: () -> Unit,
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -192,8 +196,8 @@ private fun PersonalBackgroundHero(uiState: MineUiState) {
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Button(
-                        onClick = {},
-                        enabled = false,
+                        onClick = onOpenPersonalContext,
+                        enabled = true,
                         modifier = Modifier.testTag(MineTestTags.PERSONAL_BACKGROUND_ACTION),
                     ) {
                         Text("查看与编辑")
