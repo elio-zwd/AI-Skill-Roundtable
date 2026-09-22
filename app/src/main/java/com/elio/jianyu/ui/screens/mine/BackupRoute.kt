@@ -43,6 +43,14 @@ import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
+import com.elio.jianyu.data.BackupImportArtifact
+import com.elio.jianyu.data.BackupImportIssue
+import com.elio.jianyu.data.BackupImportMaterial
+import com.elio.jianyu.data.BackupImportMessage
+import com.elio.jianyu.data.BackupImportPayload
+import com.elio.jianyu.data.BackupImportPersonalContext
+import com.elio.jianyu.data.importBackup
+import kotlinx.serialization.json.Json
 
 object BackupTestTags {
     const val SCREEN = "backup_screen"
@@ -112,7 +120,7 @@ fun BackupRoute(
         ) { Text("选择备份文件") }
         JianyuStateCard(
             title = "恢复边界",
-            message = "选择文件后会先验证密码、格式和内容范围，再展示预览。当前版本不会替换旧包，也不会在未确认影响前覆盖当前数据库。",
+            message = "选择文件后会先验证密码和格式，再将资料、个人背景、议题摘要与成果合并到当前 App；不会删除或覆盖当前数据，也不会访问旧包。",
         )
         message?.let { JianyuStateCard("操作结果", it) }
     }
@@ -140,14 +148,14 @@ fun BackupRoute(
     if (showRestorePassword && pendingRestoreUri != null) {
         BackupPasswordSheet(
             title = "验证备份密码",
-            confirmLabel = "验证并预览",
+            confirmLabel = "验证并导入",
             operation = busy,
             onDismiss = { if (!busy) showRestorePassword = false },
             onConfirm = { password ->
                 scope.launch {
                     busy = true
                     val result = withContext(Dispatchers.IO) {
-                        previewEncryptedBackup(context, pendingRestoreUri!!, password)
+                        restoreEncryptedBackup(context, repository, pendingRestoreUri!!, password)
                     }
                     busy = false
                     showRestorePassword = false
@@ -224,28 +232,52 @@ private suspend fun createEncryptedBackup(
     }
 }
 
-private fun previewEncryptedBackup(context: Context, uri: Uri, password: String): String {
+private suspend fun restoreEncryptedBackup(
+    context: Context,
+    repository: JianyuRepository,
+    uri: Uri,
+    password: String,
+): String {
     return try {
-        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-            ?: return "无法读取备份文件。"
-        if (bytes.size < 8 + 2 + 16 + 12 + 16) return "备份文件不完整。"
-        if (!bytes.copyOfRange(0, 8).contentEquals(BACKUP_MAGIC.toByteArray(Charsets.US_ASCII))) {
-            return "不是见域备份文件。"
-        }
-        val version = ByteBuffer.wrap(bytes, 8, 2).order(ByteOrder.BIG_ENDIAN).short
-        if (version != BACKUP_VERSION) return "不支持的备份版本。"
-        val salt = bytes.copyOfRange(10, 26)
-        val nonce = bytes.copyOfRange(26, 38)
-        val ciphertext = bytes.copyOfRange(38, bytes.size)
-        val plaintext = aesGcm(Cipher.DECRYPT_MODE, deriveKey(password, salt), nonce, ciphertext)
-        val summary = plaintext.toString(Charsets.UTF_8)
-            .substringBefore("\"issues\"")
-            .replace("\n", " ")
-            .trim()
-        "密码验证通过，已读取备份预览。$summary 当前版本不会自动覆盖数据库。"
+        val payload = Json { ignoreUnknownKeys = true }
+            .decodeFromString<ExportPayload>(decryptEncryptedBackup(context, uri, password).toString(Charsets.UTF_8))
+        val stats = repository.importBackup(
+            BackupImportPayload(
+                issues = payload.issues.map { issue ->
+                    BackupImportIssue(
+                        id = issue.id,
+                        title = issue.title,
+                        messages = issue.messages.map { BackupImportMessage(it.sender, it.text) },
+                        artifacts = issue.artifacts.map { BackupImportArtifact(it.id, it.title, it.type, it.content) },
+                    )
+                },
+                materials = payload.materials.map {
+                    BackupImportMaterial(it.id, it.title, it.sourceType, it.content)
+                },
+                personalContexts = payload.personalContexts.map {
+                    BackupImportPersonalContext(it.id, it.title, it.sensitive, it.content)
+                },
+            )
+        )
+        "备份已验证并合并：议题 ${stats.issues} 个、成果 ${stats.artifacts} 个、资料 ${stats.materials} 项、个人背景 ${stats.personalContexts} 项。当前数据未被删除。"
     } catch (_: Throwable) {
-        "密码错误或备份内容无法验证。当前数据未被修改。"
+        "密码错误、备份格式不支持或导入失败；当前数据未被删除。"
     }
+}
+
+private fun decryptEncryptedBackup(context: Context, uri: Uri, password: String): ByteArray {
+    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+        ?: throw IllegalStateException("backup_read_failed")
+    require(bytes.size >= 8 + 2 + 16 + 12 + 16) { "backup_incomplete" }
+    require(bytes.copyOfRange(0, 8).contentEquals(BACKUP_MAGIC.toByteArray(Charsets.US_ASCII))) {
+        "backup_magic_invalid"
+    }
+    val version = ByteBuffer.wrap(bytes, 8, 2).order(ByteOrder.BIG_ENDIAN).short
+    require(version == BACKUP_VERSION) { "backup_version_unsupported" }
+    val salt = bytes.copyOfRange(10, 26)
+    val nonce = bytes.copyOfRange(26, 38)
+    val ciphertext = bytes.copyOfRange(38, bytes.size)
+    return aesGcm(Cipher.DECRYPT_MODE, deriveKey(password, salt), nonce, ciphertext)
 }
 
 private fun deriveKey(password: String, salt: ByteArray): ByteArray {

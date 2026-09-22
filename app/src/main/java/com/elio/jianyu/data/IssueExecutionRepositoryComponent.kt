@@ -13,7 +13,7 @@ internal class IssueExecutionRepositoryComponent(
                 title = command.title,
                 createdAt = command.createdAt,
                 updatedAt = command.createdAt,
-                legacyChatSessionId = null
+                legacyChatSessionId = command.legacyChatSessionId
             )
             val requestedStage = StageEntity(
                 id = command.initialStageId,
@@ -43,7 +43,8 @@ internal class IssueExecutionRepositoryComponent(
                     )
                 val sameIssuePayload = existingIssue.id == requestedIssue.id &&
                     existingIssue.title == requestedIssue.title &&
-                    existingIssue.createdAt == requestedIssue.createdAt
+                    existingIssue.createdAt == requestedIssue.createdAt &&
+                    existingIssue.legacyChatSessionId == requestedIssue.legacyChatSessionId
                 val sameStagePayload = existingStage?.id == requestedStage.id &&
                     existingStage.issueId == requestedStage.issueId &&
                     existingStage.sequenceIndex == 0 &&

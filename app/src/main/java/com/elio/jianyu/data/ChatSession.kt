@@ -81,7 +81,8 @@ interface ChatDao {
     @Query(
         "SELECT * FROM chat_sessions WHERE id NOT IN (" +
             "SELECT legacyChatSessionId FROM issues " +
-            "WHERE legacyChatSessionId IS NOT NULL AND id NOT LIKE 'legacy-chat-%'" +
+            "WHERE legacyChatSessionId IS NOT NULL AND id NOT LIKE 'legacy-chat-%' " +
+            "AND id NOT LIKE 'dialog-session-%'" +
             ") ORDER BY createdAt DESC"
     )
     fun getAllSessions(): Flow<List<ChatSession>>
@@ -94,14 +95,16 @@ interface ChatDao {
 
     @Query(
         "SELECT EXISTS(SELECT 1 FROM issues " +
-            "WHERE legacyChatSessionId = :sessionId AND id NOT LIKE 'legacy-chat-%')"
+            "WHERE legacyChatSessionId = :sessionId AND id NOT LIKE 'legacy-chat-%' " +
+            "AND id NOT LIKE 'dialog-session-%')"
     )
     suspend fun isDomainCompatibilitySession(sessionId: Long): Boolean
 
     @Query(
         "DELETE FROM chat_sessions WHERE id = :id AND NOT EXISTS (" +
             "SELECT 1 FROM issues " +
-            "WHERE legacyChatSessionId = :id AND id NOT LIKE 'legacy-chat-%'" +
+            "WHERE legacyChatSessionId = :id AND id NOT LIKE 'legacy-chat-%' " +
+            "AND id NOT LIKE 'dialog-session-%'" +
             ")"
     )
     suspend fun deleteSessionById(id: Long)
@@ -109,7 +112,8 @@ interface ChatDao {
     @Query(
         "UPDATE chat_sessions SET title = :title WHERE id = :id AND NOT EXISTS (" +
             "SELECT 1 FROM issues " +
-            "WHERE legacyChatSessionId = :id AND id NOT LIKE 'legacy-chat-%'" +
+            "WHERE legacyChatSessionId = :id AND id NOT LIKE 'legacy-chat-%' " +
+            "AND id NOT LIKE 'dialog-session-%'" +
             ")"
     )
     suspend fun updateSessionTitle(id: Long, title: String)
@@ -117,7 +121,8 @@ interface ChatDao {
     @Query(
         "DELETE FROM messages WHERE chatId = :chatId AND NOT EXISTS (" +
             "SELECT 1 FROM issues " +
-            "WHERE legacyChatSessionId = :chatId AND id NOT LIKE 'legacy-chat-%'" +
+            "WHERE legacyChatSessionId = :chatId AND id NOT LIKE 'legacy-chat-%' " +
+            "AND id NOT LIKE 'dialog-session-%'" +
             ")"
     )
     suspend fun deleteMessagesByChatId(chatId: Long)
@@ -128,6 +133,13 @@ interface ChatDao {
     @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp ASC")
     suspend fun getMessagesForChat(chatId: Long): List<Message>
 
+    /** 将首页旧聊天消息补齐到对应的正式议题和对话节点。 */
+    @Query(
+        "UPDATE messages SET issueId = :issueId, stageId = :stageId " +
+            "WHERE chatId = :chatId AND issueId IS NULL AND stageId IS NULL"
+    )
+    suspend fun backfillDomainContext(chatId: Long, issueId: String, stageId: String): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: Message): Long
 
@@ -135,7 +147,8 @@ interface ChatDao {
         "UPDATE messages SET text = :text WHERE id = :id AND isPending = 1 " +
             "AND NOT EXISTS (SELECT 1 FROM issues " +
             "WHERE legacyChatSessionId = messages.chatId " +
-            "AND issues.id NOT LIKE 'legacy-chat-%')"
+            "AND issues.id NOT LIKE 'legacy-chat-%' " +
+            "AND issues.id NOT LIKE 'dialog-session-%')"
     )
     suspend fun updatePendingMessageText(id: Long, text: String)
 
@@ -143,14 +156,16 @@ interface ChatDao {
         "UPDATE messages SET text = :text, isPending = 0 WHERE id = :id AND isPending = 1 " +
             "AND NOT EXISTS (SELECT 1 FROM issues " +
             "WHERE legacyChatSessionId = messages.chatId " +
-            "AND issues.id NOT LIKE 'legacy-chat-%')"
+            "AND issues.id NOT LIKE 'legacy-chat-%' " +
+            "AND issues.id NOT LIKE 'dialog-session-%')"
     )
     suspend fun completePendingMessage(id: Long, text: String)
 
     @Query(
         "DELETE FROM messages WHERE id = :id AND NOT EXISTS (" +
             "SELECT 1 FROM issues WHERE legacyChatSessionId = messages.chatId " +
-            "AND issues.id NOT LIKE 'legacy-chat-%')"
+            "AND issues.id NOT LIKE 'legacy-chat-%' " +
+            "AND issues.id NOT LIKE 'dialog-session-%')"
     )
     suspend fun deleteMessageById(id: Long)
 
@@ -158,7 +173,8 @@ interface ChatDao {
         "DELETE FROM messages WHERE chatId = :chatId AND isPending = 1 " +
             "AND NOT EXISTS (SELECT 1 FROM issues " +
             "WHERE legacyChatSessionId = messages.chatId " +
-            "AND issues.id NOT LIKE 'legacy-chat-%')"
+            "AND issues.id NOT LIKE 'legacy-chat-%' " +
+            "AND issues.id NOT LIKE 'dialog-session-%')"
     )
     suspend fun removePendingMessages(chatId: Long)
 
@@ -166,7 +182,8 @@ interface ChatDao {
         "DELETE FROM messages WHERE isPending = 1 " +
             "AND NOT EXISTS (SELECT 1 FROM issues " +
             "WHERE legacyChatSessionId = messages.chatId " +
-            "AND issues.id NOT LIKE 'legacy-chat-%')"
+            "AND issues.id NOT LIKE 'legacy-chat-%' " +
+            "AND issues.id NOT LIKE 'dialog-session-%')"
     )
     suspend fun removeAllPendingMessages()
 
@@ -174,7 +191,8 @@ interface ChatDao {
         "UPDATE messages SET audioFilePath = :path, audioFormat = :format, " +
             "audioSizeBytes = :size WHERE id = :id AND NOT EXISTS (" +
             "SELECT 1 FROM issues WHERE legacyChatSessionId = messages.chatId " +
-            "AND issues.id NOT LIKE 'legacy-chat-%')"
+            "AND issues.id NOT LIKE 'legacy-chat-%' " +
+            "AND issues.id NOT LIKE 'dialog-session-%')"
     )
     suspend fun updateMessageAudio(id: Long, path: String?, format: String?, size: Long)
 
@@ -189,6 +207,9 @@ class ChatRepository(private val chatDao: ChatDao) {
     fun getMessagesFlow(chatId: Long): Flow<List<Message>> = chatDao.getMessagesForChatFlow(chatId)
 
     suspend fun getMessages(chatId: Long): List<Message> = chatDao.getMessagesForChat(chatId)
+
+    suspend fun backfillDomainContext(chatId: Long, issueId: String, stageId: String): Int =
+        chatDao.backfillDomainContext(chatId, issueId, stageId)
 
     suspend fun getSessionById(id: Long): ChatSession? = chatDao.getSessionById(id)
 

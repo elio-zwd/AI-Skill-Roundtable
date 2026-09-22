@@ -2,9 +2,15 @@ package com.elio.jianyu.ui.screens.dialog
 
 import android.widget.Toast
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -17,8 +23,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.unit.dp
+import com.elio.jianyu.data.ContextSourceType
 import com.elio.jianyu.execution.SearchMode
 import com.elio.jianyu.viewmodel.RoundtableViewModel
+import com.elio.jianyu.viewmodel.ConversationContextSelection
 import kotlinx.coroutines.launch
 
 /**
@@ -26,6 +44,7 @@ import kotlinx.coroutines.launch
  *
  * 页面临时交互留在 Compose；会话、消息、Skill 角色阵容和生成状态全部来自真实 ViewModel。
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DialogRoute(
     viewModel: RoundtableViewModel,
@@ -46,9 +65,22 @@ fun DialogRoute(
     var localState by remember { mutableStateOf(initialUiState) }
     var showArchivedSessions by remember { mutableStateOf(false) }
     var renameTitle by remember { mutableStateOf<String?>(null) }
+    var contextConfirmation by remember { mutableStateOf<DialogContextState?>(null) }
+    var showReferenceDialog by remember { mutableStateOf(false) }
+    var messageActionId by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
+    val attachmentLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val result = viewModel.attachTextMaterial(uri)
+                Toast.makeText(context, materialAttachMessage(result), Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.ensureConversationReady()
@@ -166,23 +198,12 @@ fun DialogRoute(
                     Toast.makeText(context, "已复制消息。", Toast.LENGTH_SHORT).show()
                 }
                 is DialogEvent.SaveMessageAsArtifact -> {
-                    val content = uiState.messages.firstOrNull { it.id == event.messageId }
-                        ?.let { item ->
-                            when (item) {
-                                is DialogMessageItem.UserMessage -> item.text
-                                is DialogMessageItem.SkillMessage -> item.text
-                            }
-                        }
-                    if (content != null) {
-                        clipboard.setText(AnnotatedString(content))
-                        Toast.makeText(context, "已复制内容，可到资料页整理为成果。", Toast.LENGTH_SHORT).show()
+                    scope.launch {
+                        val result = viewModel.saveMessageAsArtifact(event.messageId.toLongOrNull() ?: 0L)
+                        Toast.makeText(context, artifactSaveMessage(result), Toast.LENGTH_SHORT).show()
                     }
                 }
-                is DialogEvent.ClickMessageMore -> Toast.makeText(
-                    context,
-                    "更多消息操作即将开放。",
-                    Toast.LENGTH_SHORT,
-                ).show()
+                is DialogEvent.ClickMessageMore -> messageActionId = event.messageId
                 is DialogEvent.RenameSession -> {
                     if (resolveSessionId(event.sessionId) != null) {
                         renameTitle = currentSession?.title.orEmpty()
@@ -204,12 +225,48 @@ fun DialogRoute(
                     localState = uiState.copy(activeOverlay = DialogOverlayType.DRAWER_SESSIONS)
                 }
                 DialogEvent.SaveOrOrganizeArtifacts -> currentSession?.id?.let { sessionId ->
-                    exportSession(sessionId, "会话已整理为 Markdown 并复制，可到资料页保存为成果。")
+                    scope.launch {
+                        val result = viewModel.saveConversationAsArtifact(sessionId)
+                        Toast.makeText(context, artifactSaveMessage(result), Toast.LENGTH_SHORT).show()
+                    }
                 }
-                DialogEvent.AddFileAttachment,
-                DialogEvent.SelectMaterials,
-                DialogEvent.ViewReferenceContent,
-                -> Toast.makeText(context, "该能力尚未接入当前对话。", Toast.LENGTH_SHORT).show()
+                DialogEvent.AddFileAttachment -> attachmentLauncher.launch(arrayOf("text/*", "application/json", "application/pdf"))
+                DialogEvent.SelectMaterials -> {
+                    scope.launch {
+                        val (materials, personalContexts) = viewModel.loadAvailableConversationContext()
+                        val selected = viewModel.currentConversationContextSelections()
+                            .associateBy { it.sourceType to it.sourceId }
+                        val candidates = materials.map { material ->
+                            val key = ContextSourceType.MATERIAL to material.id
+                            val previous = selected[key]
+                            DialogContextCandidate(
+                                sourceType = ContextSourceType.MATERIAL,
+                                sourceId = material.id,
+                                title = material.title,
+                                content = previous?.content ?: material.content,
+                                sensitive = material.sensitive,
+                                selected = previous != null,
+                                networkAllowed = previous?.networkAllowed == true,
+                                sensitiveConfirmed = previous?.sensitiveConfirmed == true,
+                            )
+                        } + personalContexts.map { personal ->
+                            val key = ContextSourceType.PERSONAL_CONTEXT to personal.id
+                            val previous = selected[key]
+                            DialogContextCandidate(
+                                sourceType = ContextSourceType.PERSONAL_CONTEXT,
+                                sourceId = personal.id,
+                                title = personal.title,
+                                content = previous?.content ?: personal.content,
+                                sensitive = personal.sensitive,
+                                selected = previous != null,
+                                networkAllowed = previous?.networkAllowed == true,
+                                sensitiveConfirmed = previous?.sensitiveConfirmed == true,
+                            )
+                        }
+                        contextConfirmation = DialogContextState(candidates)
+                    }
+                }
+                DialogEvent.ViewReferenceContent -> showReferenceDialog = true
                 else -> localState = reduceDialogLocalState(uiState, event)
             }
         },
@@ -247,6 +304,200 @@ fun DialogRoute(
             },
         )
     }
+
+    contextConfirmation?.let { state ->
+        DialogContextSelectionDialog(
+            state = state,
+            onDismiss = { contextConfirmation = null },
+            onChange = { candidate ->
+                contextConfirmation = state.copy(candidates = state.candidates.map {
+                    if (it.sourceType == candidate.sourceType && it.sourceId == candidate.sourceId) candidate else it
+                })
+            },
+            onConfirm = {
+                val selections = state.selectedItems.map { candidate ->
+                    ConversationContextSelection(
+                        sourceType = candidate.sourceType,
+                        sourceId = candidate.sourceId,
+                        title = candidate.title,
+                        content = candidate.content,
+                        networkAllowed = candidate.networkAllowed,
+                        sensitive = candidate.sensitive,
+                        sensitiveConfirmed = candidate.sensitiveConfirmed,
+                    )
+                }
+                viewModel.confirmConversationContext(selections)
+                contextConfirmation = null
+                Toast.makeText(context, "已保存本次对话的资料选择。", Toast.LENGTH_SHORT).show()
+            },
+        )
+    }
+
+    if (showReferenceDialog) {
+        val selected = viewModel.currentConversationContextSelections()
+        AlertDialog(
+            onDismissRequest = { showReferenceDialog = false },
+            title = { Text("本次参考内容") },
+            text = {
+                Text(
+                    if (selected.isEmpty()) "当前没有选择资料或个人背景。"
+                    else selected.joinToString("\n\n") { "${it.title}\n${it.content.take(300)}" },
+                )
+            },
+            confirmButton = { TextButton(onClick = { showReferenceDialog = false }) { Text("关闭") } },
+        )
+    }
+
+    messageActionId?.let { messageId ->
+        val item = uiState.messages.firstOrNull { it.id == messageId }
+        val content = when (item) {
+            is DialogMessageItem.UserMessage -> item.text
+            is DialogMessageItem.SkillMessage -> item.text
+            null -> null
+        }
+        AlertDialog(
+            onDismissRequest = { messageActionId = null },
+            title = { Text("消息操作") },
+            text = { Text("可以复制消息，或确认保存为正式成果。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (content != null) clipboard.setText(AnnotatedString(content))
+                    messageActionId = null
+                }) { Text("复制") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    scope.launch {
+                        val result = viewModel.saveMessageAsArtifact(messageId.toLongOrNull() ?: 0L)
+                        Toast.makeText(context, artifactSaveMessage(result), Toast.LENGTH_SHORT).show()
+                    }
+                    messageActionId = null
+                }) { Text("保存为成果") }
+            },
+        )
+    }
+}
+
+private data class DialogContextCandidate(
+    val sourceType: ContextSourceType,
+    val sourceId: String,
+    val title: String,
+    val content: String,
+    val sensitive: Boolean,
+    val selected: Boolean = false,
+    val networkAllowed: Boolean = false,
+    val sensitiveConfirmed: Boolean = false,
+)
+
+private data class DialogContextState(
+    val candidates: List<DialogContextCandidate>,
+) {
+    val selectedItems: List<DialogContextCandidate>
+        get() = candidates.filter { it.selected }
+}
+
+@Composable
+private fun DialogContextSelectionDialog(
+    state: DialogContextState,
+    onDismiss: () -> Unit,
+    onChange: (DialogContextCandidate) -> Unit,
+    onConfirm: () -> Unit,
+) {
+    val hasMissingPermission = state.selectedItems.any {
+        !it.networkAllowed || (it.sensitive && !it.sensitiveConfirmed) || it.content.isBlank()
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("选择本次参考内容") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 620.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    "资料和个人背景默认不发送。只有勾选、允许本次发送并确认后，才会进入模型请求。",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (state.candidates.isEmpty()) {
+                    Text("当前没有可选的活跃资料或个人背景。")
+                }
+                state.candidates.forEach { candidate ->
+                    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                        Row {
+                            Checkbox(
+                                checked = candidate.selected,
+                                onCheckedChange = {
+                                    onChange(
+                                        candidate.copy(
+                                            selected = !candidate.selected,
+                                            networkAllowed = if (candidate.selected) false else candidate.networkAllowed,
+                                            sensitiveConfirmed = if (candidate.selected) false else candidate.sensitiveConfirmed,
+                                        )
+                                    )
+                                },
+                            )
+                            Column(modifier = Modifier.padding(top = 12.dp)) {
+                                Text(candidate.title, style = MaterialTheme.typography.titleSmall)
+                                Text(
+                                    if (candidate.sourceType == ContextSourceType.MATERIAL) "资料" else "个人背景",
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                            }
+                        }
+                        if (candidate.selected) {
+                            OutlinedTextField(
+                                value = candidate.content,
+                                onValueChange = { onChange(candidate.copy(content = it)) },
+                                label = { Text("本次发送的正文或摘录") },
+                                minLines = 3,
+                            )
+                            Row {
+                                Checkbox(
+                                    checked = candidate.networkAllowed,
+                                    onCheckedChange = { onChange(candidate.copy(networkAllowed = it)) },
+                                )
+                                Text("允许本次发送给模型服务", modifier = Modifier.padding(top = 12.dp))
+                            }
+                            if (candidate.sensitive) {
+                                Row {
+                                    Checkbox(
+                                        checked = candidate.sensitiveConfirmed,
+                                        onCheckedChange = { onChange(candidate.copy(sensitiveConfirmed = it)) },
+                                    )
+                                    Text(
+                                        "我已查看并确认发送敏感内容",
+                                        modifier = Modifier.padding(top = 12.dp),
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                }
+                            }
+                        } else {
+                            Text(
+                                candidate.content.lineSequence().firstOrNull().orEmpty().take(120),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm, enabled = !hasMissingPermission) { Text("确认选择") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+    )
+}
+
+private fun artifactSaveMessage(result: com.elio.jianyu.data.RepositoryResult<*>) = when (result) {
+    is com.elio.jianyu.data.RepositoryResult.Success -> if (result.idempotent) "该内容已保存为成果。" else "已保存为正式成果。"
+    is com.elio.jianyu.data.RepositoryResult.Failure -> "成果保存失败，请稍后重试。"
+}
+
+private fun materialAttachMessage(result: com.elio.jianyu.data.RepositoryResult<*>) = when (result) {
+    is com.elio.jianyu.data.RepositoryResult.Success -> "资料已加入当前对话。"
+    is com.elio.jianyu.data.RepositoryResult.Failure -> "资料读取或保存失败，请选择 UTF-8 文本文件。"
 }
 
 /** 仅处理页面局部交互，不伪造或修改真实业务数据。 */

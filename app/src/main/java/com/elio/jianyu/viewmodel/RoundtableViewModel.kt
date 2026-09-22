@@ -3,11 +3,24 @@ package com.elio.jianyu.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.elio.jianyu.JianyuAppRuntimeProvider
 import com.elio.jianyu.data.Character
 import com.elio.jianyu.data.ChatSession
+import com.elio.jianyu.data.ArtifactMessageSourceEntity
+import com.elio.jianyu.data.ArtifactSources
+import com.elio.jianyu.data.ConfirmedArtifactEntity
+import com.elio.jianyu.data.ContextSourceLifecycle
+import com.elio.jianyu.data.ContextSourceType
+import com.elio.jianyu.data.CreateMaterialCommand
 import com.elio.jianyu.data.ConversationSessionPreferences
+import com.elio.jianyu.data.JianyuRepository
 import com.elio.jianyu.data.Message
+import com.elio.jianyu.data.MaterialFilter
+import com.elio.jianyu.data.PersonalContextFilter
+import com.elio.jianyu.data.RepositoryError
+import com.elio.jianyu.data.RepositoryResult
 import com.elio.jianyu.data.RoundtableDatabase
+import com.elio.jianyu.data.SaveIssueCommand
 import com.elio.jianyu.network.Content
 import com.elio.jianyu.network.GenerateContentRequest
 import com.elio.jianyu.network.Part
@@ -52,6 +65,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
@@ -61,9 +76,27 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.workDataOf
 import androidx.work.WorkManager
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 
 private const val ROUNDTABLE_SEQUENCE_TIMEOUT_MS = 8 * 60 * 1000L
 private const val DEFAULT_SESSION_ROLE_COUNT = 2
+private const val DIALOG_ISSUE_ID_PREFIX = "dialog-session-"
+private const val DIALOG_STAGE_ID_PREFIX = "dialog-node-"
+
+data class FormalConversationContext(
+    val issueId: String,
+    val stageId: String,
+)
+
+data class ConversationContextSelection(
+    val sourceType: ContextSourceType,
+    val sourceId: String,
+    val title: String,
+    val content: String,
+    val networkAllowed: Boolean,
+    val sensitive: Boolean,
+    val sensitiveConfirmed: Boolean,
+)
 
 data class RetryableRoundtableState(
     val sessionId: Long,
@@ -121,6 +154,12 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
     private val charRepo = com.elio.jianyu.data.CharacterRepository(database.characterDao())
     private val chatRepo = com.elio.jianyu.data.ChatRepository(database.chatDao())
     private val groupRepo = com.elio.jianyu.data.CharacterGroupRepository(database.characterGroupDao())
+    private val formalRepository: JianyuRepository? = runCatching {
+        JianyuAppRuntimeProvider.get(application).repository
+    }.getOrNull()
+    private val formalizationMutex = Mutex()
+    private val formalContexts = ConcurrentHashMap<Long, FormalConversationContext>()
+    private val selectedConversationContexts = ConcurrentHashMap<Long, List<ConversationContextSelection>>()
     private val startupPendingCleanupJob: Job = viewModelScope.launch(Dispatchers.IO) {
         try {
             chatRepo.removeAllPendingMessages()
@@ -224,7 +263,15 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
     private val dbGateway = object : RoundtableDatabaseGateway {
         override suspend fun getMessages(sessionId: Long): List<Message> = chatRepo.getMessages(sessionId)
-        override suspend fun insertMessage(message: Message): Long = chatRepo.insertMessage(message)
+        override suspend fun insertMessage(message: Message): Long {
+            val formal = ensureFormalConversation(message.chatId)
+            return chatRepo.insertMessage(
+                if (formal == null) message else message.copy(
+                    issueId = formal.issueId,
+                    stageId = formal.stageId,
+                )
+            )
+        }
         override suspend fun deleteMessageById(id: Long) = chatRepo.deleteMessageById(id)
         override suspend fun updatePendingMessageText(id: Long, text: String) {
             chatRepo.updatePendingMessageText(id, text)
@@ -234,6 +281,59 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         }
         override suspend fun removePendingMessages(sessionId: Long) = chatRepo.removePendingMessages(sessionId)
         override suspend fun getCharacters(): List<Character> = charRepo.allCharacters.first()
+    }
+
+    /**
+     * 首页旧聊天与正式议题共用同一消息表；首次使用或迁移时建立稳定的兼容议题和对话节点。
+     * 该操作是幂等的，且不会把上一角色的回答拼接为下一角色的默认上下文。
+     */
+    suspend fun ensureFormalConversation(sessionId: Long): FormalConversationContext? {
+        formalContexts[sessionId]?.let { return it }
+        val repository = formalRepository ?: return null
+        return formalizationMutex.withLock {
+            formalContexts[sessionId]?.let { return@withLock it }
+            val session = chatRepo.getSessionById(sessionId) ?: return@withLock null
+            val now = System.currentTimeMillis()
+            val context = FormalConversationContext(
+                issueId = "$DIALOG_ISSUE_ID_PREFIX$sessionId",
+                stageId = "$DIALOG_STAGE_ID_PREFIX$sessionId",
+            )
+            val result = repository.saveIssue(
+                    SaveIssueCommand(
+                        issueId = context.issueId,
+                        title = session.title.ifBlank { "对话" },
+                        initialStageId = context.stageId,
+                        initialStageTitle = "对话节点",
+                        initialObjective = session.title.ifBlank { "持续对话" },
+                        createdAt = session.createdAt.takeIf { it > 0L } ?: now,
+                        legacyChatSessionId = sessionId,
+                    )
+                )
+            when (result) {
+                is RepositoryResult.Success -> {
+                    chatRepo.backfillDomainContext(sessionId, context.issueId, context.stageId)
+                    formalContexts[sessionId] = context
+                    context
+                }
+                is RepositoryResult.Failure -> {
+                    if (result.error is RepositoryError.IdempotencyConflict) {
+                        val recovered = repository.recoverIssue(context.issueId)
+                        if (recovered is RepositoryResult.Success &&
+                            recovered.value.core.issue.legacyChatSessionId == sessionId
+                        ) {
+                            chatRepo.backfillDomainContext(sessionId, context.issueId, context.stageId)
+                            formalContexts[sessionId] = context
+                            return@withLock context
+                        }
+                    }
+                    PrivacySafeLogger.w(
+                        "RoundtableViewModel",
+                        "Formal conversation setup skipped: ${result.error}"
+                    )
+                    null
+                }
+            }
+        }
     }
 
     private val answerGateway = object : CharacterAnswerGateway {
@@ -610,7 +710,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 avatar = "👤",
                 text = text
             )
-            val questionRunId = chatRepo.insertMessage(userMsg)
+            val questionRunId = dbGateway.insertMessage(userMsg)
             budgetManager.setSelectedParticipants(questionRunId, targetCharacterIds)
             runRoundtableSequence(
                 sessionId = sessionId,
@@ -722,6 +822,177 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             }
         }
         sb.toString()
+    }
+
+    /** 读取可供本次对话明确选择的资料和个人背景，不会自动写入模型请求。 */
+    suspend fun loadAvailableConversationContext(): Pair<
+        List<com.elio.jianyu.data.Material>,
+        List<com.elio.jianyu.data.PersonalContext>
+    > = withContext(Dispatchers.IO) {
+        val repository = formalRepository ?: return@withContext emptyList<com.elio.jianyu.data.Material>() to emptyList()
+        val materials = (repository.listMaterials(
+            MaterialFilter(lifecycles = setOf(ContextSourceLifecycle.ACTIVE))
+        ) as? RepositoryResult.Success)?.value.orEmpty()
+        val personal = (repository.listPersonalContexts(
+            PersonalContextFilter(lifecycles = setOf(ContextSourceLifecycle.ACTIVE))
+        ) as? RepositoryResult.Success)?.value.orEmpty()
+        materials to personal
+    }
+
+    /** 仅保存用户明确选择且已允许本次发送的上下文；下一轮会继续显示为已选，但不会默认继承其他角色答案。 */
+    fun confirmConversationContext(selections: List<ConversationContextSelection>) {
+        val sessionId = _currentSessionId.value ?: return
+        val valid = selections.filter {
+            it.content.isNotBlank() && it.networkAllowed && (!it.sensitive || it.sensitiveConfirmed)
+        }
+        selectedConversationContexts[sessionId] = valid
+    }
+
+    fun currentConversationContextSelections(): List<ConversationContextSelection> =
+        _currentSessionId.value?.let(selectedConversationContexts::get).orEmpty()
+
+    suspend fun saveMessageAsArtifact(messageId: Long): RepositoryResult<ConfirmedArtifactEntity> =
+        withContext(Dispatchers.IO) {
+            val message = currentMessages.value.firstOrNull { it.id == messageId }
+                ?: return@withContext RepositoryResult.Failure(
+                    RepositoryError.NotFound("message", messageId.toString())
+                )
+            if (message.isPending || message.text.isBlank()) {
+                return@withContext RepositoryResult.Failure(
+                    RepositoryError.InvalidState("confirm_artifact", "message_not_completed")
+                )
+            }
+            val formal = ensureFormalConversation(message.chatId)
+                ?: return@withContext RepositoryResult.Failure(
+                    RepositoryError.CompatibilityFailure("confirm_artifact", "formal_conversation_unavailable")
+                )
+            val now = System.currentTimeMillis()
+            val artifact = ConfirmedArtifactEntity(
+                id = "artifact-dialog-message-$messageId",
+                issueId = formal.issueId,
+                stageId = formal.stageId,
+                title = "${message.senderName}：${message.text.lineSequence().firstOrNull().orEmpty().take(40)}",
+                content = message.text,
+                artifactType = "conversation_message",
+                contentFormat = "markdown",
+                confirmedAt = now,
+                createdAt = now,
+                updatedAt = now,
+            )
+            formalRepository?.confirmArtifact(
+                com.elio.jianyu.data.ConfirmArtifactCommand(
+                    artifact = artifact,
+                    sources = ArtifactSources(
+                        messages = listOf(
+                            ArtifactMessageSourceEntity(
+                                artifactId = artifact.id,
+                                issueId = formal.issueId,
+                                messageId = message.id,
+                                createdAt = now,
+                            )
+                        )
+                    ),
+                )
+            ) ?: RepositoryResult.Failure(
+                RepositoryError.CompatibilityFailure("confirm_artifact", "repository_unavailable")
+            )
+        }
+
+    suspend fun saveConversationAsArtifact(sessionId: Long): RepositoryResult<ConfirmedArtifactEntity> =
+        withContext(Dispatchers.IO) {
+            val markdown = exportConversation(sessionId)
+            val messages = chatRepo.getMessages(sessionId).filter { !it.isPending && it.text.isNotBlank() }
+            if (markdown.isBlank() || messages.isEmpty()) {
+                return@withContext RepositoryResult.Failure(
+                    RepositoryError.InvalidState("confirm_artifact", "conversation_empty")
+                )
+            }
+            val formal = ensureFormalConversation(sessionId)
+                ?: return@withContext RepositoryResult.Failure(
+                    RepositoryError.CompatibilityFailure("confirm_artifact", "formal_conversation_unavailable")
+                )
+            val now = System.currentTimeMillis()
+            val artifact = ConfirmedArtifactEntity(
+                id = "artifact-dialog-session-$sessionId",
+                issueId = formal.issueId,
+                stageId = formal.stageId,
+                title = chatRepo.getSessionById(sessionId)?.title ?: "对话成果",
+                content = markdown,
+                artifactType = "conversation",
+                contentFormat = "markdown",
+                confirmedAt = now,
+                createdAt = now,
+                updatedAt = now,
+            )
+            formalRepository?.confirmArtifact(
+                com.elio.jianyu.data.ConfirmArtifactCommand(
+                    artifact = artifact,
+                    sources = ArtifactSources(
+                        messages = messages.map { message ->
+                            ArtifactMessageSourceEntity(
+                                artifactId = artifact.id,
+                                issueId = formal.issueId,
+                                messageId = message.id,
+                                createdAt = now,
+                            )
+                        }
+                    ),
+                )
+            ) ?: RepositoryResult.Failure(
+                RepositoryError.CompatibilityFailure("confirm_artifact", "repository_unavailable")
+            )
+        }
+
+    suspend fun attachTextMaterial(uri: android.net.Uri): RepositoryResult<com.elio.jianyu.data.Material> =
+        withContext(Dispatchers.IO) {
+            val context = getApplication<Application>().applicationContext
+            val content = runCatching {
+                context.contentResolver.openInputStream(uri)?.use { it.reader(Charsets.UTF_8).readText() }
+            }.getOrNull().orEmpty()
+            if (content.isBlank()) {
+                return@withContext RepositoryResult.Failure(
+                    RepositoryError.ConstraintViolation("create_material", "empty_or_unreadable_file")
+                )
+            }
+            val sessionId = _currentSessionId.value
+                ?: return@withContext RepositoryResult.Failure(
+                    RepositoryError.InvalidState("create_material", "conversation_missing")
+                )
+            val formal = ensureFormalConversation(sessionId)
+                ?: return@withContext RepositoryResult.Failure(
+                    RepositoryError.CompatibilityFailure("create_material", "formal_conversation_unavailable")
+                )
+            val now = System.currentTimeMillis()
+            val title = uri.lastPathSegment?.substringAfterLast('/')?.ifBlank { "导入资料" } ?: "导入资料"
+            formalRepository?.createMaterial(
+                CreateMaterialCommand(
+                    id = "material-dialog-${System.currentTimeMillis()}",
+                    issueId = formal.issueId,
+                    stageId = formal.stageId,
+                    title = title,
+                    sourceType = "file",
+                    sourceLocator = uri.toString(),
+                    content = content,
+                    sourceCapturedAt = now,
+                    createdAt = now,
+                )
+            ) ?: RepositoryResult.Failure(
+                RepositoryError.CompatibilityFailure("create_material", "repository_unavailable")
+            )
+        }
+
+    private fun appendSelectedConversationContext(sessionId: Long, prompt: String): String {
+        val selected = selectedConversationContexts[sessionId].orEmpty()
+        if (selected.isEmpty()) return prompt
+        return buildString {
+            append(prompt)
+            append("\n\n=== 用户本次明确选择的资料/个人背景 ===\n")
+            selected.forEach { item ->
+                append("--- ${item.title}（${item.sourceType.storageValue}）---\n")
+                append(item.content).append('\n')
+            }
+            append("=== 以上内容仅作为本次请求的明确输入，不代表其他 Skill 角色的默认结论 ===")
+        }
     }
 
     val currentPlayingMessageId = AudioPlaybackManager.currentPlayingMessageId
@@ -1062,6 +1333,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         onTextUpdate: suspend (String) -> Unit = {}
     ): String = withContext(Dispatchers.IO) {
         val context = getApplication<Application>().applicationContext
+        val promptWithContext = appendSelectedConversationContext(sessionId, prompt)
         val folderName = character.skillAssetPath
             .substringAfter("skills/", "")
             .substringBefore("/SKILL.md", "")
@@ -1121,7 +1393,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     请分析当前的对话上下文，并从下方的【候选本地资料文件列表】中，选择回答当前问题最紧密相关、最必要的参考文件（如果列表为空，则返回空数组）。
 
                     【对话上下文】
-                    $prompt
+                    $promptWithContext
 
                     【候选本地资料文件列表】
                     ${formatFileList()}
@@ -1142,7 +1414,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     2. 联网搜索接地决策：判断当前问题或对话上下文是否需要最新的实时信息、新闻、外部事实数据来辅助解答。如果需要，请将 `needSearch` 设为 `true`，并在 `searchQueries` 数组中提供 1 到多个精准的搜索关键词（建议 1-3 个）。如果不需要，请将 `needSearch` 设为 `false` 且 `searchQueries` 设为空数组。
 
                     【对话上下文】
-                    $prompt
+                    $promptWithContext
 
                     【候选本地资料文件列表】
                     ${formatFileList()}
@@ -1166,7 +1438,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     2. 联网搜索接地决策：你必须在 `searchQueries` 数组中列出 1 到多个（建议 1-3 个）核心的联网搜索关键词/任务，用以获取最新的实时事实信息来解答此问题，并将 `needSearch` 设为 `true`。
 
                     【对话上下文】
-                    $prompt
+                    $promptWithContext
 
                     【候选本地资料文件列表】
                     ${formatFileList()}
@@ -1270,7 +1542,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             if (mode == SearchMode.ON) {
                 finalNeedSearch = true
                 if (finalQueries.isEmpty()) {
-                    val lastUserMsg = prompt.lineSequence()
+                    val lastUserMsg = promptWithContext.lineSequence()
                         .filter { it.startsWith("用户提问：") }
                         .lastOrNull()
                         ?.removePrefix("用户提问：")
@@ -1294,7 +1566,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     val searchRequest = CreateInteractionRequest(
                         model = searchModel.modelId,
                         input = JsonPrimitive(
-                            "请针对以下搜索任务进行联网搜索并给出详细总结：\n任务：$query\n对话背景：$prompt"
+                            "请针对以下搜索任务进行联网搜索并给出详细总结：\n任务：$query\n对话背景：$promptWithContext"
                         ),
                         tools = listOf(Tool(type = "google_search"))
                     )
@@ -1387,7 +1659,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 attemptPlan = attemptPlan,
                 model = model,
                 systemInstruction = referencesText,
-                userContent = prompt,
+                userContent = promptWithContext,
                 maxOutputTokens = budget.maxOutputTokensPerAnswer,
                 thinkingLevel = currentThinkingLevel(),
                 operationName = "MainAnswer-${character.id}",
@@ -1402,7 +1674,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
         val request = CreateInteractionRequest(
             model = model.modelId,
-            input = JsonPrimitive(prompt),
+            input = JsonPrimitive(promptWithContext),
             systemInstruction = referencesText,
             store = true,
             previousInteractionId = null,

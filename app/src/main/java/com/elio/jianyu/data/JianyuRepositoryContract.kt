@@ -62,7 +62,9 @@ data class SaveIssueCommand(
     val initialStageId: String,
     val initialStageTitle: String,
     val initialObjective: String,
-    val createdAt: Long
+    val createdAt: Long,
+    /** 首页对话兼容层与正式议题的一对一关系；正式议题保持 null。 */
+    val legacyChatSessionId: Long? = null,
 )
 
 data class UpdateIssueThinkingPolicyCommand(
