@@ -12,6 +12,18 @@ class DataPrivacyIntegrityTest {
             .readText()
     }
 
+    private val appSource: String by lazy {
+        findRepositoryRoot()
+            .resolve("app/src/main/java/com/elio/jianyu/ui/App.kt")
+            .readText()
+    }
+
+    private val viewModelSource: String by lazy {
+        findRepositoryRoot()
+            .resolve("app/src/main/java/com/elio/jianyu/viewmodel/RoundtableViewModel.kt")
+            .readText()
+    }
+
     private val source: String by lazy {
         findRepositoryRoot()
             .resolve("app/src/main/java/com/elio/jianyu/ui/screens/mine/DataPrivacyRoute.kt")
@@ -39,6 +51,8 @@ class DataPrivacyIntegrityTest {
             "TelemetryRepository.clearAllTelemetry(context)",
             "CloudInteractionSettings.setEnabled(context, false)",
             "AppPreferences.reset(context)",
+            "officialSkillPreferencesCleared",
+            "conversationPreferencesCleared",
             "SnapshotCatalog.clearAll(context)",
             "AndroidKeystoreSnapshotKeyProvider().deleteExisting()",
             "clearAppOwnedAudioFiles(context)",
@@ -48,6 +62,10 @@ class DataPrivacyIntegrityTest {
         assertTrue(source.contains("BackupOperationGate.forContext(context).withWriteLock"))
         assertTrue(source.contains("cleanupSucceeded"))
         assertTrue(source.contains("设备快照"))
+        assertTrue(appSource.contains("onClearConversationPreferences = viewModel::clearLocalPreferencesAfterDataDeletion"))
+        assertTrue(appSource.contains("officialSkillPreferences ="))
+        assertTrue(viewModelSource.contains("prefs.edit().clear().commit()"))
+        assertTrue(viewModelSource.contains("conversationPreferences.clearAll()"))
     }
 
     private fun findRepositoryRoot(): File {
