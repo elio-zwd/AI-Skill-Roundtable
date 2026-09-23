@@ -113,22 +113,12 @@ fun ResourcesRoute(
         onSelectSection = viewModel::selectSection,
         onQueryChange = viewModel::updateQuery,
         onLifecyclesChange = viewModel::selectLifecycles,
-        onAdd = {
-            val content = state as? ResourcesUiState.Content
-            if (content?.section == ResourceLibrarySection.PERSONAL_CONTEXTS) {
-                viewModel.openNewPersonalContext()
-            } else {
-                addMaterialSheetVisible = true
-            }
-        },
+        onAdd = { addMaterialSheetVisible = true },
         onEditMaterial = viewModel::editMaterial,
         onOpenMaterial = viewModel::openMaterial,
         onDismissMaterial = viewModel::dismissMaterial,
-        onEditPersonalContext = viewModel::editPersonalContext,
         onMaterialLifecycle = viewModel::changeMaterialLifecycle,
-        onPersonalContextLifecycle = viewModel::changePersonalContextLifecycle,
         onRequestMaterialPurge = viewModel::requestMaterialPurge,
-        onRequestPersonalContextPurge = viewModel::requestPersonalContextPurge,
         onEditorChange = viewModel::updateEditor,
         onDismissEditor = viewModel::dismissEditor,
         onSaveEditor = viewModel::saveEditor,
