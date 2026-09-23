@@ -52,6 +52,7 @@ internal fun SkillRoleRecentScreen(
     sections: List<SkillRoleRecentSection>,
     filters: RoleDiscoveryFilters,
     hasAnyRecent: Boolean,
+    message: String?,
     onBack: () -> Unit,
     onOpenFilters: () -> Unit,
     onClearAllFilters: () -> Unit,
@@ -121,6 +122,15 @@ internal fun SkillRoleRecentScreen(
                         )
                     }
                 }
+            }
+
+            message?.let {
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                )
             }
 
             if (!hasAnyRecent) {

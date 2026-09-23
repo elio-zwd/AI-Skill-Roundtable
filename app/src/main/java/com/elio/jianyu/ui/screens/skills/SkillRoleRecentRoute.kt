@@ -65,6 +65,7 @@ internal fun SkillRoleRecentRoute(
 
     var filters by remember { mutableStateOf(RoleDiscoveryFilters()) }
     var filterSheetVisible by rememberSaveable { mutableStateOf(false) }
+    var clearMessage by remember { mutableStateOf<String?>(null) }
 
     val allRecentRoles = roleCatalog.recentRoles
     val visibleRecentRoles = applyDiscoveryFilters(
@@ -80,6 +81,7 @@ internal fun SkillRoleRecentRoute(
             sections = sections,
             filters = filters,
             hasAnyRecent = allRecentRoles.isNotEmpty(),
+            message = clearMessage,
             onBack = onBack,
             onOpenFilters = { filterSheetVisible = true },
             onClearAllFilters = { filters = RoleDiscoveryFilters() },
@@ -91,7 +93,7 @@ internal fun SkillRoleRecentRoute(
         },
             onClearRecent = {
                 scope.launch {
-                    runtime.preferences.clearRecentUses()
+                    clearMessage = recentClearFeedback(runtime.preferences.clearRecentUses())
                 }
             },
         )

@@ -247,3 +247,7 @@ internal fun groupRecentRolesByDate(
         }
     }
 }
+
+
+internal fun recentClearFeedback(success: Boolean): String? =
+    if (success) null else "清除最近使用失败，请重试。"
