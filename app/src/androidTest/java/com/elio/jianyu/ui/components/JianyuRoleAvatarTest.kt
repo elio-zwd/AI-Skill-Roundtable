@@ -27,7 +27,7 @@ class JianyuRoleAvatarTest {
             SkillRoundtableTheme {
                 JianyuRoleAvatar(
                     name = "史蒂夫·乔布斯",
-                    assetPath = "avatars/steve_jobs.jpg",
+                    assetPath = "avatars/portraits/steve_jobs.jpg",
                     fallbackText = "乔布斯",
                     modifier = Modifier.size(56.dp).testTag("person_avatar"),
                 )
@@ -36,6 +36,23 @@ class JianyuRoleAvatarTest {
 
         composeRule.onNodeWithContentDescription("史蒂夫·乔布斯").assertExists()
         composeRule.onNodeWithText("乔布斯").assertDoesNotExist()
+    }
+
+    @Test
+    fun existingToolAsset_isRenderedInsteadOfFallbackText() {
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                JianyuRoleAvatar(
+                    name = "会议纪要与行动项助手",
+                    assetPath = "avatars/tools/meeting-to-action.png",
+                    fallbackText = "会议",
+                    modifier = Modifier.size(56.dp).testTag("tool_avatar"),
+                )
+            }
+        }
+
+        composeRule.onNodeWithContentDescription("会议纪要与行动项助手").assertExists()
+        composeRule.onNodeWithText("会议").assertDoesNotExist()
     }
 
     @Test
