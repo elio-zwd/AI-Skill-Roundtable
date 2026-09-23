@@ -64,9 +64,22 @@ class DataPrivacyIntegrityTest {
         assertTrue(source.contains("BackupOperationGate.forContext(context).withWriteLock"))
         assertTrue(source.contains("cleanupSucceeded"))
         assertTrue(source.contains("设备快照"))
-        assertTrue(appSource.contains("onPrepareForLocalDataDeletion = viewModel::prepareForLocalDataDeletion"))
-        assertTrue(appSource.contains("onClearConversationPreferences = viewModel::clearLocalPreferencesAfterDataDeletion"))
-        assertTrue(appSource.contains("officialSkillPreferences ="))
+        val mineBlock = appSource.substringAfter("mineContent = {").substringBefore("settingsContent = {")
+        val dataPrivacyBlock = appSource.substringAfter("dataPrivacyContent = {").substringBefore("backupContent = {")
+        assertFalse(mineBlock.contains("officialSkillPreferences ="))
+        assertFalse(mineBlock.contains("onPrepareForLocalDataDeletion ="))
+        assertFalse(mineBlock.contains("onClearConversationPreferences ="))
+        assertTrue(dataPrivacyBlock.contains("officialSkillPreferences = officialSkillPreferences"))
+        assertTrue(
+            dataPrivacyBlock.contains(
+                "onPrepareForLocalDataDeletion = viewModel::prepareForLocalDataDeletion",
+            ),
+        )
+        assertTrue(
+            dataPrivacyBlock.contains(
+                "onClearConversationPreferences = viewModel::clearLocalPreferencesAfterDataDeletion",
+            ),
+        )
         assertTrue(viewModelSource.contains("cancelAndJoin()"))
         assertTrue(viewModelSource.contains("prefs.edit().clear().commit()"))
         assertTrue(viewModelSource.contains("conversationPreferences.clearAll()"))
