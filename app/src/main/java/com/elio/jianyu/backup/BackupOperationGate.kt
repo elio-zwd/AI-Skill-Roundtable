@@ -5,6 +5,9 @@ import java.io.RandomAccessFile
 import java.nio.channels.FileChannel
 import java.nio.channels.OverlappingFileLockException
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
@@ -64,6 +67,12 @@ private class SuspendReadWriteLock {
     }
 }
 
+private class BackupWriteLease(
+    val gate: BackupOperationGate,
+) : AbstractCoroutineContextElement(Key) {
+    companion object Key : CoroutineContext.Key<BackupWriteLease>
+}
+
 /**
  * The single process/external-process gate for backup and snapshot operations.
  * Business writers take the read side; backup and snapshot writers take the write side.
@@ -86,7 +95,9 @@ class BackupOperationGate internal constructor(private val lockFile: java.io.Fil
                 null
             }
             if (held == null) throw BackupException(BackupErrorCode.OPERATION_ALREADY_RUNNING)
-            block()
+            withContext(BackupWriteLease(this@BackupOperationGate)) {
+                block()
+            }
         } finally {
             runCatching { held?.release() }
             runCatching { channel?.close() }
@@ -95,13 +106,18 @@ class BackupOperationGate internal constructor(private val lockFile: java.io.Fil
         }
     }
 
-    suspend fun <T> withReadLock(block: suspend () -> T): T = withContext(Dispatchers.IO) {
-        processLock.acquireRead()
-        try {
-            block()
-        } finally {
-            withContext(NonCancellable) {
-                processLock.releaseRead()
+    suspend fun <T> withReadLock(block: suspend () -> T): T {
+        if (coroutineContext[BackupWriteLease]?.gate === this) {
+            return block()
+        }
+        return withContext(Dispatchers.IO) {
+            processLock.acquireRead()
+            try {
+                block()
+            } finally {
+                withContext(NonCancellable) {
+                    processLock.releaseRead()
+                }
             }
         }
     }

@@ -86,6 +86,25 @@ class BackupOperationGateTest {
     }
 
     @Test
+    fun writerCanEnterNestedBusinessReadWithoutDeadlock() = runBlocking {
+        val directory = Files.createTempDirectory("jianyu-gate-").toFile()
+        try {
+            val gate = BackupOperationGate(File(directory, "jianyu-backup/operation.lock"))
+            withTimeout(1_000L) {
+                gate.withWriteLock {
+                    gate.withReadLock {
+                        withContext(Dispatchers.Default) {
+                            Unit
+                        }
+                    }
+                }
+            }
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
     fun cancelledReaderAlwaysReleasesForNextWriter() = runBlocking {
         val directory = Files.createTempDirectory("jianyu-gate-").toFile()
         try {
