@@ -172,3 +172,28 @@ Head `562cf2c8ba941786ec9492e5b74a2ce3a57f38e0`：
 - `testDebugUnitTest`：573 tests / 1 failed
 - 唯一失败：`OfficialSkillVisualAssetTest.productionAssets_coverEveryOfficialSkillVisual`
 - `SkillRoleVisualRenderingArchitectureTest` 已进入同一 JVM 测试批次且未失败，主页/详情统一图片渲染契约成立。
+
+
+## 2026-09-24 资源落库进展
+
+已由 GPT 直接完成并提交到 GitHub：
+
+- 新增/替换人物正式头像：19 张
+  - 18 个此前缺失的人物角色
+  - `x_mentor` 新头像（已移除旧 “X Growth Mentor” 文字）
+- 工具正式视觉：6 张
+- 全部为 1:1、512×512 最终资源
+- Google Drive 同步目录：`skill-role-visuals-2026-09-23/final-assets/`
+- GitHub 资源提交：
+  - `0e7b97bc79fccc81ad80bfd577a213e4e72465b1`
+  - `5f859a7351434640a21038de25a1ea980fbee01c`
+  - `4d56d6d0f36304290f75628ad6b9ad5240e17d23`
+  - `84ad1d69b57e43501b47c37d287a4507049bb54e`
+  - `f9199a8a53f354c0b678f670ae79e12f0906ef37`
+
+当前唯一资源缺口：19 张旧公众人物头像仍需从 `avatars/<id>.jpg` 机械重裁到 `avatars/portraits/<id>.jpg`，解决圆形底板/圆外留白。
+
+本地 AI 任务已收敛为只处理这 19 张，见：
+`docs/superpowers/status/2026-09-23-local-ai-skill-avatar-assets-prompt.md`
+
+旧写实 v1 生成稿明确不采用；正式新增人物使用 v2 2D 编辑插画。
