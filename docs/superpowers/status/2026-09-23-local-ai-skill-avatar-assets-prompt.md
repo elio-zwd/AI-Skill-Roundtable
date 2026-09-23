@@ -40,8 +40,10 @@ Google Drive 根目录：`skill-role-visuals-2026-09-23`
 
 如果你的环境能直接访问 Drive，按下面 Drive ID 获取；如果不能，请让用户把对应文件下载到临时目录后再继续，不要自己重新生成替代图。
 
-### portrait-sheet-1.png
-Drive ID：`1UMV3uZJXQbhaXWRqlqpt1S86clfRvyET`
+### portrait-sheet-1-v2.png
+Drive ID：`11X7dbuTytrRU6c3Mi3Z83Upkg79etoxh`
+
+> 只使用 v2；旧 `portrait-sheet-1.png` 不采用。
 
 3×2，左→右、上→下：
 1. civil-service-coach
@@ -51,8 +53,8 @@ Drive ID：`1UMV3uZJXQbhaXWRqlqpt1S86clfRvyET`
 5. workplace-communication
 6. manager-expectation-review
 
-### portrait-sheet-2.png
-Drive ID：`1JJ2AKkay9DUoKGRChV47Ndwka4wNrcTd`
+### portrait-sheet-2-v2.png
+Drive ID：`1OBJOptiF92eqS69hJW6nEQlvoF99PEhl`
 
 3×2：
 1. report-proposal-writer
@@ -62,8 +64,8 @@ Drive ID：`1JJ2AKkay9DUoKGRChV47Ndwka4wNrcTd`
 5. habit-wellbeing-coach
 6. relationship-dialogue-practice
 
-### portrait-sheet-3.png
-Drive ID：`12FoRkmpgrvOCADwza_GKd7Q0J8he87xY`
+### portrait-sheet-3-v2.png
+Drive ID：`1Rt3FA18tTpfTlhuZ0pA6wP7OAls17g3O`
 
 3×2：
 1. chinese-social-etiquette
@@ -75,10 +77,10 @@ Drive ID：`12FoRkmpgrvOCADwza_GKd7Q0J8he87xY`
 
 `x_mentor` 必须使用这里的新图，旧图含 “X Growth Mentor” 文字，不允许继续使用。
 
-### career-navigator.jpg
-Drive ID：`1gjpRGj9xgTxcd8HR9aWAAxO_bOceRc69`
+### career-navigator-v2.png
+Drive ID：`1g0AAC2Cl0XkVk1iJ2sDFoDTIhusHVD4I`
 
-直接作为人物头像源图，做统一尺寸/压缩即可。
+直接作为人物头像源图，做统一尺寸/压缩即可。旧 `career-navigator.jpg` 写实工作稿不采用。
 
 ### tool-sheet-1.png
 Drive ID：`1RNpQTFb7TB_b4Qa851WJorqKw7VCURxj`
