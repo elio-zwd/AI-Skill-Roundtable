@@ -209,6 +209,7 @@ class SkillRoleDiscoveryScreenTest {
                         primaryTypes = setOf(OfficialSkillPrimaryType.PERSON_PERSPECTIVE),
                     ),
                     hasAnyRecent = true,
+                    message = null,
                     onBack = {},
                     onOpenFilters = { filterOpened = true },
                     onClearAllFilters = { filtersCleared = true },
