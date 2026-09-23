@@ -1,7 +1,9 @@
 package com.elio.jianyu.viewmodel
 
+import com.elio.jianyu.data.Character
 import com.elio.jianyu.data.ContextSourceLifecycle
 import com.elio.jianyu.data.Material
+import com.elio.jianyu.roundtable.TranscriptBuilder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -51,6 +53,28 @@ class RoundtableConversationPolicyTest {
         assertTrue(materialIsAvailableForConversation(stageLevel, formal))
         assertTrue(!materialIsAvailableForConversation(otherStage, formal))
         assertTrue(!materialIsAvailableForConversation(otherConversation, formal))
+    }
+
+    @Test
+    fun baseContextBudgetIncludesLoadedSkillPromptCharacters() {
+        val character = Character(
+            id = "role-a",
+            name = "角色 A",
+            avatar = "A",
+            tagline = "",
+            systemPrompt = "",
+            skillAssetPath = "skills/role-a/SKILL.md",
+            order = 0,
+        )
+
+        val total = conversationBaseContextCharacters(
+            messages = emptyList(),
+            targetCharacters = listOf(character),
+            responseMode = TranscriptBuilder.ResponseMode.INDEPENDENT,
+            skillPromptCharacters = mapOf(character.id to 1_200),
+        )
+
+        assertTrue(total >= 1_200)
     }
 
     @Test
