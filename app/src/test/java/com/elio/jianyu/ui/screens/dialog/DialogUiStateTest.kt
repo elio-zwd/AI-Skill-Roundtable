@@ -199,13 +199,13 @@ class DialogUiStateTest {
         val role = Character(
             id = "zhang_xuefeng",
             name = "张雪峰",
-            avatar = "avatars/zhang_xuefeng.jpg",
+            avatar = "avatars/portraits/zhang_xuefeng.jpg",
             tagline = "升学与职业规划",
             systemPrompt = "保持角色视角",
             order = 1,
         ).toSkillRoleUiModel(inCurrentSession = true)
 
-        assertEquals("avatars/zhang_xuefeng.jpg", role.avatarUrl)
+        assertEquals("avatars/portraits/zhang_xuefeng.jpg", role.avatarUrl)
         assertEquals("张雪", role.avatarText)
     }
 
