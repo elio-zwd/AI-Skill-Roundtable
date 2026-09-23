@@ -12,12 +12,18 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
@@ -111,6 +117,7 @@ internal fun ArtifactLibraryContent(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ArtifactLibraryBody(
     content: ArtifactLibraryUiState.Content,
@@ -123,6 +130,12 @@ private fun ArtifactLibraryBody(
     onOpenIssue: (String, String) -> Unit,
     onCopyArtifact: (ArtifactLibraryItem) -> Unit,
 ) {
+    var showFilters by remember { mutableStateOf(false) }
+    var draftTypes by remember(content.selectedTypes) { mutableStateOf(content.selectedTypes) }
+    var draftIncludeHistory by remember(content.includeHistory) {
+        mutableStateOf(content.includeHistory)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -144,37 +157,23 @@ private fun ArtifactLibraryBody(
                 .fillMaxWidth()
                 .testTag(ArtifactLibraryTestTags.SEARCH),
         )
-        Text("成果类型", style = MaterialTheme.typography.labelLarge)
-        ArtifactType.entries.chunked(2).forEach { rowTypes ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag(ArtifactLibraryTestTags.TYPE_FILTER),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                rowTypes.forEach { type ->
-                    FilterChip(
-                        selected = type in content.selectedTypes,
-                        onClick = {
-                            onTypesChange(
-                                if (type in content.selectedTypes) {
-                                    content.selectedTypes - type
-                                } else {
-                                    content.selectedTypes + type
-                                },
-                            )
-                        },
-                        label = { Text(type.displayName) },
-                    )
-                }
-            }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                "已选 ${content.selectedTypes.size} 个类型 · " +
+                    if (content.includeHistory) "含历史版本" else "仅最新版本",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            TextButton(
+                onClick = {
+                    draftTypes = content.selectedTypes
+                    draftIncludeHistory = content.includeHistory
+                    showFilters = true
+                },
+            ) { Text("筛选") }
         }
-        FilterChip(
-            selected = content.includeHistory,
-            onClick = { onIncludeHistoryChange(!content.includeHistory) },
-            label = { Text("显示历史版本") },
-            modifier = Modifier.testTag(ArtifactLibraryTestTags.HISTORY_FILTER),
-        )
         if (content.snapshot.revisionProblems.isNotEmpty()) {
             JianyuStateCard(
                 title = "部分修订关系需要检查",
@@ -190,6 +189,68 @@ private fun ArtifactLibraryBody(
         } else {
             content.visibleItems.forEach { item ->
                 ArtifactCard(item = item, onOpen = { onOpenArtifact(item.artifactId) })
+            }
+        }
+    }
+
+    if (showFilters) {
+        ModalBottomSheet(onDismissRequest = { showFilters = false }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .testTag(ArtifactLibraryTestTags.TYPE_FILTER),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text("筛选成果", style = MaterialTheme.typography.titleLarge)
+                Text("成果类型", style = MaterialTheme.typography.labelLarge)
+                ArtifactType.entries.chunked(2).forEach { rowTypes ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        rowTypes.forEach { type ->
+                            FilterChip(
+                                selected = type in draftTypes,
+                                onClick = {
+                                    draftTypes = if (type in draftTypes) {
+                                        draftTypes - type
+                                    } else {
+                                        draftTypes + type
+                                    }
+                                },
+                                label = { Text(type.displayName) },
+                            )
+                        }
+                    }
+                }
+                FilterChip(
+                    selected = draftIncludeHistory,
+                    onClick = { draftIncludeHistory = !draftIncludeHistory },
+                    label = { Text("显示历史版本") },
+                    modifier = Modifier.testTag(ArtifactLibraryTestTags.HISTORY_FILTER),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    TextButton(
+                        onClick = {
+                            draftTypes = emptySet()
+                            draftIncludeHistory = false
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) { Text("重置") }
+                    TextButton(
+                        onClick = { showFilters = false },
+                        modifier = Modifier.weight(1f),
+                    ) { Text("取消") }
+                    Button(
+                        onClick = {
+                            onTypesChange(draftTypes)
+                            onIncludeHistoryChange(draftIncludeHistory)
+                            showFilters = false
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) { Text("应用") }
+                }
             }
         }
     }
