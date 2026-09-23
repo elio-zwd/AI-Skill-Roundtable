@@ -37,26 +37,26 @@
 - Produces: `OfficialSkillVisualKind` and/or `officialSkillVisualAssetPath(definition)`
 - Rule: `WORKFLOW_CAPABILITY -> TOOL`; all other official primary types -> `PORTRAIT`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
   - 断言 44 个官方 Skill 均能得到稳定视觉路径。
   - 断言 6 个 `WORKFLOW_CAPABILITY` 全部被分类为工具视觉。
   - 断言其余 38 个 Skill 全部被分类为人物头像。
   - 断言视觉路径只由官方 ID / 类型决定，不依赖 legacy Character 是否存在。
 
-- [ ] **Step 2: 验证测试当前失败**
+- [x] **Step 2: 验证测试当前失败**
   - 运行聚焦 JVM 测试。
   - 预期失败点：当前 `avatarAssetPath` 只来自 `legacyAvatarPaths`，大量非 legacy 角色为空。
 
-- [ ] **Step 3: 最小实现统一视觉解析**
+- [x] **Step 3: 最小实现统一视觉解析**
   - 建立单一视觉类型/路径解析。
   - 推荐路径约定：
     - 人物：`avatars/portraits/<skillId>.jpg`
     - 工具：`avatars/tools/<skillId>.png` 或等价统一格式。
   - 旧路径如需过渡，只在本任务内一次性迁移资源并同步调用方，不新增长期兼容层。
 
-- [ ] **Step 4: 运行聚焦 JVM 测试并确认通过**
+- [x] **Step 4: 运行聚焦 JVM 测试并确认通过**
 
-- [ ] **Step 5: 更新本 Plan 对应 checkbox 并提交原子 Commit**
+- [x] **Step 5: 更新本 Plan 对应 checkbox 并提交原子 Commit**
 
 ---
 
@@ -77,19 +77,19 @@
   - `office-document-productivity`
 - 人物头像 38 项：上述 6 项之外的全部官方 Skill。
 
-- [ ] **Step 1: 写失败的资源完整性测试**
+- [x] **Step 1: 写失败的资源完整性测试**
   - 逐项检查 44 个官方 Skill 的预期资源文件真实存在。
   - 人物头像与工具视觉使用各自目录/扩展规则。
   - 测试失败时输出缺失 Skill ID，避免只报数量。
 
-- [ ] **Step 2: 验证当前测试失败**
+- [x] **Step 2: 验证当前测试失败**
   - 预期至少缺失当前未覆盖的 24 项，且现有 20 项仍位于旧目录。
 
-- [ ] **Step 3: 生成迁移/新增资源清单**
+- [x] **Step 3: 生成迁移/新增资源清单**
   - 记录：Skill ID、中文名、视觉类型、旧资源、目标资源、是否需重新生成/裁切。
   - 清单保存进本 Plan 的执行记录或独立 status 文档；不新增无必要产品元数据 Schema。
 
-- [ ] **Step 4: 不修改生产实现，先保留 RED 状态进入资源制作**
+- [x] **Step 4: 不修改生产实现，先保留 RED 状态进入资源制作**
 
 ---
 
@@ -103,7 +103,7 @@
 - Input: 当前 20 张人物/角色头像原资源。
 - Output: 适合列表和详情大头像的 1:1 人物头像，脸/头肩主体占比稳定，无明显空白边。
 
-- [ ] **Step 1: 逐张检查 20 张现有资源**
+- [x] **Step 1: 逐张检查 20 张现有资源**
   - 记录明显问题：空白边、主体过小、构图偏移、背景大面积无信息区域、文字化头像。
   - GitHub 二进制读取受限时，使用 Google Drive 工作副本或本地 AI 对仓库 checkout 的图片做只读检查。
 
@@ -146,12 +146,12 @@
 - `product-competition-analyst`
 - `original-expression-naturalizer`
 
-- [ ] **Step 1: 为 18 项建立统一生成规范**
+- [x] **Step 1: 为 18 项建立统一生成规范**
   - 成熟可信、非品牌化、无图片内文字。
   - 每个角色根据名称、summary、发现分类做职业/气质区分。
   - 不使用真实公众人物面孔去替代虚构/专业角色。
 
-- [ ] **Step 2: 生成并逐项筛选头像**
+- [x] **Step 2: 生成并逐项筛选头像**
   - 每项只保留一个正式生产版本。
   - 头像构图满足 Task 3 的大头像标准。
 
@@ -168,12 +168,12 @@
 - Create: `app/src/main/assets/avatars/tools/<skillId>.png`（或计划执行时选定的统一格式）
 - Working copies: Google Drive `AI-Skill-Roundtable/skill-role-visuals-2026-09-23/tools/`
 
-- [ ] **Step 1: 定义统一工具视觉语言**
+- [x] **Step 1: 定义统一工具视觉语言**
   - 使用物件、文档、流程节点、核查、会议、知识产权等视觉隐喻。
   - 不画人物脸，不使用“前两个字”文字块，不把角色名称烤进图片。
   - 保持与人物头像相同的视觉密度与圆角裁切适配。
 
-- [ ] **Step 2: 分别制作 6 项工具视觉**
+- [x] **Step 2: 分别制作 6 项工具视觉**
   - `team-handover`: 交接/协作结构
   - `meeting-to-action`: 会议内容 -> 行动项
   - `research-fact-checker`: 来源/证据/核查
@@ -200,22 +200,22 @@
   - `app/src/androidTest/java/com/elio/jianyu/ui/components/JianyuRoleAvatarTest.kt`
   - 相关 skills screen tests
 
-- [ ] **Step 1: 写失败 UI/逻辑测试**
+- [x] **Step 1: 写失败 UI/逻辑测试**
   - 非工具角色走图片人物头像，不再进入两个字 Box。
   - 工具角色走工具视觉图片，不再进入两个字 Box。
   - 详情页与列表页使用同一 asset path。
   - 图片不存在时仍保留可访问名称与 fallback。
 
-- [ ] **Step 2: 验证测试失败原因是当前分支按角色类型手工分叉/路径为空**
+- [x] **Step 2: 验证测试失败原因是当前分支按角色类型手工分叉/路径为空**
 
-- [ ] **Step 3: 最小修改 Screen**
+- [x] **Step 3: 最小修改 Screen**
   - 所有官方角色视觉统一交给 `JianyuRoleAvatar` 或等价共享组件。
   - 删除正常路径下基于 `name.take(2)` 的角色身份视觉实现。
   - 保留故障 fallback，不保留重复路径推导函数。
 
-- [ ] **Step 4: 运行聚焦测试**
+- [x] **Step 4: 运行聚焦测试**
 
-- [ ] **Step 5: 检查角色大图 `ContentScale.Crop` 与容器裁切组合，避免 UI 再制造额外留白**
+- [x] **Step 5: 检查角色大图 `ContentScale.Crop` 与容器裁切组合，避免 UI 再制造额外留白**
 
 ---
 
@@ -226,16 +226,16 @@
 - Modify: `app/src/androidTest/java/com/elio/jianyu/skill/role/OfficialSkillConversationRoleAdapterAndroidTest.kt`
 - Check: 对话头像消费组件，如 `SkillRoleAvatar.kt` / `DialogMessageComponents.kt`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
   - 人物角色兼容 Character 使用正式人物路径。
   - 工具型 Skill 使用正式工具视觉路径。
   - 不再把普通人物角色降级成 `deterministicFunctionalRoleAvatar(name)` 文字。
 
-- [ ] **Step 2: 验证测试当前失败**
+- [x] **Step 2: 验证测试当前失败**
 
-- [ ] **Step 3: 用 Task 1 的共享视觉解析替换 adapter 自己的类型分支**
+- [x] **Step 3: 用 Task 1 的共享视觉解析替换 adapter 自己的类型分支**
 
-- [ ] **Step 4: 检查消息、参与角色条、选择 Sheet 是否消费同一 Character avatar 路径**
+- [x] **Step 4: 检查消息、参与角色条、选择 Sheet 是否消费同一 Character avatar 路径**
 
 - [ ] **Step 5: 运行聚焦测试**
 
@@ -307,3 +307,15 @@
   - Google Drive 工作资产位置。
   - 回滚方式。
 - [ ] **Step 4: 不自动 merge，等待用户最终授权。
+
+
+## Execution Note — 2026-09-23
+
+- Draft PR: #67
+- Branch: `codex/skill-role-avatars`
+- 代码侧已统一 Catalog projection、角色主页、详情、legacy catalog 组件、OfficialSkillConversationRoleAdapter、ExecutionSkillResolver 的正式视觉路径。
+- `skills_config.json` 与 `workspace/tools/extract_skills_metadata.py` 的 legacy 20 头像路径均已迁到 `avatars/portraits/`，没有扩写为 44 项事实源。
+- 已生成 18 个新增人物角色、`x_mentor` 替换图和 6 个工具视觉的源图，保存到 Google Drive；映射见 `docs/superpowers/status/2026-09-23-skill-role-avatar-audit.md`。
+- 本地 AI 二进制处理任务见 `docs/superpowers/status/2026-09-23-local-ai-skill-avatar-assets-prompt.md`。
+- 当前正式 CI 最后已知证据（Head `562cf2c8...`）：`compileDebugKotlin` PASS、Android UI Test Compile PASS、573 JVM tests 中仅 `OfficialSkillVisualAssetTest.productionAssets_coverEveryOfficialSkillVisual` 因资源尚未入库失败。
+- 后续代码提交新增了执行快照/legacy 路径回归测试，最新 Head CI 仍需重新确认。
