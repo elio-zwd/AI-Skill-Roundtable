@@ -5,9 +5,9 @@ PR：#66 `feat: 完成见域 UI 收口与正式备份`
 分支：`codex/ui-05-artifacts`
 PR 状态：Draft，未合并
 Base：`main@53321b6b26d7084e97be027fe1098bcb1fe403c5`
-生产代码审查冻结 Head：`681aaf2c450bcb4da9016170674b3819823ebcd4`
+当前生产/测试修复 Head：`e84c503d264e7bfc2f6c49c3f1c0bdc6ef3ed88d`
 
-> 本报告与最终本地验收 Prompt 会形成一个后续 docs-only 提交，因此 PR 的最终 Head 会比上面的生产代码冻结 Head 更新。验收时必须以 PR #66 当时的精确 Head 为唯一目标，并确认该 Head 包含 `681aaf2c...`。
+> 本报告与复验 Prompt 会形成一个后续 docs-only 提交，因此 PR 的最终 Head 会比上面的代码修复 Head 更新。复验时必须以 PR #66 当时的精确 Head 为唯一目标，并确认该 Head 包含 `e84c503d...`。
 
 ## 1. 当前范围
 
@@ -35,6 +35,10 @@ PR09-14A/14B 的 Portable 正式导入、差异/冲突预览与数据库原子�
 - `6d95047`：Snapshot Catalog 不再依赖 `File.renameTo()` 覆盖已有 `index.json`；改为 `Files.move(..., REPLACE_EXISTING, ATOMIC_MOVE)`，不支持原子移动时安全降级，并新增已有索引替换回归测试。
 - `a81260d`：让 UI-07“减少动效”真实作用于自定义 shimmer、pulse 与 bounce 动画，而不只是把偏好写进 CompositionLocal。
 - `681aaf2`：可读 JSON 导出改为临时 SAF 文档 → 完整写入/fsync → 回读字节校验 → 最终改名；Repository/写入/校验失败时删除临时文档，不再留下空的或不完整的正式导出文件。
+- `e84c503`：根据本地全量 Instrumentation 的 3 个稳定失败逐项复核根因后修复：
+  - Settings 导航测试对滚动容器中的 AI 管理按钮先 `performScrollTo()` 再点击；生产 `SettingsScreen → onOpenAiManagement → App navigation` 接线本身未改。
+  - UI Automation Navigation 不再要求资料页出现已废弃的个人背景子库，而是验证资料库后回到【我的】并通过正式“个人背景”入口进入 `PersonalContextRoute`。
+  - 成果筛选取消测试不再用列表卡本身会合法出现的“通用阶段总结”文案判断 Sheet 是否存在；为成果类型 FilterChip 增加稳定 testTag，继续严格断言取消后 type/history 两个 apply callback 均为 0。
 
 此前已经完成、且本轮确认未回退的关键修复仍包括：
 
@@ -101,25 +105,53 @@ PR09-14A/14B 的 Portable 正式导入、差异/冲突预览与数据库原子�
 
 `legacy-apk` 与 `migration-tests` 只在手工 `workflow_dispatch` 条件下运行，因此普通 PR push 下为 skipped；这不代表 Instrumentation 已执行。
 
-### 4.2 当前生产代码冻结 Head `681aaf2c450bcb4da9016170674b3819823ebcd4`
+### 4.2 本地 AI 首轮最终验收：`d0bafd7f957ca1d3e3795d568226cee8419d1c72`
+
+用户本地 AI 已在 Windows 10 x64、JVM 17.0.19、Gradle 8.14、`emulator-5554`（SDK 28）上严格只读执行最终验收。
+
+已实际通过：
+
+- app identity gate；
+- 全历史 Secret scan；
+- `:app:compileDebugKotlin`；
+- `:app:testDebugUnitTest`：568 passed / 0 failed / 0 skipped；
+- `:app:lintDebug`；
+- `:app:assembleDebug`；
+- `:app:assembleRelease` + R8；
+- `:app:assembleDebugAndroidTest`；
+- UI-03、UI-04、UI-06、UI-07、UI-08、UI-09；
+- Portable Backup、Device Snapshot、Runtime reopen、Privacy。
+
+全量 Instrumentation 共 61 个测试类 / 251 项：248 PASS，3 FAIL。三个失败均 100% 稳定复现：
+
+1. `JianyuNavigationShellScreenTest.settings_preservesAiManagementTelemetryAndBackCallbacks`：
+   对滚动容器内 AI 管理按钮未先滚动到可触摸区域，回调计数为 0。
+2. `JianyuUiAutomationNavigationTest.resourcesLibrary_exposesMaterialsAndPersonalContextContentRoots`：
+   测试仍按旧 UI 要求资料页包含个人背景子库，与 UI-06 已批准“个人背景在【我的】管理”的当前产品结构冲突。
+3. `ArtifactLibraryComponentsTest.filtersOpenInSheetAndCancelDoesNotApplyDraftChanges`：
+   测试用“通用阶段总结”文本不存在判断 Filter Sheet 尚未打开，但成果列表卡本身合法显示同一成果类型文案。
+
+GPT 已逐项复核为测试定位/过期契约问题，而非对应生产行为失效，并在 `e84c503d264e7bfc2f6c49c3f1c0bdc6ef3ed88d` 修复。没有删除测试、降低业务断言或吞异常。
+
+### 4.3 修复后 Head `e84c503d264e7bfc2f6c49c3f1c0bdc6ef3ed88d`
 
 更新本报告时：
 
-- Secret scan run `35847418813`：PASS。
-- Android CI run `35847418785`：IN PROGRESS。
-- Android UI Test Compile run `35847418807`：IN PROGRESS。
+- Secret scan run `35859330017`：PASS。
+- Android CI run `35859329868`：IN PROGRESS。
+- Android UI Test Compile run `35859329869`：IN PROGRESS。
 
-用户已明确把最终编译与设备验收交给本地 AI，因此不得把这两个仍在运行的 workflow 写成 PASS，也不等待它们作为最终完成门禁。
+最终编译和设备验收仍按用户要求交给本地 AI；上述运行中的 GitHub workflow 只作为辅助证据，不替代本地复验。
 
 ## 5. 尚未执行/尚未完成的验证
 
-以下内容当前没有证据，不得写成已通过：
+当前仍需要：
 
-- 用户本地 Android 完整编译：未执行。
-- `connectedDebugAndroidTest` / Instrumentation：本轮 GitHub 普通 push 未执行；本地尚待执行。
-- 真机/模拟器 UI 全路径人工验收：未执行。
-- TalkBack、360dp、200% 字号、键盘、明暗主题等设备可用性：尚待本地 AI。
-- 真实设备 Snapshot 创建后 Runtime 重开与持续使用：尚待本地 AI。
+- 在包含 `e84c503...` 的 PR #66 最新 Head 上重新执行 Android 编译/测试门禁。
+- 定向重跑上述 3 个失败 Instrumentation。
+- 再跑全量 `connectedDebugAndroidTest`，确认 251 项或当前测试总数无失败。
+- TalkBack 真实屏幕朗读手势：仍需配置 TTS 的真机人工走查。
+- 360dp 与 200% 字号人工视觉走查：自动化语义不能替代视觉审核。
 - PR09-13B 独立安全审查、跨版本向量、依赖许可登记、受限设备性能：尚未完成。
 - PR09-14A/14B：尚未实现。
 
@@ -128,6 +160,10 @@ PR09-14A/14B 的 Portable 正式导入、差异/冲突预览与数据库原子�
 最终验收 Prompt 已保存：
 
 `docs/testing/pr-66-local-readonly-final-acceptance-prompt.md`
+
+本轮 3 个 Instrumentation 修复后的复验 Prompt：
+
+`docs/testing/pr-66-local-readonly-retest-after-ui-test-fixes.md`
 
 本地 AI 必须：
 
