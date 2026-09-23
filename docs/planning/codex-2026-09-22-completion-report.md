@@ -66,6 +66,19 @@
 
 不要重新加入会删除共享 Room 数据库的全量 AndroidTest 夹具；专项测试必须使用隔离数据库或受控快照目录。
 
+### 4.1.1 远端审查修复进展
+
+远端 AI 已按本报告重新核对 GitHub 上的实际生产代码，并确认以下根因存在：
+
+- `BackupOperationGate` 使用线程绑定的 `ReentrantReadWriteLock` 跨越挂起边界；
+- Snapshot 的 `beforeClose` 在 Runtime 已进入 `Maintenance` 后又调用 `JianyuAppRuntimeProvider.get()`；
+- Android Keystore Key 启用了随机化加密，但 Snapshot Writer 仍由调用方指定 GCM IV；
+- Snapshot 由 Compose `rememberCoroutineScope` 直接拥有，而 Runtime 世代切换会销毁旧 UI scope。
+
+当前远端修复改为：协程安全的公平读写门禁、维护态直接使用独立 `AudioFileStore`、由 Android Keystore provider 生成并回写实际 GCM IV、由应用级 Snapshot operation scope 持有闭库维护。并新增跨 dispatcher 门禁回归与真实 Android Keystore 随机 IV Instrumentation 测试。
+
+以上内容属于**代码修复已提交、验证待执行**状态；在 GitHub CI 或本地 Android 验收给出新证据前，不得把本节写成“所有测试通过”或“真机已验证”。
+
 ### 4.2 Portable 导入与数据库替换尚未实现
 
 PR09-14A/14B 仍未开放：Portable 隔离导入、格式/版本检查后的差异预览、冲突确认、幂等合并策略、数据库原子替换、回退/恢复执行均不在当前实现中。UI 必须继续明确显示“导入尚未开放”，不能把导出文件误当作可恢复能力。

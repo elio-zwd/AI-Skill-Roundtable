@@ -14,6 +14,10 @@ import java.security.MessageDigest
 import java.util.UUID
 import javax.crypto.SecretKey
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 
 data class DeviceSnapshotResult(
     val snapshotId: String,
@@ -34,6 +38,8 @@ class DeviceSnapshotService(
     private val gate: BackupOperationGate = BackupOperationGate.forContext(context),
     private val keyProvider: SnapshotWrappingKeyProvider = AndroidKeystoreSnapshotKeyProvider(),
 ) {
+    private val audioFileStore = AudioFileStore(File(context.applicationContext.filesDir, "jianyu-audio"))
+
     suspend fun createSnapshot(snapshotId: String = UUID.randomUUID().toString()): DeviceSnapshotResult =
         gate.withWriteLock {
             val safeId = snapshotId.takeIf { it.matches(Regex("[a-zA-Z0-9_-]{1,80}")) }
@@ -117,7 +123,6 @@ class DeviceSnapshotService(
         }
         if (!checkpoint) throw BackupException(BackupErrorCode.DATABASE_CHECKPOINT_FAILED)
 
-        val runtime = JianyuAppRuntimeProvider.get(context.applicationContext)
         return sqlite.query(
             "SELECT id, storagePath, mimeType, sizeBytes FROM audio_assets " +
                 "WHERE fileState = 'available' AND deletedAt IS NULL AND purgeRequestedAt IS NULL",
@@ -128,7 +133,7 @@ class DeviceSnapshotService(
                 val path = cursor.getString(1)
                 val mime = cursor.getString(2)
                 val expectedSize = cursor.getLong(3)
-                val resolution = runtime.audioRuntime.fileStore.resolve(path)
+                val resolution = audioFileStore.resolve(path)
                 val file = (resolution as? AudioFileResolution.Available)?.file
                     ?: throw BackupException(BackupErrorCode.SOURCE_CHANGED)
                 result += SnapshotAudioSource(id, file, mime, expectedSize)
@@ -200,5 +205,22 @@ class DeviceSnapshotService(
 
     private fun cleanup(file: File) {
         if (file.exists()) file.delete()
+    }
+}
+
+
+/**
+ * Snapshot 会主动切换 Runtime 世代，不能由会随旧 UI 一起销毁的 Compose scope 拥有。
+ * 调用方可以取消等待，但实际维护操作继续由应用级 scope 完成闭库、重开和校验。
+ */
+object DeviceSnapshotOperations {
+    private val operationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    suspend fun createSnapshot(context: Context): DeviceSnapshotResult {
+        val applicationContext = context.applicationContext
+        val operation = operationScope.async {
+            DeviceSnapshotService(applicationContext).createSnapshot()
+        }
+        return operation.await()
     }
 }

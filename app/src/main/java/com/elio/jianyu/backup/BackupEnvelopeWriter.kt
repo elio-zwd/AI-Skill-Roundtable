@@ -65,14 +65,26 @@ object BackupEnvelopeWriter {
         val random = SecureRandom()
         val envelopeId = ByteArray(BackupProtocol.envelopeIdBytes).also(random::nextBytes)
         val rootKey = ByteArray(BackupProtocol.rootKeyBytes).also(random::nextBytes)
-        val wrapNonce = ByteArray(BackupProtocol.wrapNonceBytes).also(random::nextBytes)
         val header = BackupCrypto.encodeHeader(true, null, envelopeId)
         val wrapAad = BackupCrypto.buildWrapAad(BackupProtocol.snapshotMagic, header)
-        val wrapped = BackupCrypto.wrapRootKey(wrappingKey, wrapNonce, rootKey, wrapAad)
-        val ikm = BackupCrypto.deriveStreamingIkm(rootKey, envelopeId, snapshot = true)
-        rootKey.fill(0)
-        val encrypted = BackupCrypto.encryptStreaming(ikm, BackupCrypto.streamAssociatedData(wrapAad, wrapNonce, wrapped), stream)
-        return BackupCrypto.buildEnvelope(BackupProtocol.snapshotMagic, header, wrapNonce, wrapped, encrypted)
+        val generatedWrap = BackupCrypto.wrapRootKeyWithGeneratedNonce(wrappingKey, rootKey, wrapAad)
+        val ikm = try {
+            BackupCrypto.deriveStreamingIkm(rootKey, envelopeId, snapshot = true)
+        } finally {
+            rootKey.fill(0)
+        }
+        val encrypted = BackupCrypto.encryptStreaming(
+            ikm,
+            BackupCrypto.streamAssociatedData(wrapAad, generatedWrap.nonce, generatedWrap.ciphertextAndTag),
+            stream,
+        )
+        return BackupCrypto.buildEnvelope(
+            BackupProtocol.snapshotMagic,
+            header,
+            generatedWrap.nonce,
+            generatedWrap.ciphertextAndTag,
+            encrypted,
+        )
     }
 
     fun writeVerifiedFile(

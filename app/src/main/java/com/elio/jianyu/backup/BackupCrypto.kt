@@ -18,6 +18,11 @@ import javax.crypto.SecretKey
 import org.bouncycastle.crypto.generators.Argon2BytesGenerator
 import org.bouncycastle.crypto.params.Argon2Parameters
 
+data class GeneratedKeyWrap(
+    val nonce: ByteArray,
+    val ciphertextAndTag: ByteArray,
+)
+
 data class ParsedBackupEnvelope(
     val isSnapshot: Boolean,
     val canonicalHeader: ByteArray,
@@ -78,6 +83,36 @@ object BackupCrypto {
 
     fun wrapRootKey(kek: SecretKey, nonce: ByteArray, rootKey: ByteArray, aad: ByteArray): ByteArray =
         aesGcm(Cipher.ENCRYPT_MODE, kek, nonce, rootKey, aad)
+
+    /**
+     * Android Keystore 在 randomizedEncryptionRequired=true 时禁止调用方指定加密 IV。
+     * Snapshot 加密因此由 provider 生成 GCM IV，再把实际 IV 写入冻结的 Envelope nonce 字段。
+     */
+    fun wrapRootKeyWithGeneratedNonce(
+        kek: SecretKey,
+        rootKey: ByteArray,
+        aad: ByteArray,
+    ): GeneratedKeyWrap {
+        require(rootKey.size == BackupProtocol.rootKeyBytes)
+        return try {
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.ENCRYPT_MODE, kek)
+            val nonce = cipher.iv?.copyOf()
+                ?: throw BackupException(BackupErrorCode.SNAPSHOT_KEY_UNAVAILABLE)
+            if (nonce.size != BackupProtocol.wrapNonceBytes) {
+                throw BackupException(BackupErrorCode.SNAPSHOT_KEY_UNAVAILABLE)
+            }
+            cipher.updateAAD(aad)
+            GeneratedKeyWrap(
+                nonce = nonce,
+                ciphertextAndTag = cipher.doFinal(rootKey),
+            )
+        } catch (error: BackupException) {
+            throw error
+        } catch (error: Throwable) {
+            throw BackupException(BackupErrorCode.SNAPSHOT_KEY_UNAVAILABLE, error)
+        }
+    }
 
     fun unwrapRootKey(kek: ByteArray, nonce: ByteArray, wrapped: ByteArray, aad: ByteArray): ByteArray {
         return try {

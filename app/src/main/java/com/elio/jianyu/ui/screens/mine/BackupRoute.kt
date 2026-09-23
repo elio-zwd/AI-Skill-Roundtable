@@ -29,12 +29,13 @@ import androidx.compose.ui.unit.dp
 import com.elio.jianyu.backup.BackupErrorCode
 import com.elio.jianyu.backup.BackupException
 import com.elio.jianyu.backup.BackupProtocol
-import com.elio.jianyu.backup.DeviceSnapshotService
+import com.elio.jianyu.backup.DeviceSnapshotOperations
 import com.elio.jianyu.backup.PortableBackupService
 import com.elio.jianyu.backup.SnapshotCatalog
 import com.elio.jianyu.data.JianyuRepository
 import com.elio.jianyu.ui.components.JianyuPageShell
 import com.elio.jianyu.ui.components.JianyuStateCard
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -96,16 +97,21 @@ fun BackupRoute(
             actionLabel = "创建设备快照",
             actionTestTag = BackupTestTags.SNAPSHOT_CREATE,
             onAction = {
-                scope.launch {
+                if (!busy) {
                     busy = true
-                    message = withContext(Dispatchers.IO) {
-                        runCatching {
-                            val result = DeviceSnapshotService(context).createSnapshot()
+                    scope.launch {
+                        try {
+                            val result = DeviceSnapshotOperations.createSnapshot(context)
                             snapshots = SnapshotCatalog.list(context)
-                            "设备快照已验证并保存：${result.snapshotId}"
-                        }.getOrElse(::formatBackupError)
+                            message = "设备快照已验证并保存：${result.snapshotId}"
+                        } catch (error: CancellationException) {
+                            throw error
+                        } catch (error: Throwable) {
+                            message = formatBackupError(error)
+                        } finally {
+                            busy = false
+                        }
                     }
-                    busy = false
                 }
             },
         )
