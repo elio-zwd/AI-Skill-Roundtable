@@ -36,6 +36,19 @@ class DialogCompletionContractTest {
         assertFalse(service.contains("importBackup"))
     }
 
+
+    @Test
+    fun sensitiveContextAlwaysRequiresPerRequestConfirmation() {
+        val root = findAppRoot()
+        val route = root.resolve("src/main/java/com/elio/jianyu/ui/screens/dialog/DialogRoute.kt").readText()
+
+        assertFalse(route.contains("|| !appPreferences.confirmSensitiveContext"))
+        assertFalse(route.contains("candidate.sensitiveConfirmed || !requireSensitiveConfirmation"))
+        assertFalse(route.contains("已按设置跳过再次确认"))
+        assertTrue(route.contains("it.sensitive && !it.sensitiveConfirmed"))
+        assertTrue(route.contains("我已查看并确认发送敏感内容"))
+    }
+
     private fun findAppRoot(): File {
         var current = File(requireNotNull(System.getProperty("user.dir"))).absoluteFile
         while (true) {
