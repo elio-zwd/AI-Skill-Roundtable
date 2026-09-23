@@ -869,29 +869,13 @@ private fun RoleIdentityVisual(
     modifier: Modifier,
     cornerRadius: androidx.compose.ui.unit.Dp,
 ) {
-    if (role.isPersonSimulation) {
-        JianyuRoleAvatar(
-            name = role.name,
-            assetPath = role.visualAvatarPath(),
-            modifier = modifier.clip(RoundedCornerShape(cornerRadius)),
-            fallbackContainerColor = roleVisualContainerColor(role.primaryDiscoveryCategory),
-            fallbackContentColor = roleVisualContentColor(role.primaryDiscoveryCategory),
-        )
-    } else {
-        Box(
-            modifier = modifier
-                .clip(RoundedCornerShape(cornerRadius))
-                .background(roleVisualContainerColor(role.primaryDiscoveryCategory)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = role.name.take(2),
-                color = roleVisualContentColor(role.primaryDiscoveryCategory),
-                fontSize = 24.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
-    }
+    JianyuRoleAvatar(
+        name = role.name,
+        assetPath = role.avatarAssetPath,
+        modifier = modifier.clip(RoundedCornerShape(cornerRadius)),
+        fallbackContainerColor = roleVisualContainerColor(role.primaryDiscoveryCategory),
+        fallbackContentColor = roleVisualContentColor(role.primaryDiscoveryCategory),
+    )
 }
 
 @Composable
@@ -931,9 +915,6 @@ private fun RoleFavoriteButton(
         )
     }
 }
-
-private fun SkillRoleCardUi.visualAvatarPath(): String? =
-    avatarAssetPath ?: if (isPersonSimulation) "avatars/$skillId.jpg" else null
 
 private fun SkillRoleCardUi.visualTypeLabel(): String = when (primaryType) {
     OfficialSkillPrimaryType.PERSON_PERSPECTIVE -> "人物视角"
