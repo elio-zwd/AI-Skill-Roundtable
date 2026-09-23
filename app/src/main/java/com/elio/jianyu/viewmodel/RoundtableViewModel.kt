@@ -196,6 +196,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
     private val formalContexts = ConcurrentHashMap<Long, FormalConversationContext>()
     private val pendingConversationContexts = ConcurrentHashMap<Long, List<ConversationContextSelection>>()
     private val activeConversationContexts = ConcurrentHashMap<Long, List<ConversationContextSelection>>()
+    private val explicitlyConfirmedConversationContextSessions = ConcurrentHashMap.newKeySet<Long>()
     private var lastConversationContextConfirmationAt = 0L
     private val startupPendingCleanupJob: Job = viewModelScope.launch(Dispatchers.IO) {
         try {
@@ -298,6 +299,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         _retryableRoundtableState.value = null
         pendingConversationContexts.clear()
         activeConversationContexts.clear()
+        explicitlyConfirmedConversationContextSessions.clear()
     }
 
     /**
@@ -327,6 +329,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         formalContexts.clear()
         pendingConversationContexts.clear()
         activeConversationContexts.clear()
+        explicitlyConfirmedConversationContextSessions.clear()
         lastConversationContextConfirmationAt = 0L
 
         return roundtableSettingsCleared && conversationPreferencesCleared
@@ -940,6 +943,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         val sessionId = _currentSessionId.value ?: return false
         if (selections.isEmpty()) {
             pendingConversationContexts.remove(sessionId)
+            explicitlyConfirmedConversationContextSessions.add(sessionId)
             return true
         }
         val valid = selections.all { selection ->
@@ -957,6 +961,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         val confirmedAt = maxOf(now, lastConversationContextConfirmationAt + 1L)
         lastConversationContextConfirmationAt = confirmedAt
         pendingConversationContexts[sessionId] = selections.map { it.copy(confirmedAt = confirmedAt) }
+        explicitlyConfirmedConversationContextSessions.add(sessionId)
         return true
     }
 
@@ -971,9 +976,24 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         questionRunId: Long,
         targetCharacterIds: List<String>,
         responseMode: TranscriptBuilder.ResponseMode,
+        requireExplicitConfirmation: Boolean = false,
     ): RepositoryResult<List<ConversationContextSelection>> {
+        val explicitlyConfirmed = sessionId in explicitlyConfirmedConversationContextSessions
+        if (requireExplicitConfirmation && !explicitlyConfirmed) {
+            return RepositoryResult.Failure(
+                RepositoryError.ConstraintViolation(
+                    "prepare_conversation_context_usage",
+                    "confirmation_required",
+                ),
+            )
+        }
         val captured = pendingConversationContexts[sessionId].orEmpty()
-        if (captured.isEmpty()) return RepositoryResult.Success(emptyList())
+        if (captured.isEmpty()) {
+            if (explicitlyConfirmed) {
+                explicitlyConfirmedConversationContextSessions.remove(sessionId)
+            }
+            return RepositoryResult.Success(emptyList())
+        }
 
         val repository = formalRepository ?: return RepositoryResult.Failure(
             RepositoryError.CompatibilityFailure(
@@ -1050,6 +1070,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     )
                 }
                 pendingConversationContexts.remove(sessionId, captured)
+                explicitlyConfirmedConversationContextSessions.remove(sessionId)
                 RepositoryResult.Success(validated, idempotent = result.idempotent)
             }
         }
@@ -1057,6 +1078,8 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
     private fun conversationContextFailureMessage(error: RepositoryError): String = when (error) {
         is RepositoryError.ConstraintViolation -> when (error.constraintCode) {
+            "confirmation_required" ->
+                "重试前请重新打开“选择资料”并确认本次参考内容；可以不勾选任何项后确认。"
             "source_stale" -> "所选资料或个人背景已更新，请重新打开参考内容并再次确认。"
             "source_disabled",
             "source_archived",
@@ -1420,6 +1443,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             questionRunId = questionRunId,
             targetCharacterIds = executableTargetIds,
             responseMode = TranscriptBuilder.ResponseMode.INDEPENDENT,
+            requireExplicitConfirmation = true,
         )
         val requestContext = when (contextResult) {
             is RepositoryResult.Success -> contextResult.value
