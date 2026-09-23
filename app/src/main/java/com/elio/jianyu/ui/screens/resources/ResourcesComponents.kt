@@ -115,8 +115,8 @@ internal fun MaterialCard(
             Text(item.title, style = MaterialTheme.typography.titleMedium)
             JianyuMetadataRow("状态", item.lifecycle.label())
             JianyuMetadataRow("来源类型", item.sourceType.ifBlank { "匿名占位" })
-            JianyuMetadataRow("所属会话", item.issueId)
-            JianyuMetadataRow("对话节点", item.stageId ?: "整个会话")
+            JianyuMetadataRow("所属会话", item.issueTitle ?: "会话信息暂不可用")
+            JianyuMetadataRow("对话节点", item.stageTitle ?: if (item.stageId == null) "整个会话" else "节点信息暂不可用")
             item.sourceLocator?.let { JianyuMetadataRow("来源定位", it) }
             JianyuMetadataRow("采集时间", item.sourceCapturedAt?.toString() ?: "未知")
             JianyuMetadataRow("来源日期", item.sourcePublishedAt?.toString() ?: "未知")
@@ -231,7 +231,7 @@ internal fun MaterialDetailDialog(
                         Text(item.title, style = MaterialTheme.typography.titleLarge)
                         JianyuMetadataRow("类型", materialKindLabel(item.sourceType))
                         JianyuMetadataRow("状态", item.lifecycle.label())
-                        JianyuMetadataRow("所属会话", item.issueId)
+                        JianyuMetadataRow("所属会话", item.issueTitle ?: "会话信息暂不可用")
                         item.sourceLocator?.takeIf(String::isNotBlank)?.let {
                             JianyuMetadataRow("来源", it)
                         }
