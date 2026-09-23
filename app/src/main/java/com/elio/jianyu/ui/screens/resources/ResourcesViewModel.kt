@@ -44,12 +44,9 @@ class ResourcesViewModel internal constructor(
             val materialResult = repository.listMaterials(
                 MaterialFilter(lifecycles = ContextSourceLifecycle.entries.toSet()),
             )
-            val personalResult = repository.listPersonalContexts(
-                PersonalContextFilter(lifecycles = ContextSourceLifecycle.entries.toSet()),
-            )
-            val hardFailures = listOf(issueResult, materialResult, personalResult)
+            val hardFailures = listOf(issueResult, materialResult)
                 .filterIsInstance<RepositoryResult.Failure>()
-            if (hardFailures.size == 3) {
+            if (hardFailures.size == 2) {
                 _state.value = ResourcesUiState.Failure(
                     repositoryErrorMessage(hardFailures.first().error),
                 )
@@ -75,9 +72,7 @@ class ResourcesViewModel internal constructor(
             _state.value = ResourcesUiState.Content(
                 issues = issueOptions,
                 materials = (materialResult as? RepositoryResult.Success)
-                    ?.value.orEmpty().map(Material::toUi),
-                personalContexts = (personalResult as? RepositoryResult.Success)
-                    ?.value.orEmpty().map(PersonalContext::toUi),
+                    ?.value.orEmpty().map { material -> material.toUi(issueOptions) },
                 partialFailure = hardFailures.firstOrNull()?.let {
                     "部分资料未能读取：${repositoryErrorMessage(it.error)}"
                 },
@@ -432,21 +427,27 @@ private fun formatFileSize(sizeBytes: Long): String = when {
 private fun isWebUrl(value: String): Boolean =
     value.trim().let { it.startsWith("https://", ignoreCase = true) || it.startsWith("http://", ignoreCase = true) }
 
-private fun Material.toUi(): MaterialUiItem = MaterialUiItem(
-    id = id,
-    issueId = issueId,
-    stageId = stageId,
-    title = title.ifBlank { "内容已清除" },
-    sourceType = sourceType,
-    sourceLocator = sourceLocator,
-    contentPreview = preview(content, sensitive, lifecycle),
-    content = content,
-    sourcePublishedAt = sourcePublishedAt,
-    sourceCapturedAt = sourceCapturedAt,
-    sensitive = sensitive,
-    lifecycle = lifecycle,
-    updatedAt = updatedAt,
-)
+private fun Material.toUi(issues: List<ResourceIssueOption>): MaterialUiItem {
+    val issue = issues.firstOrNull { it.issueId == issueId }
+    val stage = issue?.stages?.firstOrNull { it.stageId == stageId }
+    return MaterialUiItem(
+        id = id,
+        issueId = issueId,
+        stageId = stageId,
+        title = title.ifBlank { "内容已清除" },
+        sourceType = sourceType,
+        sourceLocator = sourceLocator,
+        contentPreview = preview(content, sensitive, lifecycle),
+        content = content,
+        sourcePublishedAt = sourcePublishedAt,
+        sourceCapturedAt = sourceCapturedAt,
+        sensitive = sensitive,
+        lifecycle = lifecycle,
+        updatedAt = updatedAt,
+        issueTitle = issue?.title,
+        stageTitle = stage?.title,
+    )
+}
 
 private fun PersonalContext.toUi(): PersonalContextUiItem = PersonalContextUiItem(
     id = id,
