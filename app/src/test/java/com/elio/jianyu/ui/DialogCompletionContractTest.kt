@@ -47,6 +47,7 @@ class DialogCompletionContractTest {
         assertFalse(route.contains("已按设置跳过再次确认"))
         assertTrue(route.contains("it.sensitive && !it.sensitiveConfirmed"))
         assertTrue(route.contains("我已查看并确认发送敏感内容"))
+        assertTrue(route.contains("敏感内容已隐藏；选中后查看并确认。"))
     }
 
     private fun findAppRoot(): File {
