@@ -1,6 +1,7 @@
 package com.elio.jianyu.backup
 
 import java.io.File
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -41,12 +42,35 @@ class RepositoryBackupMapperCoverageTest {
             "listResumeEvents(",
             "listIssueRelations(",
             "UNSUPPORTED_LEGACY_DATA",
+            "AppPreferences.state.value",
         ).forEach { marker ->
             assertTrue(
                 "RepositoryBackupMapper 缺少正式数据读取/预检：$marker",
                 mapperSource.contains(marker),
             )
         }
+    }
+
+    @Test
+    fun portableMapperDoesNotPersistLocalChatCompatibilityIds() {
+        assertFalse(
+            "Issue.legacyChatSessionId 不是跨设备稳定 ID",
+            mapperSource.contains("snapshot.core.issue.legacyChatSessionId"),
+        )
+        assertFalse(
+            "Message.chatId 不是跨设备稳定 ID",
+            mapperSource.contains("message.id, message.chatId"),
+        )
+    }
+
+    @Test
+    fun standaloneLegacyPreflightCountsOnlySessionsWithoutAnyIssueAssociation() {
+        val snapshotSource = findRepositoryRoot()
+            .resolve("app/src/main/java/com/elio/jianyu/backup/DeviceSnapshotService.kt")
+            .readText()
+        assertTrue(snapshotSource.contains("NOT EXISTS"))
+        assertFalse(snapshotSource.contains("id NOT LIKE 'dialog-session-%'"))
+        assertFalse(snapshotSource.contains("id NOT LIKE 'legacy-chat-%'"))
     }
 
     private fun findRepositoryRoot(): File {
