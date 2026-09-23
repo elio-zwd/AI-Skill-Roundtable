@@ -50,6 +50,8 @@ data class MaterialUiItem(
     val sensitive: Boolean,
     val lifecycle: ContextSourceLifecycle,
     val updatedAt: Long,
+    val issueTitle: String? = null,
+    val stageTitle: String? = null,
 )
 
 data class PersonalContextUiItem(
