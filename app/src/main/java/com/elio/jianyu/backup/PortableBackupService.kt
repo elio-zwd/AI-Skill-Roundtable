@@ -38,7 +38,8 @@ class PortableBackupService(
      * provider 不支持 document rename/delete/reopen 时失败关闭，不直接写最终 .jybak。
      */
     suspend fun createToUri(password: String, destination: Uri): PortableBackupResult = gate.withWriteLock {
-        var temporaryUri: Uri? = null
+        // CreateDocument 返回的空文档在最终 rename 成功前都视为临时对象。
+        var workingUri: Uri? = destination
         try {
             val resolver = context.contentResolver
             if (!DocumentsContract.isDocumentUri(context, destination)) {
@@ -47,8 +48,9 @@ class PortableBackupService(
             val originalName = queryDisplayName(destination)
                 ?: throw BackupException(BackupErrorCode.PROVIDER_CAPABILITY_MISSING)
             val temporaryName = "$originalName.partial-${UUID.randomUUID()}"
-            temporaryUri = DocumentsContract.renameDocument(resolver, destination, temporaryName)
+            workingUri = DocumentsContract.renameDocument(resolver, destination, temporaryName)
                 ?: throw BackupException(BackupErrorCode.PROVIDER_CAPABILITY_MISSING)
+            val temporaryUri = requireNotNull(workingUri)
 
             val bytes = JianyuAppRuntimeProvider.withRuntime(context.applicationContext) { runtime ->
                 BackupEnvelopeWriter.createPortable(password, RepositoryBackupMapper.collect(runtime))
@@ -71,16 +73,16 @@ class PortableBackupService(
 
             val published = DocumentsContract.renameDocument(resolver, temporaryUri, originalName)
                 ?: throw BackupException(BackupErrorCode.TARGET_WRITE_FAILED)
-            temporaryUri = null
+            workingUri = null
             PortableBackupResult(bytes.size.toLong(), published.toString())
         } catch (error: CancellationException) {
-            cleanupTemporaryDocument(temporaryUri, error)
+            cleanupTemporaryDocument(workingUri, error)
             throw BackupException(BackupErrorCode.OPERATION_CANCELED, error)
         } catch (error: BackupException) {
-            cleanupTemporaryDocument(temporaryUri, error)
+            cleanupTemporaryDocument(workingUri, error)
             throw error
         } catch (error: Throwable) {
-            cleanupTemporaryDocument(temporaryUri, error)
+            cleanupTemporaryDocument(workingUri, error)
             throw BackupException(BackupErrorCode.TARGET_WRITE_FAILED, error)
         }
     }
