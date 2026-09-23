@@ -5,9 +5,9 @@ PR：#66 `feat: 完成见域 UI 收口与正式备份`
 分支：`codex/ui-05-artifacts`
 PR 状态：Draft，未合并
 Base：`main@53321b6b26d7084e97be027fe1098bcb1fe403c5`
-当前生产/测试修复 Head：`e84c503d264e7bfc2f6c49c3f1c0bdc6ef3ed88d`
+最终已验证代码 Head：`4c8f339270fbf238e6913012a531c279a3664a44`
 
-> 本报告与复验 Prompt 会形成一个后续 docs-only 提交，因此 PR 的最终 Head 会比上面的代码修复 Head 更新。复验时必须以 PR #66 当时的精确 Head 为唯一目标，并确认该 Head 包含 `e84c503d...`。
+> 本报告更新本身会形成一个 docs-only 提交，因此 PR 的最终 Head 会比上面的已验证代码 Head 更新。代码与设备验收事实对应 `4c8f339...`；报告更新后不得把 docs-only Head 伪装成重新执行过设备测试。
 
 ## 1. 当前范围
 
@@ -133,27 +133,75 @@ PR09-14A/14B 的 Portable 正式导入、差异/冲突预览与数据库原子�
 
 GPT 已逐项复核为测试定位/过期契约问题，而非对应生产行为失效，并在 `e84c503d264e7bfc2f6c49c3f1c0bdc6ef3ed88d` 修复。没有删除测试、降低业务断言或吞异常。
 
-### 4.3 修复后 Head `e84c503d264e7bfc2f6c49c3f1c0bdc6ef3ed88d`
+### 4.3 最终已验证代码 Head `4c8f339270fbf238e6913012a531c279a3664a44`
 
-更新本报告时：
+本地 AI 已在该精确 Head 上完成修复后复验，最终结论：**PASS**。
 
-- Secret scan run `35859330017`：PASS。
-- Android CI run `35859329868`：IN PROGRESS。
-- Android UI Test Compile run `35859329869`：IN PROGRESS。
+本地实际证据：
 
-最终编译和设备验收仍按用户要求交给本地 AI；上述运行中的 GitHub workflow 只作为辅助证据，不替代本地复验。
+- app identity gate：PASS；
+- 全历史 Secret scan：PASS；
+- `:app:compileDebugKotlin`：PASS；
+- `:app:testDebugUnitTest`：568 passed / 0 failed / 0 skipped；
+- `:app:lintDebug`：PASS，0 error；
+- `:app:assembleDebug`：PASS；
+- `:app:assembleRelease`：PASS，R8 优化/混淆成功；
+- `:app:assembleDebugAndroidTest`：PASS；
+- 原 3 项失败定向复验：3/3 PASS；
+- 全量 `:app:connectedDebugAndroidTest`：61 个测试类、251 passed / 0 failed / 0 skipped；
+- 最终 Git 工作区：clean；
+- PR #66：OPEN / Draft / MERGEABLE。
 
-## 5. 尚未执行/尚未完成的验证
+设备/环境：
 
-当前仍需要：
+- `emulator-5554`；
+- SDK 28；
+- 1080x2400；
+- density 420；
+- Windows 10 x64；
+- JVM 17.0.19；
+- Gradle 8.14。
 
-- 在包含 `e84c503...` 的 PR #66 最新 Head 上重新执行 Android 编译/测试门禁。
-- 定向重跑上述 3 个失败 Instrumentation。
-- 再跑全量 `connectedDebugAndroidTest`，确认 251 项或当前测试总数无失败。
-- TalkBack 真实屏幕朗读手势：仍需配置 TTS 的真机人工走查。
-- 360dp 与 200% 字号人工视觉走查：自动化语义不能替代视觉审核。
-- PR09-13B 独立安全审查、跨版本向量、依赖许可登记、受限设备性能：尚未完成。
-- PR09-14A/14B：尚未实现。
+GitHub 对同一 Head `4c8f339...` 的最新 Actions 也已全部成功：
+
+- Secret scan run `35859532285`：PASS；
+- Android UI Test Compile run `35859532138`：PASS；
+- Android CI run `35859532135`：PASS。
+
+Android CI build job 已确认成功经过：
+
+- static app identity gate；
+- debug Kotlin compile；
+- debug JVM unit tests；
+- debug lint；
+- debug APK；
+- package migration / schema / debug APK verification；
+- ephemeral release signing setup / validation / cleanup；
+- optimized release APK；
+- release package / R8 / unsigned artifact verification；
+- committed Room schema verification；
+- generated Room schema upload；
+- test/lint/R8 reports upload；
+- debug APK upload；
+- release APK upload。
+
+对应 artifacts 已实际生成并上传：
+
+- `room-schema-1`；
+- `release-apk-1`；
+- `android-ci-reports-1`；
+- `debug-apk-1`。
+
+`legacy-apk` 与 `migration-tests` 仍因只在 `workflow_dispatch` 条件下运行而 skipped；本地全量 Instrumentation 已覆盖本 PR 的当前设备测试门禁，因此该 skipped 状态不是未解释失败。
+
+## 5. 尚未人工验证 / 不属于当前 PR 完成范围
+
+当前剩余项不阻塞 PR #66 进入人工 Ready/Merge 决策，但必须保持准确标记：
+
+- TalkBack 真实连续朗读手势：自动化语义已通过，实际 TTS 真机手势仍未人工走查。
+- 360dp / 200% 字号：自动化与语义契约已通过，极端窄屏/超大字号的审美折行仍未人工视觉走查。
+- PR09-13B 独立安全审查、跨版本向量、依赖许可登记、受限设备性能：属于独立验收工作，尚未完成。
+- PR09-14A/14B Portable 正式导入、差异/冲突预览、数据库原子替换：尚未实现，明确不属于 PR #66 完成范围。
 
 ## 6. 最终本地只读验收
 
@@ -179,6 +227,8 @@ GPT 已逐项复核为测试定位/过期契约问题，而非对应生产行为
 
 PR #66 继续保持 Draft，不自动 merge。
 
-在本地只读验收给出 PASS（或所有 FAIL 经 GPT 修复并重新验证）之前，不宣布 PR 完成，也不建议自动改成 Ready。
+代码 Head `4c8f339...` 已满足本地只读验收 PASS，且同一 Head 的 GitHub Actions 无未解释失败。
 
-若本地验收通过且 PR 当前 Head 没有新的未解释失败，则可由用户人工决定是否将 PR #66 标记 Ready / Merge。
+PR #66 当前达到**可由用户人工决定是否标记 Ready / Merge**的状态。
+
+仍保持 Draft；未经用户明确要求，不自动改 Ready，不自动 merge。
