@@ -35,6 +35,10 @@ class DataPrivacyIntegrityTest {
         assertTrue(source.contains("requireExportSuccess("))
         assertFalse(source.contains(".valueOrNull().orEmpty()"))
         assertFalse(source.contains("return@mapNotNull null"))
+        assertTrue(source.contains("DocumentsContract.renameDocument"))
+        assertTrue(source.contains("cleanupReadableExportDocument"))
+        assertTrue(source.contains("openInputStream(temporaryUri)"))
+        assertTrue(source.contains("未发布不完整文件"))
     }
 
     @Test

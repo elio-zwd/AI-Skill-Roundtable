@@ -2,6 +2,8 @@ package com.elio.jianyu.ui.screens.mine
 
 import android.content.Context
 import android.net.Uri
+import android.provider.DocumentsContract
+import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.work.WorkManager
@@ -49,6 +51,8 @@ import com.elio.jianyu.ui.components.JianyuPageShell
 import com.elio.jianyu.ui.components.JianyuStateCard
 import com.elio.jianyu.ui.settings.AppPreferences
 import java.io.File
+import java.io.FileOutputStream
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -283,15 +287,69 @@ private suspend fun readOverview(repository: JianyuRepository): Pair<DataOvervie
 }
 
 private suspend fun writeExport(context: Context, repository: JianyuRepository, uri: Uri): String {
+    var workingUri: Uri? = uri
     return try {
-        val json = buildExportJson(repository)
-        context.contentResolver.openOutputStream(uri)?.use { output ->
-            output.writer(Charsets.UTF_8).use { writer -> writer.write(json) }
-        } ?: return "无法打开导出位置，请重新选择文件。"
+        val resolver = context.contentResolver
+        if (!DocumentsContract.isDocumentUri(context, uri)) {
+            throw IllegalStateException("readable_export_provider_capability_missing")
+        }
+        val originalName = queryReadableExportDisplayName(context, uri)
+            ?: throw IllegalStateException("readable_export_name_unavailable")
+        val temporaryName = "$originalName.partial-${UUID.randomUUID()}"
+        workingUri = DocumentsContract.renameDocument(resolver, uri, temporaryName)
+            ?: throw IllegalStateException("readable_export_temporary_rename_failed")
+        val temporaryUri = requireNotNull(workingUri)
+
+        val bytes = buildExportJson(repository).toByteArray(Charsets.UTF_8)
+        resolver.openFileDescriptor(temporaryUri, "w")?.use { descriptor ->
+            FileOutputStream(descriptor.fileDescriptor).use { output ->
+                output.write(bytes)
+                output.flush()
+                output.fd.sync()
+            }
+        } ?: throw IllegalStateException("readable_export_target_unavailable")
+
+        val persisted = resolver.openInputStream(temporaryUri)?.use { it.readBytes() }
+            ?: throw IllegalStateException("readable_export_verify_unavailable")
+        if (!persisted.contentEquals(bytes)) {
+            throw IllegalStateException("readable_export_verify_failed")
+        }
+
+        DocumentsContract.renameDocument(resolver, temporaryUri, originalName)
+            ?: throw IllegalStateException("readable_export_publish_failed")
+        workingUri = null
         "已导出结构化数据；文件不包含完整 API Key。"
     } catch (_: Throwable) {
-        "导出失败，当前数据未被删除。"
+        if (cleanupReadableExportDocument(context, workingUri)) {
+            "导出失败，未发布不完整文件。"
+        } else {
+            "导出失败，且临时文件未能自动清理，请从所选位置删除该临时文件。"
+        }
     }
+}
+
+private fun queryReadableExportDisplayName(context: Context, uri: Uri): String? =
+    context.contentResolver.query(
+        uri,
+        arrayOf(OpenableColumns.DISPLAY_NAME),
+        null,
+        null,
+        null,
+    )?.use { cursor ->
+        if (!cursor.moveToFirst()) null
+        else cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME))
+            ?.takeIf(String::isNotBlank)
+    }
+
+private fun cleanupReadableExportDocument(context: Context, uri: Uri?): Boolean {
+    if (uri == null) return true
+    return runCatching {
+        if (DocumentsContract.isDocumentUri(context, uri)) {
+            DocumentsContract.deleteDocument(context.contentResolver, uri)
+        } else {
+            context.contentResolver.delete(uri, null, null) > 0
+        }
+    }.getOrDefault(false)
 }
 
 internal suspend fun buildExportJson(repository: JianyuRepository): String {
