@@ -6,6 +6,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DataPrivacyIntegrityTest {
+    private val resourceRouteSource: String by lazy {
+        findRepositoryRoot()
+            .resolve("app/src/main/java/com/elio/jianyu/ui/screens/resources/ResourcesRoute.kt")
+            .readText()
+    }
+
     private val source: String by lazy {
         findRepositoryRoot()
             .resolve("app/src/main/java/com/elio/jianyu/ui/screens/mine/DataPrivacyRoute.kt")
@@ -17,6 +23,12 @@ class DataPrivacyIntegrityTest {
         assertTrue(source.contains("requireExportSuccess("))
         assertFalse(source.contains(".valueOrNull().orEmpty()"))
         assertFalse(source.contains("return@mapNotNull null"))
+    }
+
+    @Test
+    fun copiedMaterialFilesDoNotRetainPersistableSourceUriPermission() {
+        assertFalse(resourceRouteSource.contains("takePersistableUriPermission"))
+        assertFalse(resourceRouteSource.contains("FLAG_GRANT_READ_URI_PERMISSION"))
     }
 
     @Test
