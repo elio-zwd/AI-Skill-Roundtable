@@ -30,7 +30,7 @@ class DialogCompletionContractTest {
         val service = root.resolve("src/main/java/com/elio/jianyu/backup/PortableBackupService.kt").readText()
 
         assertTrue(route.contains("PortableBackupService"))
-        assertTrue(route.contains("DeviceSnapshotService"))
+        assertTrue(route.contains("DeviceSnapshotOperations"))
         assertTrue(route.contains("PR09-14A/14B"))
         assertTrue(service.contains("createToUri"))
         assertFalse(service.contains("importBackup"))
