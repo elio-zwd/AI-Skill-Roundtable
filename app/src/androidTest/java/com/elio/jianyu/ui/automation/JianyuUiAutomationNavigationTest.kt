@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.MainActivity
+import com.elio.jianyu.ui.screens.mine.PersonalContextTestTags
 import com.elio.jianyu.ui.screens.resources.ResourcesOverviewTestTags
 import org.junit.Rule
 import org.junit.Test
@@ -88,7 +89,7 @@ class JianyuUiAutomationNavigationTest {
     }
 
     @Test
-    fun resourcesLibrary_exposesMaterialsAndPersonalContextContentRoots() {
+    fun resourcesLibraryAndMinePersonalContextExposeCurrentContentRoots() {
         navigateAndAssert(
             destinationTag = JianyuAutomationTags.Navigation.RESOURCES,
             screenTag = JianyuAutomationTags.Screen.RESOURCES,
@@ -102,15 +103,19 @@ class JianyuUiAutomationNavigationTest {
             .assertIsDisplayed()
 
         composeRule
-            .onNodeWithTag(JianyuAutomationTags.Resources.PERSONAL_CONTEXT_LIBRARY)
+            .onNodeWithTag(JianyuAutomationTags.Shell.PAGE_BACK_BUTTON)
             .performClick()
-        waitForTag(JianyuAutomationTags.Resources.PERSONAL_CONTEXT_CONTENT)
+        navigateAndAssert(
+            destinationTag = JianyuAutomationTags.Navigation.MINE,
+            screenTag = JianyuAutomationTags.Screen.MINE,
+        )
         composeRule
-            .onNodeWithTag(JianyuAutomationTags.Resources.PERSONAL_CONTEXT_CONTENT)
+            .onNodeWithTag(JianyuAutomationTags.Mine.PERSONAL_BACKGROUND_ACTION)
+            .performClick()
+        waitForTag(PersonalContextTestTags.SCREEN)
+        composeRule
+            .onNodeWithTag(PersonalContextTestTags.SCREEN)
             .assertIsDisplayed()
-        composeRule
-            .onNodeWithTag(JianyuAutomationTags.Resources.MATERIALS_CONTENT)
-            .assertDoesNotExist()
     }
 
     private fun navigateAndAssert(destinationTag: String, screenTag: String) {

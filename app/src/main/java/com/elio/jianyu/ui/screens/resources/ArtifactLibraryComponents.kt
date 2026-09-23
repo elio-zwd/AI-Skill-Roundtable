@@ -54,6 +54,7 @@ object ArtifactLibraryTestTags {
     const val OPEN_ISSUE = JianyuAutomationTags.Artifacts.OPEN_ISSUE
 
     fun item(artifactId: String): String = JianyuAutomationTags.Artifacts.item(artifactId)
+    fun typeFilter(type: ArtifactType): String = "artifact_type_filter_${type.storageValue}"
 }
 
 @Composable
@@ -217,6 +218,7 @@ private fun ArtifactLibraryBody(
                                     }
                                 },
                                 label = { Text(type.displayName) },
+                                modifier = Modifier.testTag(ArtifactLibraryTestTags.typeFilter(type)),
                             )
                         }
                     }

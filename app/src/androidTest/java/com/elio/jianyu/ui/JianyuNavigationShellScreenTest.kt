@@ -161,7 +161,10 @@ class JianyuNavigationShellScreenTest {
         }
 
         composeRule.onNodeWithTag(SettingsShellTestTags.SCREEN).assertExists()
-        composeRule.onNodeWithTag(SettingsShellTestTags.AI_MANAGEMENT_ACTION).performClick()
+        composeRule
+            .onNodeWithTag(SettingsShellTestTags.AI_MANAGEMENT_ACTION)
+            .performScrollTo()
+            .performClick()
         composeRule
             .onNodeWithTag(SettingsShellTestTags.TELEMETRY_ACTION)
             .performScrollTo()

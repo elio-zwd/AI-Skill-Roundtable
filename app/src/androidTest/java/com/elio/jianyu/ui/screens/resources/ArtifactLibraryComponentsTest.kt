@@ -122,10 +122,15 @@ class ArtifactLibraryComponentsTest {
             }
         }
 
-        composeRule.onNodeWithText("通用阶段总结").assertDoesNotExist()
+        composeRule.onNodeWithTag(ArtifactLibraryTestTags.TYPE_FILTER).assertDoesNotExist()
         composeRule.onNodeWithText("筛选").performClick()
-        composeRule.onNodeWithText("通用阶段总结").assertIsDisplayed().performClick()
+        composeRule.onNodeWithTag(ArtifactLibraryTestTags.TYPE_FILTER).assertIsDisplayed()
+        composeRule
+            .onNodeWithTag(ArtifactLibraryTestTags.typeFilter(ArtifactType.GENERAL_SUMMARY))
+            .assertIsDisplayed()
+            .performClick()
         composeRule.onNodeWithText("取消").performClick()
+        composeRule.onNodeWithTag(ArtifactLibraryTestTags.TYPE_FILTER).assertDoesNotExist()
         composeRule.runOnIdle {
             assertEquals(0, typeApplyCount)
             assertEquals(0, historyApplyCount)
