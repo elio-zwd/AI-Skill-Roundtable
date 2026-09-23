@@ -52,6 +52,11 @@ object SnapshotCatalog {
         write(context, list(context).filterNot { it.snapshotId == safe })
     }
 
+    fun clearAll(context: Context): Boolean {
+        val target = directory(context)
+        return !target.exists() || runCatching { target.deleteRecursively() }.getOrDefault(false)
+    }
+
     private fun write(context: Context, entries: List<SnapshotCatalogEntry>) {
         val directory = directory(context)
         if (!directory.isDirectory && !directory.mkdirs()) throw BackupException(BackupErrorCode.TARGET_WRITE_FAILED)

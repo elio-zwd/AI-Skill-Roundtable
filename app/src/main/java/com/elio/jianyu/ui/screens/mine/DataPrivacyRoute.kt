@@ -28,6 +28,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.elio.jianyu.backup.AndroidKeystoreSnapshotKeyProvider
+import com.elio.jianyu.backup.BackupOperationGate
+import com.elio.jianyu.backup.SnapshotCatalog
 import com.elio.jianyu.data.ContextSourceLifecycle
 import com.elio.jianyu.data.IssueLifecycleState
 import com.elio.jianyu.data.JianyuRepository
@@ -176,7 +179,7 @@ fun DataPrivacyRoute(
         actionMessage?.let { JianyuStateCard("导出结果", it) }
         JianyuStateCard(
             title = "删除所有本地数据",
-            message = "将清除当前 App 的会话、资料、成果、个人背景、应用偏好、API Key 和遥测记录。其他应用的数据不会被访问或自动清除。",
+            message = "将清除当前 App 的会话、资料、成果、个人背景、设备快照、应用偏好、API Key 和遥测记录。你另存到系统文件位置的导出或可移植备份不会自动删除；其他应用的数据不会被访问。",
             actionLabel = "进入删除确认",
             actionTestTag = DataPrivacyTestTags.DELETE,
             onAction = {
@@ -185,7 +188,7 @@ fun DataPrivacyRoute(
             },
         )
         Text(
-            "删除前请确认已保留需要的导出文件。删除操作只处理当前见域 App 的本地数据。",
+            "删除前请确认已保留需要的外部导出或可移植备份。删除操作会清理当前见域 App 私有的设备快照。",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
@@ -197,7 +200,7 @@ fun DataPrivacyRoute(
             title = { Text("删除所有本地数据？") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("此操作会清理当前见域 App 的本地数据；其他应用的数据不会被访问。")
+                    Text("此操作会清理当前见域 App 的本地数据和设备快照；外部导出/可移植备份不会自动删除，其他应用的数据不会被访问。")
                     OutlinedTextField(
                         value = deleteInput,
                         onValueChange = { deleteInput = it },
@@ -332,32 +335,41 @@ internal suspend fun buildExportJson(repository: JianyuRepository): String {
 }
 
 private suspend fun clearAllLocalData(context: Context, repository: JianyuRepository): String {
-    return when (repository.clearAllData()) {
-        is RepositoryResult.Success -> {
-            val keyResults = AiProvider.entries.map { provider ->
-                AiManager.keys(context, provider).clear()
-            }
-            val modelConfigurationCleared = AiManager.configuration(context).reset()
-            val telemetryCleared = TelemetryRepository.clearAllTelemetry(context)
-            val cloudSettingsCleared = CloudInteractionSettings.setEnabled(context, false)
-            val appPreferencesCleared = AppPreferences.reset(context)
-            val audioFilesCleared = clearAppOwnedAudioFiles(context)
-            val cleanupSucceeded = keyResults.all { it } &&
-                modelConfigurationCleared &&
-                telemetryCleared &&
-                cloudSettingsCleared &&
-                appPreferencesCleared &&
-                audioFilesCleared
-            if (cleanupSucceeded) {
-                "本地数据已清除"
-            } else {
-                "数据库已清空，但部分本地设置或文件清理失败，请重试。"
+    return try {
+        BackupOperationGate.forContext(context).withWriteLock {
+            when (repository.clearAllData()) {
+                is RepositoryResult.Success -> {
+                    val keyResults = AiProvider.entries.map { provider ->
+                        AiManager.keys(context, provider).clear()
+                    }
+                    val modelConfigurationCleared = AiManager.configuration(context).reset()
+                    val telemetryCleared = TelemetryRepository.clearAllTelemetry(context)
+                    val cloudSettingsCleared = CloudInteractionSettings.setEnabled(context, false)
+                    val appPreferencesCleared = AppPreferences.reset(context)
+                    val snapshotsCleared = SnapshotCatalog.clearAll(context)
+                    val snapshotKeyCleared = AndroidKeystoreSnapshotKeyProvider().deleteExisting()
+                    val audioFilesCleared = clearAppOwnedAudioFiles(context)
+                    val cleanupSucceeded = keyResults.all { it } &&
+                        modelConfigurationCleared &&
+                        telemetryCleared &&
+                        cloudSettingsCleared &&
+                        appPreferencesCleared &&
+                        snapshotsCleared &&
+                        snapshotKeyCleared &&
+                        audioFilesCleared
+                    if (cleanupSucceeded) {
+                        "本地数据已清除"
+                    } else {
+                        "数据库已清空，但部分本地设置、文件或设备快照清理失败，请重试。"
+                    }
+                }
+                is RepositoryResult.Failure -> "本地数据清除失败；未确认清除完成。"
             }
         }
-        is RepositoryResult.Failure -> "本地数据清除失败；未确认清除完成。"
+    } catch (_: Throwable) {
+        "本地数据清除失败；未确认清除完成。"
     }
 }
-
 private fun clearAppOwnedAudioFiles(context: Context): Boolean {
     val audioDirectory = File(context.applicationContext.filesDir, "jianyu-audio")
     val audioCleared = !audioDirectory.exists() || audioDirectory.deleteRecursively()

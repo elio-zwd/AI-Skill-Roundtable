@@ -36,5 +36,13 @@ class AndroidKeystoreSnapshotKeyProvider : SnapshotWrappingKeyProvider {
         (keyStore().getKey(BackupProtocol.snapshotKeyAlias, null) as? SecretKey)
             ?: throw BackupException(BackupErrorCode.SNAPSHOT_KEY_UNAVAILABLE)
 
+    fun deleteExisting(): Boolean = runCatching {
+        val store = keyStore()
+        if (store.containsAlias(BackupProtocol.snapshotKeyAlias)) {
+            store.deleteEntry(BackupProtocol.snapshotKeyAlias)
+        }
+        true
+    }.getOrDefault(false)
+
     private fun keyStore(): KeyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
 }
