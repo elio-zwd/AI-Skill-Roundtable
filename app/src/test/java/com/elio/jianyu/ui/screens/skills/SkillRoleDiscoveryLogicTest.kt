@@ -154,6 +154,12 @@ class SkillRoleDiscoveryLogicTest {
     }
 
     @Test
+    fun recentClearFeedbackOnlyReportsPersistenceFailure() {
+        assertEquals(null, recentClearFeedback(success = true))
+        assertEquals("清除最近使用失败，请重试。", recentClearFeedback(success = false))
+    }
+
+    @Test
     fun recentDateGroupingSeparatesTodayYesterdayAndEarlier() {
         val zone = ZoneId.of("Asia/Shanghai")
         val today = LocalDate.of(2026, 9, 17)

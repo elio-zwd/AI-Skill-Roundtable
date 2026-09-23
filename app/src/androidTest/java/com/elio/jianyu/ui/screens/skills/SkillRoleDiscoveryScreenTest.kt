@@ -174,6 +174,7 @@ class SkillRoleDiscoveryScreenTest {
                     ),
                     filters = RoleDiscoveryFilters(),
                     hasAnyRecent = true,
+                    message = null,
                     onBack = {},
                     onOpenFilters = {},
                     onClearAllFilters = {},
