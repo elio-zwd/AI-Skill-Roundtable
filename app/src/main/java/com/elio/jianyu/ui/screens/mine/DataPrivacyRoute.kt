@@ -40,6 +40,7 @@ import com.elio.jianyu.ui.components.JianyuMetadataRow
 import com.elio.jianyu.ui.components.JianyuPageShell
 import com.elio.jianyu.ui.components.JianyuStateCard
 import com.elio.jianyu.ui.settings.AppPreferences
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -248,8 +249,13 @@ private suspend fun readOverview(repository: JianyuRepository): Pair<DataOvervie
                 ),
             ),
         ).valueOrNull() ?: return null to "个人背景暂时无法读取。"
-        val artifactCount = issues.sumOf { item ->
-            (repository.recoverIssue(item.issue.id) as? RepositoryResult.Success)?.value?.resources?.artifacts?.size ?: 0
+        var artifactCount = 0
+        issues.forEach { item ->
+            when (val recovered = repository.recoverIssue(item.issue.id)) {
+                is RepositoryResult.Success -> artifactCount += recovered.value.resources.artifacts.size
+                is RepositoryResult.Failure ->
+                    return null to "正式成果统计暂时无法读取。"
+            }
         }
         DataOverview(issues.size, materials.size, artifactCount, personal.size) to null
     } catch (_: Throwable) {
@@ -270,10 +276,11 @@ private suspend fun writeExport(context: Context, repository: JianyuRepository, 
 }
 
 internal suspend fun buildExportJson(repository: JianyuRepository): String {
-    val issueItems = repository.listIssueNavigation(IssueLifecycleState.entries.toSet()).valueOrNull().orEmpty()
-    val issues = issueItems.mapNotNull { item ->
-        val recovery = (repository.recoverIssue(item.issue.id) as? RepositoryResult.Success)?.value
-            ?: return@mapNotNull null
+    val issueItems = requireExportSuccess(
+        repository.listIssueNavigation(IssueLifecycleState.entries.toSet()),
+    )
+    val issues = issueItems.map { item ->
+        val recovery = requireExportSuccess(repository.recoverIssue(item.issue.id))
         ExportIssue(
             id = item.issue.id,
             title = item.issue.title,
@@ -286,18 +293,30 @@ internal suspend fun buildExportJson(repository: JianyuRepository): String {
             },
         )
     }
-    val materials = repository.listMaterials(
-        com.elio.jianyu.data.MaterialFilter(
-            lifecycles = setOf(ContextSourceLifecycle.ACTIVE, ContextSourceLifecycle.DISABLED, ContextSourceLifecycle.ARCHIVED),
+    val materials = requireExportSuccess(
+        repository.listMaterials(
+            com.elio.jianyu.data.MaterialFilter(
+                lifecycles = setOf(
+                    ContextSourceLifecycle.ACTIVE,
+                    ContextSourceLifecycle.DISABLED,
+                    ContextSourceLifecycle.ARCHIVED,
+                ),
+            ),
         ),
-    ).valueOrNull().orEmpty().map { material ->
+    ).map { material ->
         ExportMaterial(material.id, material.title, material.sourceType, material.content)
     }
-    val personal = repository.listPersonalContexts(
-        com.elio.jianyu.data.PersonalContextFilter(
-            lifecycles = setOf(ContextSourceLifecycle.ACTIVE, ContextSourceLifecycle.DISABLED, ContextSourceLifecycle.ARCHIVED),
+    val personal = requireExportSuccess(
+        repository.listPersonalContexts(
+            com.elio.jianyu.data.PersonalContextFilter(
+                lifecycles = setOf(
+                    ContextSourceLifecycle.ACTIVE,
+                    ContextSourceLifecycle.DISABLED,
+                    ContextSourceLifecycle.ARCHIVED,
+                ),
+            ),
         ),
-    ).valueOrNull().orEmpty().map { item ->
+    ).map { item ->
         ExportPersonalContext(item.id, item.title, item.sensitive, item.content)
     }
     return Json { prettyPrint = true; explicitNulls = false }
@@ -315,14 +334,44 @@ internal suspend fun buildExportJson(repository: JianyuRepository): String {
 private suspend fun clearAllLocalData(context: Context, repository: JianyuRepository): String {
     return when (repository.clearAllData()) {
         is RepositoryResult.Success -> {
-            AiProvider.entries.forEach { provider -> AiManager.keys(context, provider).clear() }
-            TelemetryRepository.clearAllTelemetry(context)
-            CloudInteractionSettings.setEnabled(context, false)
-            AppPreferences.reset(context)
-            "本地数据已清除"
+            val keyResults = AiProvider.entries.map { provider ->
+                AiManager.keys(context, provider).clear()
+            }
+            val modelConfigurationCleared = AiManager.configuration(context).reset()
+            val telemetryCleared = TelemetryRepository.clearAllTelemetry(context)
+            val cloudSettingsCleared = CloudInteractionSettings.setEnabled(context, false)
+            val appPreferencesCleared = AppPreferences.reset(context)
+            val audioFilesCleared = clearAppOwnedAudioFiles(context)
+            val cleanupSucceeded = keyResults.all { it } &&
+                modelConfigurationCleared &&
+                telemetryCleared &&
+                cloudSettingsCleared &&
+                appPreferencesCleared &&
+                audioFilesCleared
+            if (cleanupSucceeded) {
+                "本地数据已清除"
+            } else {
+                "数据库已清空，但部分本地设置或文件清理失败，请重试。"
+            }
         }
         is RepositoryResult.Failure -> "本地数据清除失败；未确认清除完成。"
     }
+}
+
+private fun clearAppOwnedAudioFiles(context: Context): Boolean {
+    val audioDirectory = File(context.applicationContext.filesDir, "jianyu-audio")
+    val audioCleared = !audioDirectory.exists() || audioDirectory.deleteRecursively()
+    val cacheCleared = context.applicationContext.cacheDir
+        .listFiles()
+        .orEmpty()
+        .map { file -> runCatching { file.deleteRecursively() }.getOrDefault(false) }
+        .all { it }
+    return audioCleared && cacheCleared
+}
+
+private fun <T> requireExportSuccess(result: RepositoryResult<T>): T = when (result) {
+    is RepositoryResult.Success -> result.value
+    is RepositoryResult.Failure -> throw IllegalStateException("readable_export_source_unavailable")
 }
 
 private fun <T> RepositoryResult<T>.valueOrNull(): T? =
