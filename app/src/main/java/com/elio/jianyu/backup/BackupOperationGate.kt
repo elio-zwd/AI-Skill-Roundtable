@@ -6,6 +6,7 @@ import java.nio.channels.FileChannel
 import java.nio.channels.OverlappingFileLockException
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -99,7 +100,9 @@ class BackupOperationGate internal constructor(private val lockFile: java.io.Fil
         try {
             block()
         } finally {
-            processLock.releaseRead()
+            withContext(NonCancellable) {
+                processLock.releaseRead()
+            }
         }
     }
 

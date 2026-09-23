@@ -2,8 +2,12 @@ package com.elio.jianyu.backup
 
 import android.content.Context
 import android.net.Uri
+import android.provider.DocumentsContract
+import android.provider.OpenableColumns
 import com.elio.jianyu.JianyuAppRuntimeProvider
 import java.io.File
+import java.io.FileOutputStream
+import java.util.UUID
 import kotlinx.coroutines.CancellationException
 
 data class PortableBackupResult(
@@ -29,28 +33,78 @@ class PortableBackupService(
     }
 
     /**
-     * SAF providers do not expose a portable atomic rename contract through a bare Uri. We encrypt
-     * and verify the complete envelope before opening the selected document, then fail closed on
-     * provider write errors; no plaintext is ever sent to the provider.
+     * CreateDocument 已经创建了一个空目标文档。正式写入前先把它重命名为同 provider
+     * 的临时名，写入后重新打开并完整验证，最后再 rename 成用户选择的名称。
+     * provider 不支持 document rename/delete/reopen 时失败关闭，不直接写最终 .jybak。
      */
     suspend fun createToUri(password: String, destination: Uri): PortableBackupResult = gate.withWriteLock {
+        var temporaryUri: Uri? = null
         try {
+            val resolver = context.contentResolver
+            if (!DocumentsContract.isDocumentUri(context, destination)) {
+                throw BackupException(BackupErrorCode.PROVIDER_CAPABILITY_MISSING)
+            }
+            val originalName = queryDisplayName(destination)
+                ?: throw BackupException(BackupErrorCode.PROVIDER_CAPABILITY_MISSING)
+            val temporaryName = "$originalName.partial-${UUID.randomUUID()}"
+            temporaryUri = DocumentsContract.renameDocument(resolver, destination, temporaryName)
+                ?: throw BackupException(BackupErrorCode.PROVIDER_CAPABILITY_MISSING)
+
             val bytes = JianyuAppRuntimeProvider.withRuntime(context.applicationContext) { runtime ->
                 BackupEnvelopeWriter.createPortable(password, RepositoryBackupMapper.collect(runtime))
             }
-            val plaintext = com.elio.jianyu.backup.BackupCrypto.decryptPortable(password, bytes)
-            BackupRecordStream.verify(plaintext, BackupProtocol.portableFormatId)
-            context.contentResolver.openOutputStream(destination, "w")?.use { output ->
-                output.write(bytes)
-                output.flush()
+            resolver.openFileDescriptor(temporaryUri, "w")?.use { descriptor ->
+                FileOutputStream(descriptor.fileDescriptor).use { output ->
+                    output.write(bytes)
+                    output.flush()
+                    output.fd.sync()
+                }
             } ?: throw BackupException(BackupErrorCode.PROVIDER_CAPABILITY_MISSING)
-            PortableBackupResult(bytes.size.toLong(), destination.toString())
+
+            val persisted = resolver.openInputStream(temporaryUri)?.use { it.readBytes() }
+                ?: throw BackupException(BackupErrorCode.PROVIDER_CAPABILITY_MISSING)
+            if (!persisted.contentEquals(bytes)) {
+                throw BackupException(BackupErrorCode.VERIFICATION_FAILED)
+            }
+            val plaintext = BackupCrypto.decryptPortable(password, persisted)
+            BackupRecordStream.verify(plaintext, BackupProtocol.portableFormatId)
+
+            val published = DocumentsContract.renameDocument(resolver, temporaryUri, originalName)
+                ?: throw BackupException(BackupErrorCode.TARGET_WRITE_FAILED)
+            temporaryUri = null
+            PortableBackupResult(bytes.size.toLong(), published.toString())
         } catch (error: CancellationException) {
+            cleanupTemporaryDocument(temporaryUri, error)
             throw BackupException(BackupErrorCode.OPERATION_CANCELED, error)
         } catch (error: BackupException) {
+            cleanupTemporaryDocument(temporaryUri, error)
             throw error
         } catch (error: Throwable) {
+            cleanupTemporaryDocument(temporaryUri, error)
             throw BackupException(BackupErrorCode.TARGET_WRITE_FAILED, error)
+        }
+    }
+
+    private fun queryDisplayName(uri: Uri): String? =
+        context.contentResolver.query(
+            uri,
+            arrayOf(OpenableColumns.DISPLAY_NAME),
+            null,
+            null,
+            null,
+        )?.use { cursor ->
+            if (!cursor.moveToFirst()) null
+            else cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME))
+                ?.takeIf(String::isNotBlank)
+        }
+
+    private fun cleanupTemporaryDocument(uri: Uri?, cause: Throwable) {
+        if (uri == null) return
+        val cleaned = runCatching {
+            DocumentsContract.deleteDocument(context.contentResolver, uri)
+        }.getOrDefault(false)
+        if (!cleaned) {
+            throw BackupException(BackupErrorCode.TEMPORARY_CLEANUP_FAILED, cause)
         }
     }
 }

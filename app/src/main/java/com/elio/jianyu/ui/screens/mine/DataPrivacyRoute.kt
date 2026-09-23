@@ -145,7 +145,7 @@ fun DataPrivacyRoute(
     ) {
         JianyuStateCard(
             title = "本地数据概览",
-            message = "这里显示当前见域 App 可读取的数据数量。不会访问或清除旧包。",
+            message = "这里显示当前见域 App 可读取的数据数量。只统计当前见域 App 可读取的数据，不访问其他应用的数据。",
         )
         if (loadError != null) {
             JianyuStateCard("暂时无法读取数据概览", loadError!!, actionLabel = "重试", onAction = ::loadOverview)
@@ -175,7 +175,7 @@ fun DataPrivacyRoute(
         actionMessage?.let { JianyuStateCard("导出结果", it) }
         JianyuStateCard(
             title = "删除所有本地数据",
-            message = "将清除当前 App 的会话、资料、成果、个人背景、应用偏好、API Key 和遥测记录。旧包不会被访问或自动清除。",
+            message = "将清除当前 App 的会话、资料、成果、个人背景、应用偏好、API Key 和遥测记录。其他应用的数据不会被访问或自动清除。",
             actionLabel = "进入删除确认",
             actionTestTag = DataPrivacyTestTags.DELETE,
             onAction = {
@@ -184,7 +184,7 @@ fun DataPrivacyRoute(
             },
         )
         Text(
-            "删除前请确认已保留需要的导出文件。删除操作不会卸载旧 App。",
+            "删除前请确认已保留需要的导出文件。删除操作只处理当前见域 App 的本地数据。",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
@@ -196,7 +196,7 @@ fun DataPrivacyRoute(
             title = { Text("删除所有本地数据？") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("此操作会清理当前 App 的本地数据；旧包 com.elio.skillroundtable 不会被访问。")
+                    Text("此操作会清理当前见域 App 的本地数据；其他应用的数据不会被访问。")
                     OutlinedTextField(
                         value = deleteInput,
                         onValueChange = { deleteInput = it },

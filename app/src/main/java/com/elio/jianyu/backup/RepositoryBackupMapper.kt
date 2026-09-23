@@ -132,23 +132,51 @@ object RepositoryBackupMapper {
                 source.draftRevisions.forEach { entities += record("artifact-draft-${source.artifactId}-${it.draftRevisionId}", "artifact_draft_source", fields(it.artifactId, it.issueId, it.draftRevisionId, it.createdAt)) }
                 source.materials.forEach { entities += record("artifact-material-${source.artifactId}-${it.materialUsageSnapshotId}", "artifact_material_source", fields(it.artifactId, it.issueId, it.materialUsageSnapshotId, it.createdAt)) }
             }
-            val advancementResult = try {
-                repository.listStageAdvancements(item.issue.id)
-            } catch (_: Throwable) {
-                null
-            }
-            advancementResult?.let { result ->
-                when (result) {
-                    is RepositoryResult.Success -> result.value.forEach { advancement ->
-                        entities += record("stage-advancement-${advancement.stage.id}", "stage_advancement", fields(
-                            advancement.stage.id, advancement.advancement.issueId, advancement.advancement.sourceStageId,
-                            advancement.advancement.operationId, advancement.advancement.payloadHash,
-                            advancement.advancement.realitySupport, advancement.advancement.thinkingExpansion,
-                            advancement.advancement.objective, advancement.advancement.expectedOutput,
-                            advancement.advancement.confirmedAt, advancement.advancement.createdAt,
-                        ))
-                    }
-                    is RepositoryResult.Failure -> Unit
+            requireSuccess(repository.listStageAdvancements(item.issue.id)).forEach { advancement ->
+                entities += record("stage-advancement-${advancement.stage.id}", "stage_advancement", fields(
+                    advancement.stage.id, advancement.advancement.issueId, advancement.advancement.sourceStageId,
+                    advancement.advancement.operationId, advancement.advancement.payloadHash,
+                    advancement.advancement.realitySupport, advancement.advancement.thinkingExpansion,
+                    advancement.advancement.objective, advancement.advancement.expectedOutput,
+                    advancement.advancement.confirmedAt, advancement.advancement.createdAt,
+                ))
+                advancement.measures.sortedBy { it.position }.forEach { measure ->
+                    entities += record(
+                        "stage-measure-${measure.stageId}-${measure.position}",
+                        "stage_advancement_measure",
+                        fields(measure.stageId, measure.issueId, measure.measure.storageValue, measure.position),
+                    )
+                }
+                advancement.roster.sortedBy { it.position }.forEach { member ->
+                    entities += record(
+                        "stage-skill-${member.stageId}-${member.officialSkillId}",
+                        "stage_advancement_skill_member",
+                        fields(
+                            member.stageId, member.issueId, member.officialSkillId, member.position,
+                            member.responsibility, member.sourceRunId, member.sourceParticipantSnapshotId,
+                            member.catalogVersionBasis, member.confirmedAt,
+                        ),
+                    )
+                }
+                advancement.materials.sortedBy { it.position }.forEach { material ->
+                    entities += record(
+                        "stage-material-${material.stageId}-${material.materialReferenceId}",
+                        "stage_advancement_material",
+                        fields(
+                            material.stageId, material.issueId, material.materialReferenceId,
+                            material.position, material.inheritedAt,
+                        ),
+                    )
+                }
+                advancement.artifacts.sortedBy { it.position }.forEach { artifact ->
+                    entities += record(
+                        "stage-artifact-${artifact.stageId}-${artifact.artifactId}",
+                        "stage_advancement_artifact",
+                        fields(
+                            artifact.stageId, artifact.issueId, artifact.artifactId,
+                            artifact.position, artifact.inheritedAt,
+                        ),
+                    )
                 }
             }
         }

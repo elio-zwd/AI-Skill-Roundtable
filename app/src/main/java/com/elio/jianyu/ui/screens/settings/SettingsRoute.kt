@@ -118,7 +118,7 @@ fun SettingsScreen(
         )
         JianyuStateCard(
             title = "数据与恢复",
-            message = "数据导出、备份与恢复请从“我的”页进入；旧包不会自动迁移。",
+            message = "数据导出、备份与恢复请从“我的”页进入；这里只处理当前见域 App 的数据。",
         )
     }
 }

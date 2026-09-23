@@ -53,7 +53,7 @@ fun AboutRoute(onBack: () -> Unit) {
             )
             JianyuStateCard(
                 title = "本地应用信息",
-                message = "applicationId：com.elio.jianyu\n完整 API Key 不会在本页面显示；旧包 com.elio.skillroundtable 的数据不会自动迁移。",
+                message = "applicationId：com.elio.jianyu\n完整 API Key 不会在本页面显示。",
             )
             Text("开源许可与第三方内容说明将在发布包中随附；当前版本不提供云端账号或自动同步。", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

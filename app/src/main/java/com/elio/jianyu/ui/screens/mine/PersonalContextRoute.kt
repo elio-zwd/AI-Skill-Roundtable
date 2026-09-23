@@ -69,6 +69,12 @@ private data class PersonalContextEditor(
     val sensitive: Boolean,
 )
 
+private enum class PersonalContextListFilter {
+    ALL,
+    SENSITIVE,
+    DISABLED,
+}
+
 private val visiblePersonalContextLifecycles = setOf(
     ContextSourceLifecycle.ACTIVE,
     ContextSourceLifecycle.DISABLED,
@@ -87,7 +93,7 @@ fun PersonalContextRoute(
     var operation by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
-    var includeInactive by rememberSaveable { mutableStateOf(false) }
+    var listFilter by rememberSaveable { mutableStateOf(PersonalContextListFilter.ALL) }
     var editor by remember { mutableStateOf<PersonalContextEditor?>(null) }
     var deleteTarget by remember { mutableStateOf<PersonalContext?>(null) }
     var deleteInput by remember { mutableStateOf("") }
@@ -95,13 +101,10 @@ fun PersonalContextRoute(
     fun reload() {
         scope.launch {
             loading = true
-            val lifecycles = if (includeInactive) {
-                visiblePersonalContextLifecycles
-            } else {
-                setOf(ContextSourceLifecycle.ACTIVE)
-            }
             val result = withContext(Dispatchers.IO) {
-                repository.listPersonalContexts(PersonalContextFilter(lifecycles = lifecycles))
+                repository.listPersonalContexts(
+                    PersonalContextFilter(lifecycles = visiblePersonalContextLifecycles),
+                )
             }
             when (result) {
                 is RepositoryResult.Success -> {
@@ -114,23 +117,31 @@ fun PersonalContextRoute(
         }
     }
 
-    LaunchedEffect(repository, includeInactive) { reload() }
+    LaunchedEffect(repository) { reload() }
 
     val visibleItems = allItems.filter { item ->
-        query.isBlank() || item.title.contains(query, ignoreCase = true) ||
-            item.content.contains(query, ignoreCase = true)
+        val matchesFilter = when (listFilter) {
+            PersonalContextListFilter.ALL -> true
+            PersonalContextListFilter.SENSITIVE -> item.sensitive
+            PersonalContextListFilter.DISABLED -> item.lifecycle == ContextSourceLifecycle.DISABLED
+        }
+        matchesFilter && (
+            query.isBlank() ||
+                item.title.contains(query, ignoreCase = true) ||
+                (!item.sensitive && item.content.contains(query, ignoreCase = true))
+            )
     }
 
     PersonalContextScreen(
         items = visibleItems,
         query = query,
-        includeInactive = includeInactive,
+        listFilter = listFilter,
         loading = loading,
         operation = operation,
         errorMessage = errorMessage,
         onBack = onBack,
         onQueryChange = { query = it },
-        onIncludeInactiveChange = { includeInactive = it },
+        onListFilterChange = { listFilter = it },
         onRetry = ::reload,
         onAdd = {
             errorMessage = null
@@ -298,13 +309,13 @@ fun PersonalContextRoute(
 private fun PersonalContextScreen(
     items: List<PersonalContext>,
     query: String,
-    includeInactive: Boolean,
+    listFilter: PersonalContextListFilter,
     loading: Boolean,
     operation: Boolean,
     errorMessage: String?,
     onBack: () -> Unit,
     onQueryChange: (String) -> Unit,
-    onIncludeInactiveChange: (Boolean) -> Unit,
+    onListFilterChange: (PersonalContextListFilter) -> Unit,
     onRetry: () -> Unit,
     onAdd: () -> Unit,
     onEdit: (PersonalContext) -> Unit,
@@ -333,14 +344,19 @@ private fun PersonalContextScreen(
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
-                selected = !includeInactive,
-                onClick = { onIncludeInactiveChange(false) },
-                label = { Text("当前可用") },
+                selected = listFilter == PersonalContextListFilter.ALL,
+                onClick = { onListFilterChange(PersonalContextListFilter.ALL) },
+                label = { Text("全部") },
             )
             FilterChip(
-                selected = includeInactive,
-                onClick = { onIncludeInactiveChange(true) },
-                label = { Text("含已停用") },
+                selected = listFilter == PersonalContextListFilter.SENSITIVE,
+                onClick = { onListFilterChange(PersonalContextListFilter.SENSITIVE) },
+                label = { Text("敏感") },
+            )
+            FilterChip(
+                selected = listFilter == PersonalContextListFilter.DISABLED,
+                onClick = { onListFilterChange(PersonalContextListFilter.DISABLED) },
+                label = { Text("已停用") },
             )
         }
         Button(
@@ -400,7 +416,11 @@ private fun PersonalContextCard(
                 if (item.sensitive) JianyuBadge("敏感", containerColor = MaterialTheme.colorScheme.tertiaryContainer)
             }
             Text(
-                item.content.replace("\n", " "),
+                if (item.sensitive) {
+                    "敏感内容已隐藏；进入编辑后查看。"
+                } else {
+                    item.content.replace("\n", " ")
+                },
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

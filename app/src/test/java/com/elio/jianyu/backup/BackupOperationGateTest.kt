@@ -7,9 +7,13 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -76,6 +80,29 @@ class BackupOperationGateTest {
             reader.await()
             writer.await()
             assertTrue(writerEntered.isCompleted)
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun cancelledReaderAlwaysReleasesForNextWriter() = runBlocking {
+        val directory = Files.createTempDirectory("jianyu-gate-").toFile()
+        try {
+            val gate = BackupOperationGate(File(directory, "jianyu-backup/operation.lock"))
+            val entered = CompletableDeferred<Unit>()
+            val reader = launch {
+                gate.withReadLock {
+                    entered.complete(Unit)
+                    awaitCancellation()
+                }
+            }
+            entered.await()
+            reader.cancelAndJoin()
+
+            withTimeout(1_000L) {
+                gate.withWriteLock { Unit }
+            }
         } finally {
             directory.deleteRecursively()
         }
