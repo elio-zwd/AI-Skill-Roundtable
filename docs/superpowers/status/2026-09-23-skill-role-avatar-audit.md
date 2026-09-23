@@ -108,10 +108,13 @@ Google Drive：`skill-role-visuals-2026-09-23`
 
 根目录：`skill-role-visuals-2026-09-23`
 
-### 人物源图 1
+### 正式人物源图 v2
 
-- 文件：`portrait-sheet-1.png`
-- Drive ID：`1UMV3uZJXQbhaXWRqlqpt1S86clfRvyET`
+> v1 写实源图不采用；以下 v2 为正式裁切来源，统一为接近现有头像的 2D 编辑插画风。
+
+#### portrait-sheet-1-v2.png
+
+- Drive ID：`11X7dbuTytrRU6c3Mi3Z83Upkg79etoxh`
 - 3×2 映射（左→右、上→下）：
   1. `civil-service-coach`
   2. `public-document-coach`
@@ -120,11 +123,10 @@ Google Drive：`skill-role-visuals-2026-09-23`
   5. `workplace-communication`
   6. `manager-expectation-review`
 
-### 人物源图 2
+#### portrait-sheet-2-v2.png
 
-- 文件：`portrait-sheet-2.png`
-- Drive ID：`1JJ2AKkay9DUoKGRChV47Ndwka4wNrcTd`
-- 3×2 映射（左→右、上→下）：
+- Drive ID：`1OBJOptiF92eqS69hJW6nEQlvoF99PEhl`
+- 3×2 映射：
   1. `report-proposal-writer`
   2. `contract-checklist`
   3. `hr-document-assistant`
@@ -132,22 +134,21 @@ Google Drive：`skill-role-visuals-2026-09-23`
   5. `habit-wellbeing-coach`
   6. `relationship-dialogue-practice`
 
-### 人物源图 3
+#### portrait-sheet-3-v2.png
 
-- 文件：`portrait-sheet-3.png`
-- Drive ID：`12FoRkmpgrvOCADwza_GKd7Q0J8he87xY`
-- 3×2 映射（左→右、上→下）：
+- Drive ID：`1Rt3FA18tTpfTlhuZ0pA6wP7OAls17g3O`
+- 3×2 映射：
   1. `chinese-social-etiquette`
   2. `culture-fortune-entertainment`
   3. `content-creator`
   4. `product-competition-analyst`
   5. `original-expression-naturalizer`
-  6. `x_mentor`（替换旧的带文字头像）
+  6. `x_mentor`
 
-### 单独人物源图
+#### career-navigator-v2.png
 
-- `career-navigator.jpg`
-- Drive ID：`1gjpRGj9xgTxcd8HR9aWAAxO_bOceRc69`
+- Drive ID：`1g0AAC2Cl0XkVk1iJ2sDFoDTIhusHVD4I`
+- 单图，最终输出为 `career-navigator.jpg`
 
 ### 工具视觉源图
 
