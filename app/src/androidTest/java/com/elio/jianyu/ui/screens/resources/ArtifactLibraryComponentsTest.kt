@@ -101,6 +101,38 @@ class ArtifactLibraryComponentsTest {
     }
 
     @Test
+    fun filtersOpenInSheetAndCancelDoesNotApplyDraftChanges() {
+        var typeApplyCount = 0
+        var historyApplyCount = 0
+        val item = artifact(content = "正文")
+        composeRule.setContent {
+            MaterialTheme {
+                ArtifactLibraryContent(
+                    state = ArtifactLibraryUiState.Content(
+                        ArtifactLibrarySnapshot(listOf(item), emptyList()),
+                    ),
+                    onRetry = {},
+                    onQueryChange = {},
+                    onTypesChange = { typeApplyCount += 1 },
+                    onIncludeHistoryChange = { historyApplyCount += 1 },
+                    onOpenArtifact = {},
+                    onDismissArtifact = {},
+                    onOpenIssue = { _, _ -> },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("通用阶段总结").assertDoesNotExist()
+        composeRule.onNodeWithText("筛选").performClick()
+        composeRule.onNodeWithText("通用阶段总结").assertIsDisplayed().performClick()
+        composeRule.onNodeWithText("取消").performClick()
+        composeRule.runOnIdle {
+            assertEquals(0, typeApplyCount)
+            assertEquals(0, historyApplyCount)
+        }
+    }
+
+    @Test
     fun detailShowsFullContentAndReturnsStableIssueStageIds() {
         var openedIssue: Pair<String, String>? = null
         var copiedArtifactId: String? = null
