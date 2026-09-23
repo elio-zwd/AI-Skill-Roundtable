@@ -1,5 +1,6 @@
 package com.elio.jianyu.backup
 
+import android.content.Context
 import com.elio.jianyu.JianyuAppRuntime
 import com.elio.jianyu.audio.assets.AudioFileResolution
 import com.elio.jianyu.data.AudioFileState
@@ -8,18 +9,27 @@ import com.elio.jianyu.data.IssueLifecycleState
 import com.elio.jianyu.data.JianyuRepository
 import com.elio.jianyu.data.RepositoryError
 import com.elio.jianyu.data.RepositoryResult
+import com.elio.jianyu.data.getExecutionRuntime
+import com.elio.jianyu.data.getStageCollaboration
 import com.elio.jianyu.data.listArtifactSourcesForIssue
 import com.elio.jianyu.data.listStageAdvancements
 import com.elio.jianyu.data.MaterialFilter
 import com.elio.jianyu.data.PersonalContextFilter
+import com.elio.jianyu.ui.settings.AppPreferences
 import java.net.URI
 
 /** Explicit whitelist mapper; Room table names never become format identifiers. */
 object RepositoryBackupMapper {
-    suspend fun collect(runtime: JianyuAppRuntime): PortableBackupInput {
+    suspend fun collect(context: Context, runtime: JianyuAppRuntime): PortableBackupInput {
         val repository = runtime.repository
+        requireNoUnsupportedLegacyData(runtime)
         val entities = mutableListOf<BackupEntityRecord>()
         val blobs = mutableListOf<BackupBlobRecord>()
+        val emittedParticipantStateIds = mutableSetOf<String>()
+        val emittedBudgetIds = mutableSetOf<String>()
+        val emittedDiscussionIds = mutableSetOf<String>()
+        val emittedMessageUsageIds = mutableSetOf<String>()
+        val emittedRelationIds = mutableSetOf<String>()
         val navigation = requireSuccess(repository.listIssueNavigation(setOf(
             IssueLifecycleState.ACTIVE,
             IssueLifecycleState.ARCHIVED,
@@ -35,13 +45,38 @@ object RepositoryBackupMapper {
             entities += record("issue-${snapshot.core.issue.id}", "issue", fields(
                 snapshot.core.issue.id, snapshot.core.issue.title, snapshot.core.issue.createdAt,
                 snapshot.core.issue.updatedAt, snapshot.core.issue.defaultThinkingPolicy.storageValue,
-                snapshot.core.issue.legacyChatSessionId,
             ))
             snapshot.core.stages.sortedBy { it.sequenceIndex }.forEach { stage ->
                 entities += record("stage-${stage.id}", "stage", fields(
                     stage.id, stage.issueId, stage.sequenceIndex, stage.title, stage.objective,
                     stage.createdAt, stage.updatedAt,
                 ))
+                val collaboration = requireSuccess(repository.getStageCollaboration(stage.id))
+                collaboration.discussions.sortedWith(compareBy({ it.createdAt }, { it.id })).forEach { discussion ->
+                    if (emittedDiscussionIds.add(discussion.id)) {
+                        entities += record("discussion-${discussion.id}", "cross_discussion", fields(
+                            discussion.id, discussion.issueId, discussion.stageId, discussion.triggerMessageId,
+                            discussion.responseRunId, discussion.synthesisRunId, discussion.integratorSkillId,
+                            discussion.status.storageValue, discussion.idempotencyKey,
+                            discussion.successfulParticipantIdsJson, discussion.failedParticipantIdsJson,
+                            discussion.partialSynthesisConfirmedAt, discussion.createdAt, discussion.updatedAt,
+                            discussion.failureCode,
+                        ))
+                    }
+                }
+                collaboration.messageUsageByRun.values
+                    .flatten()
+                    .sortedWith(compareBy({ it.usedAt }, { it.id }))
+                    .forEach { usage ->
+                        if (emittedMessageUsageIds.add(usage.id)) {
+                            entities += record("message-usage-${usage.id}", "message_usage", fields(
+                                usage.id, usage.runId, usage.sourceMessageId, usage.sourceExecutionRunId,
+                                usage.sourceParticipantSnapshotId, usage.senderIdSnapshot,
+                                usage.senderNameSnapshot, usage.contentSnapshot, usage.contentHash,
+                                usage.usageOrder, usage.usedAt,
+                            ))
+                        }
+                    }
             }
             snapshot.core.runs.sortedBy { it.createdAt }.forEach { run ->
                 if (run.status.storageValue in setOf("running", "partial_success", "retryable")) {
@@ -55,6 +90,31 @@ object RepositoryBackupMapper {
                     run.historyScope.storageValue, run.actualModelId, run.actualThinkingLevel.storageValue,
                     run.thinkingLevelSource.storageValue,
                 ))
+                val runtimeSnapshot = requireSuccess(repository.getExecutionRuntime(run.id))
+                runtimeSnapshot.participantStates
+                    .sortedBy { it.participantSnapshotId }
+                    .forEach { state ->
+                        if (emittedParticipantStateIds.add(state.participantSnapshotId)) {
+                            entities += record(
+                                "participant-state-${state.participantSnapshotId}",
+                                "participant_state",
+                                fields(
+                                    state.participantSnapshotId, state.runId, state.status.storageValue,
+                                    state.attemptCount, state.outputMessageId, state.startedAt, state.finishedAt,
+                                    state.lastErrorCode, state.lastErrorMessage, state.hasIncompleteOutput,
+                                    state.updatedAt,
+                                ),
+                            )
+                        }
+                    }
+                val budget = runtimeSnapshot.budget
+                if (emittedBudgetIds.add(budget.rootRunId)) {
+                    entities += record("run-budget-${budget.rootRunId}", "run_budget", fields(
+                        budget.rootRunId, budget.usedApiCalls, budget.maxCharacters,
+                        budget.maxSearchQueriesPerCharacter, budget.maxOutputTokensPerAnswer,
+                        budget.closed, budget.updatedAt,
+                    ))
+                }
             }
             snapshot.core.participants.sortedWith(compareBy({ it.runId }, { it.position })).forEach { participant ->
                 entities += record("participant-${participant.id}", "participant_snapshot", fields(
@@ -66,10 +126,9 @@ object RepositoryBackupMapper {
             }
             snapshot.core.messages.filterNot { it.isPending }.sortedWith(compareBy({ it.timestamp }, { it.id })).forEach { message ->
                 entities += record("message-${message.id}", "message", fields(
-                    message.id, message.chatId, message.issueId, message.stageId,
-                    message.executionRunId, message.participantSnapshotId, message.senderId,
-                    message.senderName, message.avatar, message.text, message.timestamp,
-                    message.roundIndex,
+                    message.id, message.issueId, message.stageId, message.executionRunId,
+                    message.participantSnapshotId, message.senderId, message.senderName,
+                    message.avatar, message.text, message.timestamp, message.roundIndex,
                 ))
             }
             snapshot.resources.drafts.forEach { draft ->
@@ -179,6 +238,35 @@ object RepositoryBackupMapper {
                     )
                 }
             }
+            val lifecycleRepository = runtime.lifecycleRuntime.repository
+            requireSuccess(lifecycleRepository.listArchiveEvents(item.issue.id))
+                .sortedWith(compareBy({ it.archivedAt }, { it.id }))
+                .forEach { event ->
+                    entities += record("archive-${event.id}", "archive_event", fields(
+                        event.id, event.issueId, event.archiveOperationId, event.payloadHash,
+                        event.summaryMarkdown, event.currentStageIdSnapshot, event.stageCountSnapshot,
+                        event.runCountSnapshot, event.draftCountSnapshot, event.artifactCountSnapshot,
+                        event.audioAssetCountSnapshot, event.archivedAt, event.createdAt,
+                    ))
+                }
+            requireSuccess(lifecycleRepository.listResumeEvents(item.issue.id))
+                .sortedWith(compareBy({ it.resumedAt }, { it.id }))
+                .forEach { event ->
+                    entities += record("resume-${event.id}", "resume_event", fields(
+                        event.id, event.issueId, event.archiveEventId, event.resumeOperationId,
+                        event.payloadHash, event.changeNote, event.resumedAt, event.createdAt,
+                    ))
+                }
+            requireSuccess(lifecycleRepository.listIssueRelations(item.issue.id))
+                .forEach { relation ->
+                    if (emittedRelationIds.add(relation.id)) {
+                        entities += record("relation-${relation.id}", "issue_relation", fields(
+                            relation.id, relation.sourceIssueId, relation.targetIssueId,
+                            relation.sourceArchiveEventId, relation.operationId, relation.payloadHash,
+                            relation.relationType.storageValue, relation.createdAt, relation.sourcePurgedAt,
+                        ))
+                    }
+                }
         }
 
         requireSuccess(repository.listMaterials(MaterialFilter())).filter { it.lifecycle != ContextSourceLifecycle.PURGED }.forEach { material ->
@@ -210,6 +298,24 @@ object RepositoryBackupMapper {
                 ))
             }
         }
+        AppPreferences.initialize(context.applicationContext)
+        val preferences = AppPreferences.state.value
+        listOf<Pair<String, Any>>(
+            "theme_mode" to preferences.themeMode.name,
+            "font_size_mode" to preferences.fontSizeMode.name,
+            "content_density_mode" to preferences.contentDensityMode.name,
+            "reduced_motion" to preferences.reducedMotion,
+            "high_contrast_text" to preferences.highContrastText,
+            "show_message_timestamps" to preferences.showMessageTimestamps,
+            "confirm_sensitive_context" to preferences.confirmSensitiveContext,
+        ).forEach { (key, value) ->
+            entities += record(
+                "setting-${key.replace('_', '-')}",
+                "safe_user_setting",
+                fields(key, value),
+            )
+        }
+
         return PortableBackupInput(
             manifest = BackupManifest(
                 formatId = BackupProtocol.portableFormatId,
@@ -219,11 +325,31 @@ object RepositoryBackupMapper {
                 sourceRoomVersion = 14L,
                 logicalEntryCount = entities.size.toLong(),
                 blobCount = blobs.size.toLong(),
-                backupScope = listOf("issues", "resources", "personal_context", "audio_available", "skill_combinations"),
+                backupScope = listOf(
+                    "issues", "execution_runtime", "collaboration", "resources", "personal_context",
+                    "lifecycle_history", "audio_available", "skill_combinations", "safe_settings",
+                ),
             ),
             entities = entities,
             blobs = blobs,
         )
+    }
+
+    private fun requireNoUnsupportedLegacyData(runtime: JianyuAppRuntime) {
+        val sqlite = runtime.database.openHelper.readableDatabase
+        fun count(sql: String): Long = sqlite.query(sql).use { cursor ->
+            if (!cursor.moveToFirst()) 0L else cursor.getLong(0)
+        }
+        val standaloneSessions = count(
+            "SELECT COUNT(*) FROM chat_sessions AS s WHERE NOT EXISTS (" +
+                "SELECT 1 FROM issues AS i WHERE i.legacyChatSessionId = s.id)",
+        )
+        val unscopedMessages = count(
+            "SELECT COUNT(*) FROM messages WHERE issueId IS NULL OR stageId IS NULL",
+        )
+        if (standaloneSessions > 0L || unscopedMessages > 0L) {
+            throw BackupException(BackupErrorCode.UNSUPPORTED_LEGACY_DATA)
+        }
     }
 
     private fun record(id: String, type: String, payload: BackupCborValue): BackupEntityRecord =

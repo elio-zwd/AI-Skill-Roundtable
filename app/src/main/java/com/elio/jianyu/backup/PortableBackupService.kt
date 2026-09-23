@@ -23,7 +23,7 @@ class PortableBackupService(
     suspend fun createToFile(password: String, destination: File): PortableBackupResult = gate.withWriteLock {
         try {
             JianyuAppRuntimeProvider.withRuntime(context.applicationContext) { runtime ->
-                val input = RepositoryBackupMapper.collect(runtime)
+                val input = RepositoryBackupMapper.collect(context.applicationContext, runtime)
                 BackupEnvelopeWriter.writeVerifiedFile(password, input, destination)
                 PortableBackupResult(destination.length(), destination.absolutePath)
             }
@@ -53,7 +53,7 @@ class PortableBackupService(
             val temporaryUri = requireNotNull(workingUri)
 
             val bytes = JianyuAppRuntimeProvider.withRuntime(context.applicationContext) { runtime ->
-                BackupEnvelopeWriter.createPortable(password, RepositoryBackupMapper.collect(runtime))
+                BackupEnvelopeWriter.createPortable(password, RepositoryBackupMapper.collect(context.applicationContext, runtime))
             }
             resolver.openFileDescriptor(temporaryUri, "w")?.use { descriptor ->
                 FileOutputStream(descriptor.fileDescriptor).use { output ->

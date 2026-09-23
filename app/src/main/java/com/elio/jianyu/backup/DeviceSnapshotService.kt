@@ -113,10 +113,10 @@ class DeviceSnapshotService(
             throw BackupException(BackupErrorCode.PURGE_IN_PROGRESS)
         }
         if (count(
-                "SELECT COUNT(*) FROM chat_sessions WHERE id NOT IN (" +
-                    "SELECT legacyChatSessionId FROM issues WHERE legacyChatSessionId IS NOT NULL " +
-                    "AND id NOT LIKE 'legacy-chat-%' AND id NOT LIKE 'dialog-session-%')",
-            ) > 0L
+                "SELECT COUNT(*) FROM chat_sessions AS s WHERE NOT EXISTS (" +
+                    "SELECT 1 FROM issues AS i WHERE i.legacyChatSessionId = s.id)",
+            ) > 0L ||
+            count("SELECT COUNT(*) FROM messages WHERE issueId IS NULL OR stageId IS NULL") > 0L
         ) throw BackupException(BackupErrorCode.UNSUPPORTED_LEGACY_DATA)
         val checkpoint = sqlite.query("PRAGMA wal_checkpoint(TRUNCATE)").use { cursor ->
             !cursor.moveToFirst() || cursor.getInt(0) == 0
