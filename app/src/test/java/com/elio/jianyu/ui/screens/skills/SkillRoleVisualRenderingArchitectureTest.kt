@@ -33,6 +33,15 @@ class SkillRoleVisualRenderingArchitectureTest {
         assertFalse(function.contains("role.name.take(2)"))
     }
 
+    @Test
+    fun legacyCatalogComponents_useProjectedCanonicalAssetPath() {
+        val source = sourceFile("SkillRoleCatalogComponents.kt").readText()
+
+        assertTrue(source.contains("assetPath = role.avatarAssetPath"))
+        assertFalse(source.contains("productionAvatarPath()"))
+        assertFalse(source.contains("\"avatars/\$skillId.jpg\""))
+    }
+
     private fun sourceFile(name: String): File = listOf(
         File("src/main/java/com/elio/jianyu/ui/screens/skills/$name"),
         File("app/src/main/java/com/elio/jianyu/ui/screens/skills/$name"),
