@@ -21,6 +21,9 @@ import com.elio.jianyu.data.RepositoryError
 import com.elio.jianyu.data.RepositoryResult
 import com.elio.jianyu.data.RoundtableDatabase
 import com.elio.jianyu.data.SaveIssueCommand
+import com.elio.jianyu.material.MaterialDocumentReadResult
+import com.elio.jianyu.material.MaterialDocumentReader
+import com.elio.jianyu.result.ArtifactType
 import com.elio.jianyu.network.Content
 import com.elio.jianyu.network.GenerateContentRequest
 import com.elio.jianyu.network.Part
@@ -76,6 +79,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.workDataOf
 import androidx.work.WorkManager
 import java.io.File
+import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 
 private const val ROUNDTABLE_SEQUENCE_TIMEOUT_MS = 8 * 60 * 1000L
@@ -159,7 +163,9 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
     }.getOrNull()
     private val formalizationMutex = Mutex()
     private val formalContexts = ConcurrentHashMap<Long, FormalConversationContext>()
-    private val selectedConversationContexts = ConcurrentHashMap<Long, List<ConversationContextSelection>>()
+    private val pendingConversationContexts = ConcurrentHashMap<Long, List<ConversationContextSelection>>()
+    private val activeConversationContexts = ConcurrentHashMap<Long, List<ConversationContextSelection>>()
+    private val retryConversationContexts = ConcurrentHashMap<Long, List<ConversationContextSelection>>()
     private val startupPendingCleanupJob: Job = viewModelScope.launch(Dispatchers.IO) {
         try {
             chatRepo.removeAllPendingMessages()
@@ -711,12 +717,14 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 text = text
             )
             val questionRunId = dbGateway.insertMessage(userMsg)
+            val requestContext = consumePendingConversationContext(sessionId)
             budgetManager.setSelectedParticipants(questionRunId, targetCharacterIds)
             runRoundtableSequence(
                 sessionId = sessionId,
                 questionRunId = questionRunId,
                 targetCharacterIds = targetCharacterIds,
                 responseMode = TranscriptBuilder.ResponseMode.INDEPENDENT,
+                contextSelections = requestContext,
             )
 
             val allMsgs = chatRepo.getMessages(sessionId)
@@ -839,17 +847,24 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         materials to personal
     }
 
-    /** 仅保存用户明确选择且已允许本次发送的上下文；下一轮会继续显示为已选，但不会默认继承其他角色答案。 */
+    /** 保存给下一次模型请求；请求开始时原子消费，不自动带入后续请求。 */
     fun confirmConversationContext(selections: List<ConversationContextSelection>) {
         val sessionId = _currentSessionId.value ?: return
         val valid = selections.filter {
             it.content.isNotBlank() && it.networkAllowed && (!it.sensitive || it.sensitiveConfirmed)
         }
-        selectedConversationContexts[sessionId] = valid
+        if (valid.isEmpty()) {
+            pendingConversationContexts.remove(sessionId)
+        } else {
+            pendingConversationContexts[sessionId] = valid
+        }
     }
 
     fun currentConversationContextSelections(): List<ConversationContextSelection> =
-        _currentSessionId.value?.let(selectedConversationContexts::get).orEmpty()
+        _currentSessionId.value?.let(pendingConversationContexts::get).orEmpty()
+
+    private fun consumePendingConversationContext(sessionId: Long): List<ConversationContextSelection> =
+        pendingConversationContexts.remove(sessionId).orEmpty()
 
     suspend fun saveMessageAsArtifact(messageId: Long): RepositoryResult<ConfirmedArtifactEntity> =
         withContext(Dispatchers.IO) {
@@ -866,18 +881,18 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 ?: return@withContext RepositoryResult.Failure(
                     RepositoryError.CompatibilityFailure("confirm_artifact", "formal_conversation_unavailable")
                 )
-            val now = System.currentTimeMillis()
+            val confirmedAt = message.timestamp.coerceAtLeast(1L)
             val artifact = ConfirmedArtifactEntity(
                 id = "artifact-dialog-message-$messageId",
                 issueId = formal.issueId,
                 stageId = formal.stageId,
                 title = "${message.senderName}：${message.text.lineSequence().firstOrNull().orEmpty().take(40)}",
                 content = message.text,
-                artifactType = "conversation_message",
+                artifactType = ArtifactType.KNOWLEDGE_NOTE.storageValue,
                 contentFormat = "markdown",
-                confirmedAt = now,
-                createdAt = now,
-                updatedAt = now,
+                confirmedAt = confirmedAt,
+                createdAt = confirmedAt,
+                updatedAt = confirmedAt,
             )
             formalRepository?.confirmArtifact(
                 com.elio.jianyu.data.ConfirmArtifactCommand(
@@ -888,7 +903,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                                 artifactId = artifact.id,
                                 issueId = formal.issueId,
                                 messageId = message.id,
-                                createdAt = now,
+                                createdAt = confirmedAt,
                             )
                         )
                     ),
@@ -911,18 +926,18 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 ?: return@withContext RepositoryResult.Failure(
                     RepositoryError.CompatibilityFailure("confirm_artifact", "formal_conversation_unavailable")
                 )
-            val now = System.currentTimeMillis()
+            val confirmedAt = messages.maxOf { it.timestamp }.coerceAtLeast(1L)
             val artifact = ConfirmedArtifactEntity(
-                id = "artifact-dialog-session-$sessionId",
+                id = "artifact-dialog-session-$sessionId-${sha256Hex(markdown).take(16)}",
                 issueId = formal.issueId,
                 stageId = formal.stageId,
                 title = chatRepo.getSessionById(sessionId)?.title ?: "对话成果",
                 content = markdown,
-                artifactType = "conversation",
+                artifactType = ArtifactType.GENERAL_SUMMARY.storageValue,
                 contentFormat = "markdown",
-                confirmedAt = now,
-                createdAt = now,
-                updatedAt = now,
+                confirmedAt = confirmedAt,
+                createdAt = confirmedAt,
+                updatedAt = confirmedAt,
             )
             formalRepository?.confirmArtifact(
                 com.elio.jianyu.data.ConfirmArtifactCommand(
@@ -933,7 +948,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                                 artifactId = artifact.id,
                                 issueId = formal.issueId,
                                 messageId = message.id,
-                                createdAt = now,
+                                createdAt = confirmedAt,
                             )
                         }
                     ),
@@ -946,12 +961,10 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
     suspend fun attachTextMaterial(uri: android.net.Uri): RepositoryResult<com.elio.jianyu.data.Material> =
         withContext(Dispatchers.IO) {
             val context = getApplication<Application>().applicationContext
-            val content = runCatching {
-                context.contentResolver.openInputStream(uri)?.use { it.reader(Charsets.UTF_8).readText() }
-            }.getOrNull().orEmpty()
-            if (content.isBlank()) {
-                return@withContext RepositoryResult.Failure(
-                    RepositoryError.ConstraintViolation("create_material", "empty_or_unreadable_file")
+            val imported = when (val result = MaterialDocumentReader.read(context, uri)) {
+                is MaterialDocumentReadResult.Success -> result.document
+                is MaterialDocumentReadResult.Failure -> return@withContext RepositoryResult.Failure(
+                    RepositoryError.ConstraintViolation("create_material", result.code),
                 )
             }
             val sessionId = _currentSessionId.value
@@ -963,16 +976,15 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     RepositoryError.CompatibilityFailure("create_material", "formal_conversation_unavailable")
                 )
             val now = System.currentTimeMillis()
-            val title = uri.lastPathSegment?.substringAfterLast('/')?.ifBlank { "导入资料" } ?: "导入资料"
             formalRepository?.createMaterial(
                 CreateMaterialCommand(
                     id = "material-dialog-${System.currentTimeMillis()}",
                     issueId = formal.issueId,
                     stageId = formal.stageId,
-                    title = title,
+                    title = imported.title,
                     sourceType = "file",
-                    sourceLocator = uri.toString(),
-                    content = content,
+                    sourceLocator = imported.sourceLocator,
+                    content = imported.content,
                     sourceCapturedAt = now,
                     createdAt = now,
                 )
@@ -982,7 +994,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         }
 
     private fun appendSelectedConversationContext(sessionId: Long, prompt: String): String {
-        val selected = selectedConversationContexts[sessionId].orEmpty()
+        val selected = activeConversationContexts[sessionId].orEmpty()
         if (selected.isEmpty()) return prompt
         return buildString {
             append(prompt)
@@ -994,6 +1006,11 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             append("=== 以上内容仅作为本次请求的明确输入，不代表其他 Skill 角色的默认结论 ===")
         }
     }
+
+    private fun sha256Hex(value: String): String =
+        MessageDigest.getInstance("SHA-256")
+            .digest(value.toByteArray(Charsets.UTF_8))
+            .joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and 0xff) }
 
     val currentPlayingMessageId = AudioPlaybackManager.currentPlayingMessageId
     val isAudioPlaying = AudioPlaybackManager.isPlaying
@@ -1068,11 +1085,13 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             val messages = chatRepo.getMessages(sessionId)
             val lastUserMsg = messages.lastOrNull { it.senderId == "user" }
             if (lastUserMsg != null) {
+                val requestContext = consumePendingConversationContext(sessionId)
                 runRoundtableSequence(
                     sessionId = sessionId,
                     questionRunId = lastUserMsg.id,
                     targetCharacterIds = _currentParticipantIds.value,
                     responseMode = TranscriptBuilder.ResponseMode.INDEPENDENT,
+                    contextSelections = requestContext,
                 )
             }
             updateRoundActionState(sessionId)
@@ -1089,11 +1108,13 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 _errorMessage.value = "请先发送一条消息，再让该 Skill 角色回答。"
                 return@launchRoundtableJob
             }
+            val requestContext = consumePendingConversationContext(sessionId)
             runRoundtableSequence(
                 sessionId = sessionId,
                 questionRunId = lastUserMessage.id,
                 targetCharacterIds = listOf(skillId),
                 responseMode = TranscriptBuilder.ResponseMode.INDEPENDENT,
+                contextSelections = requestContext,
             )
         }
     }
@@ -1120,11 +1141,13 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 _errorMessage.value = "当前还没有可供交叉讨论的角色观点。"
                 return@launchRoundtableJob
             }
+            val requestContext = consumePendingConversationContext(sessionId)
             runRoundtableSequence(
                 sessionId = sessionId,
                 questionRunId = lastUserMessage.id,
                 targetCharacterIds = participantIds,
                 responseMode = TranscriptBuilder.ResponseMode.CROSS_DISCUSSION,
+                contextSelections = requestContext,
             )
         }
     }
@@ -1186,6 +1209,12 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
         _isRoundtableRunning.value = true
         _errorMessage.value = null
+        val retryContext = retryConversationContexts[questionRunId].orEmpty()
+        if (retryContext.isEmpty()) {
+            activeConversationContexts.remove(sessionId)
+        } else {
+            activeConversationContexts[sessionId] = retryContext
+        }
 
         try {
             val result = withTimeout(ROUNDTABLE_SEQUENCE_TIMEOUT_MS) {
@@ -1202,9 +1231,11 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
             if (remainingIds.isEmpty()) {
                 _retryableRoundtableState.value = null
+                retryConversationContexts.remove(questionRunId)
                 _errorMessage.value = "失败角色已全部完成回复。"
             } else {
                 _retryableRoundtableState.value = RetryableRoundtableState(sessionId, questionRunId, remainingIds)
+                if (retryContext.isNotEmpty()) retryConversationContexts[questionRunId] = retryContext
                 if (result.completedCharacters.isNotEmpty()) {
                     _errorMessage.value = "部分角色已完成，仍有 ${remainingIds.size} 位 Skill 角色未完成，可再次重试。"
                 } else {
@@ -1250,6 +1281,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 chatRepo.removePendingMessages(sessionId)
             }
         } finally {
+            activeConversationContexts.remove(sessionId)
             _typingCharacterIds.value = emptySet()
             _isRoundtableRunning.value = false
             updateRoundActionState(sessionId)
@@ -1261,6 +1293,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         questionRunId: Long,
         targetCharacterIds: List<String>,
         responseMode: TranscriptBuilder.ResponseMode,
+        contextSelections: List<ConversationContextSelection> = emptyList(),
     ) {
         val context = getApplication<Application>().applicationContext
         if (!AiManager.keysForUseCase(context, AiUseCase.ROUNDTABLE_ANSWER).hasAvailableKeys()) {
@@ -1274,6 +1307,11 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
         _isRoundtableRunning.value = true
         _errorMessage.value = null
+        if (contextSelections.isEmpty()) {
+            activeConversationContexts.remove(sessionId)
+        } else {
+            activeConversationContexts[sessionId] = contextSelections
+        }
         try {
             val result = withTimeout(ROUNDTABLE_SEQUENCE_TIMEOUT_MS) {
                 orchestrator.runRoundtableSequence(
@@ -1287,8 +1325,14 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             val retryableIds = buildRetryableCharacterIds(result.failedCharacters, result.timedOutCharacters)
             if (retryableIds.isNotEmpty()) {
                 _retryableRoundtableState.value = RetryableRoundtableState(sessionId, questionRunId, retryableIds)
+                if (contextSelections.isNotEmpty()) {
+                    retryConversationContexts[questionRunId] = contextSelections
+                } else {
+                    retryConversationContexts.remove(questionRunId)
+                }
             } else {
                 _retryableRoundtableState.value = null
+                retryConversationContexts.remove(questionRunId)
             }
             _errorMessage.value = buildRoundtableFeedback(result, budgetManager.budget)
         } catch (error: TimeoutCancellationException) {
@@ -1314,6 +1358,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 chatRepo.removePendingMessages(sessionId)
             }
         } finally {
+            activeConversationContexts.remove(sessionId)
             _typingCharacterIds.value = emptySet()
             _isRoundtableRunning.value = false
             updateRoundActionState(sessionId)

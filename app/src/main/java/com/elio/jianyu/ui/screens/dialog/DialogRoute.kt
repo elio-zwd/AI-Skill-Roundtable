@@ -230,7 +230,14 @@ fun DialogRoute(
                         Toast.makeText(context, artifactSaveMessage(result), Toast.LENGTH_SHORT).show()
                     }
                 }
-                DialogEvent.AddFileAttachment -> attachmentLauncher.launch(arrayOf("text/*", "application/json", "application/pdf"))
+                DialogEvent.AddFileAttachment -> attachmentLauncher.launch(
+                    arrayOf(
+                        "text/*",
+                        "application/json",
+                        "application/pdf",
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    ),
+                )
                 DialogEvent.SelectMaterials -> {
                     scope.launch {
                         val (materials, personalContexts) = viewModel.loadAvailableConversationContext()
@@ -497,7 +504,8 @@ private fun artifactSaveMessage(result: com.elio.jianyu.data.RepositoryResult<*>
 
 private fun materialAttachMessage(result: com.elio.jianyu.data.RepositoryResult<*>) = when (result) {
     is com.elio.jianyu.data.RepositoryResult.Success -> "资料已加入当前对话。"
-    is com.elio.jianyu.data.RepositoryResult.Failure -> "资料读取或保存失败，请选择 UTF-8 文本文件。"
+    is com.elio.jianyu.data.RepositoryResult.Failure ->
+        "资料读取或保存失败；当前支持文本、Markdown、CSV、JSON、HTML 和 DOCX。"
 }
 
 /** 仅处理页面局部交互，不伪造或修改真实业务数据。 */
