@@ -1,5 +1,7 @@
 package com.elio.jianyu.viewmodel
 
+import com.elio.jianyu.data.ContextSourceLifecycle
+import com.elio.jianyu.data.Material
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -38,9 +40,41 @@ class RoundtableConversationPolicyTest {
     }
 
     @Test
+    fun materialEligibilityRequiresSameConversationAndCompatibleStage() {
+        val formal = FormalConversationContext(issueId = "issue-a", stageId = "stage-a")
+        val issueLevel = material("issue-level", issueId = "issue-a", stageId = null)
+        val stageLevel = material("stage-level", issueId = "issue-a", stageId = "stage-a")
+        val otherStage = material("other-stage", issueId = "issue-a", stageId = "stage-b")
+        val otherConversation = material("other-issue", issueId = "issue-b", stageId = null)
+
+        assertTrue(materialIsAvailableForConversation(issueLevel, formal))
+        assertTrue(materialIsAvailableForConversation(stageLevel, formal))
+        assertTrue(!materialIsAvailableForConversation(otherStage, formal))
+        assertTrue(!materialIsAvailableForConversation(otherConversation, formal))
+    }
+
+    @Test
     fun roundtableThinkingIntensityMapsToProviderLevels() {
         assertEquals("minimal", roundtableThinkingLevel("极简"))
         assertEquals("medium", roundtableThinkingLevel("均衡"))
         assertEquals("high", roundtableThinkingLevel("深度"))
     }
+
+    private fun material(id: String, issueId: String, stageId: String?): Material =
+        Material(
+            id = id,
+            issueId = issueId,
+            stageId = stageId,
+            title = id,
+            sourceType = "note",
+            sourceLocator = null,
+            content = "content",
+            contentHash = "hash",
+            sourcePublishedAt = null,
+            sourceCapturedAt = null,
+            sensitive = false,
+            lifecycle = ContextSourceLifecycle.ACTIVE,
+            createdAt = 1L,
+            updatedAt = 1L,
+        )
 }

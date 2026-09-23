@@ -21,6 +21,12 @@ class DialogCompletionContractTest {
         assertTrue(viewModel.contains("ensureFormalConversation"))
         assertTrue(viewModel.contains("artifact-dialog-message-"))
         assertTrue(viewModel.contains("appendSelectedConversationContext"))
+        assertTrue(viewModel.contains("prepareAndRecordConversationContextUsage"))
+        assertTrue(viewModel.contains("expectedSourceHash"))
+        assertTrue(viewModel.contains("issueId = formal.issueId"))
+        assertFalse(viewModel.contains("retryConversationContexts"))
+        assertFalse(viewModel.contains("consumePendingConversationContext"))
+        assertTrue(route.contains("if (viewModel.confirmConversationContext(selections))"))
     }
 
     @Test
