@@ -37,6 +37,9 @@ import com.elio.jianyu.data.JianyuRepository
 import com.elio.jianyu.data.RepositoryResult
 import com.elio.jianyu.network.AiManager
 import com.elio.jianyu.network.AiProvider
+import com.elio.jianyu.skill.catalog.OfficialSkillPreferences
+import com.elio.jianyu.skill.catalog.clearStoredOfficialSkillPreferences
+import com.elio.jianyu.data.ConversationSessionPreferences
 import com.elio.jianyu.telemetry.CloudInteractionSettings
 import com.elio.jianyu.telemetry.TelemetryRepository
 import com.elio.jianyu.ui.components.JianyuMetadataRow
@@ -103,6 +106,8 @@ fun DataPrivacyRoute(
     onBack: () -> Unit,
     onOpenBackup: () -> Unit,
     onOpenTelemetry: () -> Unit,
+    officialSkillPreferences: OfficialSkillPreferences? = null,
+    onClearConversationPreferences: (() -> Boolean)? = null,
 ) {
     val context = LocalContext.current
     LaunchedEffect(context) {
@@ -216,7 +221,14 @@ fun DataPrivacyRoute(
                     onClick = {
                         scope.launch {
                             busy = true
-                            val result = withContext(Dispatchers.IO) { clearAllLocalData(context, repository) }
+                            val result = withContext(Dispatchers.IO) {
+                                clearAllLocalData(
+                                    context = context,
+                                    repository = repository,
+                                    officialSkillPreferences = officialSkillPreferences,
+                                    onClearConversationPreferences = onClearConversationPreferences,
+                                )
+                            }
                             busy = false
                             deleteDialog = false
                             actionMessage = result
@@ -334,7 +346,12 @@ internal suspend fun buildExportJson(repository: JianyuRepository): String {
         )
 }
 
-private suspend fun clearAllLocalData(context: Context, repository: JianyuRepository): String {
+private suspend fun clearAllLocalData(
+    context: Context,
+    repository: JianyuRepository,
+    officialSkillPreferences: OfficialSkillPreferences?,
+    onClearConversationPreferences: (() -> Boolean)?,
+): String {
     return try {
         BackupOperationGate.forContext(context).withWriteLock {
             when (repository.clearAllData()) {
@@ -346,6 +363,12 @@ private suspend fun clearAllLocalData(context: Context, repository: JianyuReposi
                     val telemetryCleared = TelemetryRepository.clearAllTelemetry(context)
                     val cloudSettingsCleared = CloudInteractionSettings.setEnabled(context, false)
                     val appPreferencesCleared = AppPreferences.reset(context)
+                    val officialSkillPreferencesCleared =
+                        officialSkillPreferences?.clearAll()
+                            ?: clearStoredOfficialSkillPreferences(context)
+                    val conversationPreferencesCleared =
+                        onClearConversationPreferences?.invoke()
+                            ?: clearConversationPreferenceFiles(context)
                     val snapshotsCleared = SnapshotCatalog.clearAll(context)
                     val snapshotKeyCleared = AndroidKeystoreSnapshotKeyProvider().deleteExisting()
                     val audioFilesCleared = clearAppOwnedAudioFiles(context)
@@ -354,6 +377,8 @@ private suspend fun clearAllLocalData(context: Context, repository: JianyuReposi
                         telemetryCleared &&
                         cloudSettingsCleared &&
                         appPreferencesCleared &&
+                        officialSkillPreferencesCleared &&
+                        conversationPreferencesCleared &&
                         snapshotsCleared &&
                         snapshotKeyCleared &&
                         audioFilesCleared
@@ -370,6 +395,16 @@ private suspend fun clearAllLocalData(context: Context, repository: JianyuReposi
         "本地数据清除失败；未确认清除完成。"
     }
 }
+private fun clearConversationPreferenceFiles(context: Context): Boolean {
+    val sessionPreferencesCleared = ConversationSessionPreferences(context).clearAll()
+    val roundtableSettingsCleared = context.applicationContext
+        .getSharedPreferences("roundtable_settings", Context.MODE_PRIVATE)
+        .edit()
+        .clear()
+        .commit()
+    return sessionPreferencesCleared && roundtableSettingsCleared
+}
+
 private fun clearAppOwnedAudioFiles(context: Context): Boolean {
     val audioDirectory = File(context.applicationContext.filesDir, "jianyu-audio")
     val audioCleared = !audioDirectory.exists() || audioDirectory.deleteRecursively()

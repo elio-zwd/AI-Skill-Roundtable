@@ -258,6 +258,40 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         prefs.edit().putString("thinking_intensity", normalized).apply()
     }
 
+    /**
+     * Repository 已清空后清除仍由旧对话层持有的偏好，并同步当前进程状态。
+     * 返回 false 表示至少一个 SharedPreferences 提交失败，调用方不得报告整体清理成功。
+     */
+    fun clearLocalPreferencesAfterDataDeletion(): Boolean {
+        activeRoundtableJob?.cancel()
+        activeRoundtableJob = null
+        sessionNavigationVersion += 1
+
+        val roundtableSettingsCleared = prefs.edit().clear().commit()
+        val conversationPreferencesCleared = conversationPreferences.clearAll()
+
+        _isAutoNextEnabled.value = true
+        _isSemanticRoutingEnabled.value = false
+        _searchMode.value = SearchMode.AUTO
+        _thinkingIntensity.value = "标准"
+        _archivedSessionIds.value = emptySet()
+        _currentSessionId.value = null
+        _currentSession.value = null
+        _currentParticipantIds.value = emptyList()
+        _retryableRoundtableState.value = null
+        _typingCharacterIds.value = emptySet()
+        _isRoundtableRunning.value = false
+        _errorMessage.value = null
+        _currentDetailSkillContent.value = null
+        _roundActionState.value = RoundActionState.CONTINUE_ROUND
+        formalContexts.clear()
+        pendingConversationContexts.clear()
+        activeConversationContexts.clear()
+        retryConversationContexts.clear()
+
+        return roundtableSettingsCleared && conversationPreferencesCleared
+    }
+
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val aiKeySummaries = AiManager.configuration(application).configuration
         .flatMapLatest { configuration ->

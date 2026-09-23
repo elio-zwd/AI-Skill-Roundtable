@@ -456,6 +456,8 @@ internal fun MainAppContent(
                             onOpenTelemetry = {
                                 navController.navigateToSecondary(AppDestination.TELEMETRY)
                             },
+                            officialSkillPreferences = officialSkillPreferences,
+                            onClearConversationPreferences = viewModel::clearLocalPreferencesAfterDataDeletion,
                         )
                     },
                     settingsContent = {
@@ -491,6 +493,10 @@ internal fun MainAppContent(
                         AboutRoute(onBack = { navController.popBackStack() })
                     },
                     dataPrivacyContent = {
+                        val officialSkillPreferences = (
+                            appRuntime.officialSkillCatalogRuntimeResult
+                                as? OfficialSkillCatalogRuntimeResult.Success
+                            )?.runtime?.preferences
                         DataPrivacyRoute(
                             repository = appRuntime.repository,
                             onBack = { navController.popBackStack() },
