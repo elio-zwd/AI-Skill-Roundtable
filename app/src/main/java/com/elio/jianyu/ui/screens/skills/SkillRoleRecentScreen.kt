@@ -20,10 +20,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -47,7 +50,11 @@ import com.elio.jianyu.ui.components.JianyuRoleAvatar
 @Composable
 internal fun SkillRoleRecentScreen(
     sections: List<SkillRoleRecentSection>,
+    filters: RoleDiscoveryFilters,
+    hasAnyRecent: Boolean,
     onBack: () -> Unit,
+    onOpenFilters: () -> Unit,
+    onClearAllFilters: () -> Unit,
     onOpenDetail: (String) -> Unit,
     onStartNewConversation: (String) -> Unit,
     onClearRecent: () -> Unit,
@@ -88,7 +95,22 @@ internal fun SkillRoleRecentScreen(
                     modifier = Modifier.weight(1f),
                 )
 
-                if (sections.isNotEmpty()) {
+                if (hasAnyRecent) {
+                    val activeFilterCount = filters.activeCount(includeFavorites = false, includeRecent = false)
+                    BadgedBox(
+                        badge = {
+                            if (activeFilterCount > 0) {
+                                Badge { Text(activeFilterCount.toString()) }
+                            }
+                        },
+                    ) {
+                        FilterChip(
+                            selected = activeFilterCount > 0,
+                            onClick = onOpenFilters,
+                            label = { Text("筛选") },
+                            modifier = Modifier.testTag("recent_screen_filter_button"),
+                        )
+                    }
                     TextButton(
                         onClick = { showClearDialog = true },
                         modifier = Modifier.testTag("recent_screen_clear_button"),
@@ -101,8 +123,10 @@ internal fun SkillRoleRecentScreen(
                 }
             }
 
-            if (sections.isEmpty()) {
+            if (!hasAnyRecent) {
                 EmptyRecentState()
+            } else if (sections.isEmpty()) {
+                FilteredRecentEmptyState(onClearAllFilters = onClearAllFilters)
             } else {
                 LazyColumn(
                     modifier = Modifier
@@ -262,6 +286,38 @@ private fun RecentRoleCard(
                     text = "开始对话",
                     style = MaterialTheme.typography.labelMedium,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FilteredRecentEmptyState(
+    onClearAllFilters: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "没有符合条件的最近使用角色",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "调整筛选条件，或清除筛选查看全部最近使用记录。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            TextButton(onClick = onClearAllFilters) {
+                Text("清除筛选")
             }
         }
     }

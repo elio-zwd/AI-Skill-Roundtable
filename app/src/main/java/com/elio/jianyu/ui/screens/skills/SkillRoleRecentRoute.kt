@@ -8,6 +8,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -60,25 +63,56 @@ internal fun SkillRoleRecentRoute(
         recentUses = recentUses,
     )
 
-    // 按本地日期分组
-    val sections = remember(roleCatalog.recentRoles) {
-        groupRecentRolesByDate(roleCatalog.recentRoles)
+    var filters by remember { mutableStateOf(RoleDiscoveryFilters()) }
+    var filterSheetVisible by rememberSaveable { mutableStateOf(false) }
+
+    val allRecentRoles = roleCatalog.recentRoles
+    val visibleRecentRoles = applyDiscoveryFilters(
+        roles = allRecentRoles,
+        filters = filters.copy(favoritesOnly = false, recentOnly = false),
+    )
+    val sections = remember(visibleRecentRoles) {
+        groupRecentRolesByDate(visibleRecentRoles)
     }
 
-    SkillRoleRecentScreen(
-        sections = sections,
-        onBack = onBack,
-        onOpenDetail = onOpenSkillDetail,
+    Box(modifier = modifier.fillMaxSize()) {
+        SkillRoleRecentScreen(
+            sections = sections,
+            filters = filters,
+            hasAnyRecent = allRecentRoles.isNotEmpty(),
+            onBack = onBack,
+            onOpenFilters = { filterSheetVisible = true },
+            onClearAllFilters = { filters = RoleDiscoveryFilters() },
+            onOpenDetail = onOpenSkillDetail,
         onStartNewConversation = { skillId ->
             scope.launch {
                 onStartNewConversation(skillId)
             }
         },
-        onClearRecent = {
-            scope.launch {
-                runtime.preferences.clearRecentUses()
-            }
-        },
-        modifier = modifier,
-    )
+            onClearRecent = {
+                scope.launch {
+                    runtime.preferences.clearRecentUses()
+                }
+            },
+        )
+
+        if (filterSheetVisible) {
+            SkillRoleFilterSheet(
+                visible = true,
+                appliedFilters = filters,
+                onDismiss = { filterSheetVisible = false },
+                onApply = { updatedFilters ->
+                    filters = updatedFilters.copy(favoritesOnly = false, recentOnly = false)
+                    filterSheetVisible = false
+                },
+                matchCountProvider = { draft ->
+                    applyDiscoveryFilters(
+                        roles = allRecentRoles,
+                        filters = draft.copy(favoritesOnly = false, recentOnly = false),
+                    ).size
+                },
+                showMyUsageFilters = false,
+            )
+        }
+    }
 }
