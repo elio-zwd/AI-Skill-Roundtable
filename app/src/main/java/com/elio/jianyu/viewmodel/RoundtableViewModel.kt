@@ -674,6 +674,10 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             userMsgIds.forEach { budgetManager.clearQuestion(it) }
 
             chatRepo.deleteSession(sessionId)
+            pendingConversationContexts.remove(sessionId)
+            activeConversationContexts.remove(sessionId)
+            explicitlyConfirmedConversationContextSessions.remove(sessionId)
+            formalContexts.remove(sessionId)
             _archivedSessionIds.value = conversationPreferences.clearSession(sessionId)
             if (_retryableRoundtableState.value?.sessionId == sessionId) {
                 _retryableRoundtableState.value = null
@@ -1528,7 +1532,8 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 chatRepo.removePendingMessages(sessionId)
             }
         } finally {
-            activeConversationContexts.remove(sessionId)
+            // 保留最近一次真正执行所用的 active context，供“本次参考内容”在回复结束后查看。
+            // 下一次请求准备成功时会用新的选择替换或清空；删除会话/删除全部数据时会彻底清除。
             _typingCharacterIds.value = emptySet()
             _isRoundtableRunning.value = false
             updateRoundActionState(sessionId)
@@ -1612,7 +1617,8 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 chatRepo.removePendingMessages(sessionId)
             }
         } finally {
-            activeConversationContexts.remove(sessionId)
+            // 保留最近一次真正执行所用的 active context，供“本次参考内容”在回复结束后查看。
+            // 下一次请求准备成功时会用新的选择替换或清空；删除会话/删除全部数据时会彻底清除。
             _typingCharacterIds.value = emptySet()
             _isRoundtableRunning.value = false
             updateRoundActionState(sessionId)

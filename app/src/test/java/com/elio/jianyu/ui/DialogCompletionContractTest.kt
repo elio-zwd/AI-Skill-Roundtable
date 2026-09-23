@@ -42,6 +42,20 @@ class DialogCompletionContractTest {
     }
 
     @Test
+    fun activeReferenceContextSurvivesExecutionAndDeletedSessionStateIsCleared() {
+        val root = findAppRoot()
+        val viewModel = root.resolve("src/main/java/com/elio/jianyu/viewmodel/RoundtableViewModel.kt").readText()
+
+        val executionRetentionComment =
+            "保留最近一次真正执行所用的 active context，供“本次参考内容”在回复结束后查看。"
+        assertTrue(viewModel.contains(executionRetentionComment))
+        assertTrue(viewModel.contains("pendingConversationContexts.remove(sessionId)"))
+        assertTrue(viewModel.contains("activeConversationContexts.remove(sessionId)"))
+        assertTrue(viewModel.contains("explicitlyConfirmedConversationContextSessions.remove(sessionId)"))
+        assertTrue(viewModel.contains("formalContexts.remove(sessionId)"))
+    }
+
+    @Test
     fun backupRouteUsesFormalExportAndKeepsImportExplicitlyClosed() {
         val root = findAppRoot()
         val route = root.resolve("src/main/java/com/elio/jianyu/ui/screens/mine/BackupRoute.kt").readText()
