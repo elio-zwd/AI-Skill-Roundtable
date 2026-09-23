@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.Density
 import com.elio.jianyu.ui.MainAppContent
 import com.elio.jianyu.ui.theme.SkillRoundtableTheme
 import com.elio.jianyu.ui.settings.AppPreferences
-import com.elio.jianyu.ui.settings.ContentDensityMode
+import com.elio.jianyu.ui.theme.spacingForContentDensity
 import com.elio.jianyu.ui.settings.FontSizeMode
 import com.elio.jianyu.ui.settings.ThemeMode
 
@@ -42,13 +42,8 @@ class MainActivity : ComponentActivity() {
                 FontSizeMode.SMALL -> 0.9f
                 FontSizeMode.LARGE -> 1.15f
             }
-            val densityMultiplier = when (preferences.contentDensityMode) {
-                ContentDensityMode.COMPACT -> 0.92f
-                ContentDensityMode.STANDARD -> 1f
-                ContentDensityMode.COMFORTABLE -> 1.08f
-            }
             val appDensity = Density(
-                density = baseDensity.density * densityMultiplier,
+                density = baseDensity.density,
                 fontScale = baseDensity.fontScale * fontScaleMultiplier,
             )
             CompositionLocalProvider(LocalDensity provides appDensity) {
@@ -56,6 +51,7 @@ class MainActivity : ComponentActivity() {
                     darkTheme = darkTheme,
                     reducedMotion = preferences.reducedMotion,
                     highContrastText = preferences.highContrastText,
+                    spacing = spacingForContentDensity(preferences.contentDensityMode),
                 ) {
                     Surface(
                         modifier = Modifier.fillMaxSize(),

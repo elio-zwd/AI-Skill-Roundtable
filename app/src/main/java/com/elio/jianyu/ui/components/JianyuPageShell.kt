@@ -90,6 +90,7 @@ fun JianyuPageShell(
     contentScrollable: Boolean = false,
     content: @Composable () -> Unit,
 ) {
+    val spacing = MaterialTheme.skillRoundtableSpacing
     JianyuBackgroundAtmosphere(modifier = modifier) {
         Column(modifier = Modifier.fillMaxSize()) {
             Surface(
@@ -163,8 +164,8 @@ fun JianyuPageShell(
                 .weight(1f)
                 .fillMaxWidth()
                 .padding(
-                    horizontal = MaterialTheme.skillRoundtableSpacing.screenHorizontal,
-                    vertical = MaterialTheme.skillRoundtableSpacing.small,
+                    horizontal = spacing.screenHorizontal,
+                    vertical = spacing.small,
                 )
             val contentModifier = if (contentScrollable) {
                 baseContentModifier.verticalScroll(scrollState)
@@ -173,7 +174,7 @@ fun JianyuPageShell(
             }
             Column(
                 modifier = contentModifier,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(spacing.small),
             ) {
                 content()
             }
@@ -190,6 +191,7 @@ fun JianyuStateCard(
     actionTestTag: String? = null,
     onAction: (() -> Unit)? = null,
 ) {
+    val spacing = MaterialTheme.skillRoundtableSpacing
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -199,8 +201,8 @@ fun JianyuStateCard(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(spacing.medium),
+            verticalArrangement = Arrangement.spacedBy(spacing.compact),
         ) {
             Text(
                 text = title,
@@ -234,6 +236,7 @@ fun JianyuMetadataRow(
     value: String,
     modifier: Modifier = Modifier,
 ) {
+    val spacing = MaterialTheme.skillRoundtableSpacing
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.Top,
@@ -243,7 +246,7 @@ fun JianyuMetadataRow(
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(spacing.small))
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,

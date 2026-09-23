@@ -82,6 +82,7 @@ fun SkillRoundtableTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     reducedMotion: Boolean = false,
     highContrastText: Boolean = false,
+    spacing: SkillRoundtableSpacing = SkillRoundtableSpacing(),
     content: @Composable () -> Unit,
 ) {
     val baseColorScheme = if (darkTheme) SkillRoundtableDarkColorScheme else SkillRoundtableLightColorScheme
@@ -97,7 +98,7 @@ fun SkillRoundtableTheme(
     val extensionColors = if (darkTheme) DarkSkillRoundtableColors else LightSkillRoundtableColors
     CompositionLocalProvider(
         LocalSkillRoundtableColors provides extensionColors,
-        LocalSkillRoundtableSpacing provides SkillRoundtableSpacing(),
+        LocalSkillRoundtableSpacing provides spacing,
         LocalReducedMotion provides reducedMotion,
     ) {
         MaterialTheme(
