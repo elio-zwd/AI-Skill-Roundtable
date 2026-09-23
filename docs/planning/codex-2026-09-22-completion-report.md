@@ -1,100 +1,112 @@
 # 见域当前分支完成度与远端审查交接
 
-更新时间：2026-09-22（Asia/Shanghai）
+更新时间：2026-09-23（UTC；本轮远端收口）
+PR：#66 `feat: 完成见域 UI 收口与正式备份`
+分支：`codex/ui-05-artifacts`
+状态：Draft，未合并
 
-## 1. Git 起点与当前分支
+> 本报告是当前跨对话恢复入口。聊天中的旧 Head、旧测试结果或“未提交草稿”描述若与本文件和 GitHub 当前分支冲突，以 GitHub 当前分支、PR、Actions 与本文件为准。
 
-- 工作分支：`codex/ui-05-artifacts`
-- 共同基线：`origin/main` 与本分支的 merge-base 为 `53321b6`（`Merge pull request #62 from elio-zwd/codex/ui-03-spec`）。
-- 本分支首个施工提交：`9849f09 feat: 完成 UI-03 角色发现纯逻辑与 Preferences 扩展`。
-- 本次报告更新前的代码审查基线：`ccab195 docs: 增加远端审查交接汇报`；推送目标为 `origin/codex/ui-05-artifacts`。本报告提交后远端文档 Head 会继续前进，但代码审查基线仍以 `ccab195` 为准。
-- 本报告更新时，工作区另有一批**未提交、未推送**的备份快照修复；它们不属于远端 AI 当前可见的 Git 提交，不能当作分支已完成能力。若远端 AI 只从 GitHub 拉取代码，应以 `ccab195` 为代码基线，并将这些本地差异视为待审查草稿。
-- 工作区中原有的 `tools/ai/filter_chat_page.js` 是用户未跟踪文件，本次没有读取、修改或提交它。
+## 1. 当前范围
 
-### 1.1 未提交的本地草稿（请勿误认为已交付）
+本分支集中完成并收口：
 
-本地曾针对设备快照首次点击无结果的问题做过诊断性修复，但按当前交接安排暂不提交代码。涉及文件包括：
+1. UI-03：Skill 角色发现、搜索、筛选、收藏与最近使用。
+2. UI-04：资料总览、新增、文件读取、详情与生命周期。
+3. UI-05：成果保存、筛选、详情与来源追溯。
+4. UI-06：个人背景维护、敏感展示边界与删除。
+5. UI-07：主题、字号/密度、减少动效、高对比度、消息时间、额外敏感提醒、AI 管理与关于页。
+6. UI-08：数据概览、可读导出、正式 Portable Backup、Device Snapshot 与删除全部数据。
+7. UI-09：Top 1 对话与正式 Issue/Stage、资料、个人背景、成果的统一闭环。
+8. Runtime：Room 闭库/重开、按 generation 重建 ViewModelStore、旧句柄失效。
+9. PR09-13B：Argon2id、AES-GCM、Tink Streaming AEAD、确定性 CBOR、认证 EOF、白名单 Mapper、Snapshot 与全局备份门禁。
 
-- `app/src/main/java/com/elio/jianyu/backup/BackupOperationGate.kt`：把不能跨挂起边界持有的线程锁改为协程安全互斥门禁。
-- `app/src/main/java/com/elio/jianyu/backup/DeviceSnapshotService.kt`、`app/src/main/java/com/elio/jianyu/JianyuAppRuntime.kt`、`app/src/main/java/com/elio/jianyu/ui/screens/mine/BackupRoute.kt`：收口维护态闭库、运行时 lease 释放和操作取消边界，并补充安全诊断日志。
-- `app/src/main/java/com/elio/jianyu/backup/BackupCrypto.kt`、`app/src/main/java/com/elio/jianyu/backup/BackupEnvelopeWriter.kt`：适配 Android Keystore 随机化 AES-GCM IV 的快照封装路径。
-- `app/src/main/java/com/elio/jianyu/ui/components/JianyuPageShell.kt`、`app/src/test/java/com/elio/jianyu/backup/BackupOperationGateTest.kt`：防重复点击及挂起后跨 dispatcher 回归覆盖。
-- `app/src/main/java/com/elio/jianyu/data/RoomIssueLifecycleV12Repository.kt`、`app/src/main/java/com/elio/jianyu/lifecycle/IssuePurgeCoordinator.kt`：诊断性日志改动，需远端 AI 判断是否保留。
+Portable 导入、差异/冲突预览和数据库原子替换仍属于 PR09-14A/14B，不在本 PR 中。
 
-这些改动在本地构建/定向测试和模拟器手工操作中曾得到正向结果，但尚未形成提交；远端审查应重新检查其并发、生命周期、密钥提供方和日志取舍，不能直接据此宣称修复已合入。
+## 2. 本轮远端收口的关键修复
 
-## 2. 已完成的主要阶段
+在原有 UI-03～UI-09 与 PR09-13B 实现之上，本轮继续完成了以下确定性修复：
 
-1. UI-03：角色发现、搜索、筛选、收藏、最近使用和二级导航。
-2. UI-04：资料总览、资料新增/详情、资料与对话上下文联动。
-3. UI-05：成果保存、成果详情、来源追溯和对话入口统一。
-4. UI-06：个人背景维护、启停、删除和生命周期语义。
-5. UI-07：设置、AI 管理、遥测与诊断、关于页和身份披露。
-6. UI-08：数据隐私、导出边界、权限说明和备份入口。
-7. UI-09：对话统一、资料/成果联动、会话删除边界和恢复边界。
-8. 运行时收口：Room 闭库重开、恢复健康检查、旧句柄失效和业务读写门禁。
-9. PR09-13B 正式备份核心：Portable Backup、Device Snapshot、Argon2id、AES-256-GCM、Tink Streaming AEAD、确定性 CBOR、严格记录流/EOF 校验、快照目录和进程级并发门禁。
-10. 备份校验收口：实体注册表、字段/记录计数限制、公开向量、错误码和测试隔离修正。
+- 设备快照闭库维护改为协程安全门禁；Runtime maintenance 不再通过旧 Runtime provider 取依赖；Android Keystore 使用 provider 生成随机 GCM IV；Snapshot 操作由应用级 scope 持有。
+- `BackupOperationGate` 支持写租约内安全读取 Repository，避免备份 Writer 自锁。
+- Portable SAF 只在临时文档完整写入、重新读取、解密并验证到认证 EOF 后发布最终文件名。
+- 正式备份 Mapper 补齐冻结 registry 中此前缺失的 `participant_state`、`run_budget`、`message_usage`、`cross_discussion`、`archive_event`、`resume_event`、`issue_relation` 与 `safe_user_setting`。
+- Portable/Snapshot 创建前阻止未与任何正式 Issue 关联的 standalone ChatSession 或未归属 Issue/Stage 的消息，返回 `unsupported_legacy_data`，不再静默遗漏。
+- Snapshot 在 after-reopen 或 Catalog 发布失败时同时回滚 `.part` 和已改名的正式 `.jysnap`；清理失败返回 `temporary_cleanup_failed`。
+- “删除所有本地数据”与备份共用写门禁，并把 App 私有 Device Snapshot 与 snapshot wrapping key 纳入清理；外部 SAF 导出/Portable 文件明确不自动删除。
+- 可读数据导出和本地数据概览改为失败关闭；Repository 任一必要数据源失败时不再用空列表伪装成功。
+- 个人背景列表不显示敏感正文预览。
+- 对话选定资料/个人背景在下一次请求开始时原子消费，只允许同一问题的失败角色重试复用，不自动带入下一条用户请求。
+- 敏感资料/个人背景必须逐次明确确认；设置只控制额外提醒文案，不能永久跳过敏感发送授权。
+- 消息成果使用稳定消息时间，整段对话成果使用内容哈希进入 ID，重复保存走 Repository 幂等语义。
+- 身份静态门禁已从 PR09-01 的一次性迁移文件清单升级到当前 Room v14、多 Provider Key Store 与当前文档事实，不再要求已被正式重构删除的旧文件继续存在。
+- 数据页与资料页的过期自动化/完成合同已同步到当前 UI-04/UI-06 信息架构。
 
-对应的近期阶段提交包括：
+## 3. 关键近期提交
 
-- `32a7baf` 正式加密备份与设备快照核心
-- `43ac953` 正式备份导出边界
-- `3af2730` 备份全局并发门禁
-- `27a2105` 正式实现与剩余发布门禁文档
-- `55f890e` 备份记录类型与字段校验
-- `9328b37` 快照备注入口与回归阶段整理
-- `198ec84` 移除会污染全局数据库的设备测试夹具
+按主题列出本轮最重要的提交，GitHub 当前 Head 可能因本报告提交继续前进：
 
-## 3. 已执行验证
+- `37c30b3`：修复设备快照生命周期与密钥封装
+- `c29adb3`：修正备份完整性与隐私界面
+- `ed4175d`：收紧 SAF 临时文档发布
+- `ddbd204`：收紧对话上下文与资料成果链路
+- `b54c1a8`：让应用设置真正作用于界面
+- `0204644`：允许备份写锁内安全读取 Repository
+- `b9a3655`：更新身份门禁到当前工程事实
+- `d561d96`：补齐正式备份白名单映射
+- `273eb89`：更新完成合同到当前 UI 架构
+- `ca56809`：回滚失败后的正式快照文件
+- `33be939`：删除全部数据时清理设备快照
+- `7300d39`：强制敏感上下文逐次确认
+- `9c7a183`：对齐隐私与正式备份当前合同
 
-- `compileDebugKotlin testDebugUnitTest compileDebugAndroidTestSources lintDebug assembleDebug assembleDebugAndroidTest`：通过。
-- 单元测试报告：543 tests，0 failures，0 errors。
-- `connectedDebugAndroidTest`：241 tests，0 failures，0 errors，2 skipped。
-  - 跳过的两项是需要显式 ADB 外部进程协调的恢复测试，不代表已完成真实跨进程验收。
-- `pwsh.exe -File .\tools\check-secrets.ps1 -IncludeHistory`：通过，未发现 Gemini API Key 或禁止跟踪敏感文件。
-- 模拟器：`emulator-5554`，1080×2400，安装并启动 `com.elio.jianyu` Debug APK。
-- 人工页面检查已确认主页、资料、我的、设置、关于和备份页面的稳定根节点/入口存在，未见 `FATAL EXCEPTION`。
+## 4. 当前验证事实
 
-## 4. 需要远端 AI 优先复查的问题
+本轮已经得到的 GitHub 证据：
 
-### 4.1 设备快照 UI 操作曾卡住，已有未提交本地修复待审
+- Secret scan 在多个近期 Head 上通过，包括正式备份白名单与隐私修复之后的 Head。
+- Android UI Test Compile 在 `a878a29` 上通过。
+- Android CI 在 `a878a29` 已通过身份静态门禁与 Kotlin 编译，并执行到 552 个 JVM 测试；当时只有 2 个失败，均为已经确认过期的静态合同：
+  - `DialogCompletionContractTest.backupRouteUsesFormalExportAndKeepsImportExplicitlyClosed`
+  - `JianyuUiAutomationArchitectureTest.corePages_exposeStableAutomationRegions`
+- 上述两条旧合同已在 `273eb89` 修正；之后又新增了 Snapshot 失败回滚、删除全部数据隐私边界和敏感上下文逐次确认，因此**最终结论必须以本报告之后最新 Head 的 Actions 为准**。
 
-在远端 Head `ccab195` 对应的代码上，点击 `backup_snapshot_create`（节点 bounds `[84,1191][426,1317]`）曾没有形成可见结果，也没有生成快照文件。后续本地工作区诊断出多个叠加问题：挂起函数跨线程释放 `ReentrantReadWriteLock`、维护态仍走运行时 provider、Android Keystore 不接受调用方指定的 GCM IV，以及 UI scope 在运行时重建时取消快照协程。
+不要把旧 Head 的通过结果写成最新 Head “所有测试通过”。
 
-本地未提交草稿分别改为协程 `Mutex`、维护态直接使用音频存储、让 Keystore 生成随机 IV，并把快照操作放到 `NonCancellable` 边界；随后在 `emulator-5554` 手工点击成功生成了 `no_backup/jianyu-backup/snapshots/` 下的快照文件，且未见 `FATAL EXCEPTION`。这些结果**不等于远端分支已修复**：请远端 AI 优先审查上述 diff，重点检查锁/lease 生命周期、失败恢复、密钥提供方约束、取消语义和日志隐私，并自行决定是否重写或合入。
+## 5. 仍需关闭的验证
 
-不要重新加入会删除共享 Room 数据库的全量 AndroidTest 夹具；专项测试必须使用隔离数据库或受控快照目录。
+GitHub：
 
-### 4.1.1 远端审查修复进展
+- 最新 Head Android CI：等待最终结论。
+- 最新 Head Android UI Test Compile：等待最终结论。
+- 最新 Head Secret scan：等待最终结论。
 
-远端 AI 已按本报告重新核对 GitHub 上的实际生产代码，并确认以下根因存在：
+本地/设备：
 
-- `BackupOperationGate` 使用线程绑定的 `ReentrantReadWriteLock` 跨越挂起边界；
-- Snapshot 的 `beforeClose` 在 Runtime 已进入 `Maintenance` 后又调用 `JianyuAppRuntimeProvider.get()`；
-- Android Keystore Key 启用了随机化加密，但 Snapshot Writer 仍由调用方指定 GCM IV；
-- Snapshot 由 Compose `rememberCoroutineScope` 直接拥有，而 Runtime 世代切换会销毁旧 UI scope。
+- GPT 远端没有执行用户电脑上的 Android 本地构建。
+- 仍需只读本地 AI 执行完整 Gradle 门禁、模拟器/真机交互、UI-03～UI-09 关键路径与日志检查。
+- PR09-13B 仍需独立安全审查、跨版本向量、R8/依赖许可登记、受限设备性能与真实设备 Snapshot/恢复门禁。
+- PR09-14A/14B 尚未实现。
 
-当前远端修复改为：协程安全的公平读写门禁、维护态直接使用独立 `AudioFileStore`、由 Android Keystore provider 生成并回写实际 GCM IV、由应用级 Snapshot operation scope 持有闭库维护。并新增跨 dispatcher 门禁回归与真实 Android Keystore 随机 IV Instrumentation 测试。
+## 6. 本地最终验收重点
 
-以上内容属于**代码修复已提交、验证待执行**状态；在 GitHub CI 或本地 Android 验收给出新证据前，不得把本节写成“所有测试通过”或“真机已验证”。
+只读验收至少覆盖：
 
-### 4.2 Portable 导入与数据库替换尚未实现
+- 对话：新建、发送/停止、单角色/多角色、资料选择、敏感逐次确认、本次参考内容、保存消息成果、整理整段对话成果。
+- 资料：总览、新增文本/链接/文件、DOCX、PDF 明确失败、详情、搜索、生命周期。
+- 成果：保存确认、筛选取消语义、详情、Markdown、来源追溯和来源会话回跳。
+- 个人背景：敏感列表脱敏、编辑、停用、删除。
+- 设置：主题、字号/密度、减少动效、高对比度、消息时间、敏感额外提醒；额外提醒关闭后仍必须逐次确认敏感内容。
+- 数据隐私：可读导出失败关闭；删除全部数据后数据库、偏好、BYOK、遥测、音频、Device Snapshot 与 wrapping key 的清理结果。
+- 备份：Portable 创建、错误密码/失败路径、Snapshot 创建/备注/删除、失败后无孤儿正式 `.jysnap`。
+- Runtime：Snapshot 后 App 正常重开、对话/资料继续可用、无旧 DAO/closed database 异常。
 
-PR09-14A/14B 仍未开放：Portable 隔离导入、格式/版本检查后的差异预览、冲突确认、幂等合并策略、数据库原子替换、回退/恢复执行均不在当前实现中。UI 必须继续明确显示“导入尚未开放”，不能把导出文件误当作可恢复能力。
+## 7. 合并边界
 
-### 4.3 外部发布门禁尚未关闭
+PR #66 当前保持 Draft。除非用户明确要求，不自动合并。
 
-当前本地证据不能替代：独立安全审查、跨版本向量验证、R8/依赖许可登记、受限设备性能、真实设备恢复和真实跨进程恢复。GitHub CI 在本次本地工作中没有被声称为通过。
+合并前最低要求：
 
-### 4.4 角色真实性与来源治理仍需持续维护
-
-真实人物型 Skill 角色的来源、授权、更新时间和 AI 模拟身份披露需要继续逐项登记；不得将生成内容描述成真人当前发言、授权或背书。
-
-## 5. 远端审查建议顺序
-
-1. 从本分支当前远端 Head `ccab195` 阅读本文件、`README.md`、`docs/planning/pr-09-13b-production-implementation.md` 和 PR09-13A 接口交接文档；不要假设本地未提交草稿存在于 GitHub。
-2. 先复查快照 UI 的 lease/闭库/取消/错误回显问题；如采用本地草稿，先补并发、Keystore 和失败恢复的隔离专项测试。
-3. 运行本地同等 Gradle 门禁并检查 GitHub Actions；不要把 2 个 skipped 测试写成通过。
-4. 另开 PR09-14A/14B 设计和实现分支，先完成隔离导入/预览，再实现原子替换；不要在当前分支偷偷扩大 Room schema 或恢复边界。
-5. 保留 `tools/ai/filter_chat_page.js` 这个用户未跟踪文件，不要在自动清理中删除或覆盖。
+1. 最新 Head GitHub Actions 无未解释失败；
+2. 本地只读验收给出结构化 PASS，或失败项已由 GPT 分析修复并重新验证；
+3. 不把 PR09-14A/14B、独立安全审查或真机恢复等未完成项写成已完成。
