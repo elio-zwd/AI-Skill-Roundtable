@@ -155,7 +155,7 @@
   - 每项只保留一个正式生产版本。
   - 头像构图满足 Task 3 的大头像标准。
 
-- [ ] **Step 3: 保存原始/工作版本到 Google Drive，最终压缩版本进入 GitHub**
+- [x] **Step 3: 保存原始/工作版本到 Google Drive，最终压缩版本进入 GitHub**
 
 - [ ] **Step 4: 重新运行资源完整性测试**
   - 此时人物资源部分应全部满足契约；工具 6 项仍保持 RED，进入 Task 5。
@@ -181,7 +181,7 @@
   - `patent-disclosure-organizer`: 技术方案/专利交底
   - `office-document-productivity`: 办公文档/结构化处理
 
-- [ ] **Step 3: 保存 Google Drive 工作版本和 GitHub 最终资源**
+- [x] **Step 3: 保存 Google Drive 工作版本和 GitHub 最终资源**
 
 - [ ] **Step 4: 运行资源完整性测试，确认 44 项全部有正式视觉资源**
 
@@ -319,3 +319,12 @@
 - 本地 AI 二进制处理任务见 `docs/superpowers/status/2026-09-23-local-ai-skill-avatar-assets-prompt.md`。
 - 当前正式 CI 最后已知证据（Head `562cf2c8...`）：`compileDebugKotlin` PASS、Android UI Test Compile PASS、573 JVM tests 中仅 `OfficialSkillVisualAssetTest.productionAssets_coverEveryOfficialSkillVisual` 因资源尚未入库失败。
 - 后续代码提交新增了执行快照/legacy 路径回归测试，最新 Head CI 仍需重新确认。
+
+
+### Progress Update — 2026-09-24
+
+- [x] 新增/替换人物正式头像 19 张已进入 `avatars/portraits/`
+- [x] 工具正式视觉 6 张已进入 `avatars/tools/`
+- [ ] 旧 19 张 PERSON_PERSPECTIVE 头像仍待机械重裁并进入 `avatars/portraits/`
+- [ ] 44 项资源完整性门禁待旧 19 张完成后转绿
+- [ ] 全量 CI / 本地 UI 验收待最终资源提交后执行
