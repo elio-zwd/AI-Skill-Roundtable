@@ -250,6 +250,42 @@ class ResourcesScreenTest {
     }
 
     @Test
+    fun existingMaterialEditorDoesNotOfferFakeConversationReassignment() {
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                ResourcesScreen(
+                    showOverview = true,
+                    selectedTab = ResourceTab.MATERIALS,
+                    onSelectTab = {},
+                    onOpenSettings = {},
+                    state = ResourcesUiState.Content(
+                        issues = listOf(
+                            ResourceIssueOption("issue-1", "原会话", listOf(ResourceStageOption("stage-1", "原节点"))),
+                            ResourceIssueOption("issue-2", "另一个会话", emptyList()),
+                        ),
+                        editor = ResourceEditorDraft(
+                            sourceType = com.elio.jianyu.data.ContextSourceType.MATERIAL,
+                            sourceId = "material-1",
+                            issueId = "issue-1",
+                            stageId = "stage-1",
+                            sourceKind = "excerpt",
+                            title = "已有资料",
+                            content = "正文",
+                            expectedUpdatedAt = 1L,
+                        ),
+                    ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("原会话").assertIsDisplayed()
+        composeRule.onNodeWithText("原节点").assertIsDisplayed()
+        composeRule.onNodeWithText("另一个会话").assertDoesNotExist()
+        composeRule.onNodeWithText("已有资料的归属不会在编辑时迁移；如需更换归属，请新建一条资料。")
+            .assertIsDisplayed()
+    }
+
+    @Test
     fun linkEditorUsesUserFacingFieldsAndDisablesSaveWithoutConversation() {
         composeRule.setContent {
             SkillRoundtableTheme {
