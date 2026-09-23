@@ -139,7 +139,7 @@ Drive ID：`1RNpQTFb7TB_b4Qa851WJorqKw7VCURxj`
 
 ## 新增 18 个人物角色
 
-从 Drive 人物源图裁切后，输出：
+从 Drive 人物源图裁切后统一输出 **1:1、至少 512×512 的 JPEG**：
 
 - civil-service-coach.jpg
 - public-document-coach.jpg
@@ -164,7 +164,7 @@ Drive ID：`1RNpQTFb7TB_b4Qa851WJorqKw7VCURxj`
 
 ## 工具视觉输出
 
-输出到 `app/src/main/assets/avatars/tools/`：
+逐格主体感知裁切为 **1:1、至少 512×512 的 PNG**，输出到 `app/src/main/assets/avatars/tools/`：
 
 - team-handover.png
 - meeting-to-action.png
