@@ -2,6 +2,9 @@ package com.elio.jianyu.backup
 
 import android.content.Context
 import java.io.File
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
@@ -64,7 +67,7 @@ object SnapshotCatalog {
         val temporary = File(directory, "$INDEX_NAME.part")
         try {
             temporary.writeText(json.encodeToString(ListSerializer(SnapshotCatalogEntry.serializer()), entries), Charsets.UTF_8)
-            if (!temporary.renameTo(target)) throw BackupException(BackupErrorCode.TARGET_WRITE_FAILED)
+            replaceSnapshotCatalogFile(temporary, target)
         } catch (error: BackupException) {
             temporary.delete(); throw error
         } catch (error: Throwable) {
@@ -73,4 +76,28 @@ object SnapshotCatalog {
     }
 
     private fun directory(context: Context): File = File(context.noBackupFilesDir, "jianyu-backup/snapshots")
+}
+
+
+internal fun replaceSnapshotCatalogFile(temporary: File, target: File) {
+    try {
+        Files.move(
+            temporary.toPath(),
+            target.toPath(),
+            StandardCopyOption.REPLACE_EXISTING,
+            StandardCopyOption.ATOMIC_MOVE,
+        )
+    } catch (_: AtomicMoveNotSupportedException) {
+        try {
+            Files.move(
+                temporary.toPath(),
+                target.toPath(),
+                StandardCopyOption.REPLACE_EXISTING,
+            )
+        } catch (error: Throwable) {
+            throw BackupException(BackupErrorCode.TARGET_WRITE_FAILED, error)
+        }
+    } catch (error: Throwable) {
+        throw BackupException(BackupErrorCode.TARGET_WRITE_FAILED, error)
+    }
 }
