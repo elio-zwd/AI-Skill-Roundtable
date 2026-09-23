@@ -161,6 +161,18 @@ internal class LifecycleGatedRepositoryComponent(
             materialContext.prepareExecutionContext(command)
         }
 
+    suspend fun prepareAndRecordConversationContextUsage(
+        command: PrepareExecutionContextCommand,
+        usageScopeId: String,
+    ): RepositoryResult<PreparedExecutionContext> =
+        gate(
+            command.draft.issueId,
+            IssueWriteAction.RECORD_CONTEXT_USAGE,
+            "prepare_conversation_context_usage",
+        ) {
+            materialContext.prepareAndRecordConversationContextUsage(command, usageScopeId)
+        }
+
     suspend fun moveIssueToTrash(
         issueId: String,
         changedAt: Long,

@@ -6,6 +6,7 @@ class RoomJianyuRepository(
     officialSkillIdValidator: OfficialSkillIdValidator = RejectingOfficialSkillIdValidator,
 ) : JianyuRepository,
     JianyuExecutionRuntimeRepository,
+    JianyuConversationContextUsageRepository,
     JianyuCollaborationRepository,
     JianyuArtifactSourceRecoveryRepository,
     JianyuStageAdvancementRepository {
@@ -187,6 +188,11 @@ class RoomJianyuRepository(
 
     override suspend fun prepareExecutionContext(command: PrepareExecutionContextCommand) =
         lifecycleWrites.prepareExecutionContext(command)
+
+    override suspend fun prepareAndRecordConversationContextUsage(
+        command: PrepareExecutionContextCommand,
+        usageScopeId: String,
+    ) = lifecycleWrites.prepareAndRecordConversationContextUsage(command, usageScopeId)
 
     override suspend fun listRunContextUsage(runId: String) =
         materialContext.listRunContextUsage(runId)
