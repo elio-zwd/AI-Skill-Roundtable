@@ -1,112 +1,148 @@
-# 见域当前分支完成度与远端审查交接
+# 见域 PR #66 当前完成度与验收交接
 
-更新时间：2026-09-23（UTC；本轮远端收口）
+更新时间：2026-09-23（UTC）
 PR：#66 `feat: 完成见域 UI 收口与正式备份`
 分支：`codex/ui-05-artifacts`
-状态：Draft，未合并
+PR 状态：Draft，未合并
+Base：`main@53321b6b26d7084e97be027fe1098bcb1fe403c5`
+生产代码审查冻结 Head：`681aaf2c450bcb4da9016170674b3819823ebcd4`
 
-> 本报告是当前跨对话恢复入口。聊天中的旧 Head、旧测试结果或“未提交草稿”描述若与本文件和 GitHub 当前分支冲突，以 GitHub 当前分支、PR、Actions 与本文件为准。
+> 本报告与最终本地验收 Prompt 会形成一个后续 docs-only 提交，因此 PR 的最终 Head 会比上面的生产代码冻结 Head 更新。验收时必须以 PR #66 当时的精确 Head 为唯一目标，并确认该 Head 包含 `681aaf2c...`。
 
 ## 1. 当前范围
 
-本分支集中完成并收口：
+PR #66 当前集中完成并收口：
 
-1. UI-03：Skill 角色发现、搜索、筛选、收藏与最近使用。
-2. UI-04：资料总览、新增、文件读取、详情与生命周期。
-3. UI-05：成果保存、筛选、详情与来源追溯。
-4. UI-06：个人背景维护、敏感展示边界与删除。
-5. UI-07：主题、字号/密度、减少动效、高对比度、消息时间、额外敏感提醒、AI 管理与关于页。
-6. UI-08：数据概览、可读导出、正式 Portable Backup、Device Snapshot 与删除全部数据。
-7. UI-09：Top 1 对话与正式 Issue/Stage、资料、个人背景、成果的统一闭环。
-8. Runtime：Room 闭库/重开、按 generation 重建 ViewModelStore、旧句柄失效。
-9. PR09-13B：Argon2id、AES-GCM、Tink Streaming AEAD、确定性 CBOR、认证 EOF、白名单 Mapper、Snapshot 与全局备份门禁。
+1. UI-03：Skill 角色搜索、筛选、收藏、最近使用与二级发现页。
+2. UI-04：资料总览、文本/链接/文件、DOCX、本地 PDF 明确失败边界、搜索、详情与生命周期。
+3. UI-05：成果保存、筛选、Markdown、来源追溯与来源 Issue/Stage 回跳。
+4. UI-06：个人背景新增/编辑/停用/删除、敏感列表脱敏、跨议题候选但默认不发送。
+5. UI-07：主题、字号、内容密度、减少动效、高对比度、消息时间、敏感额外提醒、AI 管理与关于页。
+6. UI-08：数据概览、可读导出、正式 Portable Backup、Device Snapshot、删除全部数据。
+7. UI-09：持续对话与正式 Issue/Stage、资料、个人背景、成果闭环。
+8. Runtime：Room 闭库/重开、generation 切换、ViewModelStore 重建、旧 DAO/旧 ViewModel 失效。
+9. PR09-13B：Argon2id、AES-GCM、Tink Streaming AEAD、确定性 CBOR、认证 EOF、白名单 Mapper、Snapshot 和全局备份门禁。
 
-Portable 导入、差异/冲突预览和数据库原子替换仍属于 PR09-14A/14B，不在本 PR 中。
+PR09-14A/14B 的 Portable 正式导入、差异/冲突预览与数据库原子替换仍不属于本 PR。
 
-## 2. 本轮远端收口的关键修复
+## 2. 本次接手后的新增修复
 
-在原有 UI-03～UI-09 与 PR09-13B 实现之上，本轮继续完成了以下确定性修复：
+在既有 UI-03～UI-09 和 PR09-13B 实现之上，本轮又确认并修复了以下问题：
 
-- 设备快照闭库维护改为协程安全门禁；Runtime maintenance 不再通过旧 Runtime provider 取依赖；Android Keystore 使用 provider 生成随机 GCM IV；Snapshot 操作由应用级 scope 持有。
-- `BackupOperationGate` 支持写租约内安全读取 Repository，避免备份 Writer 自锁。
-- Portable SAF 只在临时文档完整写入、重新读取、解密并验证到认证 EOF 后发布最终文件名。
-- 正式备份 Mapper 补齐冻结 registry 中此前缺失的 `participant_state`、`run_budget`、`message_usage`、`cross_discussion`、`archive_event`、`resume_event`、`issue_relation` 与 `safe_user_setting`。
-- Portable/Snapshot 创建前阻止未与任何正式 Issue 关联的 standalone ChatSession 或未归属 Issue/Stage 的消息，返回 `unsupported_legacy_data`，不再静默遗漏。
-- Snapshot 在 after-reopen 或 Catalog 发布失败时同时回滚 `.part` 和已改名的正式 `.jysnap`；清理失败返回 `temporary_cleanup_failed`。
-- “删除所有本地数据”与备份共用写门禁，并把 App 私有 Device Snapshot 与 snapshot wrapping key 纳入清理；外部 SAF 导出/Portable 文件明确不自动删除。
-- 可读数据导出和本地数据概览改为失败关闭；Repository 任一必要数据源失败时不再用空列表伪装成功。
-- 个人背景列表不显示敏感正文预览。
-- 对话选定资料/个人背景在下一次请求开始前经正式 Repository 校验并原子记录使用快照；授权只对本次请求有效，失败角色重试若仍要使用资料/个人背景必须重新选择与确认，不继承上一请求授权。
-- 敏感资料/个人背景必须逐次明确确认；设置只控制额外提醒文案，不能永久跳过敏感发送授权。
-- 消息成果使用稳定消息时间，整段对话成果使用内容哈希进入 ID，重复保存走 Repository 幂等语义。
-- 身份静态门禁已从 PR09-01 的一次性迁移文件清单升级到当前 Room v14、多 Provider Key Store 与当前文档事实，不再要求已被正式重构删除的旧文件继续存在。
-- 数据页与资料页的过期自动化/完成合同已同步到当前 UI-04/UI-06 信息架构。
+- `79186c3`：修复“本次参考内容”错误回退到 pending（下一请求）选择；展示只读 active context。
+- `01707be`：收紧 Device Snapshot 的 `PRAGMA wal_checkpoint(TRUNCATE)` 结果校验；没有结果行不再误判成功，必须返回预期列且第一列为 `SQLITE_OK(0)`。
+- `f1a7b8d`：active context 在真实请求结束后保留，供用户查看最近一次实际使用内容；下一次请求成功准备时替换/清空。删除会话时同步清除该 session 的 pending、active、显式确认和 formal context，避免敏感摘录留在 ViewModel 内存。
+- `6d95047`：Snapshot Catalog 不再依赖 `File.renameTo()` 覆盖已有 `index.json`；改为 `Files.move(..., REPLACE_EXISTING, ATOMIC_MOVE)`，不支持原子移动时安全降级，并新增已有索引替换回归测试。
+- `a81260d`：让 UI-07“减少动效”真实作用于自定义 shimmer、pulse 与 bounce 动画，而不只是把偏好写进 CompositionLocal。
+- `681aaf2`：可读 JSON 导出改为临时 SAF 文档 → 完整写入/fsync → 回读字节校验 → 最终改名；Repository/写入/校验失败时删除临时文档，不再留下空的或不完整的正式导出文件。
 
-## 3. 关键近期提交
+此前已经完成、且本轮确认未回退的关键修复仍包括：
 
-按主题列出本轮最重要的提交，GitHub 当前 Head 可能因本报告提交继续前进：
+- UI-09 资料必须匹配当前正式 Issue；Stage 资料必须匹配当前 Stage。
+- 个人背景允许跨议题复用，但每次请求默认未授权。
+- 保存 `expectedSourceHash`、`expectedSourceUpdatedAt`、用户编辑后的实际摘录、本次联网授权和敏感逐次确认。
+- 模型执行前 Repository 重新读取并校验来源。
+- `prepareExecutionContext` 与 legacy Dialog `runId=null` Usage Snapshot 在同一 Room 事务中完成。
+- UI/ViewModel 不自行构造 Usage Entity；Dialog 没有第二套 Usage Writer。
+- prepare/usage 写入失败不消费 pending、不调用模型、不静默丢来源。
+- retry 不继承上一请求授权；点击失败重试前必须重新确认，也允许明确确认空选择后 retry。
+- `confirmationOrder` 使用真实用户勾选顺序；取消后重新选择获得新的实际顺序；重新打开 pending 确认保留原顺序。
+- 24,000 字符门禁把真正加载的 `SKILL.md` 与 thinking directive 计入 base context；不重复计算 legacy `Character.systemPrompt`。
+- 敏感内容永远需要逐请求确认；“显示敏感资料发送提醒”只控制额外文案。
+- Portable/Snapshot 失败路径回滚临时和未发布正式文件；Snapshot after-reopen/Catalog 发布失败不保留孤儿正式 `.jysnap`。
+- 删除全部数据覆盖数据库、App 偏好、会话偏好、官方 Skill 偏好、BYOK、模型配置、遥测、云端交互设置、音频/cache、Device Snapshot 与 wrapping key。
+- Runtime maintenance 重开成功并健康检查后才发布新 generation；UI ViewModelStore 按 generation 清空重建。
 
-- `37c30b3`：修复设备快照生命周期与密钥封装
-- `c29adb3`：修正备份完整性与隐私界面
-- `ed4175d`：收紧 SAF 临时文档发布
-- `ddbd204`：收紧对话上下文与资料成果链路
-- `b54c1a8`：让应用设置真正作用于界面
-- `0204644`：允许备份写锁内安全读取 Repository
-- `b9a3655`：更新身份门禁到当前工程事实
-- `d561d96`：补齐正式备份白名单映射
-- `273eb89`：更新完成合同到当前 UI 架构
-- `ca56809`：回滚失败后的正式快照文件
-- `33be939`：删除全部数据时清理设备快照
-- `7300d39`：强制敏感上下文逐次确认
-- `9c7a183`：对齐隐私与正式备份当前合同
+## 3. GPT 定向代码自审结论
 
-## 4. 当前验证事实
+本轮按 PR #66 当前 diff 定向审查了 UI-03～UI-09、备份、数据隐私和 Runtime 的高风险链路。
 
-本轮已经得到的 GitHub 证据：
+已核对：
 
-- Secret scan 在多个近期 Head 上通过，包括正式备份白名单与隐私修复之后的 Head。
-- Android UI Test Compile 在 `a878a29` 上通过。
-- Android CI 在 `a878a29` 已通过身份静态门禁与 Kotlin 编译，并执行到 552 个 JVM 测试；当时只有 2 个失败，均为已经确认过期的静态合同：
-  - `DialogCompletionContractTest.backupRouteUsesFormalExportAndKeepsImportExplicitlyClosed`
-  - `JianyuUiAutomationArchitectureTest.corePages_exposeStableAutomationRegions`
-- 上述两条旧合同已在 `273eb89` 修正；之后又新增了 Snapshot 失败回滚、删除全部数据隐私边界和敏感上下文逐次确认，因此**最终结论必须以本报告之后最新 Head 的 Actions 为准**。
+- UI-03 根页搜索是只读跳转入口，真实搜索在独立二级页；根 Route 的旧 `SearchChanged` no-op 不会吞真实输入。
+- UI-03 最近使用清除存在二次确认，且只清 recent，不删除收藏、会话或历史消息。
+- UI-04 文件读取不会把 PDF 二进制伪装成文本；DOCX 有真实本地解析；PDF 返回明确不支持边界。
+- UI-05 成果确认取消不会创建正式成果；成果库使用持久化来源关系，不从正文猜测；来源回跳携带 Issue + Stage。
+- UI-06 敏感个人背景在列表脱敏；编辑时才显示正文；停用/删除使用正式生命周期接口。
+- UI-07 主题、字号、密度、高对比度、消息时间和减少动效均有真实消费方。
+- UI-08 可读导出、Portable 和 Snapshot 均按失败关闭处理；删除全部数据的清理范围与 UI 文案一致。
+- UI-09 没有发现第二条 Dialog Usage 写入路径；pending/active/retry 授权隔离、敏感逐次确认、来源变更拒绝和确认顺序均有对应实现。
+- Runtime 闭库后不继续持有旧 Repository/DAO；generation 更新后清空旧 ViewModelStore。
+- PR 文件范围集中在 UI-03～UI-09、备份/Runtime、对应测试/文档和身份门禁；未发现需要从 PR 剔除的明显无关业务修改。
 
-不要把旧 Head 的通过结果写成最新 Head “所有测试通过”。
+在上述清单内，GPT 静态自审当前没有保留一个已知的重大未解决代码问题。
 
-## 5. 仍需关闭的验证
+## 4. GitHub 远端验证事实
 
-GitHub：
+### 4.1 交接 Head `5b82271b218d283f99e897804a3c3b07cf0be0cb`
 
-- 最新 Head Android CI：等待最终结论。
-- 最新 Head Android UI Test Compile：等待最终结论。
-- 最新 Head Secret scan：等待最终结论。
+已重新查询并确认：
 
-本地/设备：
+- Secret scan：PASS。
+- Android UI Test Compile：PASS。
+- Android CI run `35841239780`：PASS。
 
-- GPT 远端没有执行用户电脑上的 Android 本地构建。
-- 仍需只读本地 AI 执行完整 Gradle 门禁、模拟器/真机交互、UI-03～UI-09 关键路径与日志检查。
-- PR09-13B 仍需独立安全审查、跨版本向量、R8/依赖许可登记、受限设备性能与真实设备 Snapshot/恢复门禁。
-- PR09-14A/14B 尚未实现。
+该 Android CI 的 build job 已成功经过：
 
-## 6. 本地最终验收重点
+- static app identity gate；
+- debug Kotlin compile；
+- debug JVM unit tests；
+- debug lint；
+- debug APK；
+- package migration / schema / debug APK verification；
+- ephemeral release signing setup/validation/cleanup；
+- optimized release APK；
+- release package / R8 / unsigned artifact verification；
+- committed Room schema verification；
+- generated Room schema upload；
+- test/lint/R8 reports upload；
+- debug APK upload；
+- release APK upload。
 
-只读验收至少覆盖：
+`legacy-apk` 与 `migration-tests` 只在手工 `workflow_dispatch` 条件下运行，因此普通 PR push 下为 skipped；这不代表 Instrumentation 已执行。
 
-- 对话：新建、发送/停止、单角色/多角色、资料选择、敏感逐次确认、本次参考内容、失败角色重试不继承旧授权、保存消息成果、整理整段对话成果。
-- 资料：总览、新增文本/链接/文件、DOCX、PDF 明确失败、详情、搜索、生命周期。
-- 成果：保存确认、筛选取消语义、详情、Markdown、来源追溯和来源会话回跳。
-- 个人背景：敏感列表脱敏、编辑、停用、删除。
-- 设置：主题、字号/密度、减少动效、高对比度、消息时间、敏感额外提醒；额外提醒关闭后仍必须逐次确认敏感内容。
-- 数据隐私：可读导出失败关闭；删除全部数据后数据库、偏好、BYOK、遥测、音频、Device Snapshot 与 wrapping key 的清理结果。
-- 备份：Portable 创建、错误密码/失败路径、Snapshot 创建/备注/删除、失败后无孤儿正式 `.jysnap`。
-- Runtime：Snapshot 后 App 正常重开、对话/资料继续可用、无旧 DAO/closed database 异常。
+### 4.2 当前生产代码冻结 Head `681aaf2c450bcb4da9016170674b3819823ebcd4`
 
-## 7. 合并边界
+更新本报告时：
 
-PR #66 当前保持 Draft。除非用户明确要求，不自动合并。
+- Secret scan run `35847418813`：PASS。
+- Android CI run `35847418785`：IN PROGRESS。
+- Android UI Test Compile run `35847418807`：IN PROGRESS。
 
-合并前最低要求：
+用户已明确把最终编译与设备验收交给本地 AI，因此不得把这两个仍在运行的 workflow 写成 PASS，也不等待它们作为最终完成门禁。
 
-1. 最新 Head GitHub Actions 无未解释失败；
-2. 本地只读验收给出结构化 PASS，或失败项已由 GPT 分析修复并重新验证；
-3. 不把 PR09-14A/14B、独立安全审查或真机恢复等未完成项写成已完成。
+## 5. 尚未执行/尚未完成的验证
+
+以下内容当前没有证据，不得写成已通过：
+
+- 用户本地 Android 完整编译：未执行。
+- `connectedDebugAndroidTest` / Instrumentation：本轮 GitHub 普通 push 未执行；本地尚待执行。
+- 真机/模拟器 UI 全路径人工验收：未执行。
+- TalkBack、360dp、200% 字号、键盘、明暗主题等设备可用性：尚待本地 AI。
+- 真实设备 Snapshot 创建后 Runtime 重开与持续使用：尚待本地 AI。
+- PR09-13B 独立安全审查、跨版本向量、依赖许可登记、受限设备性能：尚未完成。
+- PR09-14A/14B：尚未实现。
+
+## 6. 最终本地只读验收
+
+最终验收 Prompt 已保存：
+
+`docs/testing/pr-66-local-readonly-final-acceptance-prompt.md`
+
+本地 AI 必须：
+
+- 严格只读仓库；
+- 不修改、不自动修复、不 commit、不 push、不 merge、不改变 Draft 状态；
+- 以 PR #66 当前精确 Head 为唯一目标；
+- 执行 Gradle/JVM/Lint/Debug/Release/AndroidTest APK；
+- 有设备时执行全量 Instrumentation 和指定 UI/Runtime/备份路径；
+- 使用 Fake/Test Network，不使用真实生产 API Key；
+- 失败只返回命令、文件/行号、第一条关键错误、最小复现步骤和必要日志，不回传大量正常日志。
+
+## 7. PR 最终状态边界
+
+PR #66 继续保持 Draft，不自动 merge。
+
+在本地只读验收给出 PASS（或所有 FAIL 经 GPT 修复并重新验证）之前，不宣布 PR 完成，也不建议自动改成 Ready。
+
+若本地验收通过且 PR 当前 Head 没有新的未解释失败，则可由用户人工决定是否将 PR #66 标记 Ready / Merge。
