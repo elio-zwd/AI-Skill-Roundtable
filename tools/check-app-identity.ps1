@@ -11,7 +11,7 @@ $CurrentPackage = 'com.elio.jianyu'
 $LegacyPackage = 'com.elio.skillroundtable'
 $LegacySchema = 'app/schemas/com.elio.skillroundtable.data.RoundtableDatabase/5.json'
 $CurrentIdentitySchema = 'app/schemas/com.elio.jianyu.data.RoundtableDatabase/5.json'
-$CurrentExecutionSchema = 'app/schemas/com.elio.jianyu.data.RoundtableDatabase/13.json'
+$CurrentExecutionSchema = 'app/schemas/com.elio.jianyu.data.RoundtableDatabase/14.json'
 $MoveManifest = 'docs/testing/pr-09-01-package-move-manifest.txt'
 
 function Pass {
@@ -77,16 +77,13 @@ try {
         }
     }
 
-    $missingTargets = @(
-        foreach ($oldPath in $manifestPaths) {
-            $newPath = $oldPath.Replace('/com/elio/skillroundtable/', '/com/elio/jianyu/')
-            if (-not (Test-Path $newPath -PathType Leaf)) { $newPath }
-        }
-    )
-    if ($missingTargets.Count -eq 0) {
-        Pass 'Package Move Mapping' '110 个 Base 文件均存在唯一新路径目标'
+    # PR09-01 的 110 项清单冻结的是历史迁移输入，不是后续产品重构的永久文件清单。
+    # 后续页面/网络实现可以被正式替换或删除；身份门禁只要求旧包路径不重新成为活动源码。
+    $legacyManifestTracked = @(Get-TrackedFiles -Paths $manifestPaths)
+    if ($legacyManifestTracked.Count -eq 0) {
+        Pass 'Package Move Baseline' 'PR09-01 历史旧包清单未重新成为已跟踪源码'
     } else {
-        Fail 'Package Move Mapping' "缺失迁移目标：$($missingTargets -join ', ')"
+        Fail 'Package Move Baseline' "历史旧包路径重新出现：$($legacyManifestTracked -join ', ')"
     }
 
     $currentRoots = @(
@@ -117,10 +114,10 @@ try {
 
     $currentTracked = @(Get-TrackedFiles -Paths $currentRoots)
     $identityTest = 'app/src/androidTest/java/com/elio/jianyu/identity/AppIdentityIsolationTest.kt'
-    if ($currentTracked.Count -ge 111 -and $currentTracked -contains $identityTest) {
-        Pass 'Tracked Source Count' "原 110 个映射文件和身份测试均保留；当前允许后续功能新增，count=$($currentTracked.Count)"
+    if ($currentTracked.Count -gt 0 -and $currentTracked -contains $identityTest) {
+        Pass 'Current Identity Sources' "当前见域源码存在且身份隔离测试仍受版本控制；count=$($currentTracked.Count)"
     } else {
-        Fail 'Tracked Source Count' "原身份迁移文件或身份测试缺失：count=$($currentTracked.Count)"
+        Fail 'Current Identity Sources' "当前见域源码或身份隔离测试缺失：count=$($currentTracked.Count)"
     }
 
     $remainingLegacyTracked = @(Get-TrackedFiles -Paths $legacyRoots)
@@ -244,34 +241,38 @@ try {
         'MIGRATION_8_9',
         'MIGRATION_9_10',
         'MIGRATION_10_11',
-        'MIGRATION_11_12'
+        'MIGRATION_11_12',
+        'MIGRATION_12_13',
+        'MIGRATION_13_14'
     )
     $missingMigrations = @($requiredMigrations | Where-Object { $databaseSource -notmatch [regex]::Escape($_) })
     $materialContextMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/MaterialContextMigration.kt' -Raw
     $collaborationMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/CollaborationMigration.kt' -Raw
     $stageAdvancementMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/StageAdvancementMigration.kt' -Raw
     $issueLifecycleMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/IssueLifecycleV12Migration.kt' -Raw
-    if ($databaseSource -match 'version\s*=\s*13' -and
+    if ($databaseSource -match 'version\s*=\s*14' -and
         $missingMigrations.Count -eq 0 -and
         $databaseSource -match '"roundtable_database"' -and
-        $databaseSource -notmatch 'MIGRATION_12_13' -and
         (Test-Path $CurrentExecutionSchema -PathType Leaf) -and
         $materialContextMigration -match 'Migration\(8,\s*9\)' -and
         $collaborationMigration -match 'Migration\(9,\s*10\)' -and
         $stageAdvancementMigration -match 'Migration\(10,\s*11\)' -and
         $issueLifecycleMigration -match 'Migration\(11,\s*12\)') {
-        Pass 'Room Runtime Contract' 'Room v13 Schema 与数据库名保持完整，且未提供 v12→v13 兼容迁移'
+        Pass 'Room Runtime Contract' 'Room v14 Schema、数据库名和 v1→v14 Migration 链保持完整'
     } else {
-        Fail 'Room Runtime Contract' "Room v13 Schema、无 v12→v13 迁移或数据库名异常；缺失迁移=$($missingMigrations -join ', ')"
+        Fail 'Room Runtime Contract' "Room v14 Schema、数据库名或 Migration 链异常；缺失迁移=$($missingMigrations -join ', ')"
     }
 
     $keyStoreSource = Get-Content 'app/src/main/java/com/elio/jianyu/network/EncryptedApiKeyStore.kt' -Raw
+    $providerKeySource = Get-Content 'app/src/main/java/com/elio/jianyu/network/ProviderKeyRepository.kt' -Raw
     if ($keyStoreSource -match 'KEY_ALIAS\s*=\s*"skill_roundtable_api_key_v1"' -and
-        $keyStoreSource -match 'FILE_NAME\s*=\s*"gemini_api_keys\.enc"' -and
-        $keyStoreSource -match 'TRANSFORMATION\s*=\s*"AES/GCM/NoPadding"') {
-        Pass 'Key Store Contract' 'Key alias、密文文件名和 AES-GCM 格式保持不变'
+        $keyStoreSource -match 'TRANSFORMATION\s*=\s*"AES/GCM/NoPadding"' -and
+        $keyStoreSource -match 'context\.noBackupFilesDir' -and
+        $keyStoreSource -match 'fileName:\s*String' -and
+        $providerKeySource.Contains('EncryptedApiKeyStore(appContext, "${provider.storageId}_api_keys.enc")')) {
+        Pass 'Key Store Contract' '共享 Keystore Alias、AES-GCM 与 Provider 隔离密文文件契约保持完整'
     } else {
-        Fail 'Key Store Contract' 'Key Store 契约发生非预期变化'
+        Fail 'Key Store Contract' 'Key Store Alias、AES-GCM、noBackupFilesDir 或 Provider 文件隔离契约异常'
     }
 
     $ciLines = Get-Content '.github/workflows/android-ci.yml'
@@ -304,8 +305,8 @@ try {
     $agents = Get-Content 'AGENTS.md' -Raw
     if ($readme -match 'App 名称：见域' -and
         $readme -match 'namespace / applicationId：com\.elio\.jianyu' -and
-        $agents -match 'App 用户可见名称：见域' -and
-        $agents -match 'namespace / applicationId：com\.elio\.jianyu' -and
+        $agents -match 'AGENTS\.md — 见域' -and
+        $agents -match 'namespace / applicationId：.*com\.elio\.jianyu' -and
         $agents -match 'app/src/main/java/com/elio/jianyu/') {
         Pass 'Current Identity Documentation' 'README 与 AGENTS 已记录当前见域身份'
     } else {

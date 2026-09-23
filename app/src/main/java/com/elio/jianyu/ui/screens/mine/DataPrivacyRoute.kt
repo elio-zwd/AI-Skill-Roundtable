@@ -66,7 +66,7 @@ internal data class ExportPayload(
     val format: String = "jianyu-readable-export-v1",
     val exportedAt: Long,
     val appId: String = "com.elio.jianyu",
-    val notice: String = "不包含完整 API Key；不包含旧包 com.elio.skillroundtable 数据。",
+    val notice: String = "不包含完整 API Key；仅包含当前见域 App 可导出的数据。",
     val issues: List<ExportIssue>,
     val materials: List<ExportMaterial>,
     val personalContexts: List<ExportPersonalContext>,
