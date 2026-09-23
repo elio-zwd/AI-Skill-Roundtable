@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.work.WorkManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import com.elio.jianyu.backup.AndroidKeystoreSnapshotKeyProvider
 import com.elio.jianyu.backup.BackupOperationGate
 import com.elio.jianyu.backup.SnapshotCatalog
+import com.elio.jianyu.audio.AudioPlaybackManager
 import com.elio.jianyu.data.ContextSourceLifecycle
 import com.elio.jianyu.data.IssueLifecycleState
 import com.elio.jianyu.data.JianyuRepository
@@ -107,6 +109,7 @@ fun DataPrivacyRoute(
     onOpenBackup: () -> Unit,
     onOpenTelemetry: () -> Unit,
     officialSkillPreferences: OfficialSkillPreferences? = null,
+    onPrepareForLocalDataDeletion: (suspend () -> Unit)? = null,
     onClearConversationPreferences: (() -> Boolean)? = null,
 ) {
     val context = LocalContext.current
@@ -226,6 +229,7 @@ fun DataPrivacyRoute(
                                     context = context,
                                     repository = repository,
                                     officialSkillPreferences = officialSkillPreferences,
+                                    onPrepareForLocalDataDeletion = onPrepareForLocalDataDeletion,
                                     onClearConversationPreferences = onClearConversationPreferences,
                                 )
                             }
@@ -350,9 +354,15 @@ private suspend fun clearAllLocalData(
     context: Context,
     repository: JianyuRepository,
     officialSkillPreferences: OfficialSkillPreferences?,
+    onPrepareForLocalDataDeletion: (suspend () -> Unit)?,
     onClearConversationPreferences: (() -> Boolean)?,
 ): String {
     return try {
+        onPrepareForLocalDataDeletion?.invoke()
+        if (!cancelAppOwnedWork(context)) {
+            return "本地数据清除失败；后台任务未能安全停止，请重试。"
+        }
+        AudioPlaybackManager.stopAudio()
         BackupOperationGate.forContext(context).withWriteLock {
             when (repository.clearAllData()) {
                 is RepositoryResult.Success -> {
@@ -395,6 +405,11 @@ private suspend fun clearAllLocalData(
         "本地数据清除失败；未确认清除完成。"
     }
 }
+private fun cancelAppOwnedWork(context: Context): Boolean = runCatching {
+    WorkManager.getInstance(context.applicationContext).cancelAllWork().result.get()
+    true
+}.getOrDefault(false)
+
 private fun clearConversationPreferenceFiles(context: Context): Boolean {
     val sessionPreferencesCleared = ConversationSessionPreferences(context).clearAll()
     val roundtableSettingsCleared = context.applicationContext

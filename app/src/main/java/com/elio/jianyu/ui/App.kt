@@ -457,6 +457,7 @@ internal fun MainAppContent(
                                 navController.navigateToSecondary(AppDestination.TELEMETRY)
                             },
                             officialSkillPreferences = officialSkillPreferences,
+                            onPrepareForLocalDataDeletion = viewModel::prepareForLocalDataDeletion,
                             onClearConversationPreferences = viewModel::clearLocalPreferencesAfterDataDeletion,
                         )
                     },
