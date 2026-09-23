@@ -106,6 +106,7 @@ data class ConversationContextSelection(
     val content: String,
     val expectedSourceHash: String,
     val expectedSourceUpdatedAt: Long,
+    val confirmationOrder: Int,
     val networkAllowed: Boolean,
     val sensitive: Boolean,
     val sensitiveConfirmed: Boolean,
@@ -952,7 +953,10 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 selection.expectedSourceUpdatedAt > 0L &&
                 selection.networkAllowed &&
                 (!selection.sensitive || selection.sensitiveConfirmed)
-        } && selections.map { it.sourceType to it.sourceId }.distinct().size == selections.size
+        } &&
+            selections.all { it.confirmationOrder >= 0 } &&
+            selections.map { it.confirmationOrder }.distinct().size == selections.size &&
+            selections.map { it.sourceType to it.sourceId }.distinct().size == selections.size
         if (!valid) {
             _errorMessage.value = "参考内容确认不完整，请检查正文、发送授权和敏感内容确认。"
             return false
@@ -1021,7 +1025,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         }
         val confirmationAt = captured.maxOf { it.confirmedAt }
         val preparedAt = maxOf(System.currentTimeMillis(), confirmationAt).coerceAtLeast(1L)
-        val items = captured.mapIndexed { index, selection ->
+        val items = captured.map { selection ->
             ConfirmedContextItem(
                 sourceType = selection.sourceType,
                 sourceId = selection.sourceId,
@@ -1030,7 +1034,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 contentHash = ContextContentHasher.hash(selection.content),
                 expectedSourceHash = selection.expectedSourceHash,
                 expectedSourceUpdatedAt = selection.expectedSourceUpdatedAt,
-                confirmationOrder = index,
+                confirmationOrder = selection.confirmationOrder,
                 userConfirmedAt = selection.confirmedAt,
                 networkAllowed = selection.networkAllowed,
                 sensitive = selection.sensitive,

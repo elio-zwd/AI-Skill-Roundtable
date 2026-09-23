@@ -261,6 +261,7 @@ fun DialogRoute(
                                 expectedSourceUpdatedAt = material.updatedAt,
                                 sensitive = material.sensitive,
                                 selected = previous != null,
+                                selectionOrder = previous?.confirmationOrder,
                                 networkAllowed = previous?.networkAllowed == true,
                                 sensitiveConfirmed = previous?.sensitiveConfirmed == true,
                             )
@@ -279,6 +280,7 @@ fun DialogRoute(
                                 expectedSourceUpdatedAt = personal.updatedAt,
                                 sensitive = personal.sensitive,
                                 selected = previous != null,
+                                selectionOrder = previous?.confirmationOrder,
                                 networkAllowed = previous?.networkAllowed == true,
                                 sensitiveConfirmed = previous?.sensitiveConfirmed == true,
                             )
@@ -331,9 +333,7 @@ fun DialogRoute(
             showSensitiveReminder = appPreferences.confirmSensitiveContext,
             onDismiss = { contextConfirmation = null },
             onChange = { candidate ->
-                contextConfirmation = state.copy(candidates = state.candidates.map {
-                    if (it.sourceType == candidate.sourceType && it.sourceId == candidate.sourceId) candidate else it
-                })
+                contextConfirmation = updateDialogContextCandidate(state, candidate)
             },
             onConfirm = {
                 val selections = state.selectedItems.map { candidate ->
@@ -344,6 +344,7 @@ fun DialogRoute(
                         content = candidate.content,
                         expectedSourceHash = candidate.expectedSourceHash,
                         expectedSourceUpdatedAt = candidate.expectedSourceUpdatedAt,
+                        confirmationOrder = requireNotNull(candidate.selectionOrder),
                         networkAllowed = candidate.networkAllowed,
                         sensitive = candidate.sensitive,
                         sensitiveConfirmed = candidate.sensitiveConfirmed,
@@ -403,7 +404,7 @@ fun DialogRoute(
     }
 }
 
-private data class DialogContextCandidate(
+internal data class DialogContextCandidate(
     val sourceType: ContextSourceType,
     val sourceId: String,
     val title: String,
@@ -412,15 +413,43 @@ private data class DialogContextCandidate(
     val expectedSourceUpdatedAt: Long,
     val sensitive: Boolean,
     val selected: Boolean = false,
+    val selectionOrder: Int? = null,
     val networkAllowed: Boolean = false,
     val sensitiveConfirmed: Boolean = false,
 )
 
-private data class DialogContextState(
+internal data class DialogContextState(
     val candidates: List<DialogContextCandidate>,
 ) {
     val selectedItems: List<DialogContextCandidate>
-        get() = candidates.filter { it.selected }
+        get() = candidates
+            .filter { it.selected }
+            .sortedBy { it.selectionOrder ?: Int.MAX_VALUE }
+}
+
+internal fun updateDialogContextCandidate(
+    state: DialogContextState,
+    candidate: DialogContextCandidate,
+): DialogContextState {
+    val current = state.candidates.firstOrNull {
+        it.sourceType == candidate.sourceType && it.sourceId == candidate.sourceId
+    } ?: return state
+    val normalized = when {
+        candidate.selected && !current.selected -> candidate.copy(
+            selectionOrder = (state.candidates.mapNotNull { it.selectionOrder }.maxOrNull() ?: -1) + 1,
+        )
+        !candidate.selected -> candidate.copy(selectionOrder = null)
+        else -> candidate.copy(selectionOrder = current.selectionOrder)
+    }
+    return state.copy(
+        candidates = state.candidates.map {
+            if (it.sourceType == normalized.sourceType && it.sourceId == normalized.sourceId) {
+                normalized
+            } else {
+                it
+            }
+        },
+    )
 }
 
 @Composable
