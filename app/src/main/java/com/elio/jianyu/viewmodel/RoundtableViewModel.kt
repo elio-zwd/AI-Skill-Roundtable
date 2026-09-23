@@ -119,17 +119,20 @@ internal fun materialIsAvailableForConversation(
     material.issueId == formal.issueId &&
     (material.stageId == null || material.stageId == formal.stageId)
 
-private fun conversationBaseContextCharacters(
+internal fun conversationBaseContextCharacters(
     messages: List<Message>,
     targetCharacters: List<Character>,
     responseMode: TranscriptBuilder.ResponseMode,
+    skillPromptCharacters: Map<String, Int>,
 ): Int = targetCharacters.maxOfOrNull { character ->
     TranscriptBuilder.build(
         messages = messages,
         currentCharacter = character,
         roundIndex = 0,
         responseMode = responseMode,
-    ).length + character.systemPrompt.length
+    ).length +
+        character.systemPrompt.length +
+        skillPromptCharacters.getOrDefault(character.id, 0)
 }?.coerceAtLeast(0) ?: 0
 
 data class RetryableRoundtableState(
@@ -989,6 +992,12 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         val messages = chatRepo.getMessages(sessionId)
         val charactersById = charRepo.allCharacters.first().associateBy(Character::id)
         val targetCharacters = targetCharacterIds.mapNotNull(charactersById::get)
+        val appContext = getApplication<Application>().applicationContext
+        val skillPromptCharacters = targetCharacters.associate { character ->
+            character.id to com.elio.jianyu.skill.SkillLoader
+                .loadSkill(appContext, character.skillAssetPath)
+                .length
+        }
         val confirmationAt = captured.maxOf { it.confirmedAt }
         val preparedAt = maxOf(System.currentTimeMillis(), confirmationAt).coerceAtLeast(1L)
         val items = captured.mapIndexed { index, selection ->
@@ -1018,6 +1027,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                         messages = messages,
                         targetCharacters = targetCharacters,
                         responseMode = responseMode,
+                        skillPromptCharacters = skillPromptCharacters,
                     ),
                     items = items,
                     confirmed = true,
