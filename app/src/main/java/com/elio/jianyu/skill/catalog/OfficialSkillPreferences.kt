@@ -19,6 +19,9 @@ interface OfficialSkillPreferences {
     /** 清空最近使用记录；不影响收藏、会话历史与当前参与者。 */
     suspend fun clearRecentUses(): Boolean
 
+    /** 删除全部本地数据时同时清空收藏与最近使用，并同步当前进程状态。 */
+    suspend fun clearAll(): Boolean
+
     /** 查看详情不等于真正进入使用流程，故该事件不得写入最近使用。 */
     suspend fun onSkillDetailViewed(skillId: String) = Unit
 }
@@ -57,6 +60,12 @@ class InMemoryOfficialSkillPreferences(
     }
 
     override suspend fun clearRecentUses(): Boolean {
+        _recentUses.value = emptyList()
+        return true
+    }
+
+    override suspend fun clearAll(): Boolean {
+        _favoriteIds.value = emptySet()
         _recentUses.value = emptyList()
         return true
     }
@@ -128,6 +137,17 @@ class SharedPreferencesOfficialSkillPreferences(
         }
     }
 
+    override suspend fun clearAll(): Boolean {
+        return synchronized(lock) {
+            val committed = preferences.edit().clear().commit()
+            if (committed) {
+                _favoriteIds.value = emptySet()
+                _recentUses.value = emptyList()
+            }
+            committed
+        }
+    }
+
     private fun loadFavoriteIds(): Set<String> = preferences
         .getStringSet(KEY_FAVORITE_IDS, emptySet())
         .orEmpty()
@@ -141,8 +161,15 @@ class SharedPreferencesOfficialSkillPreferences(
         }.getOrDefault(emptyList())
     }
 
-    private companion object {
-        const val PREFERENCES_NAME = "official_skill_catalog_preferences_v1"
+    companion object {
+        internal const val PREFERENCES_NAME = "official_skill_catalog_preferences_v1"
+
+        internal fun clearStored(context: Context): Boolean =
+            context.applicationContext
+                .getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .clear()
+                .commit()
         const val KEY_FAVORITE_IDS = "favorite_official_skill_ids"
         const val KEY_RECENT_USES = "recent_official_skill_uses"
     }
@@ -164,3 +191,7 @@ private fun List<RecentOfficialSkillUse>.normalized(
         .take(maxRecent)
         .toList()
 }
+
+
+internal fun clearStoredOfficialSkillPreferences(context: Context): Boolean =
+    SharedPreferencesOfficialSkillPreferences.clearStored(context)
