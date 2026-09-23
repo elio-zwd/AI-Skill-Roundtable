@@ -53,11 +53,8 @@ fun ResourcesScreen(
     onEditMaterial: (MaterialUiItem) -> Unit = {},
     onOpenMaterial: (MaterialUiItem) -> Unit = {},
     onDismissMaterial: () -> Unit = {},
-    onEditPersonalContext: (PersonalContextUiItem) -> Unit = {},
     onMaterialLifecycle: (MaterialUiItem, ContextSourceLifecycle) -> Unit = { _, _ -> },
-    onPersonalContextLifecycle: (PersonalContextUiItem, ContextSourceLifecycle) -> Unit = { _, _ -> },
     onRequestMaterialPurge: (MaterialUiItem) -> Unit = {},
-    onRequestPersonalContextPurge: (PersonalContextUiItem) -> Unit = {},
     onEditorChange: (ResourceEditorDraft) -> Unit = {},
     onDismissEditor: () -> Unit = {},
     onSaveEditor: () -> Unit = {},
@@ -87,12 +84,7 @@ fun ResourcesScreen(
         }
     } else {
         JianyuPageShell(
-        title = when {
-            selectedTab == ResourceTab.ARTIFACTS -> "全部成果"
-            state is ResourcesUiState.Content &&
-                state.section == ResourceLibrarySection.PERSONAL_CONTEXTS -> "个人背景"
-            else -> "全部资料"
-        },
+        title = if (selectedTab == ResourceTab.ARTIFACTS) "全部成果" else "全部资料",
         subtitle = null,
         onBack = onBackToOverview,
         onOpenSettings = onOpenSettings,
@@ -105,17 +97,12 @@ fun ResourcesScreen(
         ) {
             Text("让判断可回看", style = MaterialTheme.typography.headlineMedium)
             Text(
-                "资料、个人背景和成果保持不同对象语义。",
+                "资料和成果保持不同对象语义；个人背景请从【我的】管理。",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        val selectedLibraryTab = when {
-            selectedTab == ResourceTab.ARTIFACTS -> 1
-            state is ResourcesUiState.Content &&
-                state.section == ResourceLibrarySection.PERSONAL_CONTEXTS -> 2
-            else -> 0
-        }
+        val selectedLibraryTab = if (selectedTab == ResourceTab.ARTIFACTS) 1 else 0
         TabRow(selectedTabIndex = selectedLibraryTab) {
             Box(modifier = Modifier.testTag(ResourcesTestTags.MATERIAL_LIBRARY)) {
                 Tab(
@@ -133,15 +120,6 @@ fun ResourcesScreen(
                 onClick = { onSelectTab(ResourceTab.ARTIFACTS) },
                 text = { Text("成果") },
                 modifier = Modifier.testTag(ResourcesTestTags.ARTIFACTS_TAB),
-            )
-            Tab(
-                selected = selectedLibraryTab == 2,
-                onClick = {
-                    onSelectTab(ResourceTab.MATERIALS)
-                    onSelectSection(ResourceLibrarySection.PERSONAL_CONTEXTS)
-                },
-                text = { Text("个人背景") },
-                modifier = Modifier.testTag(ResourcesTestTags.PERSONAL_CONTEXT_LIBRARY),
             )
         }
 
@@ -167,11 +145,8 @@ fun ResourcesScreen(
                 requestSearchFocus = requestMaterialSearchFocus,
                 onOpenMaterial = onOpenMaterial,
                 onEditMaterial = onEditMaterial,
-                onEditPersonalContext = onEditPersonalContext,
                 onMaterialLifecycle = onMaterialLifecycle,
-                onPersonalContextLifecycle = onPersonalContextLifecycle,
                 onRequestMaterialPurge = onRequestMaterialPurge,
-                onRequestPersonalContextPurge = onRequestPersonalContextPurge,
             )
         }
     }
@@ -224,16 +199,13 @@ private fun ResourceLibraryContent(
     requestSearchFocus: Boolean,
     onOpenMaterial: (MaterialUiItem) -> Unit,
     onEditMaterial: (MaterialUiItem) -> Unit,
-    onEditPersonalContext: (PersonalContextUiItem) -> Unit,
     onMaterialLifecycle: (MaterialUiItem, ContextSourceLifecycle) -> Unit,
-    onPersonalContextLifecycle: (PersonalContextUiItem, ContextSourceLifecycle) -> Unit,
     onRequestMaterialPurge: (MaterialUiItem) -> Unit,
-    onRequestPersonalContextPurge: (PersonalContextUiItem) -> Unit,
 ) {
     when (state) {
         ResourcesUiState.Loading -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             CircularProgressIndicator()
-            Text("正在读取资料与个人背景")
+            Text("正在读取资料")
             Text(
                 "加载只读取本地资料库，不会把正文发送到网络。",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -251,11 +223,7 @@ private fun ResourceLibraryContent(
                 if (requestSearchFocus) searchFocusRequester.requestFocus()
             }
             Text(
-                if (state.section == ResourceLibrarySection.MATERIALS) {
-                    "资料必须关联会话，可选关联对话节点；已关联不等于自动发送。"
-                } else {
-                    "个人背景可跨会话复用，但每次执行默认不勾选。"
-                },
+                "资料必须关联会话，可选关联对话节点；已关联不等于自动发送。",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             OutlinedTextField(
@@ -273,10 +241,7 @@ private fun ResourceLibraryContent(
                 enabled = !state.operationInProgress,
                 modifier = Modifier.testTag(ResourcesTestTags.ADD),
             ) {
-                Text(
-                    if (state.section == ResourceLibrarySection.MATERIALS) "新建资料"
-                    else "新建个人背景",
-                )
+                Text("新建资料")
             }
             state.partialFailure?.let { message ->
                 JianyuStateCard(title = "部分操作未完成", message = message)
@@ -287,52 +252,32 @@ private fun ResourceLibraryContent(
                     Text("正在保存本地资料")
                 }
             }
-            when (state.section) {
-                ResourceLibrarySection.MATERIALS -> Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag(JianyuAutomationTags.Resources.MATERIALS_CONTENT),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    if (state.visibleMaterials.isEmpty()) {
-                        JianyuStateCard(
-                            title = "暂无资料",
-                            message = "可粘贴文本、保存手动笔记，或记录 URL 与用户提供的摘录。",
-                            modifier = Modifier.testTag(ResourcesTestTags.EMPTY_STATE),
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag(JianyuAutomationTags.Resources.MATERIALS_CONTENT),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                if (state.visibleMaterials.isEmpty()) {
+                    val hasStoredMaterials = state.materials.isNotEmpty()
+                    JianyuStateCard(
+                        title = if (hasStoredMaterials) "暂无匹配资料" else "暂无资料",
+                        message = if (hasStoredMaterials) {
+                            "可调整搜索词或状态筛选。"
+                        } else {
+                            "可粘贴文本、保存手动笔记，或记录 URL 与用户提供的摘录。"
+                        },
+                        modifier = Modifier.testTag(ResourcesTestTags.EMPTY_STATE),
+                    )
+                } else {
+                    state.visibleMaterials.forEach { item ->
+                        MaterialCard(
+                            item = item,
+                            onOpen = { onOpenMaterial(item) },
+                            onEdit = { onEditMaterial(item) },
+                            onLifecycle = { onMaterialLifecycle(item, it) },
+                            onRequestPurge = { onRequestMaterialPurge(item) },
                         )
-                    } else {
-                        state.visibleMaterials.forEach { item ->
-                            MaterialCard(
-                                item = item,
-                                onOpen = { onOpenMaterial(item) },
-                                onEdit = { onEditMaterial(item) },
-                                onLifecycle = { onMaterialLifecycle(item, it) },
-                                onRequestPurge = { onRequestMaterialPurge(item) },
-                            )
-                        }
-                    }
-                }
-                ResourceLibrarySection.PERSONAL_CONTEXTS -> Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag(JianyuAutomationTags.Resources.PERSONAL_CONTEXT_CONTENT),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    if (state.visiblePersonalContexts.isEmpty()) {
-                        JianyuStateCard(
-                            title = "暂无匹配个人背景",
-                            message = "背景条目不会在应用启动或创建会话时自动加入模型上下文。",
-                            modifier = Modifier.testTag(ResourcesTestTags.EMPTY_STATE),
-                        )
-                    } else {
-                        state.visiblePersonalContexts.forEach { item ->
-                            PersonalContextCard(
-                                item = item,
-                                onEdit = { onEditPersonalContext(item) },
-                                onLifecycle = { onPersonalContextLifecycle(item, it) },
-                                onRequestPurge = { onRequestPersonalContextPurge(item) },
-                            )
-                        }
                     }
                 }
             }
