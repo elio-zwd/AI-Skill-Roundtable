@@ -1,6 +1,7 @@
 package com.elio.jianyu.ui.screens.mine
 
 import androidx.compose.runtime.Immutable
+import com.elio.jianyu.data.ContextSourceLifecycle
 import com.elio.jianyu.data.PersonalContext
 import com.elio.jianyu.telemetry.TelemetryLevel
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
@@ -37,9 +38,20 @@ data class MineUiState(
         }
 }
 
+internal fun List<PersonalContext>.minePersonalContextCount(): Int =
+    count { context ->
+        context.lifecycle in setOf(
+            ContextSourceLifecycle.ACTIVE,
+            ContextSourceLifecycle.DISABLED,
+            ContextSourceLifecycle.ARCHIVED,
+        )
+    }
+
 internal fun List<PersonalContext>.toMineSummaryLabels(): List<String> =
     asSequence()
-        .filter { context -> !context.sensitive }
+        .filter { context ->
+            context.lifecycle == ContextSourceLifecycle.ACTIVE && !context.sensitive
+        }
         .map { context -> context.title.trim() }
         .filter(String::isNotEmpty)
         .distinct()

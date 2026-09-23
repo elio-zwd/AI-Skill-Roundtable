@@ -2,7 +2,6 @@ package com.elio.jianyu.ui.screens.resources
 
 // 稳定导航测试标签：resources_tab_materials / resources_tab_artifacts
 
-import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -47,12 +46,6 @@ fun ResourcesRoute(
     val scope = rememberCoroutineScope()
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
-                )
-            }
             scope.launch {
                 when (val result = MaterialFileImporter.import(context.applicationContext, uri)) {
                     is MaterialFileImportResult.Success -> viewModel.openImportedMaterial(result.file)
