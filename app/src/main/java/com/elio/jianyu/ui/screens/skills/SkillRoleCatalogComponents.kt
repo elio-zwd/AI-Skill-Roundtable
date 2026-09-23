@@ -247,7 +247,7 @@ internal fun SkillRoleFeaturedHero(
         ) {
             JianyuRoleAvatar(
                 name = role.name,
-                assetPath = role.productionAvatarPath(),
+                assetPath = role.avatarAssetPath,
                 fallbackContainerColor = roleFallbackContainerColor(role.primaryDiscoveryCategory),
                 fallbackContentColor = roleFallbackContentColor(role.primaryDiscoveryCategory),
                 modifier = Modifier
@@ -372,7 +372,7 @@ internal fun SkillRoleListRow(
         ) {
             JianyuRoleAvatar(
                 name = role.name,
-                assetPath = role.productionAvatarPath(),
+                assetPath = role.avatarAssetPath,
                 fallbackContainerColor = roleFallbackContainerColor(role.primaryDiscoveryCategory),
                 fallbackContentColor = roleFallbackContentColor(role.primaryDiscoveryCategory),
                 modifier = Modifier
@@ -483,7 +483,7 @@ private fun SkillRoleGridCard(
             ) {
                 JianyuRoleAvatar(
                     name = role.name,
-                    assetPath = role.productionAvatarPath(),
+                    assetPath = role.avatarAssetPath,
                     fallbackContainerColor = roleFallbackContainerColor(role.primaryDiscoveryCategory),
                     fallbackContentColor = roleFallbackContentColor(role.primaryDiscoveryCategory),
                     modifier = Modifier
@@ -609,8 +609,6 @@ private fun OfficialSkillPrimaryType.roleTypeDisplayName(): String = when (this)
     OfficialSkillPrimaryType.WORKFLOW_CAPABILITY -> "工作流能力"
 }
 
-private fun SkillRoleCardUi.productionAvatarPath(): String? =
-    avatarAssetPath ?: if (isPersonSimulation) "avatars/$skillId.jpg" else null
 
 @Composable
 private fun roleFallbackContainerColor(category: SkillRoleDiscoveryCategory): Color = when (category) {
