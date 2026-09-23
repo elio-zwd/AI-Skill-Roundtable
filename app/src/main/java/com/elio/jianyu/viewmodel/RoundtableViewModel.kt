@@ -9,14 +9,20 @@ import com.elio.jianyu.data.ChatSession
 import com.elio.jianyu.data.ArtifactMessageSourceEntity
 import com.elio.jianyu.data.ArtifactSources
 import com.elio.jianyu.data.ConfirmedArtifactEntity
+import com.elio.jianyu.data.ContextContentHasher
+import com.elio.jianyu.data.ConfirmedContextItem
+import com.elio.jianyu.data.ContextSelectionDraft
 import com.elio.jianyu.data.ContextSourceLifecycle
 import com.elio.jianyu.data.ContextSourceType
 import com.elio.jianyu.data.CreateMaterialCommand
 import com.elio.jianyu.data.ConversationSessionPreferences
 import com.elio.jianyu.data.JianyuRepository
 import com.elio.jianyu.data.Message
+import com.elio.jianyu.data.Material
 import com.elio.jianyu.data.MaterialFilter
 import com.elio.jianyu.data.PersonalContextFilter
+import com.elio.jianyu.data.PrepareExecutionContextCommand
+import com.elio.jianyu.data.prepareAndRecordConversationContextUsage
 import com.elio.jianyu.data.RepositoryError
 import com.elio.jianyu.data.RepositoryResult
 import com.elio.jianyu.data.RoundtableDatabase
@@ -98,10 +104,33 @@ data class ConversationContextSelection(
     val sourceId: String,
     val title: String,
     val content: String,
+    val expectedSourceHash: String,
+    val expectedSourceUpdatedAt: Long,
     val networkAllowed: Boolean,
     val sensitive: Boolean,
     val sensitiveConfirmed: Boolean,
+    val confirmedAt: Long = 0L,
 )
+
+internal fun materialIsAvailableForConversation(
+    material: Material,
+    formal: FormalConversationContext,
+): Boolean = material.lifecycle == ContextSourceLifecycle.ACTIVE &&
+    material.issueId == formal.issueId &&
+    (material.stageId == null || material.stageId == formal.stageId)
+
+private fun conversationBaseContextCharacters(
+    messages: List<Message>,
+    targetCharacters: List<Character>,
+    responseMode: TranscriptBuilder.ResponseMode,
+): Int = targetCharacters.maxOfOrNull { character ->
+    TranscriptBuilder.build(
+        messages = messages,
+        currentCharacter = character,
+        roundIndex = 0,
+        responseMode = responseMode,
+    ).length + character.systemPrompt.length
+}?.coerceAtLeast(0) ?: 0
 
 data class RetryableRoundtableState(
     val sessionId: Long,
@@ -166,7 +195,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
     private val formalContexts = ConcurrentHashMap<Long, FormalConversationContext>()
     private val pendingConversationContexts = ConcurrentHashMap<Long, List<ConversationContextSelection>>()
     private val activeConversationContexts = ConcurrentHashMap<Long, List<ConversationContextSelection>>()
-    private val retryConversationContexts = ConcurrentHashMap<Long, List<ConversationContextSelection>>()
+    private var lastConversationContextConfirmationAt = 0L
     private val startupPendingCleanupJob: Job = viewModelScope.launch(Dispatchers.IO) {
         try {
             chatRepo.removeAllPendingMessages()
@@ -268,7 +297,6 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         _retryableRoundtableState.value = null
         pendingConversationContexts.clear()
         activeConversationContexts.clear()
-        retryConversationContexts.clear()
     }
 
     /**
@@ -298,7 +326,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         formalContexts.clear()
         pendingConversationContexts.clear()
         activeConversationContexts.clear()
-        retryConversationContexts.clear()
+        lastConversationContextConfirmationAt = 0L
 
         return roundtableSettingsCleared && conversationPreferencesCleared
     }
@@ -877,39 +905,173 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         sb.toString()
     }
 
-    /** 读取可供本次对话明确选择的资料和个人背景，不会自动写入模型请求。 */
+    /** 读取当前 formal 会话可选资料与全局个人背景；跨会话资料不进入候选。 */
     suspend fun loadAvailableConversationContext(): Pair<
         List<com.elio.jianyu.data.Material>,
         List<com.elio.jianyu.data.PersonalContext>
     > = withContext(Dispatchers.IO) {
-        val repository = formalRepository ?: return@withContext emptyList<com.elio.jianyu.data.Material>() to emptyList()
-        val materials = (repository.listMaterials(
-            MaterialFilter(lifecycles = setOf(ContextSourceLifecycle.ACTIVE))
-        ) as? RepositoryResult.Success)?.value.orEmpty()
-        val personal = (repository.listPersonalContexts(
-            PersonalContextFilter(lifecycles = setOf(ContextSourceLifecycle.ACTIVE))
-        ) as? RepositoryResult.Success)?.value.orEmpty()
+        val repository = formalRepository
+            ?: return@withContext emptyList<com.elio.jianyu.data.Material>() to emptyList()
+        val sessionId = _currentSessionId.value
+            ?: return@withContext emptyList<com.elio.jianyu.data.Material>() to emptyList()
+        val formal = ensureFormalConversation(sessionId)
+            ?: return@withContext emptyList<com.elio.jianyu.data.Material>() to emptyList()
+        val materials = (
+            repository.listMaterials(
+                MaterialFilter(
+                    issueId = formal.issueId,
+                    lifecycles = setOf(ContextSourceLifecycle.ACTIVE),
+                ),
+            ) as? RepositoryResult.Success
+            )?.value.orEmpty()
+            .filter { materialIsAvailableForConversation(it, formal) }
+        val personal = (
+            repository.listPersonalContexts(
+                PersonalContextFilter(lifecycles = setOf(ContextSourceLifecycle.ACTIVE)),
+            ) as? RepositoryResult.Success
+            )?.value.orEmpty()
         materials to personal
     }
 
-    /** 保存给下一次模型请求；请求开始时原子消费，不自动带入后续请求。 */
-    fun confirmConversationContext(selections: List<ConversationContextSelection>) {
-        val sessionId = _currentSessionId.value ?: return
-        val valid = selections.filter {
-            it.content.isNotBlank() && it.networkAllowed && (!it.sensitive || it.sensitiveConfirmed)
-        }
-        if (valid.isEmpty()) {
+    /**
+     * 只保存下一次请求的确认草稿；真正消费发生在 Repository 验证与 usage 原子落地成功之后。
+     * 任一条无联网授权/敏感确认/来源版本信息时整体拒绝，不能静默丢项继续。
+     */
+    fun confirmConversationContext(selections: List<ConversationContextSelection>): Boolean {
+        val sessionId = _currentSessionId.value ?: return false
+        if (selections.isEmpty()) {
             pendingConversationContexts.remove(sessionId)
-        } else {
-            pendingConversationContexts[sessionId] = valid
+            return true
         }
+        val valid = selections.all { selection ->
+            selection.content.isNotBlank() &&
+                selection.expectedSourceHash.isNotBlank() &&
+                selection.expectedSourceUpdatedAt > 0L &&
+                selection.networkAllowed &&
+                (!selection.sensitive || selection.sensitiveConfirmed)
+        } && selections.map { it.sourceType to it.sourceId }.distinct().size == selections.size
+        if (!valid) {
+            _errorMessage.value = "参考内容确认不完整，请检查正文、发送授权和敏感内容确认。"
+            return false
+        }
+        val now = System.currentTimeMillis().coerceAtLeast(1L)
+        val confirmedAt = maxOf(now, lastConversationContextConfirmationAt + 1L)
+        lastConversationContextConfirmationAt = confirmedAt
+        pendingConversationContexts[sessionId] = selections.map { it.copy(confirmedAt = confirmedAt) }
+        return true
     }
 
     fun currentConversationContextSelections(): List<ConversationContextSelection> =
         _currentSessionId.value?.let(pendingConversationContexts::get).orEmpty()
 
-    private fun consumePendingConversationContext(sessionId: Long): List<ConversationContextSelection> =
-        pendingConversationContexts.remove(sessionId).orEmpty()
+    fun currentActiveConversationContextSelections(): List<ConversationContextSelection> =
+        _currentSessionId.value?.let(activeConversationContexts::get).orEmpty()
+
+    private suspend fun preparePendingConversationContext(
+        sessionId: Long,
+        questionRunId: Long,
+        targetCharacterIds: List<String>,
+        responseMode: TranscriptBuilder.ResponseMode,
+    ): RepositoryResult<List<ConversationContextSelection>> {
+        val captured = pendingConversationContexts[sessionId].orEmpty()
+        if (captured.isEmpty()) return RepositoryResult.Success(emptyList())
+
+        val repository = formalRepository ?: return RepositoryResult.Failure(
+            RepositoryError.CompatibilityFailure(
+                "prepare_conversation_context_usage",
+                "repository_unavailable",
+            ),
+        )
+        val formal = ensureFormalConversation(sessionId) ?: return RepositoryResult.Failure(
+            RepositoryError.CompatibilityFailure(
+                "prepare_conversation_context_usage",
+                "formal_conversation_unavailable",
+            ),
+        )
+        val messages = chatRepo.getMessages(sessionId)
+        val charactersById = charRepo.allCharacters.first().associateBy(Character::id)
+        val targetCharacters = targetCharacterIds.mapNotNull(charactersById::get)
+        val confirmationAt = captured.maxOf { it.confirmedAt }
+        val preparedAt = maxOf(System.currentTimeMillis(), confirmationAt).coerceAtLeast(1L)
+        val items = captured.mapIndexed { index, selection ->
+            ConfirmedContextItem(
+                sourceType = selection.sourceType,
+                sourceId = selection.sourceId,
+                title = selection.title,
+                content = selection.content,
+                contentHash = ContextContentHasher.hash(selection.content),
+                expectedSourceHash = selection.expectedSourceHash,
+                expectedSourceUpdatedAt = selection.expectedSourceUpdatedAt,
+                confirmationOrder = index,
+                userConfirmedAt = selection.confirmedAt,
+                networkAllowed = selection.networkAllowed,
+                sensitive = selection.sensitive,
+                sensitiveConfirmed = selection.sensitiveConfirmed,
+            )
+        }
+        val scopeId = "dialog-question-" + questionRunId + "-confirmation-" + confirmationAt
+        val result = repository.prepareAndRecordConversationContextUsage(
+            command = PrepareExecutionContextCommand(
+                draft = ContextSelectionDraft(
+                    issueId = formal.issueId,
+                    stageId = formal.stageId,
+                    runId = scopeId + "-validation",
+                    baseContextCharacters = conversationBaseContextCharacters(
+                        messages = messages,
+                        targetCharacters = targetCharacters,
+                        responseMode = responseMode,
+                    ),
+                    items = items,
+                    confirmed = true,
+                ),
+                preparedAt = preparedAt,
+            ),
+            usageScopeId = scopeId,
+        )
+        return when (result) {
+            is RepositoryResult.Failure -> result
+            is RepositoryResult.Success -> {
+                val originalBySource = captured.associateBy { it.sourceType to it.sourceId }
+                val validated = result.value.preparation.items.map { item ->
+                    val original = requireNotNull(originalBySource[item.sourceType to item.sourceId])
+                    original.copy(
+                        title = item.title,
+                        content = item.content,
+                        sensitive = item.sensitive,
+                    )
+                }
+                pendingConversationContexts.remove(sessionId, captured)
+                RepositoryResult.Success(validated, idempotent = result.idempotent)
+            }
+        }
+    }
+
+    private fun conversationContextFailureMessage(error: RepositoryError): String = when (error) {
+        is RepositoryError.ConstraintViolation -> when (error.constraintCode) {
+            "source_stale" -> "所选资料或个人背景已更新，请重新打开参考内容并再次确认。"
+            "source_disabled",
+            "source_archived",
+            "source_deleted",
+            "source_purged",
+            "source_not_found",
+            -> "所选资料或个人背景当前不可用，请重新选择。"
+            "context_too_large" -> "本次参考内容过长，请缩短摘录或减少选择后再试。"
+            "network_not_allowed" -> "请为每项参考内容确认本次发送授权。"
+            "sensitive_confirmation_required" -> "敏感内容需要本次再次确认后才能发送。"
+            "content_empty",
+            "content_hash_mismatch",
+            "duplicate_source",
+            -> "参考内容已变化或存在重复，请重新检查并确认。"
+            else -> "参考内容暂时无法用于本次请求，请重新确认后再试。"
+        }
+        is RepositoryError.InvalidState -> "当前会话状态不允许使用所选参考内容，请刷新后重试。"
+        is RepositoryError.NotFound -> "当前会话或参考内容已经不存在，请刷新后重试。"
+        is RepositoryError.CompatibilityFailure -> "当前版本暂时无法安全准备参考内容，请稍后重试。"
+        is RepositoryError.StorageFailure -> "本地参考内容暂时无法保存使用记录，请稍后重试。"
+        is RepositoryError.AlreadyExists,
+        is RepositoryError.IdempotencyConflict,
+        -> "本次参考内容确认与已有记录冲突，请重新确认后再试。"
+    }
 
     suspend fun saveMessageAsArtifact(messageId: Long): RepositoryResult<ConfirmedArtifactEntity> =
         withContext(Dispatchers.IO) {
