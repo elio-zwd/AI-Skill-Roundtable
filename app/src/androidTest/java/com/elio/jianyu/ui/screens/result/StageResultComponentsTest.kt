@@ -2,6 +2,7 @@ package com.elio.jianyu.ui.screens.result
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -131,6 +132,32 @@ class StageResultComponentsTest {
             .assertIsDisplayed()
     }
 
+    @Test
+    fun artifactConfirmationDisablesDismissAndResubmitWhileConfirming() {
+        composeRule.setContent {
+            MaterialTheme {
+                StageDraftResultPanel(
+                    state = contentState(
+                        draftId = "draft-1",
+                        editorContent = "待确认正文",
+                        persistedContent = "待确认正文",
+                        currentRevision = 1,
+                        showArtifactConfirmation = true,
+                        artifactTitle = "阶段总结",
+                        artifactStatus = StageArtifactConfirmationStatus.Confirming,
+                    ),
+                    callbacks = StageResultCallbacks.Empty,
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(StageResultTestTags.ARTIFACT_CONFIRMATION_CONFIRM)
+            .performScrollTo()
+            .assertIsNotEnabled()
+        composeRule.onNodeWithTag(StageResultTestTags.ARTIFACT_CONFIRMATION_CANCEL)
+            .assertIsNotEnabled()
+    }
+
     private fun contentState(
         draftId: String? = null,
         editorContent: String = "",
@@ -141,6 +168,7 @@ class StageResultComponentsTest {
         showArtifactConfirmation: Boolean = false,
         artifactTitle: String = "",
         artifactType: ArtifactType = ArtifactType.GENERAL_SUMMARY,
+        artifactStatus: StageArtifactConfirmationStatus = StageArtifactConfirmationStatus.Idle,
     ) = StageResultUiState.Content(
         workspace = StageResultWorkspace(
             issueId = "issue-1",
@@ -164,6 +192,6 @@ class StageResultComponentsTest {
         revisionOfArtifactId = null,
         showAbandonConfirmation = showAbandonConfirmation,
         showArtifactConfirmation = showArtifactConfirmation,
-        artifactStatus = StageArtifactConfirmationStatus.Idle,
+        artifactStatus = artifactStatus,
     )
 }

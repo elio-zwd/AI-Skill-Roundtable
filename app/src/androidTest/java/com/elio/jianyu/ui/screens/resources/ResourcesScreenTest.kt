@@ -223,6 +223,33 @@ class ResourcesScreenTest {
     }
 
     @Test
+    fun materialEditorDisablesSaveWhileOperationIsInProgress() {
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                ResourcesScreen(
+                    showOverview = true,
+                    selectedTab = ResourceTab.MATERIALS,
+                    onSelectTab = {},
+                    onOpenSettings = {},
+                    state = ResourcesUiState.Content(
+                        issues = listOf(ResourceIssueOption("issue-1", "测试会话", emptyList())),
+                        operationInProgress = true,
+                        editor = ResourceEditorDraft(
+                            sourceType = com.elio.jianyu.data.ContextSourceType.MATERIAL,
+                            sourceKind = "excerpt",
+                            issueId = "issue-1",
+                            title = "待保存资料",
+                            content = "正文",
+                        ),
+                    ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("保存中…").assertIsNotEnabled()
+    }
+
+    @Test
     fun linkEditorUsesUserFacingFieldsAndDisablesSaveWithoutConversation() {
         composeRule.setContent {
             SkillRoundtableTheme {
