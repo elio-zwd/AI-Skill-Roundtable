@@ -360,7 +360,6 @@ fun DialogRoute(
 
     if (showReferenceDialog) {
         val selected = viewModel.currentActiveConversationContextSelections()
-            .ifEmpty { viewModel.currentConversationContextSelections() }
         AlertDialog(
             onDismissRequest = { showReferenceDialog = false },
             title = { Text("本次参考内容") },

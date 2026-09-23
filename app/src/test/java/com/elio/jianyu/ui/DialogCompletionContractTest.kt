@@ -33,6 +33,15 @@ class DialogCompletionContractTest {
     }
 
     @Test
+    fun referenceContentNeverFallsBackToPendingSelection() {
+        val root = findAppRoot()
+        val route = root.resolve("src/main/java/com/elio/jianyu/ui/screens/dialog/DialogRoute.kt").readText()
+
+        assertTrue(route.contains("val selected = viewModel.currentActiveConversationContextSelections()"))
+        assertFalse(route.contains(".ifEmpty { viewModel.currentConversationContextSelections() }"))
+    }
+
+    @Test
     fun backupRouteUsesFormalExportAndKeepsImportExplicitlyClosed() {
         val root = findAppRoot()
         val route = root.resolve("src/main/java/com/elio/jianyu/ui/screens/mine/BackupRoute.kt").readText()
