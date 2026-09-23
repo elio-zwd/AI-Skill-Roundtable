@@ -790,14 +790,12 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 text = text
             )
             val questionRunId = dbGateway.insertMessage(userMsg)
-            val requestContext = consumePendingConversationContext(sessionId)
             budgetManager.setSelectedParticipants(questionRunId, targetCharacterIds)
             runRoundtableSequence(
                 sessionId = sessionId,
                 questionRunId = questionRunId,
                 targetCharacterIds = targetCharacterIds,
                 responseMode = TranscriptBuilder.ResponseMode.INDEPENDENT,
-                contextSelections = requestContext,
             )
 
             val allMsgs = chatRepo.getMessages(sessionId)
@@ -1292,13 +1290,11 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             val messages = chatRepo.getMessages(sessionId)
             val lastUserMsg = messages.lastOrNull { it.senderId == "user" }
             if (lastUserMsg != null) {
-                val requestContext = consumePendingConversationContext(sessionId)
                 runRoundtableSequence(
                     sessionId = sessionId,
                     questionRunId = lastUserMsg.id,
                     targetCharacterIds = _currentParticipantIds.value,
                     responseMode = TranscriptBuilder.ResponseMode.INDEPENDENT,
-                    contextSelections = requestContext,
                 )
             }
             updateRoundActionState(sessionId)
@@ -1315,13 +1311,11 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 _errorMessage.value = "请先发送一条消息，再让该 Skill 角色回答。"
                 return@launchRoundtableJob
             }
-            val requestContext = consumePendingConversationContext(sessionId)
             runRoundtableSequence(
                 sessionId = sessionId,
                 questionRunId = lastUserMessage.id,
                 targetCharacterIds = listOf(skillId),
                 responseMode = TranscriptBuilder.ResponseMode.INDEPENDENT,
-                contextSelections = requestContext,
             )
         }
     }
@@ -1348,13 +1342,11 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 _errorMessage.value = "当前还没有可供交叉讨论的角色观点。"
                 return@launchRoundtableJob
             }
-            val requestContext = consumePendingConversationContext(sessionId)
             runRoundtableSequence(
                 sessionId = sessionId,
                 questionRunId = lastUserMessage.id,
                 targetCharacterIds = participantIds,
                 responseMode = TranscriptBuilder.ResponseMode.CROSS_DISCUSSION,
-                contextSelections = requestContext,
             )
         }
     }
@@ -1414,13 +1406,26 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             return
         }
 
+        val contextResult = preparePendingConversationContext(
+            sessionId = sessionId,
+            questionRunId = questionRunId,
+            targetCharacterIds = executableTargetIds,
+            responseMode = TranscriptBuilder.ResponseMode.INDEPENDENT,
+        )
+        val requestContext = when (contextResult) {
+            is RepositoryResult.Success -> contextResult.value
+            is RepositoryResult.Failure -> {
+                _errorMessage.value = conversationContextFailureMessage(contextResult.error)
+                return
+            }
+        }
+
         _isRoundtableRunning.value = true
         _errorMessage.value = null
-        val retryContext = retryConversationContexts[questionRunId].orEmpty()
-        if (retryContext.isEmpty()) {
+        if (requestContext.isEmpty()) {
             activeConversationContexts.remove(sessionId)
         } else {
-            activeConversationContexts[sessionId] = retryContext
+            activeConversationContexts[sessionId] = requestContext
         }
 
         try {
@@ -1438,11 +1443,9 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
             if (remainingIds.isEmpty()) {
                 _retryableRoundtableState.value = null
-                retryConversationContexts.remove(questionRunId)
                 _errorMessage.value = "失败角色已全部完成回复。"
             } else {
                 _retryableRoundtableState.value = RetryableRoundtableState(sessionId, questionRunId, remainingIds)
-                if (retryContext.isNotEmpty()) retryConversationContexts[questionRunId] = retryContext
                 if (result.completedCharacters.isNotEmpty()) {
                     _errorMessage.value = "部分角色已完成，仍有 ${remainingIds.size} 位 Skill 角色未完成，可再次重试。"
                 } else {
@@ -1500,7 +1503,6 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         questionRunId: Long,
         targetCharacterIds: List<String>,
         responseMode: TranscriptBuilder.ResponseMode,
-        contextSelections: List<ConversationContextSelection> = emptyList(),
     ) {
         val context = getApplication<Application>().applicationContext
         if (!AiManager.keysForUseCase(context, AiUseCase.ROUNDTABLE_ANSWER).hasAvailableKeys()) {
@@ -1510,6 +1512,20 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         if (targetCharacterIds.isEmpty()) {
             _errorMessage.value = "当前会话没有可用的 Skill 角色，请先增加一个角色。"
             return
+        }
+
+        val contextResult = preparePendingConversationContext(
+            sessionId = sessionId,
+            questionRunId = questionRunId,
+            targetCharacterIds = targetCharacterIds,
+            responseMode = responseMode,
+        )
+        val contextSelections = when (contextResult) {
+            is RepositoryResult.Success -> contextResult.value
+            is RepositoryResult.Failure -> {
+                _errorMessage.value = conversationContextFailureMessage(contextResult.error)
+                return
+            }
         }
 
         _isRoundtableRunning.value = true
@@ -1532,14 +1548,8 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             val retryableIds = buildRetryableCharacterIds(result.failedCharacters, result.timedOutCharacters)
             if (retryableIds.isNotEmpty()) {
                 _retryableRoundtableState.value = RetryableRoundtableState(sessionId, questionRunId, retryableIds)
-                if (contextSelections.isNotEmpty()) {
-                    retryConversationContexts[questionRunId] = contextSelections
-                } else {
-                    retryConversationContexts.remove(questionRunId)
-                }
             } else {
                 _retryableRoundtableState.value = null
-                retryConversationContexts.remove(questionRunId)
             }
             _errorMessage.value = buildRoundtableFeedback(result, budgetManager.budget)
         } catch (error: TimeoutCancellationException) {

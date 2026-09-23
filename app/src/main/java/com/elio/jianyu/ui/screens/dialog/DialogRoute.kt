@@ -244,16 +244,22 @@ fun DialogRoute(
                 DialogEvent.SelectMaterials -> {
                     scope.launch {
                         val (materials, personalContexts) = viewModel.loadAvailableConversationContext()
-                        val selected = viewModel.currentConversationContextSelections()
+                        val selected = viewModel.currentActiveConversationContextSelections()
+            .ifEmpty { viewModel.currentConversationContextSelections() }
                             .associateBy { it.sourceType to it.sourceId }
                         val candidates = materials.map { material ->
                             val key = ContextSourceType.MATERIAL to material.id
-                            val previous = selected[key]
+                            val previous = selected[key]?.takeIf {
+                                it.expectedSourceHash == material.contentHash &&
+                                    it.expectedSourceUpdatedAt == material.updatedAt
+                            }
                             DialogContextCandidate(
                                 sourceType = ContextSourceType.MATERIAL,
                                 sourceId = material.id,
                                 title = material.title,
                                 content = previous?.content ?: material.content,
+                                expectedSourceHash = material.contentHash,
+                                expectedSourceUpdatedAt = material.updatedAt,
                                 sensitive = material.sensitive,
                                 selected = previous != null,
                                 networkAllowed = previous?.networkAllowed == true,
@@ -261,12 +267,17 @@ fun DialogRoute(
                             )
                         } + personalContexts.map { personal ->
                             val key = ContextSourceType.PERSONAL_CONTEXT to personal.id
-                            val previous = selected[key]
+                            val previous = selected[key]?.takeIf {
+                                it.expectedSourceHash == personal.contentHash &&
+                                    it.expectedSourceUpdatedAt == personal.updatedAt
+                            }
                             DialogContextCandidate(
                                 sourceType = ContextSourceType.PERSONAL_CONTEXT,
                                 sourceId = personal.id,
                                 title = personal.title,
                                 content = previous?.content ?: personal.content,
+                                expectedSourceHash = personal.contentHash,
+                                expectedSourceUpdatedAt = personal.updatedAt,
                                 sensitive = personal.sensitive,
                                 selected = previous != null,
                                 networkAllowed = previous?.networkAllowed == true,
@@ -332,14 +343,17 @@ fun DialogRoute(
                         sourceId = candidate.sourceId,
                         title = candidate.title,
                         content = candidate.content,
+                        expectedSourceHash = candidate.expectedSourceHash,
+                        expectedSourceUpdatedAt = candidate.expectedSourceUpdatedAt,
                         networkAllowed = candidate.networkAllowed,
                         sensitive = candidate.sensitive,
                         sensitiveConfirmed = candidate.sensitiveConfirmed,
                     )
                 }
-                viewModel.confirmConversationContext(selections)
-                contextConfirmation = null
-                Toast.makeText(context, "已保存本次对话的资料选择。", Toast.LENGTH_SHORT).show()
+                if (viewModel.confirmConversationContext(selections)) {
+                    contextConfirmation = null
+                    Toast.makeText(context, "已保存下一次请求的参考内容。", Toast.LENGTH_SHORT).show()
+                }
             },
         )
     }
@@ -394,6 +408,8 @@ private data class DialogContextCandidate(
     val sourceId: String,
     val title: String,
     val content: String,
+    val expectedSourceHash: String,
+    val expectedSourceUpdatedAt: Long,
     val sensitive: Boolean,
     val selected: Boolean = false,
     val networkAllowed: Boolean = false,
