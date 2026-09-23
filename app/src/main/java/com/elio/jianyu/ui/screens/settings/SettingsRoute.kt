@@ -134,7 +134,7 @@ fun SettingsScreen(
         )
         SettingsSwitchRow("减少动效", preferences.reducedMotion, onReducedMotionChange)
         SettingsSwitchRow("增强文字对比度", preferences.highContrastText, onHighContrastChange)
-        SettingsSwitchRow("发送前确认敏感资料", preferences.confirmSensitiveContext, onSensitiveContextChange)
+        SettingsSwitchRow("显示敏感资料发送提醒", preferences.confirmSensitiveContext, onSensitiveContextChange)
         SettingsSwitchRow("默认显示消息时间", preferences.showMessageTimestamps, onTimestampChange)
         androidx.compose.material3.Text(
             text = "模型与 API Key",
