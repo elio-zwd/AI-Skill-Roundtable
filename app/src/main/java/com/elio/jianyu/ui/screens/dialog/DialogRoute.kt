@@ -244,8 +244,7 @@ fun DialogRoute(
                 DialogEvent.SelectMaterials -> {
                     scope.launch {
                         val (materials, personalContexts) = viewModel.loadAvailableConversationContext()
-                        val selected = viewModel.currentActiveConversationContextSelections()
-            .ifEmpty { viewModel.currentConversationContextSelections() }
+                        val selected = viewModel.currentConversationContextSelections()
                             .associateBy { it.sourceType to it.sourceId }
                         val candidates = materials.map { material ->
                             val key = ContextSourceType.MATERIAL to material.id
@@ -359,7 +358,8 @@ fun DialogRoute(
     }
 
     if (showReferenceDialog) {
-        val selected = viewModel.currentConversationContextSelections()
+        val selected = viewModel.currentActiveConversationContextSelections()
+            .ifEmpty { viewModel.currentConversationContextSelections() }
         AlertDialog(
             onDismissRequest = { showReferenceDialog = false },
             title = { Text("本次参考内容") },

@@ -1051,15 +1051,13 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             "source_archived",
             "source_deleted",
             "source_purged",
-            "source_not_found",
-            -> "所选资料或个人背景当前不可用，请重新选择。"
+            "source_not_found" -> "所选资料或个人背景当前不可用，请重新选择。"
             "context_too_large" -> "本次参考内容过长，请缩短摘录或减少选择后再试。"
             "network_not_allowed" -> "请为每项参考内容确认本次发送授权。"
             "sensitive_confirmation_required" -> "敏感内容需要本次再次确认后才能发送。"
             "content_empty",
             "content_hash_mismatch",
-            "duplicate_source",
-            -> "参考内容已变化或存在重复，请重新检查并确认。"
+            "duplicate_source" -> "参考内容已变化或存在重复，请重新检查并确认。"
             else -> "参考内容暂时无法用于本次请求，请重新确认后再试。"
         }
         is RepositoryError.InvalidState -> "当前会话状态不允许使用所选参考内容，请刷新后重试。"
@@ -1067,8 +1065,8 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         is RepositoryError.CompatibilityFailure -> "当前版本暂时无法安全准备参考内容，请稍后重试。"
         is RepositoryError.StorageFailure -> "本地参考内容暂时无法保存使用记录，请稍后重试。"
         is RepositoryError.AlreadyExists,
-        is RepositoryError.IdempotencyConflict,
-        -> "本次参考内容确认与已有记录冲突，请重新确认后再试。"
+        is RepositoryError.IdempotencyConflict ->
+            "本次参考内容确认与已有记录冲突，请重新确认后再试。"
     }
 
     suspend fun saveMessageAsArtifact(messageId: Long): RepositoryResult<ConfirmedArtifactEntity> =
