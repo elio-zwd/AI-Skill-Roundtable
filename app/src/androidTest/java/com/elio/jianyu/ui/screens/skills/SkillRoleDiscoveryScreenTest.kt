@@ -172,7 +172,11 @@ class SkillRoleDiscoveryScreenTest {
                             roles = listOf(role),
                         ),
                     ),
+                    filters = RoleDiscoveryFilters(),
+                    hasAnyRecent = true,
                     onBack = {},
+                    onOpenFilters = {},
+                    onClearAllFilters = {},
                     onOpenDetail = {},
                     onStartNewConversation = started::add,
                     onClearRecent = { cleared = true },
@@ -189,5 +193,36 @@ class SkillRoleDiscoveryScreenTest {
 
         composeRule.onNodeWithTag("confirm_clear_recent_button").performClick()
         composeRule.runOnIdle { assertTrue(cleared) }
+    }
+
+    @Test
+    fun recent_exposesApprovedAttributeFilterAndDistinguishesFilteredEmptyState() {
+        var filterOpened = false
+        var filtersCleared = false
+
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                SkillRoleRecentScreen(
+                    sections = emptyList(),
+                    filters = RoleDiscoveryFilters(
+                        primaryTypes = setOf(OfficialSkillPrimaryType.PERSON_PERSPECTIVE),
+                    ),
+                    hasAnyRecent = true,
+                    onBack = {},
+                    onOpenFilters = { filterOpened = true },
+                    onClearAllFilters = { filtersCleared = true },
+                    onOpenDetail = {},
+                    onStartNewConversation = {},
+                    onClearRecent = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("recent_screen_filter_button").performClick()
+        composeRule.runOnIdle { assertTrue(filterOpened) }
+        composeRule.onNodeWithText("没有符合条件的最近使用角色").assertExists()
+        composeRule.onNodeWithText("清除筛选").performClick()
+        composeRule.runOnIdle { assertTrue(filtersCleared) }
+        composeRule.onNodeWithText("暂无最近使用记录").assertDoesNotExist()
     }
 }
