@@ -174,6 +174,7 @@ fun ResourcesScreen(
             draft = draft,
             issues = content.issues,
             message = content.partialFailure,
+            saving = content.operationInProgress,
             onChange = onEditorChange,
             onDismiss = onDismissEditor,
             onSave = onSaveEditor,

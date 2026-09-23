@@ -372,13 +372,14 @@ internal fun ResourceEditorDialog(
     draft: ResourceEditorDraft,
     issues: List<ResourceIssueOption>,
     message: String?,
+    saving: Boolean,
     onChange: (ResourceEditorDraft) -> Unit,
     onDismiss: () -> Unit,
     onSave: () -> Unit,
 ) {
     val isMaterial = draft.sourceType == ContextSourceType.MATERIAL
     Dialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!saving) onDismiss() },
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Surface(
@@ -389,7 +390,7 @@ internal fun ResourceEditorDialog(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                    IconButton(onClick = onDismiss) {
+                    IconButton(onClick = onDismiss, enabled = !saving) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "取消")
                     }
                     Text(
@@ -509,15 +510,15 @@ internal fun ResourceEditorDialog(
                         .padding(top = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
+                    OutlinedButton(onClick = onDismiss, enabled = !saving, modifier = Modifier.weight(1f)) {
                         Text("取消")
                     }
                     Button(
                         onClick = onSave,
-                        enabled = !isMaterial || draft.issueId.isNotBlank(),
+                        enabled = !saving && (!isMaterial || draft.issueId.isNotBlank()),
                         modifier = Modifier.weight(1f),
                     ) {
-                        Text("保存")
+                        Text(if (saving) "保存中…" else "保存")
                     }
                 }
             }

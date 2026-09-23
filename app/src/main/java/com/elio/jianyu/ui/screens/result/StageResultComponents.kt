@@ -373,9 +373,12 @@ private fun ArtifactConfirmationDialog(
     state: StageResultUiState.Content,
     callbacks: StageResultCallbacks,
 ) {
+    val confirming = state.artifactStatus is StageArtifactConfirmationStatus.Confirming
     ModalBottomSheet(
         modifier = Modifier.testTag(StageResultTestTags.ARTIFACT_CONFIRMATION_DIALOG),
-        onDismissRequest = callbacks.onDismissArtifactConfirmation,
+        onDismissRequest = {
+            if (!confirming) callbacks.onDismissArtifactConfirmation()
+        },
     ) {
         Column(
             modifier = Modifier
@@ -391,6 +394,7 @@ private fun ArtifactConfirmationDialog(
                     value = state.artifactTitle,
                     onValueChange = callbacks.onArtifactTitleChange,
                     label = { Text("成果标题") },
+                    enabled = !confirming,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text("成果类型", style = MaterialTheme.typography.labelLarge)
@@ -400,6 +404,7 @@ private fun ArtifactConfirmationDialog(
                             FilterChip(
                                 selected = state.artifactType == type,
                                 onClick = { callbacks.onArtifactTypeChange(type) },
+                                enabled = !confirming,
                                 label = { Text(type.displayName) },
                             )
                         }
@@ -456,6 +461,7 @@ private fun ArtifactConfirmationDialog(
                 ) {
                     TextButton(
                         onClick = callbacks.onDismissArtifactConfirmation,
+                        enabled = !confirming,
                         modifier = Modifier
                             .weight(1f)
                             .testTag(StageResultTestTags.ARTIFACT_CONFIRMATION_CANCEL),
