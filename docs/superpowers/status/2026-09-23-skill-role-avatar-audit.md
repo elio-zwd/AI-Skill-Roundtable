@@ -102,3 +102,72 @@ Google Drive：`skill-role-visuals-2026-09-23`
 - 资源完整性门禁：已建立，当前预期 RED，因为正式资源尚未补齐。
 - 现有 20 张：已人工检查原图。
 - 页面真实裁切效果：待资源入库后由本地 AI 在设备/模拟器只读验收。
+
+
+## 生成源图（Google Drive）
+
+根目录：`skill-role-visuals-2026-09-23`
+
+### 人物源图 1
+
+- 文件：`portrait-sheet-1.png`
+- Drive ID：`1UMV3uZJXQbhaXWRqlqpt1S86clfRvyET`
+- 3×2 映射（左→右、上→下）：
+  1. `civil-service-coach`
+  2. `public-document-coach`
+  3. `study-planner`
+  4. `resume-interview-coach`
+  5. `workplace-communication`
+  6. `manager-expectation-review`
+
+### 人物源图 2
+
+- 文件：`portrait-sheet-2.png`
+- Drive ID：`1JJ2AKkay9DUoKGRChV47Ndwka4wNrcTd`
+- 3×2 映射（左→右、上→下）：
+  1. `report-proposal-writer`
+  2. `contract-checklist`
+  3. `hr-document-assistant`
+  4. `budget-consumption-coach`
+  5. `habit-wellbeing-coach`
+  6. `relationship-dialogue-practice`
+
+### 人物源图 3
+
+- 文件：`portrait-sheet-3.png`
+- Drive ID：`12FoRkmpgrvOCADwza_GKd7Q0J8he87xY`
+- 3×2 映射（左→右、上→下）：
+  1. `chinese-social-etiquette`
+  2. `culture-fortune-entertainment`
+  3. `content-creator`
+  4. `product-competition-analyst`
+  5. `original-expression-naturalizer`
+  6. `x_mentor`（替换旧的带文字头像）
+
+### 单独人物源图
+
+- `career-navigator.jpg`
+- Drive ID：`1gjpRGj9xgTxcd8HR9aWAAxO_bOceRc69`
+
+### 工具视觉源图
+
+- 文件：`tool-sheet-1.png`
+- Drive ID：`1RNpQTFb7TB_b4Qa851WJorqKw7VCURxj`
+- 3×2 映射（左→右、上→下）：
+  1. `team-handover`
+  2. `meeting-to-action`
+  3. `research-fact-checker`
+  4. `software-copyright-organizer`
+  5. `patent-disclosure-organizer`
+  6. `office-document-productivity`
+
+工具源图每格可能不是正方形，最终必须逐格做中心/主体感知的 1:1 裁切，不能简单拉伸。
+
+## 当前 CI 证据
+
+Head `562cf2c8ba941786ec9492e5b74a2ce3a57f38e0`：
+- `compileDebugKotlin`：PASS
+- `Android UI Test Compile`：PASS
+- `testDebugUnitTest`：573 tests / 1 failed
+- 唯一失败：`OfficialSkillVisualAssetTest.productionAssets_coverEveryOfficialSkillVisual`
+- `SkillRoleVisualRenderingArchitectureTest` 已进入同一 JVM 测试批次且未失败，主页/详情统一图片渲染契约成立。
