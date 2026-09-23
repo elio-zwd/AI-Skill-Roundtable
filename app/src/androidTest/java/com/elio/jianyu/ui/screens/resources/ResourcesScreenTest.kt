@@ -24,7 +24,7 @@ class ResourcesScreenTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun personalContextLibraryExplainsDefaultUnselectedRule() {
+    fun resourcesLibraryDoesNotExposePersonalContextAsPeerTab() {
         composeRule.setContent {
             SkillRoundtableTheme {
                 ResourcesScreen(
@@ -38,9 +38,9 @@ class ResourcesScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("个人背景可跨会话复用，但每次执行默认不勾选。")
-            .assertIsDisplayed()
-        composeRule.onNodeWithText("背景条目不会在应用启动或创建会话时自动加入模型上下文。")
+        composeRule.onNodeWithText("个人背景").assertDoesNotExist()
+        composeRule.onNodeWithTag(ResourcesTestTags.PERSONAL_CONTEXT_LIBRARY).assertDoesNotExist()
+        composeRule.onNodeWithText("资料必须关联会话，可选关联对话节点；已关联不等于自动发送。")
             .assertIsDisplayed()
     }
 
@@ -175,6 +175,51 @@ class ResourcesScreenTest {
 
         composeRule.onNodeWithText("敏感内容已隐藏").assertIsDisplayed()
         composeRule.onNodeWithText("预览正文").assertDoesNotExist()
+    }
+
+    @Test
+    fun materialSearchNoResultIsDifferentFromEmptyLibrary() {
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                ResourcesScreen(
+                    selectedTab = ResourceTab.MATERIALS,
+                    onSelectTab = {},
+                    onOpenSettings = {},
+                    state = ResourcesUiState.Content(
+                        query = "找不到",
+                        materials = listOf(material("existing", sensitive = false)),
+                    ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("暂无匹配资料").assertIsDisplayed()
+        composeRule.onNodeWithText("暂无资料").assertDoesNotExist()
+    }
+
+    @Test
+    fun materialCardShowsConversationTitleInsteadOfInternalIds() {
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                ResourcesScreen(
+                    selectedTab = ResourceTab.MATERIALS,
+                    onSelectTab = {},
+                    onOpenSettings = {},
+                    state = ResourcesUiState.Content(
+                        materials = listOf(
+                            material("friendly", sensitive = false).copy(
+                                issueTitle = "我的旅行计划",
+                                stageTitle = "第一轮梳理",
+                            ),
+                        ),
+                    ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("我的旅行计划").assertIsDisplayed()
+        composeRule.onNodeWithText("第一轮梳理").assertIsDisplayed()
+        composeRule.onNodeWithText("issue-1").assertDoesNotExist()
     }
 
     @Test
