@@ -63,6 +63,19 @@ class OfficialSkillPreferencesTest {
     }
 
     @Test
+    fun clearAllClearsFavoritesAndRecentUsesTogether() = runBlocking {
+        val preferences = InMemoryOfficialSkillPreferences(
+            catalog = catalog,
+            initialFavoriteIds = setOf("first"),
+            initialRecentUses = listOf(RecentOfficialSkillUse("second", 20L)),
+        )
+
+        assertTrue(preferences.clearAll())
+        assertTrue(preferences.favoriteIds.value.isEmpty())
+        assertTrue(preferences.recentUses.value.isEmpty())
+    }
+
+    @Test
     fun clearRecentUsesClearsHistoryWithoutAffectingFavorites() = runBlocking {
         val preferences = InMemoryOfficialSkillPreferences(
             catalog = catalog,
