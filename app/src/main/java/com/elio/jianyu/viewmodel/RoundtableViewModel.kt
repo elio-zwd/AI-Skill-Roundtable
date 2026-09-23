@@ -130,9 +130,7 @@ internal fun conversationBaseContextCharacters(
         currentCharacter = character,
         roundIndex = 0,
         responseMode = responseMode,
-    ).length +
-        character.systemPrompt.length +
-        skillPromptCharacters.getOrDefault(character.id, 0)
+    ).length + skillPromptCharacters.getOrDefault(character.id, 0)
 }?.coerceAtLeast(0) ?: 0
 
 data class RetryableRoundtableState(
@@ -993,10 +991,13 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         val charactersById = charRepo.allCharacters.first().associateBy(Character::id)
         val targetCharacters = targetCharacterIds.mapNotNull(charactersById::get)
         val appContext = getApplication<Application>().applicationContext
+        val thinkingDirectiveLength = thinkingIntensityDirective().length
         val skillPromptCharacters = targetCharacters.associate { character ->
-            character.id to com.elio.jianyu.skill.SkillLoader
-                .loadSkill(appContext, character.skillAssetPath)
-                .length
+            character.id to (
+                com.elio.jianyu.skill.SkillLoader
+                    .loadSkill(appContext, character.skillAssetPath)
+                    .length + thinkingDirectiveLength
+                )
         }
         val confirmationAt = captured.maxOf { it.confirmedAt }
         val preparedAt = maxOf(System.currentTimeMillis(), confirmationAt).coerceAtLeast(1L)
