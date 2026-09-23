@@ -21,6 +21,7 @@ internal fun mapDialogUiState(
     isGenerating: Boolean,
     searchEnabled: Boolean,
     thinkingIntensity: String,
+    showMessageTimestamps: Boolean = true,
 ): DialogUiState {
     val roleById = characters.associate { character ->
         character.id to character.toSkillRoleUiModel(character.id in participantIds)
@@ -48,7 +49,9 @@ internal fun mapDialogUiState(
             roleCount = activeRoles.size,
         ),
         activeRoles = activeRoles,
-        messages = messages.map { message -> message.toDialogMessage(roleById) },
+        messages = messages.map { message ->
+            message.toDialogMessage(roleById, showMessageTimestamps)
+        },
         searchState = DialogSearchState(
             enabled = searchEnabled,
             statusText = if (searchEnabled) "已开" else "已关",
@@ -95,11 +98,12 @@ internal fun Character.toSkillRoleUiModel(inCurrentSession: Boolean): SkillRoleU
 
 private fun Message.toDialogMessage(
     roleById: Map<String, SkillRoleUiModel>,
+    showTimestamp: Boolean,
 ): DialogMessageItem = if (senderId == "user") {
     DialogMessageItem.UserMessage(
         id = id.toString(),
         text = text,
-        timestamp = formatMessageTime(timestamp),
+        timestamp = if (showTimestamp) formatMessageTime(timestamp) else "",
     )
 } else {
     val role = roleById[senderId] ?: SkillRoleUiModel(
@@ -116,7 +120,7 @@ private fun Message.toDialogMessage(
         id = id.toString(),
         role = role,
         text = if (isPending && text == "正在思考中...") "正在思考…" else text,
-        timestamp = formatMessageTime(timestamp),
+        timestamp = if (showTimestamp) formatMessageTime(timestamp) else "",
         isStreaming = isPending,
     )
 }

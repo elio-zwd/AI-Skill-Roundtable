@@ -12,6 +12,8 @@ import com.elio.jianyu.ui.components.JianyuPageShell
 import com.elio.jianyu.ui.components.JianyuStateCard
 import com.elio.jianyu.ui.settings.AppPreferences
 import com.elio.jianyu.ui.settings.AppPreferencesState
+import com.elio.jianyu.ui.settings.ContentDensityMode
+import com.elio.jianyu.ui.settings.FontSizeMode
 import com.elio.jianyu.ui.settings.ThemeMode
 
 object SettingsShellTestTags {
@@ -36,6 +38,8 @@ fun SettingsRoute(
         onOpenAiManagement = onOpenAiManagement,
         onOpenTelemetry = onOpenTelemetry,
         onThemeModeChange = { AppPreferences.setThemeMode(context, it) },
+        onFontSizeModeChange = { AppPreferences.setFontSizeMode(context, it) },
+        onContentDensityModeChange = { AppPreferences.setContentDensityMode(context, it) },
         onReducedMotionChange = { AppPreferences.setReducedMotion(context, it) },
         onHighContrastChange = { AppPreferences.setHighContrastText(context, it) },
         onSensitiveContextChange = { AppPreferences.setConfirmSensitiveContext(context, it) },
@@ -50,6 +54,8 @@ fun SettingsScreen(
     onOpenAiManagement: () -> Unit,
     onOpenTelemetry: () -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit = {},
+    onFontSizeModeChange: (FontSizeMode) -> Unit = {},
+    onContentDensityModeChange: (ContentDensityMode) -> Unit = {},
     onReducedMotionChange: (Boolean) -> Unit = {},
     onHighContrastChange: (Boolean) -> Unit = {},
     onSensitiveContextChange: (Boolean) -> Unit = {},
@@ -90,6 +96,40 @@ fun SettingsScreen(
                     ThemeMode.DARK -> ThemeMode.SYSTEM
                 }
                 onThemeModeChange(next)
+            },
+        )
+        SettingsChoiceRow(
+            title = "字号",
+            value = when (preferences.fontSizeMode) {
+                FontSizeMode.SYSTEM -> "跟随系统"
+                FontSizeMode.SMALL -> "较小"
+                FontSizeMode.LARGE -> "较大"
+            },
+            onClick = {
+                onFontSizeModeChange(
+                    when (preferences.fontSizeMode) {
+                        FontSizeMode.SYSTEM -> FontSizeMode.SMALL
+                        FontSizeMode.SMALL -> FontSizeMode.LARGE
+                        FontSizeMode.LARGE -> FontSizeMode.SYSTEM
+                    },
+                )
+            },
+        )
+        SettingsChoiceRow(
+            title = "内容密度",
+            value = when (preferences.contentDensityMode) {
+                ContentDensityMode.COMPACT -> "紧凑"
+                ContentDensityMode.STANDARD -> "标准"
+                ContentDensityMode.COMFORTABLE -> "宽松"
+            },
+            onClick = {
+                onContentDensityModeChange(
+                    when (preferences.contentDensityMode) {
+                        ContentDensityMode.COMPACT -> ContentDensityMode.STANDARD
+                        ContentDensityMode.STANDARD -> ContentDensityMode.COMFORTABLE
+                        ContentDensityMode.COMFORTABLE -> ContentDensityMode.COMPACT
+                    },
+                )
             },
         )
         SettingsSwitchRow("减少动效", preferences.reducedMotion, onReducedMotionChange)

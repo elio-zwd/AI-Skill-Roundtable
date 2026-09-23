@@ -11,8 +11,22 @@ enum class ThemeMode {
     DARK,
 }
 
+enum class FontSizeMode {
+    SYSTEM,
+    SMALL,
+    LARGE,
+}
+
+enum class ContentDensityMode {
+    COMPACT,
+    STANDARD,
+    COMFORTABLE,
+}
+
 data class AppPreferencesState(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val fontSizeMode: FontSizeMode = FontSizeMode.SYSTEM,
+    val contentDensityMode: ContentDensityMode = ContentDensityMode.STANDARD,
     val reducedMotion: Boolean = false,
     val highContrastText: Boolean = false,
     val showMessageTimestamps: Boolean = true,
@@ -23,6 +37,8 @@ data class AppPreferencesState(
 object AppPreferences {
     private const val PREFS = "jianyu_app_preferences"
     private const val THEME = "theme_mode"
+    private const val FONT_SIZE = "font_size_mode"
+    private const val CONTENT_DENSITY = "content_density_mode"
     private const val REDUCED_MOTION = "reduced_motion"
     private const val HIGH_CONTRAST = "high_contrast_text"
     private const val SHOW_TIMESTAMPS = "show_message_timestamps"
@@ -38,6 +54,12 @@ object AppPreferences {
             themeMode = prefs.getString(THEME, ThemeMode.SYSTEM.name)
                 ?.let { value -> ThemeMode.entries.firstOrNull { it.name == value } }
                 ?: ThemeMode.SYSTEM,
+            fontSizeMode = prefs.getString(FONT_SIZE, FontSizeMode.SYSTEM.name)
+                ?.let { value -> FontSizeMode.entries.firstOrNull { it.name == value } }
+                ?: FontSizeMode.SYSTEM,
+            contentDensityMode = prefs.getString(CONTENT_DENSITY, ContentDensityMode.STANDARD.name)
+                ?.let { value -> ContentDensityMode.entries.firstOrNull { it.name == value } }
+                ?: ContentDensityMode.STANDARD,
             reducedMotion = prefs.getBoolean(REDUCED_MOTION, false),
             highContrastText = prefs.getBoolean(HIGH_CONTRAST, false),
             showMessageTimestamps = prefs.getBoolean(SHOW_TIMESTAMPS, true),
@@ -47,6 +69,14 @@ object AppPreferences {
 
     fun setThemeMode(context: Context, mode: ThemeMode) = update(context) {
         it.copy(themeMode = mode)
+    }
+
+    fun setFontSizeMode(context: Context, mode: FontSizeMode) = update(context) {
+        it.copy(fontSizeMode = mode)
+    }
+
+    fun setContentDensityMode(context: Context, mode: ContentDensityMode) = update(context) {
+        it.copy(contentDensityMode = mode)
     }
 
     fun setReducedMotion(context: Context, enabled: Boolean) = update(context) {
@@ -78,6 +108,8 @@ object AppPreferences {
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putString(THEME, next.themeMode.name)
+            .putString(FONT_SIZE, next.fontSizeMode.name)
+            .putString(CONTENT_DENSITY, next.contentDensityMode.name)
             .putBoolean(REDUCED_MOTION, next.reducedMotion)
             .putBoolean(HIGH_CONTRAST, next.highContrastText)
             .putBoolean(SHOW_TIMESTAMPS, next.showMessageTimestamps)

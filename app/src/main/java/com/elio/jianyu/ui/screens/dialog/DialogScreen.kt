@@ -21,6 +21,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
+import com.elio.jianyu.ui.theme.LocalReducedMotion
 import com.elio.jianyu.ui.screens.dialog.components.DialogComposer
 import com.elio.jianyu.ui.screens.dialog.components.DialogTopBar
 import com.elio.jianyu.ui.screens.dialog.components.SkillMessageCard
@@ -44,10 +45,15 @@ fun DialogScreen(
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
+    val reducedMotion = LocalReducedMotion.current
 
-    LaunchedEffect(uiState.messages.size) {
+    LaunchedEffect(uiState.messages.size, reducedMotion) {
         if (uiState.messages.isNotEmpty()) {
-            listState.animateScrollToItem(uiState.messages.lastIndex)
+            if (reducedMotion) {
+                listState.scrollToItem(uiState.messages.lastIndex)
+            } else {
+                listState.animateScrollToItem(uiState.messages.lastIndex)
+            }
         }
     }
 

@@ -35,6 +35,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.data.ContextSourceType
 import com.elio.jianyu.execution.SearchMode
+import com.elio.jianyu.ui.settings.AppPreferences
 import com.elio.jianyu.viewmodel.RoundtableViewModel
 import com.elio.jianyu.viewmodel.ConversationContextSelection
 import kotlinx.coroutines.launch
@@ -61,6 +62,7 @@ fun DialogRoute(
     val searchMode by viewModel.searchMode.collectAsState()
     val thinkingIntensity by viewModel.thinkingIntensity.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val appPreferences by AppPreferences.state.collectAsState()
 
     var localState by remember { mutableStateOf(initialUiState) }
     var showArchivedSessions by remember { mutableStateOf(false) }
@@ -104,6 +106,7 @@ fun DialogRoute(
         isGenerating = isGenerating,
         searchEnabled = searchMode != SearchMode.OFF,
         thinkingIntensity = thinkingIntensity,
+        showMessageTimestamps = appPreferences.showMessageTimestamps,
     )
 
     fun resolveSessionId(rawId: String): Long? =
@@ -254,7 +257,7 @@ fun DialogRoute(
                                 sensitive = material.sensitive,
                                 selected = previous != null,
                                 networkAllowed = previous?.networkAllowed == true,
-                                sensitiveConfirmed = previous?.sensitiveConfirmed == true,
+                                sensitiveConfirmed = previous?.sensitiveConfirmed == true || !appPreferences.confirmSensitiveContext,
                             )
                         } + personalContexts.map { personal ->
                             val key = ContextSourceType.PERSONAL_CONTEXT to personal.id
@@ -267,7 +270,7 @@ fun DialogRoute(
                                 sensitive = personal.sensitive,
                                 selected = previous != null,
                                 networkAllowed = previous?.networkAllowed == true,
-                                sensitiveConfirmed = previous?.sensitiveConfirmed == true,
+                                sensitiveConfirmed = previous?.sensitiveConfirmed == true || !appPreferences.confirmSensitiveContext,
                             )
                         }
                         contextConfirmation = DialogContextState(candidates)
@@ -315,6 +318,7 @@ fun DialogRoute(
     contextConfirmation?.let { state ->
         DialogContextSelectionDialog(
             state = state,
+            requireSensitiveConfirmation = appPreferences.confirmSensitiveContext,
             onDismiss = { contextConfirmation = null },
             onChange = { candidate ->
                 contextConfirmation = state.copy(candidates = state.candidates.map {
@@ -406,12 +410,15 @@ private data class DialogContextState(
 @Composable
 private fun DialogContextSelectionDialog(
     state: DialogContextState,
+    requireSensitiveConfirmation: Boolean,
     onDismiss: () -> Unit,
     onChange: (DialogContextCandidate) -> Unit,
     onConfirm: () -> Unit,
 ) {
     val hasMissingPermission = state.selectedItems.any {
-        !it.networkAllowed || (it.sensitive && !it.sensitiveConfirmed) || it.content.isBlank()
+        !it.networkAllowed ||
+            (requireSensitiveConfirmation && it.sensitive && !it.sensitiveConfirmed) ||
+            it.content.isBlank()
     }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -440,7 +447,11 @@ private fun DialogContextSelectionDialog(
                                         candidate.copy(
                                             selected = !candidate.selected,
                                             networkAllowed = if (candidate.selected) false else candidate.networkAllowed,
-                                            sensitiveConfirmed = if (candidate.selected) false else candidate.sensitiveConfirmed,
+                                            sensitiveConfirmed = if (candidate.selected && requireSensitiveConfirmation) {
+                                                false
+                                            } else {
+                                                candidate.sensitiveConfirmed || !requireSensitiveConfirmation
+                                            },
                                         )
                                     )
                                 },
@@ -467,7 +478,7 @@ private fun DialogContextSelectionDialog(
                                 )
                                 Text("允许本次发送给模型服务", modifier = Modifier.padding(top = 12.dp))
                             }
-                            if (candidate.sensitive) {
+                            if (candidate.sensitive && requireSensitiveConfirmation) {
                                 Row {
                                     Checkbox(
                                         checked = candidate.sensitiveConfirmed,
@@ -479,6 +490,11 @@ private fun DialogContextSelectionDialog(
                                         color = MaterialTheme.colorScheme.error,
                                     )
                                 }
+                            } else if (candidate.sensitive) {
+                                Text(
+                                    "敏感内容仍只会在本次明确选择后发送；已按设置跳过再次确认。",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                             }
                         } else {
                             Text(
