@@ -4,6 +4,7 @@ import com.elio.jianyu.skill.catalog.OfficialSkillCatalog
 import com.elio.jianyu.skill.catalog.OfficialSkillCatalogLoadResult
 import com.elio.jianyu.skill.catalog.OfficialSkillCatalogParser
 import java.io.File
+import javax.imageio.ImageIO
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -20,14 +21,26 @@ class OfficialSkillVisualAssetTest {
 
     @Test
     fun productionAssets_coverEveryOfficialSkillVisual() {
-        val missing = officialCatalog.skills.mapNotNull { skill ->
+        val issues = officialCatalog.skills.mapNotNull { skill ->
             val path = officialSkillVisualAssetPath(skill)
-            path.takeUnless { assetFile(path).isFile }
+            val file = assetFile(path)
+            when {
+                !file.isFile -> "$path: missing"
+                else -> {
+                    val image = runCatching { ImageIO.read(file) }.getOrNull()
+                    when {
+                        image == null -> "$path: decode_failed"
+                        image.width != image.height -> "$path: undefinedxundefined not_square"
+                        image.width < 512 -> "$path: undefinedxundefined too_small"
+                        else -> null
+                    }
+                }
+            }
         }
 
         assertTrue(
-            "缺少正式 Skill 视觉资源：" + missing.joinToString(),
-            missing.isEmpty(),
+            "正式 Skill 视觉资源不完整或不合格：" + issues.joinToString(),
+            issues.isEmpty(),
         )
     }
 
