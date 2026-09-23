@@ -499,7 +499,11 @@ private fun DialogContextSelectionDialog(
                             }
                         } else {
                             Text(
-                                candidate.content.lineSequence().firstOrNull().orEmpty().take(120),
+                                if (candidate.sensitive) {
+                                    "敏感内容已隐藏；选中后查看并确认。"
+                                } else {
+                                    candidate.content.lineSequence().firstOrNull().orEmpty().take(120)
+                                },
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
