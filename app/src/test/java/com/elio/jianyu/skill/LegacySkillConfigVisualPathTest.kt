@@ -9,7 +9,7 @@ class LegacySkillConfigVisualPathTest {
     @Test
     fun legacy20CharacterAvatars_pointToCanonicalPortraitDirectory() {
         val text = assetFile("skills_config.json").readText()
-        val avatarPaths = Regex("\\"avatar\\"\\s*:\\s*\\"([^\\"]+)\\"")
+        val avatarPaths = Regex("""["]avatar["]\\s*:\\s*["]([^"]+)["]""")
             .findAll(text)
             .map { it.groupValues[1] }
             .toList()
@@ -26,7 +26,7 @@ class LegacySkillConfigVisualPathTest {
     @Test
     fun metadataExtractor_seedPaths_preserveCanonicalPortraitDirectory() {
         val text = repositoryFile("workspace/tools/extract_skills_metadata.py").readText()
-        val avatarPaths = Regex("\\"avatar\\"\\s*:\\s*\\"([^\\"]+)\\"")
+        val avatarPaths = Regex("""["]avatar["]\\s*:\\s*["]([^"]+)["]""")
             .findAll(text)
             .map { it.groupValues[1] }
             .toList()
