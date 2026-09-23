@@ -26,6 +26,9 @@ class DialogCompletionContractTest {
         assertTrue(viewModel.contains("issueId = formal.issueId"))
         assertFalse(viewModel.contains("retryConversationContexts"))
         assertFalse(viewModel.contains("consumePendingConversationContext"))
+        assertTrue(viewModel.contains("explicitlyConfirmedConversationContextSessions"))
+        assertTrue(viewModel.contains("requireExplicitConfirmation = true"))
+        assertTrue(viewModel.contains("\"confirmation_required\""))
         assertTrue(route.contains("if (viewModel.confirmConversationContext(selections))"))
     }
 
