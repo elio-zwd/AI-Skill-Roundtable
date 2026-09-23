@@ -413,39 +413,54 @@ internal fun ResourceEditorDialog(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Text("所属会话", style = MaterialTheme.typography.labelLarge)
-                        if (issues.isEmpty()) {
+                        if (draft.sourceId != null) {
+                            val ownerIssue = issues.firstOrNull { it.issueId == draft.issueId }
+                            val ownerStage = ownerIssue?.stages?.firstOrNull { it.stageId == draft.stageId }
+                            Text(ownerIssue?.title ?: "会话信息暂不可用")
                             Text(
-                                "当前没有可用会话。请先返回【对话】开始一个会话，再添加资料。",
-                                color = MaterialTheme.colorScheme.error,
+                                ownerStage?.title ?: if (draft.stageId == null) "整个会话" else "节点信息暂不可用",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                        }
-                        issues.forEach { issue ->
-                            FilterChip(
-                                selected = draft.issueId == issue.issueId,
-                                onClick = {
-                                    onChange(
-                                        draft.copy(
-                                            issueId = issue.issueId,
-                                            stageId = issue.stages.firstOrNull()?.stageId,
-                                        ),
-                                    )
-                                },
-                                label = { Text(issue.title) },
+                            Text(
+                                "已有资料的归属不会在编辑时迁移；如需更换归属，请新建一条资料。",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                        }
-                        issues.firstOrNull { it.issueId == draft.issueId }?.let { issue ->
-                            Text("关联对话节点（可选）", style = MaterialTheme.typography.labelLarge)
-                            FilterChip(
-                                selected = draft.stageId == null,
-                                onClick = { onChange(draft.copy(stageId = null)) },
-                                label = { Text("整个会话") },
-                            )
-                            issue.stages.forEach { stage ->
-                                FilterChip(
-                                    selected = draft.stageId == stage.stageId,
-                                    onClick = { onChange(draft.copy(stageId = stage.stageId)) },
-                                    label = { Text(stage.title) },
+                        } else {
+                            if (issues.isEmpty()) {
+                                Text(
+                                    "当前没有可用会话。请先返回【对话】开始一个会话，再添加资料。",
+                                    color = MaterialTheme.colorScheme.error,
                                 )
+                            }
+                            issues.forEach { issue ->
+                                FilterChip(
+                                    selected = draft.issueId == issue.issueId,
+                                    onClick = {
+                                        onChange(
+                                            draft.copy(
+                                                issueId = issue.issueId,
+                                                stageId = issue.stages.firstOrNull()?.stageId,
+                                            ),
+                                        )
+                                    },
+                                    label = { Text(issue.title) },
+                                )
+                            }
+                            issues.firstOrNull { it.issueId == draft.issueId }?.let { issue ->
+                                Text("关联对话节点（可选）", style = MaterialTheme.typography.labelLarge)
+                                FilterChip(
+                                    selected = draft.stageId == null,
+                                    onClick = { onChange(draft.copy(stageId = null)) },
+                                    label = { Text("整个会话") },
+                                )
+                                issue.stages.forEach { stage ->
+                                    FilterChip(
+                                        selected = draft.stageId == stage.stageId,
+                                        onClick = { onChange(draft.copy(stageId = stage.stageId)) },
+                                        label = { Text(stage.title) },
+                                    )
+                                }
                             }
                         }
                         OutlinedTextField(
