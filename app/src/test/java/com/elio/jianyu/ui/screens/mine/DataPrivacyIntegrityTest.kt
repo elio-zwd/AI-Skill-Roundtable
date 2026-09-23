@@ -55,6 +55,8 @@ class DataPrivacyIntegrityTest {
             "conversationPreferencesCleared",
             "SnapshotCatalog.clearAll(context)",
             "AndroidKeystoreSnapshotKeyProvider().deleteExisting()",
+            "cancelAppOwnedWork(context)",
+            "AudioPlaybackManager.stopAudio()",
             "clearAppOwnedAudioFiles(context)",
         ).forEach { marker ->
             assertTrue("删除全部数据缺少清理步骤：$marker", source.contains(marker))
@@ -62,8 +64,10 @@ class DataPrivacyIntegrityTest {
         assertTrue(source.contains("BackupOperationGate.forContext(context).withWriteLock"))
         assertTrue(source.contains("cleanupSucceeded"))
         assertTrue(source.contains("设备快照"))
+        assertTrue(appSource.contains("onPrepareForLocalDataDeletion = viewModel::prepareForLocalDataDeletion"))
         assertTrue(appSource.contains("onClearConversationPreferences = viewModel::clearLocalPreferencesAfterDataDeletion"))
         assertTrue(appSource.contains("officialSkillPreferences ="))
+        assertTrue(viewModelSource.contains("cancelAndJoin()"))
         assertTrue(viewModelSource.contains("prefs.edit().clear().commit()"))
         assertTrue(viewModelSource.contains("conversationPreferences.clearAll()"))
     }
