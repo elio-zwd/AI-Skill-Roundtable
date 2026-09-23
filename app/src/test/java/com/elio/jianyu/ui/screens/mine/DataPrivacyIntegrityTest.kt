@@ -27,11 +27,15 @@ class DataPrivacyIntegrityTest {
             "TelemetryRepository.clearAllTelemetry(context)",
             "CloudInteractionSettings.setEnabled(context, false)",
             "AppPreferences.reset(context)",
+            "SnapshotCatalog.clearAll(context)",
+            "AndroidKeystoreSnapshotKeyProvider().deleteExisting()",
             "clearAppOwnedAudioFiles(context)",
         ).forEach { marker ->
             assertTrue("删除全部数据缺少清理步骤：$marker", source.contains(marker))
         }
+        assertTrue(source.contains("BackupOperationGate.forContext(context).withWriteLock"))
         assertTrue(source.contains("cleanupSucceeded"))
+        assertTrue(source.contains("设备快照"))
     }
 
     private fun findRepositoryRoot(): File {
