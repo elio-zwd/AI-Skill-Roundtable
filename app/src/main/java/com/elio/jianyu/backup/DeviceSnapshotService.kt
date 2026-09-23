@@ -78,18 +78,22 @@ class DeviceSnapshotService(
                         result
                     }
                     is DatabaseMaintenanceOutcome.Failure -> {
-                        cleanup(temporaryFile)
+                        cleanupFailedSnapshotArtifacts(
+                            temporaryFile = temporaryFile,
+                            finalFile = finalFile,
+                            cause = outcome.cause,
+                        )
                         throw mapMaintenanceFailure(outcome)
                     }
                 }
             } catch (error: CancellationException) {
-                cleanup(temporaryFile)
+                cleanupFailedSnapshotArtifacts(temporaryFile, finalFile, error)
                 throw BackupException(BackupErrorCode.OPERATION_CANCELED, error)
             } catch (error: BackupException) {
-                cleanup(temporaryFile)
+                cleanupFailedSnapshotArtifacts(temporaryFile, finalFile, error)
                 throw error
             } catch (error: Throwable) {
-                cleanup(temporaryFile)
+                cleanupFailedSnapshotArtifacts(temporaryFile, finalFile, error)
                 throw BackupException(BackupErrorCode.VERIFICATION_FAILED, error)
             }
         }
@@ -203,8 +207,22 @@ class DeviceSnapshotService(
         com.elio.jianyu.runtime.DatabaseMaintenanceStage.QUIESCE -> BackupException(BackupErrorCode.DATABASE_INTEGRITY_FAILED, outcome.cause)
     }
 
-    private fun cleanup(file: File) {
-        if (file.exists()) file.delete()
+}
+
+
+internal fun cleanupFailedSnapshotArtifacts(
+    temporaryFile: File,
+    finalFile: File,
+    cause: Throwable,
+) {
+    var cleanupSucceeded = true
+    listOf(temporaryFile, finalFile).forEach { file ->
+        if (file.exists() && !file.delete()) {
+            cleanupSucceeded = false
+        }
+    }
+    if (!cleanupSucceeded) {
+        throw BackupException(BackupErrorCode.TEMPORARY_CLEANUP_FAILED, cause)
     }
 }
 
