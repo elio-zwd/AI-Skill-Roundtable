@@ -123,7 +123,7 @@ class DeviceSnapshotService(
             count("SELECT COUNT(*) FROM messages WHERE issueId IS NULL OR stageId IS NULL") > 0L
         ) throw BackupException(BackupErrorCode.UNSUPPORTED_LEGACY_DATA)
         val checkpoint = sqlite.query("PRAGMA wal_checkpoint(TRUNCATE)").use { cursor ->
-            !cursor.moveToFirst() || cursor.getInt(0) == 0
+            cursor.moveToFirst() && cursor.columnCount >= 3 && cursor.getInt(0) == 0
         }
         if (!checkpoint) throw BackupException(BackupErrorCode.DATABASE_CHECKPOINT_FAILED)
 
