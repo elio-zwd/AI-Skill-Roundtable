@@ -79,7 +79,91 @@ private val visiblePersonalContextLifecycles = setOf(
     ContextSourceLifecycle.ACTIVE,
     ContextSourceLifecycle.DISABLED,
     ContextSourceLifecycle.ARCHIVED,
+    ContextSourceLifecycle.DELETED,
+    ContextSourceLifecycle.PURGE_REQUESTED,
 )
+
+internal enum class PersonalContextDeletionStep {
+    MARK_DELETED,
+    REQUEST_PURGE,
+    PURGE,
+    COMPLETE,
+}
+
+internal fun personalContextDeletionStep(
+    lifecycle: ContextSourceLifecycle,
+): PersonalContextDeletionStep = when (lifecycle) {
+    ContextSourceLifecycle.ACTIVE,
+    ContextSourceLifecycle.DISABLED,
+    ContextSourceLifecycle.ARCHIVED,
+    -> PersonalContextDeletionStep.MARK_DELETED
+    ContextSourceLifecycle.DELETED -> PersonalContextDeletionStep.REQUEST_PURGE
+    ContextSourceLifecycle.PURGE_REQUESTED -> PersonalContextDeletionStep.PURGE
+    ContextSourceLifecycle.PURGED -> PersonalContextDeletionStep.COMPLETE
+}
+
+private fun nextPersonalContextDeleteTimestamp(
+    currentUpdatedAt: Long,
+    now: Long,
+): Long = maxOf(now, currentUpdatedAt + 1L)
+
+internal suspend fun completePersonalContextDeletion(
+    repository: JianyuRepository,
+    personalContextId: String,
+    clock: () -> Long = System::currentTimeMillis,
+): RepositoryResult<PersonalContext> {
+    var current = when (val loaded = repository.getPersonalContext(personalContextId)) {
+        is RepositoryResult.Success -> loaded.value
+        is RepositoryResult.Failure -> return loaded
+    }
+
+    while (true) {
+        when (personalContextDeletionStep(current.lifecycle)) {
+            PersonalContextDeletionStep.MARK_DELETED -> {
+                when (
+                    val result = repository.changePersonalContextLifecycle(
+                        ChangePersonalContextLifecycleCommand(
+                            personalContextId = current.id,
+                            expectedUpdatedAt = current.updatedAt,
+                            target = ContextSourceLifecycle.DELETED,
+                            changedAt = nextPersonalContextDeleteTimestamp(current.updatedAt, clock()),
+                        ),
+                    )
+                ) {
+                    is RepositoryResult.Success -> current = result.value
+                    is RepositoryResult.Failure -> return result
+                }
+            }
+            PersonalContextDeletionStep.REQUEST_PURGE -> {
+                when (
+                    val result = repository.changePersonalContextLifecycle(
+                        ChangePersonalContextLifecycleCommand(
+                            personalContextId = current.id,
+                            expectedUpdatedAt = current.updatedAt,
+                            target = ContextSourceLifecycle.PURGE_REQUESTED,
+                            changedAt = nextPersonalContextDeleteTimestamp(current.updatedAt, clock()),
+                        ),
+                    )
+                ) {
+                    is RepositoryResult.Success -> current = result.value
+                    is RepositoryResult.Failure -> return result
+                }
+            }
+            PersonalContextDeletionStep.PURGE -> {
+                return repository.purgePersonalContext(
+                    PurgePersonalContextCommand(
+                        personalContextId = current.id,
+                        expectedUpdatedAt = current.updatedAt,
+                        confirmedAt = nextPersonalContextDeleteTimestamp(current.updatedAt, clock()),
+                    ),
+                )
+            }
+            PersonalContextDeletionStep.COMPLETE -> {
+                return RepositoryResult.Success(current, idempotent = true)
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,6 +181,7 @@ fun PersonalContextRoute(
     var editor by remember { mutableStateOf<PersonalContextEditor?>(null) }
     var deleteTarget by remember { mutableStateOf<PersonalContext?>(null) }
     var deleteInput by remember { mutableStateOf("") }
+    var deleteError by remember { mutableStateOf<String?>(null) }
 
     fun reload() {
         scope.launch {
@@ -178,6 +263,7 @@ fun PersonalContextRoute(
         },
         onDelete = { item ->
             deleteInput = ""
+            deleteError = null
             deleteTarget = item
         },
     )
@@ -237,6 +323,9 @@ fun PersonalContextRoute(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("删除后将清除这项背景的正文；已产生的使用快照仍保留为历史记录。")
                     Text("请输入“删除”以继续。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    deleteError?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error)
+                    }
                     OutlinedTextField(
                         value = deleteInput,
                         onValueChange = { deleteInput = it },
@@ -251,47 +340,22 @@ fun PersonalContextRoute(
                     onClick = {
                         scope.launch {
                             operation = true
-                            val deletedAt = System.currentTimeMillis()
+                            deleteError = null
                             val result = withContext(Dispatchers.IO) {
-                                val moved = repository.changePersonalContextLifecycle(
-                                    ChangePersonalContextLifecycleCommand(
-                                        personalContextId = target.id,
-                                        expectedUpdatedAt = target.updatedAt,
-                                        target = ContextSourceLifecycle.DELETED,
-                                        changedAt = deletedAt,
-                                    ),
-                                )
-                                if (moved is RepositoryResult.Failure) {
-                                    moved
-                                } else {
-                                    val deleted = (moved as RepositoryResult.Success).value
-                                    val requested = repository.changePersonalContextLifecycle(
-                                        ChangePersonalContextLifecycleCommand(
-                                            personalContextId = deleted.id,
-                                            expectedUpdatedAt = deleted.updatedAt,
-                                            target = ContextSourceLifecycle.PURGE_REQUESTED,
-                                            changedAt = deletedAt + 1,
-                                        ),
-                                    )
-                                    if (requested is RepositoryResult.Failure) {
-                                        requested
-                                    } else {
-                                        val pending = (requested as RepositoryResult.Success).value
-                                        repository.purgePersonalContext(
-                                            PurgePersonalContextCommand(
-                                                personalContextId = pending.id,
-                                                expectedUpdatedAt = pending.updatedAt,
-                                                confirmedAt = deletedAt + 2,
-                                            ),
-                                        )
-                                    }
-                                }
+                                completePersonalContextDeletion(repository, target.id)
                             }
                             operation = false
-                            deleteTarget = null
                             when (result) {
-                                is RepositoryResult.Success -> reload()
-                                is RepositoryResult.Failure -> errorMessage = result.error.toUserMessage()
+                                is RepositoryResult.Success -> {
+                                    deleteTarget = null
+                                    deleteInput = ""
+                                    reload()
+                                }
+                                is RepositoryResult.Failure -> {
+                                    deleteError = result.error.toUserMessage()
+                                    errorMessage = deleteError
+                                    reload()
+                                }
                             }
                         }
                     },
@@ -428,11 +492,21 @@ private fun PersonalContextCard(
             JianyuMetadataRow("状态", personalContextLifecycleLabel(item.lifecycle))
             JianyuMetadataRow("最近更新", formatPersonalContextTime(item.updatedAt))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = onEdit, enabled = !operation) { Text("编辑") }
-                TextButton(onClick = onToggleLifecycle, enabled = !operation) {
-                    Text(if (item.lifecycle == ContextSourceLifecycle.ACTIVE) "停用" else "重新启用")
+                if (item.lifecycle in setOf(
+                        ContextSourceLifecycle.DELETED,
+                        ContextSourceLifecycle.PURGE_REQUESTED,
+                    )
+                ) {
+                    TextButton(onClick = onDelete, enabled = !operation) {
+                        Text("继续删除")
+                    }
+                } else {
+                    TextButton(onClick = onEdit, enabled = !operation) { Text("编辑") }
+                    TextButton(onClick = onToggleLifecycle, enabled = !operation) {
+                        Text(if (item.lifecycle == ContextSourceLifecycle.ACTIVE) "停用" else "重新启用")
+                    }
+                    TextButton(onClick = onDelete, enabled = !operation) { Text("删除") }
                 }
-                TextButton(onClick = onDelete, enabled = !operation) { Text("删除") }
             }
         }
     }
