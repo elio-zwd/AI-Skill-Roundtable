@@ -12,7 +12,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.data.IssueLifecycleState
@@ -48,11 +50,16 @@ class IssueLifecycleUiTest {
             }
         }
 
-        composeRule.onNodeWithTag(JianyuLifecycleAutomationTags.Resume.BUTTON).assertIsDisplayed()
-        composeRule.onNodeWithTag(JianyuLifecycleAutomationTags.RelatedIssue.BUTTON).assertIsDisplayed()
+        composeRule.onNodeWithText("已归档").performClick()
+        composeRule.onNodeWithTag(JianyuLifecycleAutomationTags.Resume.BUTTON)
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag(JianyuLifecycleAutomationTags.RelatedIssue.BUTTON)
+            .performScrollTo()
+            .assertIsDisplayed()
         composeRule.onNodeWithTag(
             JianyuLifecycleAutomationTags.IssueLifecycle.MOVE_TO_TRASH,
-        ).assertIsDisplayed()
+        ).performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -76,10 +83,13 @@ class IssueLifecycleUiTest {
             }
         }
 
+        composeRule.onNodeWithText("回收站").performClick()
         composeRule.onNodeWithTag(
             JianyuLifecycleAutomationTags.IssueLifecycle.RESTORE_FROM_TRASH,
-        ).assertIsDisplayed()
-        composeRule.onNodeWithTag(JianyuLifecycleAutomationTags.Purge.BUTTON).assertIsDisplayed()
+        ).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag(JianyuLifecycleAutomationTags.Purge.BUTTON)
+            .performScrollTo()
+            .assertIsDisplayed()
     }
 
     @Test

@@ -124,6 +124,74 @@ class MaterialContextRepositoryTest {
     }
 
     @Test
+    fun conversationContextPreparationAtomicallyRecordsUnboundUsage() = runBlocking {
+        saveIssue()
+        val material = repository.createMaterial(materialCommand()).successValue()
+        val personal = repository.createPersonalContext(
+            CreatePersonalContextCommand(
+                id = PERSONAL_ID,
+                title = "个人背景",
+                content = "跨议题背景",
+                sensitive = true,
+                createdAt = 110L,
+            ),
+        ).successValue()
+        val command = PrepareExecutionContextCommand(
+            draft = confirmedDraft(material, personal, runId = "dialog-validation-scope"),
+            preparedAt = 200L,
+        )
+
+        val first = repository.prepareAndRecordConversationContextUsage(
+            command = command,
+            usageScopeId = "dialog-question-1-confirmation-180",
+        ).successValue()
+        val repeated = repository.prepareAndRecordConversationContextUsage(
+            command = command,
+            usageScopeId = "dialog-question-1-confirmation-180",
+        )
+
+        val recovered = repository.recoverIssue(ISSUE_ID).successValue()
+        assertEquals(1, recovered.resources.materialUsages.size)
+        assertEquals(1, recovered.resources.personalContextUsages.size)
+        assertTrue(recovered.resources.materialUsages.all { it.runId == null })
+        assertTrue(recovered.resources.personalContextUsages.all { it.runId == null })
+        assertEquals(
+            first.usage.materials.single(),
+            recovered.resources.materialUsages.single(),
+        )
+        assertEquals(
+            first.usage.personalContexts.single(),
+            recovered.resources.personalContextUsages.single(),
+        )
+        assertTrue((repeated as RepositoryResult.Success).idempotent)
+        assertEquals(0, foreignKeyViolations())
+    }
+
+    @Test
+    fun invalidConversationContextDoesNotWriteAnyUsageSnapshot() = runBlocking {
+        saveIssue()
+        val material = repository.createMaterial(materialCommand()).successValue()
+        val stale = confirmedDraft(material = material, runId = "dialog-validation-scope").let { draft ->
+            draft.copy(
+                items = draft.items.map { item ->
+                    item.copy(expectedSourceUpdatedAt = item.expectedSourceUpdatedAt + 1L)
+                },
+            )
+        }
+
+        val result = repository.prepareAndRecordConversationContextUsage(
+            command = PrepareExecutionContextCommand(draft = stale, preparedAt = 200L),
+            usageScopeId = "dialog-question-2-confirmation-180",
+        )
+
+        assertTrue(result.failureError() is RepositoryError.ConstraintViolation)
+        val recovered = repository.recoverIssue(ISSUE_ID).successValue()
+        assertTrue(recovered.resources.materialUsages.isEmpty())
+        assertTrue(recovered.resources.personalContextUsages.isEmpty())
+        assertEquals(0, foreignKeyViolations())
+    }
+
+    @Test
     fun staleSelectionIsRejectedBeforeRuntimeCreation() = runBlocking {
         saveIssue()
         val material = repository.createMaterial(materialCommand()).successValue()

@@ -92,6 +92,14 @@ class AiConfigurationRepository(context: Context) {
         save(_configuration.value.copyWith(useCase, model))
     }
 
+    fun reset(): Boolean {
+        val committed = preferences.edit().clear().commit()
+        if (committed) {
+            _configuration.value = defaultConfiguration()
+        }
+        return committed
+    }
+
     private fun loadConfiguration(): AiRuntimeConfiguration {
         return AiRuntimeConfiguration(
             AiUseCase.entries.associateWith { useCase ->
@@ -102,6 +110,12 @@ class AiConfigurationRepository(context: Context) {
             },
         )
     }
+
+    private fun defaultConfiguration(): AiRuntimeConfiguration = AiRuntimeConfiguration(
+        AiUseCase.entries.associateWith { useCase ->
+            defaultModel(useCase.supportedProviders.first())
+        },
+    )
 
     private fun save(configuration: AiRuntimeConfiguration) {
         val editor = preferences.edit()

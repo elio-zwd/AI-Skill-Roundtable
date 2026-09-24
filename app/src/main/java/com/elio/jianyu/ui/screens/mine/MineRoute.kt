@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import com.elio.jianyu.data.ContextSourceLifecycle
 import com.elio.jianyu.data.JianyuRepository
 import com.elio.jianyu.data.PersonalContextFilter
 import com.elio.jianyu.data.RepositoryResult
@@ -21,6 +22,10 @@ import kotlinx.coroutines.withContext
 @Composable
 fun MineRoute(
     repository: JianyuRepository,
+    onOpenPersonalContext: () -> Unit,
+    onOpenAbout: () -> Unit,
+    onOpenDataPrivacy: () -> Unit,
+    onOpenBackup: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenAiManagement: () -> Unit,
     onOpenTelemetry: () -> Unit,
@@ -41,11 +46,19 @@ fun MineRoute(
 
     LaunchedEffect(repository) {
         val result = withContext(Dispatchers.IO) {
-            repository.listPersonalContexts(PersonalContextFilter())
+            repository.listPersonalContexts(
+                PersonalContextFilter(
+                    lifecycles = setOf(
+                        ContextSourceLifecycle.ACTIVE,
+                        ContextSourceLifecycle.DISABLED,
+                        ContextSourceLifecycle.ARCHIVED,
+                    ),
+                ),
+            )
         }
         when (result) {
             is RepositoryResult.Success -> {
-                personalContextCount = result.value.size
+                personalContextCount = result.value.minePersonalContextCount()
                 personalContextSummaryLabels = result.value.toMineSummaryLabels()
                 personalContextLoadFailed = false
             }
@@ -71,6 +84,10 @@ fun MineRoute(
             telemetryLevel = telemetryLevel,
         ),
         onOpenSettings = onOpenSettings,
+        onOpenPersonalContext = onOpenPersonalContext,
+        onOpenAbout = onOpenAbout,
+        onOpenDataPrivacy = onOpenDataPrivacy,
+        onOpenBackup = onOpenBackup,
         onOpenAiManagement = onOpenAiManagement,
         onOpenTelemetry = onOpenTelemetry,
     )

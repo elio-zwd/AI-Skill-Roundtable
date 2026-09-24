@@ -4,6 +4,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.elio.jianyu.result.ArtifactLibraryItem
 import com.elio.jianyu.result.ArtifactLibrarySnapshot
@@ -100,8 +101,46 @@ class ArtifactLibraryComponentsTest {
     }
 
     @Test
+    fun filtersOpenInSheetAndCancelDoesNotApplyDraftChanges() {
+        var typeApplyCount = 0
+        var historyApplyCount = 0
+        val item = artifact(content = "正文")
+        composeRule.setContent {
+            MaterialTheme {
+                ArtifactLibraryContent(
+                    state = ArtifactLibraryUiState.Content(
+                        ArtifactLibrarySnapshot(listOf(item), emptyList()),
+                    ),
+                    onRetry = {},
+                    onQueryChange = {},
+                    onTypesChange = { typeApplyCount += 1 },
+                    onIncludeHistoryChange = { historyApplyCount += 1 },
+                    onOpenArtifact = {},
+                    onDismissArtifact = {},
+                    onOpenIssue = { _, _ -> },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(ArtifactLibraryTestTags.TYPE_FILTER).assertDoesNotExist()
+        composeRule.onNodeWithText("筛选").performClick()
+        composeRule.onNodeWithTag(ArtifactLibraryTestTags.TYPE_FILTER).assertIsDisplayed()
+        composeRule
+            .onNodeWithTag(ArtifactLibraryTestTags.typeFilter(ArtifactType.GENERAL_SUMMARY))
+            .assertIsDisplayed()
+            .performClick()
+        composeRule.onNodeWithText("取消").performClick()
+        composeRule.onNodeWithTag(ArtifactLibraryTestTags.TYPE_FILTER).assertDoesNotExist()
+        composeRule.runOnIdle {
+            assertEquals(0, typeApplyCount)
+            assertEquals(0, historyApplyCount)
+        }
+    }
+
+    @Test
     fun detailShowsFullContentAndReturnsStableIssueStageIds() {
         var openedIssue: Pair<String, String>? = null
+        var copiedArtifactId: String? = null
         val item = artifact(content = "完整正文只在用户打开详情后展示")
         composeRule.setContent {
             MaterialTheme {
@@ -117,24 +156,29 @@ class ArtifactLibraryComponentsTest {
                     onOpenArtifact = {},
                     onDismissArtifact = {},
                     onOpenIssue = { issueId, stageId -> openedIssue = issueId to stageId },
+                    onCopyArtifact = { copiedArtifactId = it.artifactId },
                 )
             }
         }
 
         composeRule.onNodeWithTag(ArtifactLibraryTestTags.DETAIL).assertIsDisplayed()
+        composeRule.onNodeWithText("成果详情").assertIsDisplayed()
+        composeRule.onNodeWithText("已保存成果").assertIsDisplayed()
+        composeRule.onNodeWithText("复制").performClick()
         composeRule.onNodeWithTag(ArtifactLibraryTestTags.OPEN_ISSUE).performClick()
         composeRule.runOnIdle {
             assertEquals("issue-1" to "stage-1", openedIssue)
+            assertEquals("artifact-1", copiedArtifactId)
         }
     }
 
     private fun artifact(content: String) = ArtifactLibraryItem(
         artifactId = "artifact-1",
         issueId = "issue-1",
-        issueTitle = "议题一",
+        issueTitle = "会话一",
         stageId = "stage-1",
-        stageTitle = "阶段一",
-        title = "阶段总结",
+        stageTitle = "节点一",
+        title = "节点总结",
         contentSummary = "摘要",
         content = content,
         artifactType = ArtifactType.GENERAL_SUMMARY,

@@ -1,7 +1,9 @@
 package com.elio.jianyu.ui.screens.settings
 
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.network.AiProvider
 import com.elio.jianyu.network.AiRuntimeConfiguration
@@ -55,6 +57,8 @@ class SettingsScreenRegressionTest {
         }
 
         composeRule.onNodeWithTag(AiManagementTestTags.ROOT).assertExists()
+        composeRule.onNodeWithTag(AiManagementTestTags.CONTENT)
+            .performScrollToNode(hasTestTag(AiManagementTestTags.IMPORT_INPUT))
         composeRule.onNodeWithTag(AiManagementTestTags.IMPORT_INPUT).assertExists()
         composeRule.onNodeWithTag(AiManagementTestTags.IMPORT_BUTTON).assertExists()
     }

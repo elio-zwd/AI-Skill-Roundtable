@@ -20,12 +20,19 @@ fun AppNavHost(
     issuesContent: @Composable (issueId: String?, stageId: String?) -> Unit,
     issueContent: @Composable (issueId: String?, stageId: String?) -> Unit,
     skillsContent: @Composable () -> Unit,
+    skillSearchContent: @Composable () -> Unit,
+    skillFavoritesContent: @Composable () -> Unit,
+    skillRecentContent: @Composable () -> Unit,
     skillDetailContent: @Composable (skillId: String?) -> Unit,
     resourcesContent: @Composable (ResourceTab) -> Unit,
     mineContent: @Composable () -> Unit,
     settingsContent: @Composable () -> Unit,
     aiManagementContent: @Composable () -> Unit,
     telemetryContent: @Composable () -> Unit,
+    personalContextContent: @Composable () -> Unit = {},
+    aboutContent: @Composable () -> Unit = {},
+    dataPrivacyContent: @Composable () -> Unit = {},
+    backupContent: @Composable () -> Unit = {},
 ) {
     NavHost(
         navController = navController,
@@ -90,6 +97,15 @@ fun AppNavHost(
             composable(AppDestination.SKILLS.routePattern) {
                 skillsContent()
             }
+            composable(AppDestination.SKILL_SEARCH.routePattern) {
+                skillSearchContent()
+            }
+            composable(AppDestination.SKILL_FAVORITES.routePattern) {
+                skillFavoritesContent()
+            }
+            composable(AppDestination.SKILL_RECENT.routePattern) {
+                skillRecentContent()
+            }
             composable(
                 route = JianyuNavigationRoutes.SKILL_DETAIL_PATTERN,
                 arguments = listOf(
@@ -140,6 +156,18 @@ fun AppNavHost(
         }
         composable(AppDestination.TELEMETRY.routePattern) {
             telemetryContent()
+        }
+        composable(AppDestination.PERSONAL_CONTEXT.routePattern) {
+            personalContextContent()
+        }
+        composable(AppDestination.ABOUT.routePattern) {
+            aboutContent()
+        }
+        composable(AppDestination.DATA_PRIVACY.routePattern) {
+            dataPrivacyContent()
+        }
+        composable(AppDestination.BACKUP_RESTORE.routePattern) {
+            backupContent()
         }
     }
 }
@@ -201,6 +229,36 @@ fun NavHostController.navigateToSkillDetail(skillId: String) {
         destination = AppDestination.SKILLS,
     )
     navigate(JianyuNavigationRoutes.skillDetail(skillId)) {
+        launchSingleTop = true
+    }
+}
+
+fun NavHostController.navigateToSkillSearch() {
+    ensureTopLevelParent(
+        graphRoute = JianyuNavigationRoutes.SKILLS_GRAPH,
+        destination = AppDestination.SKILLS,
+    )
+    navigate(AppDestination.SKILL_SEARCH.launchRoute) {
+        launchSingleTop = true
+    }
+}
+
+fun NavHostController.navigateToSkillFavorites() {
+    ensureTopLevelParent(
+        graphRoute = JianyuNavigationRoutes.SKILLS_GRAPH,
+        destination = AppDestination.SKILLS,
+    )
+    navigate(AppDestination.SKILL_FAVORITES.launchRoute) {
+        launchSingleTop = true
+    }
+}
+
+fun NavHostController.navigateToSkillRecent() {
+    ensureTopLevelParent(
+        graphRoute = JianyuNavigationRoutes.SKILLS_GRAPH,
+        destination = AppDestination.SKILLS,
+    )
+    navigate(AppDestination.SKILL_RECENT.launchRoute) {
         launchSingleTop = true
     }
 }

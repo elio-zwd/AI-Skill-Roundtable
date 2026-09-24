@@ -2,6 +2,7 @@ package com.elio.jianyu.ui.screens.dialog
 
 import com.elio.jianyu.data.Character
 import com.elio.jianyu.data.ChatSession
+import com.elio.jianyu.data.ContextSourceType
 import com.elio.jianyu.data.Message
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -12,6 +13,44 @@ import org.junit.Test
 
 /** 见域「对话」页面真实数据映射与局部状态测试。 */
 class DialogUiStateTest {
+
+    @Test
+    fun dialogContextSelection_tracksActualUserSelectionOrder() {
+        fun candidate(id: String) = DialogContextCandidate(
+            sourceType = ContextSourceType.MATERIAL,
+            sourceId = id,
+            title = id,
+            content = "content",
+            expectedSourceHash = "hash-$id",
+            expectedSourceUpdatedAt = 1L,
+            sensitive = false,
+        )
+
+        var state = DialogContextState(listOf(candidate("a"), candidate("b")))
+        state = updateDialogContextCandidate(
+            state,
+            state.candidates.single { it.sourceId == "b" }.copy(selected = true),
+        )
+        state = updateDialogContextCandidate(
+            state,
+            state.candidates.single { it.sourceId == "a" }.copy(selected = true),
+        )
+
+        assertEquals(listOf("b", "a"), state.selectedItems.map { it.sourceId })
+        assertEquals(listOf(0, 1), state.selectedItems.map { it.selectionOrder })
+
+        state = updateDialogContextCandidate(
+            state,
+            state.candidates.single { it.sourceId == "b" }.copy(selected = false),
+        )
+        state = updateDialogContextCandidate(
+            state,
+            state.candidates.single { it.sourceId == "b" }.copy(selected = true),
+        )
+
+        assertEquals(listOf("a", "b"), state.selectedItems.map { it.sourceId })
+        assertEquals(listOf(1, 2), state.selectedItems.map { it.selectionOrder })
+    }
 
     @Test
     fun previewMock_containsCompleteDesignReference() {

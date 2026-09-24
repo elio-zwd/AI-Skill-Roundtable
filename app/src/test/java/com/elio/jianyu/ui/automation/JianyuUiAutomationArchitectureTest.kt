@@ -62,7 +62,6 @@ class JianyuUiAutomationArchitectureTest {
             ),
             "screens/resources/ResourcesScreen.kt" to listOf(
                 "MATERIALS_CONTENT",
-                "PERSONAL_CONTEXT_CONTENT",
             ),
             "screens/execution/IssueExecutionScreen.kt" to listOf(
                 "PARTICIPANTS",

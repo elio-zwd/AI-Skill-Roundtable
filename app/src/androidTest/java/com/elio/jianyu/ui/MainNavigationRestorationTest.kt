@@ -11,6 +11,7 @@ import com.elio.jianyu.ui.components.JianyuShellTestTags
 import com.elio.jianyu.ui.navigation.AppDestination
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.screens.resources.ResourcesTestTags
+import com.elio.jianyu.ui.screens.resources.ResourcesOverviewTestTags
 import com.elio.jianyu.ui.screens.settings.SettingsShellTestTags
 import org.junit.Rule
 import org.junit.Test
@@ -27,6 +28,9 @@ class MainNavigationRestorationTest {
             .onNodeWithTag(AppTestTags.destination(AppDestination.RESOURCES))
             .performClick()
         composeRule.onNodeWithTag(ResourcesTestTags.SCREEN).assertIsDisplayed()
+        composeRule
+            .onNodeWithTag(ResourcesOverviewTestTags.ARTIFACT_SUMMARY)
+            .performClick()
 
         composeRule.onNodeWithTag(ResourcesTestTags.ARTIFACTS_TAB).performClick()
         composeRule.onNodeWithTag(ResourcesTestTags.ARTIFACTS_TAB).assertIsSelected()

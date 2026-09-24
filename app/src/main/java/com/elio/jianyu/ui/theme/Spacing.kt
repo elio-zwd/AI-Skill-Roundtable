@@ -6,6 +6,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.elio.jianyu.ui.settings.ContentDensityMode
 
 @Immutable
 data class SkillRoundtableSpacing(
@@ -25,3 +26,26 @@ internal val LocalSkillRoundtableSpacing = staticCompositionLocalOf {
 
 val MaterialTheme.skillRoundtableSpacing: SkillRoundtableSpacing
     @Composable get() = LocalSkillRoundtableSpacing.current
+
+
+internal fun spacingForContentDensity(mode: ContentDensityMode): SkillRoundtableSpacing = when (mode) {
+    ContentDensityMode.COMPACT -> SkillRoundtableSpacing(
+        screenHorizontal = 12.dp,
+        tiny = 4.dp,
+        compact = 4.dp,
+        small = 8.dp,
+        medium = 12.dp,
+        large = 16.dp,
+        xLarge = 24.dp,
+    )
+    ContentDensityMode.STANDARD -> SkillRoundtableSpacing()
+    ContentDensityMode.COMFORTABLE -> SkillRoundtableSpacing(
+        screenHorizontal = 24.dp,
+        tiny = 8.dp,
+        compact = 12.dp,
+        small = 16.dp,
+        medium = 24.dp,
+        large = 32.dp,
+        xLarge = 40.dp,
+    )
+}

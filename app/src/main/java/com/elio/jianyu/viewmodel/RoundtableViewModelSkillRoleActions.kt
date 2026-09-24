@@ -187,14 +187,14 @@ private suspend fun RoundtableViewModel.refreshSessionRosterAndAwait(
     settleTimeoutMs: Long,
 ): Boolean {
     selectSession(sessionId)
-    val sessionPublished = withTimeoutOrNull(settleTimeoutMs) {
-        currentSession.first { session -> session?.id == sessionId }
+    return withTimeoutOrNull(settleTimeoutMs) {
+        // currentSession 可能仍保留同一 session 的旧值；真正能证明角色动作
+        // 已完成的是 rehydrate 后发布的 participant roster。
+        currentParticipantIds.first { participants ->
+            currentSessionId.value == sessionId && skillId in participants
+        }
         true
     } == true
-    if (!sessionPublished) return false
-
-    return currentSessionId.value == sessionId &&
-        skillId in currentParticipantIds.value
 }
 
 private fun roleActionFailure(action: String, reason: String): Boolean {

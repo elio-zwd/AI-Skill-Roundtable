@@ -49,6 +49,10 @@ import com.elio.jianyu.ui.components.UserAvatar
 @Composable
 fun MineScreen(
     uiState: MineUiState,
+    onOpenPersonalContext: () -> Unit = {},
+    onOpenAbout: () -> Unit = {},
+    onOpenDataPrivacy: () -> Unit = {},
+    onOpenBackup: () -> Unit = {},
     onOpenSettings: () -> Unit,
     onOpenAiManagement: () -> Unit,
     onOpenTelemetry: () -> Unit,
@@ -68,7 +72,7 @@ fun MineScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 item {
-                    PersonalBackgroundHero(uiState = uiState)
+                    PersonalBackgroundHero(uiState = uiState, onOpenPersonalContext = onOpenPersonalContext)
                 }
                 item {
                     Text(
@@ -83,6 +87,8 @@ fun MineScreen(
                         uiState = uiState,
                         onOpenAiManagement = onOpenAiManagement,
                         onOpenTelemetry = onOpenTelemetry,
+                        onOpenDataPrivacy = onOpenDataPrivacy,
+                        onOpenBackup = onOpenBackup,
                     )
                 }
                 item {
@@ -94,7 +100,7 @@ fun MineScreen(
                     )
                 }
                 item {
-                    PreferenceGroup(onOpenSettings = onOpenSettings)
+                    PreferenceGroup(onOpenSettings = onOpenSettings, onOpenAbout = onOpenAbout)
                 }
                 item { Spacer(modifier = Modifier.height(4.dp)) }
             }
@@ -132,7 +138,10 @@ private fun MineHeader(onOpenSettings: () -> Unit) {
 }
 
 @Composable
-private fun PersonalBackgroundHero(uiState: MineUiState) {
+private fun PersonalBackgroundHero(
+    uiState: MineUiState,
+    onOpenPersonalContext: () -> Unit,
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -192,8 +201,8 @@ private fun PersonalBackgroundHero(uiState: MineUiState) {
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Button(
-                        onClick = {},
-                        enabled = false,
+                        onClick = onOpenPersonalContext,
+                        enabled = true,
                         modifier = Modifier.testTag(MineTestTags.PERSONAL_BACKGROUND_ACTION),
                     ) {
                         Text("查看与编辑")
@@ -226,6 +235,8 @@ private fun QuickControls(
     uiState: MineUiState,
     onOpenAiManagement: () -> Unit,
     onOpenTelemetry: () -> Unit,
+    onOpenDataPrivacy: () -> Unit,
+    onOpenBackup: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
@@ -244,10 +255,10 @@ private fun QuickControls(
             )
             QuickControlCard(
                 title = "数据与隐私",
-                subtitle = "当前不可用",
+                subtitle = "导出、删除与权限",
                 icon = Icons.Default.Info,
-                enabled = false,
-                onClick = {},
+                enabled = true,
+                onClick = onOpenDataPrivacy,
                 modifier = Modifier
                     .weight(1f)
                     .testTag(MineTestTags.DATA_PRIVACY_CARD),
@@ -259,10 +270,10 @@ private fun QuickControls(
         ) {
             QuickControlCard(
                 title = "备份与恢复",
-                subtitle = "当前不可用",
+                subtitle = "本地加密备份",
                 icon = Icons.Default.List,
-                enabled = false,
-                onClick = {},
+                enabled = true,
+                onClick = onOpenBackup,
                 modifier = Modifier
                     .weight(1f)
                     .testTag(MineTestTags.BACKUP_RESTORE_CARD),
@@ -337,7 +348,10 @@ private fun QuickControlCard(
 }
 
 @Composable
-private fun PreferenceGroup(onOpenSettings: () -> Unit) {
+private fun PreferenceGroup(
+    onOpenSettings: () -> Unit,
+    onOpenAbout: () -> Unit,
+) {
     Card(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -355,10 +369,10 @@ private fun PreferenceGroup(onOpenSettings: () -> Unit) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             PreferenceRow(
                 title = "关于见域",
-                subtitle = "当前不可用",
+                subtitle = "版本、许可与角色说明",
                 icon = Icons.Default.Info,
-                enabled = false,
-                onClick = {},
+                enabled = true,
+                onClick = onOpenAbout,
                 modifier = Modifier.testTag(MineTestTags.ABOUT_ENTRY),
             )
         }

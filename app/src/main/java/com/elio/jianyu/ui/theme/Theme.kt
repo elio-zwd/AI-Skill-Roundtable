@@ -5,6 +5,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.graphics.Color
 
@@ -74,16 +75,31 @@ private val SkillRoundtableLightColorScheme = lightColorScheme(
     inversePrimary = DarkBrandPrimary,
 )
 
+val LocalReducedMotion = staticCompositionLocalOf { false }
+
 @Composable
 fun SkillRoundtableTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    reducedMotion: Boolean = false,
+    highContrastText: Boolean = false,
+    spacing: SkillRoundtableSpacing = SkillRoundtableSpacing(),
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = if (darkTheme) SkillRoundtableDarkColorScheme else SkillRoundtableLightColorScheme
+    val baseColorScheme = if (darkTheme) SkillRoundtableDarkColorScheme else SkillRoundtableLightColorScheme
+    val colorScheme = if (highContrastText) {
+        baseColorScheme.copy(
+            onBackground = if (darkTheme) Color.White else Color.Black,
+            onSurface = if (darkTheme) Color.White else Color.Black,
+            onSurfaceVariant = if (darkTheme) Color(0xFFF1F5F9) else Color(0xFF1E293B),
+        )
+    } else {
+        baseColorScheme
+    }
     val extensionColors = if (darkTheme) DarkSkillRoundtableColors else LightSkillRoundtableColors
     CompositionLocalProvider(
         LocalSkillRoundtableColors provides extensionColors,
-        LocalSkillRoundtableSpacing provides SkillRoundtableSpacing(),
+        LocalSkillRoundtableSpacing provides spacing,
+        LocalReducedMotion provides reducedMotion,
     ) {
         MaterialTheme(
             colorScheme = colorScheme,

@@ -24,10 +24,16 @@ fun OfficialSkillNavigationRoute(
     initialSkillId: String? = null,
     onBack: (() -> Unit)? = null,
     onOpenSkillDetail: (String) -> Unit = {},
+    onNavigateToSearch: () -> Unit = {},
+    onNavigateToFavorites: () -> Unit = {},
+    onNavigateToRecent: () -> Unit = {},
 ) {
     SkillRoleCatalogRoute(
         runtimeResult = runtimeResult,
         onOpenSkillDetail = onOpenSkillDetail,
+        onNavigateToSearch = onNavigateToSearch,
+        onNavigateToFavorites = onNavigateToFavorites,
+        onNavigateToRecent = onNavigateToRecent,
         modifier = modifier,
     )
 }
