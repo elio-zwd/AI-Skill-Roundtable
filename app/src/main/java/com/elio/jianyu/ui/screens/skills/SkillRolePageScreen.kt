@@ -565,7 +565,7 @@ private fun RoleFeatureMiniCard(
 ) {
     Card(
         modifier = modifier
-            .height(118.dp)
+            .heightIn(min = 128.dp)
             .clickable(onClick = onOpenDetail)
             .testTag(OfficialSkillCatalogTestTags.skill(role.skillId)),
         shape = RoundedCornerShape(20.dp),
