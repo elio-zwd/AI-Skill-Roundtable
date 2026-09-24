@@ -565,7 +565,7 @@ private fun RoleFeatureMiniCard(
 ) {
     Card(
         modifier = modifier
-            .heightIn(min = 128.dp)
+            .height(118.dp)
             .clickable(onClick = onOpenDetail)
             .testTag(OfficialSkillCatalogTestTags.skill(role.skillId)),
         shape = RoundedCornerShape(20.dp),
@@ -575,13 +575,27 @@ private fun RoleFeatureMiniCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Row(Modifier.fillMaxSize()) {
-            RoleIdentityVisual(
-                role = role,
+            Column(
                 modifier = Modifier
                     .width(72.dp)
-                    .fillMaxHeight(),
-                cornerRadius = 20.dp,
-            )
+                    .padding(top = 8.dp, bottom = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                RoleIdentityVisual(
+                    role = role,
+                    modifier = Modifier.size(72.dp),
+                    cornerRadius = 16.dp,
+                )
+                if (role.isPersonSimulation) {
+                    Text(
+                        text = "AI 模拟角色",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                    )
+                }
+            }
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -606,13 +620,6 @@ private fun RoleFeatureMiniCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (role.isPersonSimulation) {
-                    Text(
-                        text = "AI 模拟角色",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
             }
         }
     }
