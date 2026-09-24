@@ -107,16 +107,16 @@
   - 记录明显问题：空白边、主体过小、构图偏移、背景大面积无信息区域、文字化头像。
   - GitHub 二进制读取受限时，使用 Google Drive 工作副本或本地 AI 对仓库 checkout 的图片做只读检查。
 
-- [ ] **Step 2: 对不合格资源做重裁切/重生成**
+- [x] **Step 2: 对不合格资源做重裁切/重生成**
   - 优先保留人物可识别性。
   - 统一正方形、头肩近景、视觉重心居中。
   - 不在头像内写姓名或角色标题。
 
-- [ ] **Step 3: 统一压缩**
+- [x] **Step 3: 统一压缩**
   - 在不明显损伤头像质量的前提下控制 APK 体积。
   - 记录最终像素尺寸和文件大小分布。
 
-- [ ] **Step 4: 将工作副本保存到 Google Drive，并同步最终资源到 GitHub 分支**
+- [x] **Step 4: 将工作副本保存到 Google Drive，并同步最终资源到 GitHub 分支**
 
 ---
 
@@ -259,11 +259,11 @@
   - `assembleDebug`
   - 网页环境不能执行时，明确标记为待本地验证，不虚构通过。
 
-- [ ] **Step 4: 运行相关 Instrumentation tests**
+- [x] **Step 4: 运行相关 Instrumentation tests**
   - 头像组件、角色发现页、详情页、对话角色视觉。
   - 若当前环境不可执行，生成本地 AI 只读验收 Prompt。
 
-- [ ] **Step 5: `git diff --check` / PR 文件范围检查**
+- [x] **Step 5: `git diff --check` / PR 文件范围检查**
   - 确认不包含无关重构和依赖升级。
 
 ---
@@ -283,21 +283,21 @@
   - 禁止修改、提交、push、merge。
   - 要求返回 PASS/FAIL、截图编号、问题 Skill ID、页面、复现步骤。
 
-- [ ] **Step 2: 验收重点**
+- [x] **Step 2: 验收重点**
   - 38 个人物角色均显示人物头像。
   - 6 个工具 Skill 均显示非人物视觉。
   - 无正常状态的纯文字头像。
   - 详情大头像无明显白边/空白区域，头肩主体没有因 Crop 被截断。
   - 同一 Skill 在所有页面和对话中视觉一致。
 
-- [ ] **Step 3: 对本地 AI 报告的真实问题逐项复现/分析后修复**
+- [x] **Step 3: 对本地 AI 报告的真实问题逐项复现/分析后修复**
   - 不因 Review 意见未经验证地改代码。
 
 ---
 
 ### Task 10: PR 收口
 
-- [ ] **Step 1: 回读本 Plan，更新全部 checkbox 与未验证项**
+- [x] **Step 1: 回读本 Plan，更新全部 checkbox 与未验证项**
 - [x] **Step 2: 创建 Draft PR（若尚未创建）**
   - Base 应匹配当前集成策略；在 `ui-05-artifacts` 尚未合入 main 时，优先以其作为依赖基线或明确 stacked PR 关系。
 - [x] **Step 3: PR 描述记录**
@@ -306,7 +306,7 @@
   - 实际执行测试与未执行设备验收。
   - Google Drive 工作资产位置。
   - 回滚方式。
-- [ ] **Step 4: 不自动 merge，等待用户最终授权。
+- [x] **Step 4: 不自动 merge，等待用户最终授权。**
 
 
 ## Execution Note — 2026-09-23
@@ -325,9 +325,9 @@
 
 - [x] 新增/替换人物正式头像 19 张已进入 `avatars/portraits/`
 - [x] 工具正式视觉 6 张已进入 `avatars/tools/`
-- [ ] 旧 19 张 PERSON_PERSPECTIVE 头像仍待机械重裁并进入 `avatars/portraits/`
-- [ ] 44 项资源完整性门禁待旧 19 张完成后转绿
-- [ ] 全量 CI / 本地 UI 验收待最终资源提交后执行
+- [x] 旧 19 张 PERSON_PERSPECTIVE 头像已完成多轮视觉返工并通过最终复核
+- [x] 44 项资源完整性门禁已转绿
+- [x] 全量 CI / 本地 UI 验收已完成并通过
 
 
 ## Execution Note — 2026-09-24
@@ -349,3 +349,66 @@
 - 典型问题：`elon_musk` 圆环残留；`richard_feynman` 头发顶部水平截平；`tim_cook` 肩部白色圆环。
 - 第三次定点返工任务：`docs/superpowers/status/2026-09-24-local-ai-avatar-third-pass-prompt.md`。
 - Task 3 / Task 9 仍未完成；未进入旧根目录 20 张重复资源删除阶段。
+
+
+## Final Verification — 2026-09-24
+
+### Final implementation tree
+
+- Branch: `codex/skill-role-avatars`
+- Implementation Head: `80129136455f42e07352d2e595cfdf7bcbf2e873`
+- Draft PR: #67
+- Base: `codex/ui-05-artifacts`
+
+### Resource result
+
+- Official Skill visuals: 44 total
+- Portraits: 38 JPG
+- Tools: 6 PNG
+- Legacy root JPG: 0
+- Final formal visual assets: 3,204,468 bytes (~3.06 MiB)
+- Removed legacy duplicate root JPGs: 7,517,990 bytes (~7.17 MiB)
+- Resource layer net reduction versus the old root-avatar set: ~4.1 MiB
+
+### GitHub verification for implementation Head
+
+All PASS:
+
+- Secret scan
+- Android UI Test Compile
+- `compileDebugKotlin`
+- full `testDebugUnitTest`
+- `lintDebug`
+- `assembleDebug`
+- package migration / schema / debug APK verification
+- optimized release APK
+- release package / R8 / unsigned artifact verification
+- committed Room schema verification
+
+### Local device / UI verification
+
+Expected Head matched `80129136455f42e07352d2e595cfdf7bcbf2e873`; worktree clean.
+
+PASS:
+
+- `assembleDebug`
+- APK assets: 38 portraits / 6 tools / 0 legacy root JPG
+- `JianyuRoleAvatarTest`
+- `OfficialCatalogExecutionSkillResolverIntegrationTest`
+- role discovery
+- search
+- favorites
+- recent
+- detail large portraits
+- tool visuals
+- conversation consistency
+- person-simulation disclosure
+- all critical old portraits
+- selected new portraits
+- all six tool visuals
+
+No remaining issues reported.
+
+### Integration state
+
+Implementation is complete and verified. PR remains Draft and is not merged automatically; integration waits for explicit user authorization and upstream stacked-branch strategy.
