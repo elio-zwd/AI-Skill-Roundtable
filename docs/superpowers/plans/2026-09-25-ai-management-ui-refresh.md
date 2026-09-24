@@ -26,13 +26,13 @@
 
 ## Tasks
 
-- [ ] Task 1：补充 UI 状态与纯映射测试，覆盖双 Provider Key 状态、首页摘要文案和现有可用 Key 计数契约。
-- [ ] Task 2：重构 `AiManagementScreen` 首页为“模型配置 / API Key / 模型说明”三段分组卡。
-- [ ] Task 3：实现模型选择 Bottom Sheet，按用途限制 Provider 与 Model，并保留现有持久化回调。
-- [ ] Task 4：实现 Provider Key 管理 Bottom Sheet，保留批量导入、验证、启停、删除、清空和当前会话优先 Key 信息。
-- [ ] Task 5：调整 `AiManagementRoute` 同时观察 Gemini / DeepSeek Key 摘要，并将选中 Provider 作为详情状态传给 Screen。
-- [ ] Task 6：更新 Compose 回归测试，验证首页不再平铺导入框、模型与 Provider 入口可打开对应 Sheet、关键控件仍可达。
-- [ ] Task 7：静态自审：回读修改、检查与 `main` 的净差异，确认无导航/网络/密钥协议越界。
+- [x] Task 1：补充 UI 状态与纯映射测试，覆盖双 Provider Key 状态、首页摘要文案和现有可用 Key 计数契约。
+- [x] Task 2：重构 `AiManagementScreen` 首页为“模型配置 / API Key / 模型说明”三段分组卡。
+- [x] Task 3：实现模型选择 Bottom Sheet，按用途限制 Provider 与 Model，并保留现有持久化回调。
+- [x] Task 4：实现 Provider Key 管理 Bottom Sheet，保留批量导入、验证、启停、删除、清空和当前会话优先 Key 信息。
+- [x] Task 5：调整 `AiManagementRoute` 同时观察 Gemini / DeepSeek Key 摘要，并将选中 Provider 作为详情状态传给 Screen。
+- [x] Task 6：更新 Compose 回归测试，验证首页不再平铺导入框、模型与 Provider 入口可打开对应 Sheet、关键控件仍可达。
+- [x] Task 7：静态自审：回读修改、检查与 `main` 的净差异，确认无导航/网络/密钥协议越界。
 - [ ] Task 8：运行/委托验证：`compileDebugKotlin`、`testDebugUnitTest`、`lintDebug`、`assembleDebug`；UI 交互由本地 AI 做只读设备验收。
 
 ## 预期主要文件
