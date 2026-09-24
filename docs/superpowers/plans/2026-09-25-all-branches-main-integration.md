@@ -275,11 +275,11 @@
 - [x] **Step 1: 本地/CI 复现 `:app:assembleDebugAndroidTest` 的 unresolved `assertExists`。**
 - [x] **Step 2: 检查当前 Compose UI Test 版本和仓库已使用的断言 API。**
 - [x] **Step 3: 仅修改测试为当前依赖支持、且语义等价的存在/可见断言；优先复用仓库已有 `assertIsDisplayed` 模式。**
-- [ ] **Step 4: 运行聚焦 AndroidTest APK compile：**
+- [x] **Step 4: 运行聚焦 AndroidTest APK compile：**
   ```powershell
   .\gradlew.bat :app:assembleDebugAndroidTest
   ```
-- [ ] **Step 5: 运行 #67 聚焦 JVM：**
+- [x] **Step 5: 运行 #67 聚焦 JVM：**
   ```powershell
   .\gradlew.bat :app:testDebugUnitTest --tests "*OfficialSkillVisualAssetTest*" --tests "*OfficialSkillConversationRoleAdapterTest*" --tests "*SkillRoleCatalogProjectionTest*" --tests "*UserAvatarArchitectureTest*" --tests "*AddSkillRoleBottomSheetArchitectureTest*"
   ```
@@ -301,7 +301,7 @@
 - 最小修复：只将该测试 import/call 从 `assertExists` 替换为 `assertIsDisplayed`，保留“推荐角色 + 全部角色两个正式头像节点都必须显示”的断言。
 - 修复 commit：`07b186a8203259cccb7d690a3133f04cf8432a07`（`test: 修复 Skill 角色头像 AndroidTest 断言兼容`）。
 - 当前 #67：base=`main@55c60a1...`，head=`07b186a...`，Draft=true，mergeable=true。
-- Task 6 Step 4/5 等待新 Head 的 GitHub Android UI Test Compile / Android CI 作为远端等价验证；未在 GPT 环境虚构本地 Gradle 执行。
+- Task 6 Step 4/5 已由 exact Head 的 GitHub 等价验证完成：Android UI Test Compile Run `36049894770` PASS（`:app:assembleDebugAndroidTest`）；Android CI Run `36049894937` PASS，其 full `testDebugUnitTest` 覆盖聚焦 JVM 测试。未在 GPT 环境虚构本地 Gradle 执行。
 
 ---
 
@@ -309,7 +309,7 @@
 
 **Known history:** `8012913...` 曾完整 PASS；当前 Head 在其上新增 10 commits。
 
-- [ ] **Step 1: 运行：**
+- [x] **Step 1: 运行：**
   ```powershell
   pwsh -NoProfile -File tools/check-app-identity.ps1
   pwsh -NoProfile -File tools/check-secrets.ps1 -IncludeHistory
@@ -331,12 +331,22 @@
   - 38 portraits + 6 tools
   - 人物模拟免责声明仍存在
 - [ ] **Step 3: 若聚焦设备测试有新失败，GPT/执行 AI 按 systematic-debugging 修复后重跑。**
-- [ ] **Step 4: 当前 Head GitHub Secret/UI Test Compile/Android CI 全绿。**
+- [x] **Step 4: 当前 Head GitHub Secret/UI Test Compile/Android CI 全绿。**
 - [ ] **Step 5: 更新 #67 Plan/PR 描述中的最终验证 Head。**
 - [ ] **Step 6: 用户授权后将 #67 Ready，并使用普通 merge commit 合入 main。**
 - [ ] **Step 7: 新 main CI 全绿。**
 
 **Gate:** #67 不得带任何已知 FAIL 进入 main。
+
+
+#### Task 7 当前验证状态
+
+- Exact #67 Head：`07b186a8203259cccb7d690a3133f04cf8432a07`。
+- Secret scan Run `36049894792`：PASS。
+- Android UI Test Compile Run `36049894770`：PASS，原 `assertExists` compile failure 已消失。
+- Android CI Run `36049894937`：PASS；identity gate、compileDebugKotlin、full testDebugUnitTest、lintDebug、assembleDebug、package/schema verification、optimized Release/R8、release verification、Room committed schema 和 artifacts 全部成功；条件性 legacy/migration jobs 为 skipped。
+- Task 7 Step 1 在 GPT 环境通过上述 exact-Head GitHub Actions 取得等价远端证据；没有声称 Windows 本地 Gradle 已执行。
+- **仍未完成：Task 7 Step 2 exact-Head 本地 AI 聚焦 Instrumentation/UI 验收。** 在该验收 PASS 前保持 Draft，不执行 Ready/merge。
 
 ---
 
