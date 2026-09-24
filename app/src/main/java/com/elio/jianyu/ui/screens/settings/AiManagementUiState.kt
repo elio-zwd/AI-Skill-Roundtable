@@ -1,7 +1,7 @@
 package com.elio.jianyu.ui.screens.settings
 
-import com.elio.jianyu.network.AiRuntimeConfiguration
 import com.elio.jianyu.network.AiProvider
+import com.elio.jianyu.network.AiRuntimeConfiguration
 import com.elio.jianyu.network.ApiKeySummary
 import com.elio.jianyu.network.ApiKeyValidationState
 import com.elio.jianyu.network.BatchImportResult
@@ -14,33 +14,52 @@ sealed interface AiManagementConfirmation {
 data class AiManagementUiState(
     val configuration: AiRuntimeConfiguration,
     val keyProvider: AiProvider,
-    val summaries: List<ApiKeySummary>,
+    val providerSummaries: Map<AiProvider, List<ApiKeySummary>>,
     val storageError: String?,
     val currentKeyAccount: String?,
     val input: String,
     val resultMessage: String?,
     val confirmation: AiManagementConfirmation?,
 ) {
+    val summaries: List<ApiKeySummary>
+        get() = summariesFor(keyProvider)
+
     val availableKeyCount: Int
-        get() = summaries.count {
+        get() = availableKeyCount(keyProvider)
+
+    val canImport: Boolean
+        get() = input.isNotBlank() && summaries.size < MAX_PROVIDER_KEY_COUNT
+
+    fun summariesFor(provider: AiProvider): List<ApiKeySummary> =
+        providerSummaries[provider].orEmpty()
+
+    fun availableKeyCount(provider: AiProvider): Int =
+        summariesFor(provider).count {
             it.enabled &&
                 it.validationState != ApiKeyValidationState.INVALID &&
                 it.remainingBanTimeMs <= 0L
         }
 
-    val canImport: Boolean
-        get() = input.isNotBlank() && summaries.size < MAX_PROVIDER_KEY_COUNT
+    fun providerStatus(provider: AiProvider): String {
+        val total = summariesFor(provider).size
+        if (total == 0) return "未配置 Key"
+        return "$total 个 Key · ${availableKeyCount(provider)} 个可用"
+    }
 }
 
 internal const val MAX_PROVIDER_KEY_COUNT = 50
 
 internal object AiManagementTestTags {
     const val ROOT = "ai_management"
+    const val MODEL_SHEET = "ai_management_model_sheet"
+    const val KEY_SHEET = "ai_management_key_sheet"
     const val IMPORT_INPUT = "ai_management_import_input"
     const val IMPORT_BUTTON = "ai_management_import_button"
     const val CLEAR_CONFIRM = "ai_management_clear_confirm"
     const val DELETE_CONFIRM = "ai_management_delete_confirm"
 
+    fun useCase(useCaseName: String): String = "ai_management_use_case_$useCaseName"
+    fun keyProviderCard(providerName: String): String = "ai_management_key_provider_$providerName"
     fun provider(providerName: String): String = "ai_management_provider_$providerName"
     fun model(modelName: String): String = "ai_management_model_$modelName"
     fun keyRow(id: String): String = "ai_management_key_$id"
