@@ -36,7 +36,7 @@
 - Create: \`app/src/androidTest/java/com/elio/jianyu/data/UserAvatarRepositoryAndroidTest.kt\`
 - Optional test fixture helper under androidTest only
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
   - 导入横向图片后输出文件存在。
   - 输出为 512×512。
   - 输出路径固定为 \`filesDir/user-profile/avatar.jpg\`。
@@ -48,7 +48,7 @@
 - [ ] **Step 2: 验证 RED**
   - 本地 AI 运行聚焦 AndroidTest，预期因 Repository 尚不存在/行为缺失失败。
 
-- [ ] **Step 3: 最小实现 Repository**
+- [x] **Step 3: 最小实现 Repository**
   - ContentResolver 读取。
   - bounds decode + inSampleSize。
   - framework EXIF orientation。
@@ -71,7 +71,7 @@
   - \`app/src/test/java/com/elio/jianyu/ui/components/UserAvatarArchitectureTest.kt\`
   - \`app/src/androidTest/java/com/elio/jianyu/ui/components/UserAvatarTest.kt\`（如当前不存在则新增）
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
   - 提供自定义 \`ImageBitmap\` 时不显示 fallback drawable。
   - 无自定义头像时继续显示默认头像。
   - 默认头像保留当前 1.5x 顶部裁切规则。
@@ -79,7 +79,7 @@
 
 - [ ] **Step 2: 验证 RED**
 
-- [ ] **Step 3: 最小实现**
+- [x] **Step 3: 最小实现**
   - 增加 \`LocalUserAvatarImage\` 或等价 UI 展示状态入口。
   - UserAvatar 只负责显示，不读取 filesDir。
   - 自定义头像优先；null 时 fallback。
@@ -98,7 +98,7 @@
 - Modify: \`app/src/androidTest/java/com/elio/jianyu/ui/screens/mine/MineScreenTest.kt\`
 - Create if useful: Mine avatar action sheet component/test
 
-- [ ] **Step 1: 写失败 UI 测试**
+- [x] **Step 1: 写失败 UI 测试**
   - 头像铅笔按钮 enabled。
   - 点击分发 \`onEditAvatar\`。
   - 旧 \`AVATAR_SWITCH_UNAVAILABLE\` 契约不存在。
@@ -106,7 +106,7 @@
 
 - [ ] **Step 2: 验证 RED**
 
-- [ ] **Step 3: MineRoute 接入 Repository**
+- [x] **Step 3: MineRoute 接入 Repository**
   - remember UserAvatarRepository。
   - collect avatar snapshot。
   - decode 为 UI \`ImageBitmap\`。
@@ -118,7 +118,7 @@
   - import 在 coroutine 中执行。
   - success/failure Toast。
 
-- [ ] **Step 5: Material 3 Bottom Sheet**
+- [x] **Step 5: Material 3 Bottom Sheet**
   - 从相册选择。
   - 恢复默认头像。
   - 取消/手势关闭。
@@ -135,14 +135,14 @@
 - Check: \`app/src/main/java/com/elio/jianyu/ui/screens/dialog/components/DialogMessageComponents.kt\`
 - Add/Modify related UI tests
 
-- [ ] **Step 1: 写失败契约测试**
+- [x] **Step 1: 写失败契约测试**
   - DialogRoute 观察 UserAvatarRepository。
   - DialogScreen 树获得同一自定义头像展示状态。
   - UserMessageBubble 继续只调用公共 UserAvatar，不自行读文件。
 
 - [ ] **Step 2: 验证 RED**
 
-- [ ] **Step 3: 最小实现**
+- [x] **Step 3: 最小实现**
   - DialogRoute collect avatar snapshot。
   - 将已解码 ImageBitmap 通过共享 UI provider 提供给 DialogScreen。
   - 不修改消息数据库模型，不把头像路径写进 Message。
@@ -160,14 +160,14 @@
   - \`app/src/main/res/xml/backup_rules.xml\`
   - \`app/src/main/res/xml/data_extraction_rules.xml\`
 
-- [ ] **Step 1: 添加门禁**
+- [x] **Step 1: 添加门禁**
   - Manifest 不出现相册读取权限。
   - 用户头像不写 SharedPreferences。
   - 用户头像不写 Room。
   - backup XML 不新增 filesDir include。
   - Repository 不持久化 content URI 字符串。
 
-- [ ] **Step 2: 静态回读 PASS**
+- [x] **Step 2: 静态回读 PASS**
 
 ---
 
@@ -205,3 +205,12 @@
 - [ ] **Step 3: 更新 Plan checkbox 与实际验证**
 - [ ] **Step 4: 更新 Draft PR 描述**
 - [ ] **Step 5: 保持 Draft，不自动 merge，等待用户集成授权**
+
+
+## Execution Note — 2026-09-24
+
+- 实现分支：`codex/user-avatar-upload`
+- Draft PR：#68
+- Repository、Photo Picker、恢复默认、Mine/Dialog 同步与权限/备份门禁代码已完成。
+- 当前未宣称 Gradle / Instrumentation / 真机通过；这些验证按用户要求由本地 AI 执行。
+- PR 文件范围未包含 Room、Manifest 权限、Gradle 依赖或备份 XML 修改。
