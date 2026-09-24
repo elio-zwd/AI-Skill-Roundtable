@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.elio.jianyu.network.AiModel
 import com.elio.jianyu.network.AiProvider
 import com.elio.jianyu.network.AiRuntimeConfiguration
 import com.elio.jianyu.network.AiUseCase
@@ -88,7 +89,11 @@ class SettingsScreenRegressionTest {
 
         composeRule.onNodeWithTag(AiManagementTestTags.MODEL_SHEET).assertIsDisplayed()
         composeRule.onNodeWithText("选择对话标题模型").assertIsDisplayed()
-        composeRule.onNodeWithText("Gemini 3.5 Flash").assertIsDisplayed()
+        composeRule.onNodeWithTag(
+            AiManagementTestTags.model(
+                "${AiUseCase.SESSION_TITLE.name}_${AiModel.GEMINI_35_FLASH.name}",
+            ),
+        ).assertIsDisplayed()
     }
 
     @Test
