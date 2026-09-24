@@ -157,7 +157,7 @@
 
 - [x] **Step 3: 保存原始/工作版本到 Google Drive，最终压缩版本进入 GitHub**
 
-- [ ] **Step 4: 重新运行资源完整性测试**
+- [x] **Step 4: 重新运行资源完整性测试**
   - 此时人物资源部分应全部满足契约；工具 6 项仍保持 RED，进入 Task 5。
 
 ---
@@ -183,7 +183,7 @@
 
 - [x] **Step 3: 保存 Google Drive 工作版本和 GitHub 最终资源**
 
-- [ ] **Step 4: 运行资源完整性测试，确认 44 项全部有正式视觉资源**
+- [x] **Step 4: 运行资源完整性测试，确认 44 项全部有正式视觉资源**
 
 ---
 
@@ -237,7 +237,7 @@
 
 - [x] **Step 4: 检查消息、参与角色条、选择 Sheet 是否消费同一 Character avatar 路径**
 
-- [ ] **Step 5: 运行聚焦测试**
+- [x] **Step 5: 运行聚焦测试**
 
 ---
 
@@ -245,15 +245,15 @@
 
 **Files:** 不新增功能；只修复本任务引入问题。
 
-- [ ] **Step 1: 静态回读**
+- [x] **Step 1: 静态回读**
   - 检查 44 Skill 分类数量：38 人物 + 6 工具。
   - 检查没有遗漏旧路径、重复视觉解析、正常路径文字头像。
   - 检查图片资源命名和大小写与 Skill ID 完全一致。
 
-- [ ] **Step 2: 运行 JVM 测试**
+- [x] **Step 2: 运行 JVM 测试**
   - `./gradlew testDebugUnitTest` 或 Windows 对应 Wrapper 命令。
 
-- [ ] **Step 3: 运行 Android 构建/静态检查**
+- [x] **Step 3: 运行 Android 构建/静态检查**
   - `compileDebugKotlin`
   - `lintDebug`
   - `assembleDebug`
@@ -279,7 +279,7 @@
 - 新建对话/增加角色后的参与角色条。
 - Skill 角色消息头像。
 
-- [ ] **Step 1: 生成只读本地 AI 验收 Prompt**
+- [x] **Step 1: 生成只读本地 AI 验收 Prompt**
   - 禁止修改、提交、push、merge。
   - 要求返回 PASS/FAIL、截图编号、问题 Skill ID、页面、复现步骤。
 
@@ -298,9 +298,9 @@
 ### Task 10: PR 收口
 
 - [ ] **Step 1: 回读本 Plan，更新全部 checkbox 与未验证项**
-- [ ] **Step 2: 创建 Draft PR（若尚未创建）**
+- [x] **Step 2: 创建 Draft PR（若尚未创建）**
   - Base 应匹配当前集成策略；在 `ui-05-artifacts` 尚未合入 main 时，优先以其作为依赖基线或明确 stacked PR 关系。
-- [ ] **Step 3: PR 描述记录**
+- [x] **Step 3: PR 描述记录**
   - 38 人物 / 6 工具视觉契约。
   - 新增/替换资源数量。
   - 实际执行测试与未执行设备验收。
@@ -328,3 +328,15 @@
 - [ ] 旧 19 张 PERSON_PERSPECTIVE 头像仍待机械重裁并进入 `avatars/portraits/`
 - [ ] 44 项资源完整性门禁待旧 19 张完成后转绿
 - [ ] 全量 CI / 本地 UI 验收待最终资源提交后执行
+
+
+## Execution Note — 2026-09-24
+
+- 本地 AI commit `002a0af7f0493e34f7792120ca44685d9166d46b` 已由 GPT 核对：只包含 19 张旧人物头像。
+- 该 commit 对应 GitHub Android CI、Android UI Test Compile、Secret scan 全部 PASS。
+- Android CI 内 `compileDebugKotlin`、完整 `testDebugUnitTest`、`lintDebug`、`assembleDebug`、optimized release APK、Room schema verify 均 PASS。
+- 本地 AI 聚焦 JVM：5 classes / 13 tests / 0 failures。
+- 资源数量门禁：38 portraits + 6 tools 已满足。
+- GPT 独立视觉复核否决第一次 `no_outer_blank: PASS`：16 张旧头像仍可见圆形底板/圆环/圆外角落。
+- 第二次视觉返工任务：`docs/superpowers/status/2026-09-24-local-ai-avatar-second-pass-prompt.md`。
+- Task 3 尚未完成；Task 9 正在问题闭环，不能宣称最终视觉验收通过。
