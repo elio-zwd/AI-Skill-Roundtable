@@ -340,3 +340,12 @@
 - GPT 独立视觉复核否决第一次 `no_outer_blank: PASS`：16 张旧头像仍可见圆形底板/圆环/圆外角落。
 - 第二次视觉返工任务：`docs/superpowers/status/2026-09-24-local-ai-avatar-second-pass-prompt.md`。
 - Task 3 尚未完成；Task 9 正在问题闭环，不能宣称最终视觉验收通过。
+
+
+## Execution Note — 2026-09-24 (third visual pass)
+
+- 第二次返工 commit `a769ed8feb7fc35b4c87e071e16340715fb986ad`：GitHub Android CI / UI Test Compile / Secret scan 全 PASS。
+- GPT 独立原图复核后，8 张旧头像已通过，11 张仍有处理伪影。
+- 典型问题：`elon_musk` 圆环残留；`richard_feynman` 头发顶部水平截平；`tim_cook` 肩部白色圆环。
+- 第三次定点返工任务：`docs/superpowers/status/2026-09-24-local-ai-avatar-third-pass-prompt.md`。
+- Task 3 / Task 9 仍未完成；未进入旧根目录 20 张重复资源删除阶段。
