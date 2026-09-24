@@ -189,7 +189,7 @@
 - 已验证代码 Head `4c8f339270fbf238e6913012a531c279a3664a44` → 当前 PR Head 仅 1 个 docs-only commit，唯一修改文件为 `docs/planning/codex-2026-09-22-completion-report.md`；该报告明确记录代码 Head 的 568 JVM + 251 Instrumentation 全绿。
 - #66 无 review submission、无未解决 inline review thread；合并前仍为 Draft，因此先标记 Ready。
 - 使用 GitHub 普通 merge commit 合并 #66，未 squash/rebase；新 `main` SHA：`55c60a196d88696ffcfc90c81c8e2ff384473a21`。
-- 新 main push workflows：Secret scan Run `36047751008` 已 PASS；Android UI Test Compile Run `36047750996` 与 Android CI Run `36047751036` 当前仍在运行。按 Gate，Task 2 Step 7 暂不勾选，且在两者完成前不进入 Task 3。
+- 新 main push workflows：Secret scan Run `36047751008` PASS；Android UI Test Compile Run `36047750996` PASS；Android CI Run `36047751036` 仍在运行。Android CI 已完成并通过 static app identity gate、debug Kotlin compile、debug JVM unit tests、debug lint，当前执行 `Assemble debug APK`。按 Gate，Task 2 Step 7 暂不勾选，在 Android CI 完成前不进入 Task 3。
 
 ---
 
