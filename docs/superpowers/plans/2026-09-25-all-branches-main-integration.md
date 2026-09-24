@@ -258,10 +258,10 @@
 **Branch / PR:** `codex/skill-role-avatars` / #67  
 **Original parent:** #66
 
-- [ ] **Step 1: 确认 #66 Head 已是 `main` 祖先。**
-- [ ] **Step 2: 将 PR #67 base 从 `codex/ui-05-artifacts` 改为 `main`。**
-- [ ] **Step 3: 检查 PR diff 只剩 #67 自身头像/视觉增量，不重新显示 #66 的 100+ 文件。**
-- [ ] **Step 4: 保持 Draft，先修当前失败。**
+- [x] **Step 1: 确认 #66 Head 已是 `main` 祖先。**
+- [x] **Step 2: 将 PR #67 base 从 `codex/ui-05-artifacts` 改为 `main`。**
+- [x] **Step 3: 检查 PR diff 只剩 #67 自身头像/视觉增量，不重新显示 #66 的 100+ 文件。**
+- [x] **Step 4: 保持 Draft，先修当前失败。**
 
 ---
 
@@ -272,9 +272,9 @@
 - Read: `app/src/main/java/com/elio/jianyu/ui/screens/dialog/overlays/AddSkillRoleBottomSheet.kt`
 - Read: `app/src/test/java/com/elio/jianyu/ui/screens/dialog/overlays/AddSkillRoleBottomSheetArchitectureTest.kt`
 
-- [ ] **Step 1: 本地/CI 复现 `:app:assembleDebugAndroidTest` 的 unresolved `assertExists`。**
-- [ ] **Step 2: 检查当前 Compose UI Test 版本和仓库已使用的断言 API。**
-- [ ] **Step 3: 仅修改测试为当前依赖支持、且语义等价的存在/可见断言；优先复用仓库已有 `assertIsDisplayed` 模式。**
+- [x] **Step 1: 本地/CI 复现 `:app:assembleDebugAndroidTest` 的 unresolved `assertExists`。**
+- [x] **Step 2: 检查当前 Compose UI Test 版本和仓库已使用的断言 API。**
+- [x] **Step 3: 仅修改测试为当前依赖支持、且语义等价的存在/可见断言；优先复用仓库已有 `assertIsDisplayed` 模式。**
 - [ ] **Step 4: 运行聚焦 AndroidTest APK compile：**
   ```powershell
   .\gradlew.bat :app:assembleDebugAndroidTest
@@ -283,12 +283,25 @@
   ```powershell
   .\gradlew.bat :app:testDebugUnitTest --tests "*OfficialSkillVisualAssetTest*" --tests "*OfficialSkillConversationRoleAdapterTest*" --tests "*SkillRoleCatalogProjectionTest*" --tests "*UserAvatarArchitectureTest*" --tests "*AddSkillRoleBottomSheetArchitectureTest*"
   ```
-- [ ] **Step 6: Commit：**
+- [x] **Step 6: Commit：**
   ```text
   test: 修复 Skill 角色头像 AndroidTest 断言兼容
   ```
 
 **Do not:** 删除 `recommendedAndAllSkills_renderCanonicalAvatarImages` 测试或降低“两个角色都显示正式头像”的断言。
+
+
+#### Task 5–6 执行进度
+
+- #66 Head `10d4b042...` 已确认是 `main@55c60a1...` 的祖先。
+- #67 已从 `codex/ui-05-artifacts` retarget 到 `main`，仍保持 Draft；retarget 后 changed files = 94。
+- changed files 范围集中于 38 portraits / 6 tools 资源、正式视觉映射、Add Skill Role/Skills/Execution 相关接线、测试和头像施工文档；未重新带入 #66 的备份/Runtime/UI-04～UI-09 整体变更。
+- 已用历史失败 Run `36029079282` / Job `107733435042` 重新核对：唯一 Kotlin 编译根因是 `AddSkillRoleBottomSheetTest.kt:3:33 Unresolved reference 'assertExists'`。
+- 当前 androidTest 依赖为 Compose BOM + `androidx.compose.ui:ui-test-junit4`；仓库多个 AndroidTest 已稳定使用 `androidx.compose.ui.test.assertIsDisplayed`。
+- 最小修复：只将该测试 import/call 从 `assertExists` 替换为 `assertIsDisplayed`，保留“推荐角色 + 全部角色两个正式头像节点都必须显示”的断言。
+- 修复 commit：`07b186a8203259cccb7d690a3133f04cf8432a07`（`test: 修复 Skill 角色头像 AndroidTest 断言兼容`）。
+- 当前 #67：base=`main@55c60a1...`，head=`07b186a...`，Draft=true，mergeable=true。
+- Task 6 Step 4/5 等待新 Head 的 GitHub Android UI Test Compile / Android CI 作为远端等价验证；未在 GPT 环境虚构本地 Gradle 执行。
 
 ---
 
