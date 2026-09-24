@@ -53,6 +53,7 @@ fun MineScreen(
     onOpenAbout: () -> Unit = {},
     onOpenDataPrivacy: () -> Unit = {},
     onOpenBackup: () -> Unit = {},
+    onEditAvatar: () -> Unit = {},
     onOpenSettings: () -> Unit,
     onOpenAiManagement: () -> Unit,
     onOpenTelemetry: () -> Unit,
@@ -72,7 +73,11 @@ fun MineScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 item {
-                    PersonalBackgroundHero(uiState = uiState, onOpenPersonalContext = onOpenPersonalContext)
+                    PersonalBackgroundHero(
+                        uiState = uiState,
+                        onOpenPersonalContext = onOpenPersonalContext,
+                        onEditAvatar = onEditAvatar,
+                    )
                 }
                 item {
                     Text(
@@ -141,6 +146,7 @@ private fun MineHeader(onOpenSettings: () -> Unit) {
 private fun PersonalBackgroundHero(
     uiState: MineUiState,
     onOpenPersonalContext: () -> Unit,
+    onEditAvatar: () -> Unit,
 ) {
     Card(
         modifier = Modifier
@@ -167,15 +173,14 @@ private fun PersonalBackgroundHero(
                             .clip(CircleShape),
                     )
                     IconButton(
-                        onClick = {},
-                        enabled = false,
+                        onClick = onEditAvatar,
                         modifier = Modifier
                             .size(32.dp)
-                            .testTag(MineTestTags.AVATAR_SWITCH_UNAVAILABLE),
+                            .testTag(MineTestTags.AVATAR_EDIT_BUTTON),
                     ) {
                         Icon(
                             imageVector = Icons.Default.Edit,
-                            contentDescription = "头像切换（待产品定义）",
+                            contentDescription = "编辑头像",
                             modifier = Modifier.scale(0.72f),
                         )
                     }
