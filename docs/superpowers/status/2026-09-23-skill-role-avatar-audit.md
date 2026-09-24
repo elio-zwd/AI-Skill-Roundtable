@@ -197,3 +197,73 @@ Head `562cf2c8ba941786ec9492e5b74a2ce3a57f38e0`：
 `docs/superpowers/status/2026-09-23-local-ai-skill-avatar-assets-prompt.md`
 
 旧写实 v1 生成稿明确不采用；正式新增人物使用 v2 2D 编辑插画。
+
+
+## 独立复核 — 2026-09-24 / commit `002a0af7f0493e34f7792120ca44685d9166d46b`
+
+本地 AI 报告中的以下事实已由 GPT 复核成立：
+
+- PR #67 Head 与报告 commit 一致。
+- 该 commit 只新增 19 张 `app/src/main/assets/avatars/portraits/*.jpg`。
+- `changpeng_zhao` 已无品牌 Logo。
+- `justin_sun` 已无 “Web3” 字样。
+- 19 张均未出现明显切头/切脸。
+- GitHub Android CI：PASS。
+- Android UI Test Compile：PASS。
+- Secret scan：PASS。
+- Android CI 内 `compileDebugKotlin`、完整 `testDebugUnitTest`、`lintDebug`、`assembleDebug`、optimized release APK、Room schema verify 均 PASS。
+
+但 GPT 对 19 张最终图逐张原图复核后，**不接受 `no_outer_blank: PASS`**。
+
+### 视觉根因仍存在
+
+多数旧头像虽然被放大，但仍然能看到“圆形底板/圆环边界 + 圆外角落画布”。角色详情使用 rounded-rectangle 大头像时，这些圆外区域仍会表现为明显空白或不自然边角。
+
+### 当前可接受
+
+以下 3 张已无明显“内圆 + 外角落”边界，可暂不返工：
+
+- `changpeng_zhao.jpg`
+- `justin_sun.jpg`
+- `mr_beast.jpg`
+
+### 必须二次返工
+
+以下 16 张仍能直接辨认出圆形底板、圆环或圆外角落：
+
+- `andrej_karpathy.jpg`
+- `charlie_munger.jpg`
+- `donald_trump.jpg`
+- `duan_yongping.jpg`
+- `elon_musk.jpg`
+- `feng_ge.jpg`
+- `ilya_sutskever.jpg`
+- `nassim_taleb.jpg`
+- `naval_ravikant.jpg`
+- `paul_graham.jpg`
+- `richard_feynman.jpg`
+- `sigmund_freud.jpg`
+- `steve_jobs.jpg`
+- `tim_cook.jpg`
+- `zhang_xuefeng.jpg`
+- `zhang_yiming.jpg`
+
+其中最明显：
+- `donald_trump`：人物外仍有完整浅色圆形底板，外围留白明显。
+- `elon_musk`：圆环边界几乎完整可见。
+- `tim_cook`：白色圆环和外层蓝色角落非常明显。
+
+### 第二次验收标准
+
+最终 512×512 图中：
+
+1. 不得出现完整或近完整的圆形/椭圆底板轮廓。
+2. 不得在四角看到与人物背景明显不同的“圆外画布楔形区域”。
+3. 不得保留明显圆环边框。
+4. 优先方案：进一步紧裁，使圆形底板边界越出最终方形画布。
+5. 如果继续裁切会切掉头发、耳朵或下巴，可对背景做非生成式延展/填充，使四角与主体背景连续；不得透明。
+6. 人物身份、五官和原插画内容不得生成式重画。
+7. 头顶、耳朵、下巴不得被切断；肩部允许部分出框。
+8. 在 160×160 预览和 100% 原图两个尺度上均不能一眼识别出“一个圆头像嵌在方形图片里”。
+
+本次第二次返工只处理上述 16 张，不需要重做已通过的 3 张。
