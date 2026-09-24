@@ -219,21 +219,35 @@
 **PR:** #65 `codex/fix-app-identity-gate`  
 **Files:** `tools/check-app-identity.ps1`
 
-- [ ] **Step 1: 在 #66 已进入 main 后比较：**
+- [x] **Step 1: 在 #66 已进入 main 后比较：**
   ```powershell
   git diff main...origin/codex/fix-app-identity-gate -- tools/check-app-identity.ps1
   ```
-- [ ] **Step 2: 对照最新 main 的 identity gate，检查 #65 是否仍有“当前产品身份契约必需、main 缺失”的规则。**
-- [ ] **Step 3A: 若无缺失规则：关闭 #65 为 superseded，不 merge。**
-- [ ] **Step 3B: 若有真实缺失规则：在从最新 main 创建的一个小修复分支中只移植必要 hunk，新增/更新对应静态测试或脚本自验证；不要 merge #65 整个旧脚本。**
-- [ ] **Step 4: 运行：**
+- [x] **Step 2: 对照最新 main 的 identity gate，检查 #65 是否仍有“当前产品身份契约必需、main 缺失”的规则。**
+- [x] **Step 3A: 若无缺失规则：关闭 #65 为 superseded，不 merge。**
+- [x] **Step 3B (N/A): 若有真实缺失规则：在从最新 main 创建的一个小修复分支中只移植必要 hunk，新增/更新对应静态测试或脚本自验证；不要 merge #65 整个旧脚本。** 未触发，因为 Step 3A 成立。
+- [x] **Step 4: 运行：**
   ```powershell
   pwsh -NoProfile -File tools/check-app-identity.ps1
   pwsh -NoProfile -File tools/check-secrets.ps1 -IncludeHistory
   ```
-- [ ] **Step 5: 若产生小修复 PR，先 CI 绿再 merge。**
+- [x] **Step 5 (N/A): 若产生小修复 PR，先 CI 绿再 merge。** 未产生小修复 PR。
 
 **Gate:** 最新 main 的 identity gate 自身必须 PASS；不能把 #65 的历史“固定文件清单”规则重新引入而阻止已经批准的产品重构。
+
+
+#### Task 4 执行记录
+
+- #65 Head：`9e94e28067ff961a87a083d339e418c17dff66bf`；相对当前 main 为 diverged，只有 1 个独有 commit，唯一变更文件为 `tools/check-app-identity.ps1`。
+- 逐项比较 #65 与当前 main 脚本：
+  - namespace/applicationId、旧包目录、Kotlin package、Manifest、run.ps1、v5 identity schema、legacy schema freeze、CI 双包边界、README/AGENTS 等核心身份规则均已保留；
+  - 当前 main 额外检查 PR09-01 历史迁移清单不重新成为活动源码；
+  - 当前 main 将旧的动态 Room `>=5` 检查升级为明确的 Room v14 Schema + v1→v14 migration 链；
+  - 当前 main 使用当前 `EncryptedApiKeyStore` / `ProviderKeyRepository` 契约检查，覆盖 Provider 隔离密文文件；
+  - 因此不存在“#65 有而 main 缺失”的当前必需规则，不应移植旧 hunk。
+- Task 4 Step 4 在本 GPT 环境未直接运行 Windows `pwsh`；使用 exact `main@55c60a1...` 的等价 GitHub 门禁证据：Android CI Run `36047751036` 中 `Run static app identity gate` PASS；Secret scan Run `36047751008` 使用 full-history checkout 并完成 `Scan tracked files and reachable history` PASS。
+- 已在 #65 留 superseded 说明并关闭 PR；`merged=false`，未执行 merge；远端 `codex/fix-app-identity-gate` 分支保留。
+- 未产生小修复分支或 PR。
 
 ---
 
@@ -640,6 +654,20 @@
 4. **Batch 4:** Task 11–12（#69）
 5. **Batch 5:** Task 13–16（Router + 历史/文档分支审计）
 6. **Batch 6:** Task 17–20（最终 main 验收 + 清理）
+
+
+
+### Batch 1 完成记录（Task 1–4）
+
+- 当前 main：`55c60a196d88696ffcfc90c81c8e2ff384473a21`。
+- #66：Head `10d4b04255d7bea187f45c5e7f28796b1a18c3ad`，已用普通 merge commit 合入 main。
+- 新增 main merge commit：`55c60a196d88696ffcfc90c81c8e2ff384473a21`。
+- GitHub Actions：main Secret scan / Android UI Test Compile / Android CI 全 PASS；Android CI 的 legacy-apk / migration-tests 为条件性 skipped。
+- 本地 AI 验收：本 Batch 未新增设备验收；#66 复用已记录的 exact code Head `4c8f339...` 568 JVM + 251 Instrumentation PASS，因为其后至 #66 merge Head 只有 docs-only 变化。
+- #64：已确认无独有 commit，superseded 并关闭，分支保留。
+- #65：完成语义审计，当前 main 无缺失规则，superseded 并关闭，分支保留。
+- 尚未验证：#67 当前 Head 的 AndroidTest compile 已知失败仍待 Task 6 修复；#68/#69 保持原已知失败状态。
+- 下一 Batch 前置条件：满足。#66 Head 已为 main 祖先，可以进入 #67 retarget / fix。
 
 每个 Batch 结束必须记录：
 - 当前 main SHA；
