@@ -173,7 +173,7 @@
 - [x] **Step 4: 在获得用户明确 merge 授权后，将 #66 标记 Ready。**
 - [x] **Step 5: 使用普通 merge commit 合并 #66；禁止 squash/rebase merge。**
 - [x] **Step 6: 锁定新的 `main` SHA。**
-- [ ] **Step 7: 查询新 main 的 Secret scan / Android UI Test Compile / Android CI；全部成功才进入下一阶段。**
+- [x] **Step 7: 查询新 main 的 Secret scan / Android UI Test Compile / Android CI；全部成功才进入下一阶段。**
 
 **Expected verification:**
 - 由于 #66 的代码树已经做过本地全量设备验收，若 merge 本身没有冲突/额外代码修改，不要求重新本地跑 251 项。
@@ -189,7 +189,7 @@
 - 已验证代码 Head `4c8f339270fbf238e6913012a531c279a3664a44` → 当前 PR Head 仅 1 个 docs-only commit，唯一修改文件为 `docs/planning/codex-2026-09-22-completion-report.md`；该报告明确记录代码 Head 的 568 JVM + 251 Instrumentation 全绿。
 - #66 无 review submission、无未解决 inline review thread；合并前仍为 Draft，因此先标记 Ready。
 - 使用 GitHub 普通 merge commit 合并 #66，未 squash/rebase；新 `main` SHA：`55c60a196d88696ffcfc90c81c8e2ff384473a21`。
-- 新 main push workflows：Secret scan Run `36047751008` PASS；Android UI Test Compile Run `36047750996` PASS；Android CI Run `36047751036` 仍在运行。Android CI 已完成并通过 static app identity gate、debug Kotlin compile、debug JVM unit tests、debug lint，当前执行 `Assemble debug APK`。按 Gate，Task 2 Step 7 暂不勾选，在 Android CI 完成前不进入 Task 3。
+- 新 main push workflows 全部完成：Secret scan Run `36047751008` PASS；Android UI Test Compile Run `36047750996` PASS；Android CI Run `36047751036` PASS。Android CI 已通过 identity gate、debug Kotlin、JVM、lint、Debug APK、package/schema 校验、optimized Release/R8、release package 校验、Room committed schema、reports 与 APK artifacts；`legacy-apk` / `migration-tests` 因 workflow 条件为 skipped，属于预期条件跳过。Task 2 Gate 满足。
 
 ---
 
