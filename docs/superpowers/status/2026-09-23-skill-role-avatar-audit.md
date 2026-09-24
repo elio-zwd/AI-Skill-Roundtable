@@ -267,3 +267,15 @@ Head `562cf2c8ba941786ec9492e5b74a2ce3a57f38e0`：
 8. 在 160×160 预览和 100% 原图两个尺度上均不能一眼识别出“一个圆头像嵌在方形图片里”。
 
 本次第二次返工只处理上述 16 张，不需要重做已通过的 3 张。
+
+
+## 待收口：旧根目录重复资源
+
+当前 `app/src/main/assets/avatars/` 根目录仍保留 20 张旧 JPG，共 7,517,990 bytes（约 7.17 MiB）。
+
+它们暂时保留，作为第二次视觉返工的源/回退，不在返工前删除。
+
+第二次视觉通过后：
+1. 定点确认当前生产代码、`skills_config.json`、metadata 生成脚本和测试不再引用 `avatars/<id>.jpg`；
+2. 删除根目录 20 张旧 JPG，只保留 `avatars/portraits/` 与 `avatars/tools/`；
+3. 重新运行 JVM、lint、assemble 和相关 UI compile，确认 APK 不依赖旧副本。
