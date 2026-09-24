@@ -197,12 +197,20 @@
 
 **PR:** #64 `codex/ui-03-role-discovery`
 
-- [ ] **Step 1: 用 ancestry/compare 再确认 #64 Head 是已合并 #66 Head 的祖先。**
-- [ ] **Step 2: 确认 #64 没有 #66 不包含的独有 commit。**
-- [ ] **Step 3: 在允许关闭 PR 的授权范围内，将 #64 关闭并注明 superseded by #66。**
-- [ ] **Step 4: 不删除远端 branch，留到最终清理 Task。**
+- [x] **Step 1: 用 ancestry/compare 再确认 #64 Head 是已合并 #66 Head 的祖先。**
+- [x] **Step 2: 确认 #64 没有 #66 不包含的独有 commit。**
+- [x] **Step 3: 在允许关闭 PR 的授权范围内，将 #64 关闭并注明 superseded by #66。**
+- [x] **Step 4: 不删除远端 branch，留到最终清理 Task。**
 
 **Gate:** 不 merge #64。
+
+
+#### Task 3 执行记录
+
+- #64 Head：`41e412b67dc03066e02b6c83d9b7613f45d8811d`。
+- 与当前 `main@55c60a196d88696ffcfc90c81c8e2ff384473a21` 双向 compare：#64 → main 为 `ahead_by=106 / behind_by=0`，main → #64 为 `ahead_by=0 / behind_by=106`，merge base 即 #64 Head；因此 #64 是 main 的严格祖先，且无独有 commit。
+- 已在 #64 留 superseded by #66 说明并关闭 PR；执行过程中**未调用 merge #64**。关闭后 GitHub connector 将该 PR 元数据报告为 `merged=true`，这是 GitHub 对其提交已由其他路径进入 main 的状态判定，不代表本 Task 对 #64 执行了 merge。
+- 远端 `codex/ui-03-role-discovery` 分支保留，未删除。
 
 ---
 
