@@ -359,3 +359,46 @@ Head `562cf2c8ba941786ec9492e5b74a2ce3a57f38e0`：
   - 无水平平切头顶；
   - 无切头/切脸；
   - 背景连续。
+
+
+## 第三次返工独立复核 — 2026-09-24 / commit `1d2ab0020b98c0bde742d66b049c73e974fca609`
+
+远端已成功 fast-forward 到该 commit，且：
+- Android CI：PASS
+- Android UI Test Compile：PASS
+- Secret scan：PASS
+- commit 只包含指定 11 张头像。
+
+GPT 已逐张原图复核 11 张。以下 10 张通过：
+
+- `elon_musk.jpg`
+- `charlie_munger.jpg`
+- `feng_ge.jpg`
+- `ilya_sutskever.jpg`
+- `nassim_taleb.jpg`
+- `naval_ravikant.jpg`
+- `paul_graham.jpg`
+- `richard_feynman.jpg`
+- `sigmund_freud.jpg`
+- `tim_cook.jpg`
+
+其中上一轮关键问题均已解决：
+- `elon_musk`：圆环残留已消失。
+- `richard_feynman`：头发顶部水平截平已消失。
+- `tim_cook`：肩部白色圆环已消失。
+
+### 唯一剩余：steve_jobs.jpg
+
+`steve_jobs.jpg` 底部手部/深色衣服交界附近仍有一小段明显白色细线/弧线伪影，视觉上仍像旧圆环残留。
+
+最终只允许再修改这一张：
+`app/src/main/assets/avatars/portraits/steve_jobs.jpg`
+
+要求：
+- 只清除该白色细线/弧线；
+- 不改变手、脸、眼镜、衣服和背景；
+- 不做生成式重画；
+- 512×512 规格不变；
+- 聚焦测试继续 PASS。
+
+该单图通过后，旧人物头像视觉返工即可关闭。
