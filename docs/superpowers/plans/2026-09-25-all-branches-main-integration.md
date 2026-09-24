@@ -98,9 +98,9 @@
 
 **Produces:** 一份执行时快照：最新 `main` SHA、所有相关 PR 的 state/draft/base/head/mergeable、当前 Head Actions。
 
-- [ ] **Step 1: 读取根规则、UI 规则和本 Plan。**
-- [ ] **Step 2: 查询 `main`、PR #55/#57/#64/#65/#66/#67/#68/#69。**
-- [ ] **Step 3: 查询分支：**
+- [x] **Step 1: 读取根规则、UI 规则和本 Plan。**
+- [x] **Step 2: 查询 `main`、PR #55/#57/#64/#65/#66/#67/#68/#69。**
+- [x] **Step 3: 查询分支：**
   - `codex/ai-router-mvp`
   - `codex/androidtest-budget-baseline`
   - `codex/core-loop-p0`
@@ -117,10 +117,44 @@
   - `design/pr-08d-topic-route-html-prototypes`
   - `docs/pr-09-12g-gemini-interactions-rules`
   - `docs/skills-catalog`
-- [ ] **Step 4: 如果 #66/#67/#68 的祖先关系不再是 #66 → #67 → #68，停止后续 merge，先更新本 Plan 的 Snapshot 和集成策略。**
-- [ ] **Step 5: 记录执行时精确 SHA。**
+- [x] **Step 4: 如果 #66/#67/#68 的祖先关系不再是 #66 → #67 → #68，停止后续 merge，先更新本 Plan 的 Snapshot 和集成策略。**
+- [x] **Step 5: 记录执行时精确 SHA。**
 
 **Gate:** 不修改任何生产代码；只在状态与本 Plan 相符或已更新 Plan 后进入 Phase B。
+
+
+#### Task 1 执行快照（2026-09-25）
+
+- 总控 Plan 执行前 Head：`0531920f72e8138643acb042956aab565f177b2c`；重新查询结果与该 SHA **identical**。
+- `main`：`53321b6b26d7084e97be027fe1098bcb1fe403c5`，与计划编写时快照一致。
+- Stacked ancestry：`#66 10d4b042...` → `#67 362e4055...` → `#68 913b2ba2...` 均为严格祖先链；#64 Head `41e412b6...` 仍是 #66 Head 的祖先。
+- PR 当前状态：
+  - #55 OPEN / Draft / head `62c92c23773bca7bdd5a47fa0820f9f1fc5f0d45`；Secret scan、Android CI PASS。
+  - #57 OPEN / non-Draft / mergeable=false / head `399b8e3daf6e4020e36ed5183e8700a8cfba7192`；当前 Head 无关联 PR workflow run。
+  - #64 OPEN / non-Draft / head `41e412b67dc03066e02b6c83d9b7613f45d8811d`；Secret/UI Test Compile PASS，Android CI FAIL。该 PR 后续只做 superseded ancestry 审计，不作为待合并候选。
+  - #65 OPEN / non-Draft / head `9e94e28067ff961a87a083d339e418c17dff66bf`；Secret scan、Android CI PASS。
+  - #66 OPEN / Draft / head `10d4b04255d7bea187f45c5e7f28796b1a18c3ad`；Secret/UI Test Compile/Android CI PASS。
+  - #67 OPEN / Draft / head `362e40553f4dcc54240917204d9a6435b80e6e8e`；Secret、Android CI PASS；Android UI Test Compile FAIL（Run `36029079282`，与本 Plan 已知根因一致）。
+  - #68 CLOSED / Draft / unmerged / head `913b2ba2490a99af20b3fca6bdba1e98d0d123fb`；Secret PASS；Android CI FAIL（Run `36033635178`）且 Android UI Test Compile FAIL（Run `36033635275`），均为本 Plan 已记录失败。
+  - #69 CLOSED / Draft / unmerged / head `ab8ff6daa34a8499072ce703299709ef8b1594f7`；Secret/UI Test Compile PASS；Android CI FAIL（Run `36037057613`，与本 Plan 已知旧基线 identity gate 根因一致）。
+- 分支 Head：
+  - `codex/ai-router-mvp` = `f55904066a09f6cc403e14a6623489e2e070cc97`
+  - `codex/androidtest-budget-baseline` = `0c9d1d16c330366dcddb9422aacea72a60daad05`
+  - `codex/core-loop-p0` = `399b8e3daf6e4020e36ed5183e8700a8cfba7192`
+  - `codex/fix-app-identity-gate` = `9e94e28067ff961a87a083d339e418c17dff66bf`
+  - `codex/skill-role-avatars` = `362e40553f4dcc54240917204d9a6435b80e6e8e`
+  - `codex/ui-01-mine-navigation` = `0b105704266719e12be697c10738606cda3e19e8`
+  - `codex/ui-02-role-spec` = `e874cb3d51bec3e8ae2cce10e77e86e5f6dcac11`
+  - `codex/ui-03-role-discovery` = `41e412b67dc03066e02b6c83d9b7613f45d8811d`
+  - `codex/ui-03-spec` = `f67179562f8cef05065abea949db3158a24af52e`
+  - `codex/ui-05-artifacts` = `10d4b04255d7bea187f45c5e7f28796b1a18c3ad`
+  - `codex/ui-postmerge-audit-fixes` = `0b2b70b265e79d3f7359f40034776d402f95ba2f`
+  - `codex/user-avatar-upload` = `913b2ba2490a99af20b3fca6bdba1e98d0d123fb`
+  - `codex/ai-management-ui-refresh` = `ab8ff6daa34a8499072ce703299709ef8b1594f7`
+  - `design/pr-08d-topic-route-html-prototypes` = `359a5d18c7e9bbaa4db25b8aedd3970a31cb7024`
+  - `docs/pr-09-12g-gemini-interactions-rules` = `62c92c23773bca7bdd5a47fa0820f9f1fc5f0d45`
+  - `docs/skills-catalog` = `bd493672a35c77ff5c19fa3a3e2bb489bf60eb1b`
+- 结论：核心拓扑与原 Plan 一致，无需改变集成顺序。Task 1 只更新本 Plan，未修改生产代码；进入 Phase B。
 
 ---
 
