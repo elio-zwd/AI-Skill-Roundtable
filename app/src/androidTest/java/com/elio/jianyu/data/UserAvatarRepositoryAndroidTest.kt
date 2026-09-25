@@ -28,19 +28,23 @@ class UserAvatarRepositoryAndroidTest {
     private lateinit var publishedFile: File
 
     @Before
-    fun setUp() = runBlocking {
-        context = ApplicationProvider.getApplicationContext()
-        repository = UserAvatarRepository(context)
-        publishedFile = File(context.filesDir, "user-profile/avatar.jpg")
-        repository.resetToDefault()
+    fun setUp() {
+        runBlocking {
+            context = ApplicationProvider.getApplicationContext()
+            repository = UserAvatarRepository(context)
+            publishedFile = File(context.filesDir, "user-profile/avatar.jpg")
+            repository.resetToDefault()
+        }
     }
 
     @After
-    fun tearDown() = runBlocking {
-        repository.resetToDefault()
-        context.cacheDir.listFiles()
-            ?.filter { it.name.startsWith("avatar-repository-test-") }
-            ?.forEach(File::delete)
+    fun tearDown() {
+        runBlocking {
+            repository.resetToDefault()
+            context.cacheDir.listFiles()
+                ?.filter { it.name.startsWith("avatar-repository-test-") }
+                ?.forEach(File::delete)
+        }
     }
 
     @Test
