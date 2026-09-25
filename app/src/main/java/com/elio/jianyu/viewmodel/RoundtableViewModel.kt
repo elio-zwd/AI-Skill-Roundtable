@@ -52,6 +52,8 @@ import com.elio.jianyu.roundtable.RequestBudgetTracker
 import com.elio.jianyu.roundtable.RoundtableOrchestrator
 import com.elio.jianyu.roundtable.TranscriptBuilder
 import com.elio.jianyu.execution.SearchMode
+import com.elio.jianyu.skill.knowledge.SkillKnowledgeContextFormatter
+import com.elio.jianyu.skill.knowledge.SkillKnowledgeRetrievalResult
 import com.elio.jianyu.roundtable.RoundtableDatabaseGateway
 import com.elio.jianyu.roundtable.CharacterAnswerGateway
 import com.elio.jianyu.roundtable.RoundtableBudgetManager
@@ -176,23 +178,11 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
     private val prefs = application.getSharedPreferences("roundtable_settings", android.content.Context.MODE_PRIVATE)
     private val conversationPreferences = ConversationSessionPreferences(application)
 
-    private var skillsSummaries: org.json.JSONObject? = null
     private var activeRoundtableJob: Job? = null
     private var sessionNavigationVersion = 0L
-
-    private fun loadSkillsSummariesOnce(context: android.content.Context): org.json.JSONObject {
-        val current = skillsSummaries
-        if (current != null) return current
-        val json = try {
-            val jsonStr = context.assets.open("skills_summaries.json").use { it.reader().readText() }
-            org.json.JSONObject(jsonStr)
-        } catch (error: java.lang.Exception) {
-            PrivacySafeLogger.e("RoundtableViewModel", "Failed to load skill summaries", error)
-            org.json.JSONObject()
-        }
-        skillsSummaries = json
-        return json
-    }
+    private val skillKnowledgeRetriever = runCatching {
+        JianyuAppRuntimeProvider.get(application).skillKnowledgeRetriever
+    }.getOrNull()
 
     private val database = RoundtableDatabase.getDatabase(application, viewModelScope)
     private val charRepo = com.elio.jianyu.data.CharacterRepository(database.characterDao())
@@ -1647,125 +1637,72 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
     ): String = withContext(Dispatchers.IO) {
         val context = getApplication<Application>().applicationContext
         val promptWithContext = appendSelectedConversationContext(sessionId, prompt)
-        val folderName = character.skillAssetPath
-            .substringAfter("skills/", "")
-            .substringBefore("/SKILL.md", "")
-
         val mainSkillPrompt = com.elio.jianyu.skill.SkillLoader.loadSkill(
             context,
             character.skillAssetPath
         )
+        val retrievalQuery = promptWithContext.lineSequence()
+            .filter { it.startsWith("用户提问：") }
+            .lastOrNull()
+            ?.removePrefix("用户提问：")
+            ?.trim()
+            .takeUnless { it.isNullOrBlank() }
+            ?: prompt.trim()
+        val skillKnowledgeText = when (
+            val retrieval = skillKnowledgeRetriever?.retrieve(
+                ownerSkillId = character.id,
+                sessionId = sessionId,
+                currentUserInput = retrievalQuery,
+                onAttemptStarted = { tracker.tryConsumeOptional() },
+            )
+        ) {
+            is SkillKnowledgeRetrievalResult.Available ->
+                SkillKnowledgeContextFormatter.format(retrieval)
+            else -> ""
+        }
+
         val configuration = AiManager.configuration(context).configuration.value
         val configuredModel = configuration.modelFor(AiUseCase.ROUNDTABLE_ANSWER)
         val provider = attemptPlan.firstOrNull()?.provider ?: configuredModel.provider
         val model = configuredModel.takeIf { it.provider == provider } ?: defaultModel(provider)
-        val exampleFiles = if (folderName.isNotBlank()) {
-            com.elio.jianyu.skill.SkillLoader
-                .listFilesInAssetDir(context, "skills/$folderName/examples")
-                .filter { it.endsWith(".md", ignoreCase = true) }
-        } else {
-            emptyList()
-        }
-        val referenceFiles = if (folderName.isNotBlank()) {
-            com.elio.jianyu.skill.SkillLoader
-                .listFilesInAssetDir(context, "skills/$folderName/references")
-                .filter { it.endsWith(".md", ignoreCase = true) }
-        } else {
-            emptyList()
-        }
-
-        val totalFiles = exampleFiles + referenceFiles
         val mode = _searchMode.value
         var allSearchInfoText = ""
-        val selectedExamples = mutableListOf<String>()
-        val selectedReferences = mutableListOf<String>()
 
-        if (totalFiles.isNotEmpty() || mode != SearchMode.OFF) {
-            val summariesMap = loadSkillsSummariesOnce(context)
-            val formatFileList = {
-                if (totalFiles.isEmpty()) {
-                    "（当前无候选本地资料）"
-                } else {
-                    totalFiles.joinToString("\n") { fileName ->
-                        val isExample = fileName in exampleFiles
-                        val folderSum = summariesMap.optJSONObject(folderName)
-                        val fileSum = if (isExample) {
-                            folderSum?.optJSONObject("examples")?.optString(fileName, "")
-                        } else {
-                            folderSum?.optJSONObject("references")?.optString(fileName, "")
-                        }
-                        val cleanSum = if (fileSum.isNullOrBlank()) "暂无摘要" else fileSum
-                        "- $fileName (摘要描述: $cleanSum)"
-                    }
-                }
-            }
-
+        if (mode != SearchMode.OFF) {
             val brokerPrompt = when (mode) {
-                SearchMode.OFF -> """
-                    你是一个知识检索经纪人 (Broker)。
-                    请分析当前的对话上下文，并从下方的【候选本地资料文件列表】中，选择回答当前问题最紧密相关、最必要的参考文件（如果列表为空，则返回空数组）。
-
-                    【对话上下文】
-                    $promptWithContext
-
-                    【候选本地资料文件列表】
-                    ${formatFileList()}
-
-                    【输出规范】
-                    你必须返回一个符合以下 JSON 格式的纯 JSON 字符串。不要包含 any Markdown 格式包裹（例如不要使用 ```json 或 ``` 标记），直接输出 JSON 内容。
-
-                    JSON 格式：
-                    {
-                      "selectedFiles": ["01-writings.md", "03-expression-dna.md"]
-                    }
-                """.trimIndent()
-
                 SearchMode.AUTO -> """
-                    你是一个知识检索与联网决策代理 (Broker)。
-                    请分析当前的对话上下文，并作出以下两项决策：
-                    1. 本地资料加载决策：从下方的【候选本地资料文件列表】中，选择回答当前问题最紧密相关、最必要的参考文件（如果列表为空，则返回空数组）。
-                    2. 联网搜索接地决策：判断当前问题或对话上下文是否需要最新的实时信息、新闻、外部事实数据来辅助解答。如果需要，请将 `needSearch` 设为 `true`，并在 `searchQueries` 数组中提供 1 到多个精准的搜索关键词（建议 1-3 个）。如果不需要，请将 `needSearch` 设为 `false` 且 `searchQueries` 设为空数组。
+                    你是一个联网检索决策代理。
+                    请判断当前问题是否依赖最新实时信息、新闻或外部可核验事实。
+                    如果需要，将 needSearch 设为 true，并给出 1-3 个精准 searchQueries；
+                    如果不需要，将 needSearch 设为 false 且 searchQueries 为空数组。
 
                     【对话上下文】
                     $promptWithContext
 
-                    【候选本地资料文件列表】
-                    ${formatFileList()}
-
                     【输出规范】
-                    你必须返回一个符合以下 JSON 格式的纯 JSON 字符串。不要包含 any Markdown 格式包裹（例如不要使用 ```json 或 ``` 标记），直接输出 JSON 内容。
-
-                    JSON 格式示例：
+                    只返回纯 JSON：
                     {
-                      "selectedFiles": ["01-writings.md"],
                       "needSearch": true,
-                      "searchQueries": ["2026年最新大语言模型发布情况", "Gemini 2.5 flash 新特性"]
+                      "searchQueries": ["关键词1", "关键词2"]
                     }
                 """.trimIndent()
 
                 SearchMode.ON -> """
-                    你是一个知识检索与联网决策代理 (Broker)。
-                    当前系统已【强制开启联网搜索】，你必须进行联网接地。
-                    请分析当前的对话上下文，并作出以下两项决策：
-                    1. 本地资料加载决策：从下方的【候选本地资料文件列表】中，选择回答当前问题最紧密相关、最必要的参考文件（如果列表为空，则返回空数组）。
-                    2. 联网搜索接地决策：你必须在 `searchQueries` 数组中列出 1 到多个（建议 1-3 个）核心的联网搜索关键词/任务，用以获取最新的实时事实信息来解答此问题，并将 `needSearch` 设为 `true`。
+                    你是一个联网检索决策代理。当前用户已强制开启联网搜索。
+                    needSearch 必须为 true，并根据当前问题给出 1-3 个精准 searchQueries。
 
                     【对话上下文】
                     $promptWithContext
 
-                    【候选本地资料文件列表】
-                    ${formatFileList()}
-
                     【输出规范】
-                    你必须返回一个符合以下 JSON 格式的纯 JSON 字符串。不要包含 any Markdown 格式包裹（例如不要使用 ```json 或 ``` 标记），直接输出 JSON 内容。
-
-                    JSON 格式示例：
+                    只返回纯 JSON：
                     {
-                      "selectedFiles": [],
                       "needSearch": true,
-                      "searchQueries": ["张雪峰2026高考志愿填报最新建议"]
+                      "searchQueries": ["关键词1"]
                     }
                 """.trimIndent()
+
+                SearchMode.OFF -> error("关闭联网时不得调用联网决策 Broker")
             }
 
             val brokerModel = configuration.modelFor(AiUseCase.MATERIAL_BROKER)
@@ -1777,12 +1714,12 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                         request = CreateInteractionRequest(
                             model = brokerModel.modelId,
                             input = JsonPrimitive(brokerPrompt),
-                            systemInstruction = summariesMap.optJSONObject(folderName)?.toString(),
+                            systemInstruction = "只负责联网检索决策；不要选择或请求任何本地 Skill 文件。",
                         ),
                         sessionId = sessionId,
                         attemptPlan = brokerPlan,
                         tracker = tracker,
-                        operationName = "BrokerDecision",
+                        operationName = "WebDecision",
                         isRequired = false,
                         reserveForRequired = reserveForRequired,
                     ).outputText
@@ -1791,14 +1728,14 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                         sessionId = sessionId,
                         attemptPlan = brokerPlan,
                         model = brokerModel,
-                        systemInstruction = summariesMap.optJSONObject(folderName)?.toString(),
+                        systemInstruction = "只负责联网检索决策；不要选择或请求任何本地 Skill 文件。",
                         userContent = brokerPrompt,
-                        operationName = "BrokerDecision",
+                        operationName = "WebDecision",
                         tracker = tracker,
                     ).choices.firstOrNull()?.message?.content.orEmpty()
                 }
             } catch (error: Exception) {
-                PrivacySafeLogger.e("RoundtableViewModel", "Broker request failed", error)
+                PrivacySafeLogger.e("RoundtableViewModel", "Web decision request failed", error)
                 ""
             }
 
@@ -1809,22 +1746,17 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
             val decision = try {
                 if (cleanedReply.isNotBlank()) {
-                    kotlinx.serialization.json.Json.decodeFromString<BrokerDecision>(cleanedReply)
+                    kotlinx.serialization.json.Json {
+                        ignoreUnknownKeys = true
+                    }.decodeFromString<BrokerDecision>(cleanedReply)
                 } else {
                     BrokerDecision()
                 }
             } catch (_: Exception) {
                 PrivacySafeLogger.w(
                     "RoundtableViewModel",
-                    "Broker response was not valid JSON; using bounded fallback parsing"
+                    "Web decision response was not valid JSON; using bounded fallback parsing"
                 )
-                val selectedFiles = runCatching {
-                    "\"[^\"]+\"".toRegex()
-                        .findAll(cleanedReply)
-                        .map { it.value.trim('"') }
-                        .filter { it.endsWith(".md") }
-                        .toList()
-                }.getOrDefault(emptyList())
                 val needSearch = cleanedReply.contains("\"needSearch\"\\s*:\\s*true".toRegex())
                 val searchQueries = runCatching {
                     val pattern = "\"searchQueries\"\\s*:\\s*\\[([^\\]]+)\\]".toRegex()
@@ -1836,12 +1768,12 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                             .toList()
                     }
                 }.getOrDefault(emptyList())
-                BrokerDecision(selectedFiles, needSearch, searchQueries)
+                BrokerDecision(needSearch = needSearch, searchQueries = searchQueries)
             }
 
             PrivacySafeLogger.d(
                 "RoundtableViewModel",
-                "Broker decision (files=${decision.selectedFiles.size}, search=${decision.needSearch}, queries=${decision.searchQueries.size})"
+                "Web decision (search=${decision.needSearch}, queries=${decision.searchQueries.size})"
             )
 
             var finalNeedSearch = decision.needSearch
@@ -1855,16 +1787,8 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             if (mode == SearchMode.ON) {
                 finalNeedSearch = true
                 if (finalQueries.isEmpty()) {
-                    val lastUserMsg = promptWithContext.lineSequence()
-                        .filter { it.startsWith("用户提问：") }
-                        .lastOrNull()
-                        ?.removePrefix("用户提问：")
-                        ?.trim()
-                    finalQueries.add(lastUserMsg.takeUnless { it.isNullOrBlank() } ?: "2026年最新进展")
+                    finalQueries.add(retrievalQuery.ifBlank { "最新进展" })
                 }
-            } else if (mode == SearchMode.OFF) {
-                finalNeedSearch = false
-                finalQueries.clear()
             }
 
             val searchInfos = mutableListOf<String>()
@@ -1909,7 +1833,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                         val annotations = searchResponse.steps
                             .filter { it.type == "model_output" }
                             .flatMap { step -> step.content }
-                            .flatMap { content -> content.annotations.orEmpty() }
+                            .flatMap { item -> item.annotations.orEmpty() }
 
                         val searchInfo = StringBuilder()
                         searchInfo.append("\n【联网搜索结果 #${index + 1}】\n")
@@ -1929,40 +1853,20 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             }
 
             if (searchInfos.isNotEmpty()) {
-                allSearchInfoText = "\n\n=== 联网接地搜索资料 ===\n" + searchInfos.joinToString("\n")
+                allSearchInfoText =
+                    "\n\n=== 联网接地搜索资料 ===\n" + searchInfos.joinToString("\n")
             }
-            selectedExamples.addAll(decision.selectedFiles.filter { it in exampleFiles })
-            selectedReferences.addAll(decision.selectedFiles.filter { it in referenceFiles })
         }
 
         val referencesText = buildString {
             append(mainSkillPrompt)
+            if (skillKnowledgeText.isNotBlank()) {
+                append("\n\n")
+                append(skillKnowledgeText)
+            }
             append("\n\n=== 本次回答深度 ===\n")
             append(thinkingIntensityDirective())
             append(allSearchInfoText)
-            if (selectedExamples.isNotEmpty() || selectedReferences.isNotEmpty()) {
-                append("\n\n=== 参考资料文件及内容 ===\n")
-                selectedExamples.forEach { fileName ->
-                    val textContent = readAssetFileAsString(
-                        context,
-                        "skills/$folderName/examples/$fileName"
-                    )
-                    if (!textContent.isNullOrBlank()) {
-                        append("--- 示例文件: $fileName ---\n")
-                        append(textContent).append("\n")
-                    }
-                }
-                selectedReferences.forEach { fileName ->
-                    val textContent = readAssetFileAsString(
-                        context,
-                        "skills/$folderName/references/$fileName"
-                    )
-                    if (!textContent.isNullOrBlank()) {
-                        append("--- 参考资料: $fileName ---\n")
-                        append(textContent).append("\n")
-                    }
-                }
-            }
         }
 
         if (provider == AiProvider.DEEPSEEK) {
