@@ -560,8 +560,8 @@
 
 **Scope:** 只允许 `tools/ai-router/*` 与必要 docs/ignore 调整；不触碰 Android 产品代码。
 
-- [ ] **Step 1: 比较最新 main 与该分支，确认唯一业务增量仍是 `tools/ai-router/*`。**
-- [ ] **Step 2: 普通 merge 最新 main 到 `codex/ai-router-mvp`；若会产生大量无意义冲突，则创建新的 `codex/ai-router-mvp-refresh` 从 main 出发，只 cherry-pick `f5590406...`。只有在现有分支无法安全快进/合并时才用新 refresh branch。**
+- [x] **Step 1: 比较最新 main 与该分支，确认唯一业务增量仍是 `tools/ai-router/*`。**
+- [x] **Step 2: 普通 merge 最新 main 到 `codex/ai-router-mvp`；若会产生大量无意义冲突，则创建新的 `codex/ai-router-mvp-refresh` 从 main 出发，只 cherry-pick `f5590406...`。只有在现有分支无法安全快进/合并时才用新 refresh branch。**
 - [ ] **Step 3: 运行离线测试：**
   ```powershell
   python .\tools\ai-router\test_router.py
@@ -570,11 +570,22 @@
   ```powershell
   python .\tools\ai-router\router.py doctor
   ```
-- [ ] **Step 5: 检查真实 token、OAuth client secrets、cursor/log/request 文件均未提交。**
-- [ ] **Step 6: 创建独立 PR 到 main；描述清楚 Router 不读取 ChatGPT 历史正文、不自动触发 Local AI、不回写 Drive 控制文件。**
+- [x] **Step 5: 检查真实 token、OAuth client secrets、cursor/log/request 文件均未提交。**
+- [x] **Step 6: 创建独立 PR 到 main；描述清楚 Router 不读取 ChatGPT 历史正文、不自动触发 Local AI、不回写 Drive 控制文件。**
 - [ ] **Step 7: 该工具 PR 通过离线测试/Secret scan 后，再由用户决定是否 merge。**
 
 **Do not:** 把 Router 合进 Android feature PR；不打开真实浏览器发送作为 CI/自动验收。
+
+
+#### Task 13 当前执行记录
+
+- 最新 main：`9455aa80499bab0e395f0ea36e20fa6061d7fb54`。
+- Router 原 Head：`f55904066a09f6cc403e14a6623489e2e070cc97`，相对 main 仅 1 个独有 commit / 5 个独有文件，全部位于 `tools/ai-router/*`。
+- 已创建两父普通 merge commit `6310db0e5fb04964e0fc77fa4088960b35950503` 同步最新 main，non-force fast-forward 更新分支；同步后 `behind_by=0`，diff 仍精确为 5 个 `tools/ai-router/*` 文件。
+- 静态边界审计：Drive 使用 `drive.readonly`；不回写 Drive；ChatGPT 浏览器只操作固定 URL/input/send/generation state，不读取历史正文；Local AI 仅写本地 request 并返回 `LOCAL_AI_TRIGGER_NOT_IMPLEMENTED`；browser send 默认关闭。
+- 示例配置仅占位符；`.gitignore` 已忽略整个 `work/`，cursor/log/local-ai-request 不应进入 Git。
+- 已创建独立 Draft PR #73 到 main，仅 5 个 Router 文件。
+- 待本地 AI：`python .\tools\ai-router\test_router.py` 与 `python .\tools\ai-router\router.py doctor`；不得访问真实 Drive。Step 3/4/7 在结果回来前保持未完成。
 
 ---
 
