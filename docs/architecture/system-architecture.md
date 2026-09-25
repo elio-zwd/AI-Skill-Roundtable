@@ -147,7 +147,7 @@ PR07-F 增加三类门禁：
 
 AI 管理分为三块：
 
-1. `AiConfigurationRepository`：分别持久化对话标题、资料决策、联网检索、圆桌回答和议题执行的文本提供商与模型；Gemini 可选 `gemini-3.8-flash`、`gemini-3.7-flash`、`gemini-3.6-flash`、`gemini-3.5-flash`、`gemini-3.1-flash-lite`，默认使用 `gemini-3.8-flash`，DeepSeek 可选 V4 Flash / Pro；
+1. `AiConfigurationRepository`：分别持久化对话标题、资料决策、联网检索、圆桌回答和议题执行的文本提供商与模型；Gemini 可选 `gemini-3.8-flash`、`gemini-3.7-flash`、`gemini-3.6-flash`、`gemini-3.5-flash`、`gemini-3.5-flash-lite`、`gemini-3.1-flash-lite`、`gemini-2.5-flash`、`gemini-2.5-flash-lite`；Gemini 通用默认使用 `gemini-3.8-flash`，联网检索用途默认使用 `gemini-2.5-flash`，DeepSeek 可选 V4 Flash / Pro；
 2. `ProviderKeyRepository` 与 `AiRequestExecutor`：按提供商隔离加密 Key、轮换、重试、错误分类和冷却状态；
 3. `GeminiRestTransport`、`GeminiInteractionsTransport`、`GeminiLiveAudioTransport` 与 `DeepSeekTransport`：分别只实现对应 REST、SSE、Live WebSocket、OpenAI 兼容 Chat Completions 协议。
 
