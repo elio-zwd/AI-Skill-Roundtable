@@ -237,6 +237,8 @@ data class ContextUsageSnapshot(
     val sourceType: ContextSourceType,
     val sourceId: String?,
     val title: String?,
+    val sourceKind: String? = null,
+    val sourceLocator: String? = null,
     val content: String?,
     val contentHash: String?,
     val contentState: SnapshotContentState,
