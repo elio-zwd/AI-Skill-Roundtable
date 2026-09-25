@@ -50,6 +50,15 @@ internal data class SkillKnowledgeManifest(
     val skills: List<SkillKnowledgeSkill>,
 )
 
+data class SkillKnowledgeSelection(
+    val skillId: String,
+    val documentId: String,
+    val title: String,
+    val relativePath: String,
+    val content: String,
+    val contentHash: String,
+)
+
 data class SkillKnowledgeHit(
     val skillId: String,
     val documentId: String,
