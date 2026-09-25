@@ -343,7 +343,7 @@ class MaterialContextRepositoryTest {
     @Test
     fun explicitSkillKnowledgeUsageIsIdempotentAndConflictingReplayIsRejected() = runBlocking {
         saveIssue()
-        val content = ""
+        val content = "feynman knowledge content"
         val hash = ContextContentHasher.hash(content)
         val prepared = repository.prepareExecutionContext(
             PrepareExecutionContextCommand(
@@ -356,7 +356,7 @@ class MaterialContextRepositoryTest {
                         ConfirmedContextItem(
                             sourceType = ContextSourceType.SKILL_KNOWLEDGE,
                             sourceId = "feynman-research",
-                            title = "",
+                            title = "Feynman research",
                             sourceKind = "richard_feynman",
                             sourceLocator = "references/research.md",
                             content = content,
@@ -381,7 +381,7 @@ class MaterialContextRepositoryTest {
         val repeated = repository.createExecutionRuntime(command)
         val changedSnapshot = prepared.usage.copy(
             skillKnowledge = prepared.usage.skillKnowledge.map { usage ->
-                val changedContent = usage.contentSnapshot + ""
+                val changedContent = usage.contentSnapshot + " changed"
                 usage.copy(
                     contentSnapshot = changedContent,
                     contentHash = ContextContentHasher.hash(changedContent),
