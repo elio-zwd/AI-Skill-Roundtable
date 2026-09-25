@@ -461,6 +461,10 @@
 - 仅修测试夹具文件名为真实 Kotlin 插值，不修改生产代码或断言；修复 commit / 当前 #68 Head：`0c778c8d0923ac05c84b2007e04ad4f07555967e`（`test: 修复用户头像测试临时文件唯一性`）。
 - Exact new Head GitHub Actions 已全绿：Secret scan Run `36111403818` PASS；Android UI Test Compile Run `36111403705` PASS；Android CI Run `36111403758` PASS，包含 identity gate、compileDebugKotlin、full JVM、lint、Debug APK、optimized Release/R8、release verification、Room schema 与 artifacts。
 - 当前唯一剩余 Gate：在 exact `0c778c8d...` 上重跑 `UserAvatarRepositoryAndroidTest`，确认 4 passed / 0 failed / 0 skipped，尤其替换与非法图片保护两项同时 PASS。
+- 本地 AI 在 exact `0c778c8d0923ac05c84b2007e04ad4f07555967e` 上最终定点复验：`UserAvatarRepositoryAndroidTest` 4 passed / 0 failed / 0 skipped / no initializationError；替换与非法图片保护均 PASS；worktree clean。
+- 结合上一轮设备矩阵：系统 Photo Picker、无广泛相册权限、512×512 JPEG、Mine 即时刷新、进程重启持久化、替换、取消、恢复默认、文件删除及 Room/SharedPreferences/备份边界均 PASS；Dialog 用户消息头像因无可观察用户消息记为 NOT OBSERVABLE，不作为失败。
+- #68 已由用户持续集成授权范围覆盖，标记 Ready 后使用普通 merge commit 合入 main；merge commit：`ce5664dab0a6eeb55437b7ddd9fe241f3b3d230e`。
+- Task 10 Step 7 等待新 main push Actions 全绿后勾选。
 - 由于本次只改 AndroidTest 生命周期签名、未改生产代码，上一轮已通过的 Photo Picker/Mine/重启/替换/取消/reset/权限/备份行为证据继续有效；仅需本地 AI 在 exact `93ac717...` 上重跑 `UserAvatarRepositoryAndroidTest`，确认 4 个此前未执行的 Repository tests 全部真正执行并通过，尤其 `invalidImage_doesNotDestroyExistingAvatar`。
 
 ### Task 11：恢复 #69，并先解决“旧基线”而不是改业务
