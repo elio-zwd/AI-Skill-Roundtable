@@ -810,13 +810,15 @@
 - `codex/branch-integration-master-plan`（本 Plan 已执行完、且内容已被最终状态文档吸收后）
 - 其他经审计确认已无独有价值的旧分支
 
-- [ ] **Step 1: 删除前逐个确认对应提交已在 main 可达，或 PR 明确 superseded 且无唯一未保存工作。**
-- [ ] **Step 2: 输出拟删除清单给用户。**
-- [ ] **Step 3: 只有得到明确删除授权后才删除远端分支。**
+- [x] **Step 1: 删除前逐个确认对应提交已在 main 可达，或 PR 明确 superseded 且无唯一未保存工作。**
+- [x] **Step 2: 输出拟删除清单给用户。**
+- [x] **Step 3: 只有得到明确删除授权后才删除远端分支。**
 - 用户已于 2026-09-25 明确授权删除 14 个高置信度已完成 `codex/*` 分支；但当前 GitHub 连接器未暴露 branch/ref delete 写接口，因此尚未实际删除。不得把授权误记为已执行。
 - 已授权删除清单：`codex/ai-management-ui-refresh`、`codex/ai-router-mvp`、`codex/androidtest-budget-baseline`、`codex/final-resources-scroll-test-fix`、`codex/fix-app-identity-gate`、`codex/mark-ai-router-unused`、`codex/skill-role-avatars`、`codex/ui-01-mine-navigation`、`codex/ui-02-role-spec`、`codex/ui-03-role-discovery`、`codex/ui-03-spec`、`codex/ui-05-artifacts`、`codex/ui-postmerge-audit-fixes`、`codex/user-avatar-upload`。
-- [ ] **Step 4: `design/*` / `docs/*` 归档分支默认保留，除非用户明确要求清理。**
-- [ ] **Step 5: 不删除 `main`，不 force delete 未确认分支。**
+- 本地 AI 已执行远端删除并返回 PASS：上述 14 个远端分支全部 DELETED；意外删除 NONE；`main`、`codex/branch-integration-master-plan`、`codex/core-loop-p0`、`design/pr-08d-topic-route-html-prototypes`、`docs/pr-09-12g-gemini-interactions-rules`、`docs/skills-catalog` 均确认 PRESENT；最终 worktree/git diff CLEAN。
+- 本地仍有部分同名 branch（仅本地，不影响远端）：ai-management-ui-refresh、ai-router-mvp、fix-app-identity-gate、skill-role-avatars、ui-01、ui-02、ui-03-role-discovery、ui-03-spec、ui-05-artifacts、user-avatar-upload。未获本地分支删除授权，暂不处理。
+- [x] **Step 4: `design/*` / `docs/*` 归档分支默认保留，除非用户明确要求清理。**
+- [x] **Step 5: 不删除 `main`，不 force delete 未确认分支。**
 
 ---
 
