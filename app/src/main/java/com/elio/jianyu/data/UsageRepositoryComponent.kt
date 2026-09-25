@@ -74,37 +74,6 @@ internal class UsageRepositoryComponent(
         }
     }
 
-    suspend fun recordSkillKnowledgeUsage(
-        entity: SkillKnowledgeUsageSnapshotEntity,
-    ): RepositoryResult<SkillKnowledgeUsageSnapshotEntity> {
-        return transactions.transaction("record_skill_knowledge_usage") {
-            require(entity.userConfirmedAt > 0L)
-            val existing = getSkillKnowledgeUsage(entity.id)
-            if (existing != null) {
-                return@transaction if (existing == entity) {
-                    RepositoryResult.Success(existing, idempotent = true)
-                } else {
-                    RepositoryResult.Failure(
-                        RepositoryError.IdempotencyConflict(
-                            "record_skill_knowledge_usage",
-                            entity.id,
-                        ),
-                    )
-                }
-            }
-            val relationError = validateUsageRelations(
-                issueId = entity.issueId,
-                stageId = entity.stageId,
-                runId = entity.runId,
-            )
-            if (relationError != null) {
-                return@transaction RepositoryResult.Failure(relationError)
-            }
-            insertSkillKnowledgeUsage(entity)
-            RepositoryResult.Success(entity)
-        }
-    }
-
     private suspend fun JianyuRepositoryDao.validateUsageRelations(
         issueId: String,
         stageId: String,
