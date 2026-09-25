@@ -94,7 +94,7 @@ enum class AiUseCase(
     val supportedProviders: Set<AiProvider>,
 ) {
     SESSION_TITLE("对话标题", "首次提问后的会话标题提炼", setOf(AiProvider.GEMINI, AiProvider.DEEPSEEK)),
-    MATERIAL_BROKER("资料决策", "选择本地参考资料与检索需求", setOf(AiProvider.GEMINI, AiProvider.DEEPSEEK)),
+    MATERIAL_BROKER("联网决策", "判断联网检索需求并生成搜索任务", setOf(AiProvider.GEMINI, AiProvider.DEEPSEEK)),
     WEB_GROUNDING("联网检索", "调用 Google Search 获取实时信息", setOf(AiProvider.GEMINI)),
     ROUNDTABLE_ANSWER("对话角色回答", "Skill 角色的最终文本回答", setOf(AiProvider.GEMINI, AiProvider.DEEPSEEK)),
     ISSUE_EXECUTION("成果生成", "生成并整理可保存的成果内容", setOf(AiProvider.GEMINI, AiProvider.DEEPSEEK)),
