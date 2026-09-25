@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.data.ChatRepository
+import com.elio.jianyu.data.CharacterRepository
 import com.elio.jianyu.data.ConversationSessionPreferences
 import com.elio.jianyu.data.RoundtableDatabase
 import kotlinx.coroutines.flow.first
@@ -47,6 +48,47 @@ class RoundtableViewModelSkillRoleActionsTest {
         assertFalse(viewModel.addSkillRoleToCurrentSessionAwait("unknown-official-role"))
         assertEquals(sessionId, viewModel.currentSessionId.value)
         assertEquals(beforeUnknown, viewModel.currentParticipantIds.value)
+    }
+
+    @Test
+    fun addCurrent_whenCompatibleCharacterIsMissing_recreatesItBeforeAdding() = runBlocking {
+        val viewModel = RoundtableViewModel(application)
+        assertTrue(viewModel.createNewSessionWithSkillRole("meeting-to-action"))
+        val database = RoundtableDatabase.getDatabase(application, this)
+        val characterRepository = CharacterRepository(database.characterDao())
+
+        characterRepository.deleteById("study-planner")
+        assertEquals(null, characterRepository.getCharacterById("study-planner"))
+
+        val added = viewModel.addSkillRoleToCurrentSessionAwait("study-planner")
+
+        assertTrue(added)
+        assertTrue("study-planner" in viewModel.currentParticipantIds.value)
+        assertNotNull(characterRepository.getCharacterById("study-planner"))
+    }
+
+    @Test
+    fun selectSession_whenStoredOfficialParticipantCharacterIsMissing_restoresParticipant() = runBlocking {
+        val viewModel = RoundtableViewModel(application)
+        val database = RoundtableDatabase.getDatabase(application, this)
+        val chatRepository = ChatRepository(database.chatDao())
+        val characterRepository = CharacterRepository(database.characterDao())
+        val preferences = ConversationSessionPreferences(application)
+        val sessionId = chatRepository.createSession("upgrade-participant-restore")
+
+        characterRepository.deleteById("study-planner")
+        preferences.setParticipantIds(sessionId, listOf("study-planner"))
+
+        viewModel.selectSession(sessionId)
+
+        withTimeout(5_000L) {
+            viewModel.currentParticipantIds.first { it == listOf("study-planner") }
+        }
+        assertNotNull(characterRepository.getCharacterById("study-planner"))
+        assertEquals(
+            listOf("study-planner"),
+            preferences.getParticipantIds(sessionId, emptyList()),
+        )
     }
 
     @Test
