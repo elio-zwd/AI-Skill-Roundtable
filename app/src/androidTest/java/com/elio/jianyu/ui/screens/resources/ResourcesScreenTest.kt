@@ -12,6 +12,7 @@ import com.elio.jianyu.data.ContextSourceLifecycle
 import com.elio.jianyu.result.ArtifactLibraryItem
 import com.elio.jianyu.result.ArtifactLibrarySnapshot
 import com.elio.jianyu.result.ArtifactType
+import com.elio.jianyu.skill.knowledge.SkillKnowledgeDocumentType
 import com.elio.jianyu.ui.navigation.ResourceTab
 import com.elio.jianyu.ui.theme.SkillRoundtableTheme
 import org.junit.Rule
@@ -111,6 +112,64 @@ class ResourcesScreenTest {
 
         composeRule.onNodeWithTag(ResourcesOverviewTestTags.ARTIFACT_SUMMARY).performClick()
         composeRule.runOnIdle { assertEquals("artifacts", requestedPage) }
+    }
+
+    @Test
+    fun overviewShowsIndependentSkillKnowledgeEntry() {
+        var requested = false
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                ResourcesScreen(
+                    showOverview = true,
+                    selectedTab = ResourceTab.MATERIALS,
+                    onSelectTab = {},
+                    onOpenSettings = {},
+                    skillKnowledgeState = SkillKnowledgeUiState.Content(
+                        documents = listOf(skillKnowledgeDocument()),
+                    ),
+                    onShowSkillKnowledge = { requested = true },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(ResourcesOverviewTestTags.SKILL_KNOWLEDGE)
+            .assertIsDisplayed()
+            .performClick()
+        composeRule.runOnIdle { assertEquals(true, requested) }
+    }
+
+    @Test
+    fun skillKnowledgeDetailIsReadOnlyAndCanBeAddedToConversation() {
+        var selectedSkillId = ""
+        val document = skillKnowledgeDocument()
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                ResourcesScreen(
+                    showSkillKnowledge = true,
+                    skillKnowledgeState = SkillKnowledgeUiState.Content(
+                        documents = listOf(document),
+                        selectedDocumentId = document.documentId,
+                    ),
+                    selectedTab = ResourceTab.MATERIALS,
+                    onSelectTab = {},
+                    onOpenSettings = {},
+                    onUseSkillKnowledgeInConversation = { selection ->
+                        selectedSkillId = selection.skillId
+                    },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(SkillKnowledgeTestTags.DETAIL).assertIsDisplayed()
+        composeRule.onNodeWithText("Skill ：理查德·费曼").assertIsDisplayed()
+        composeRule.onNodeWithText("：").assertDoesNotExist()
+        composeRule.onNodeWithText("").assertDoesNotExist()
+        composeRule.onNodeWithText("").assertDoesNotExist()
+        composeRule.onNodeWithText("").assertDoesNotExist()
+        composeRule.onNodeWithTag(SkillKnowledgeTestTags.USE_IN_CONVERSATION)
+            .assertIsDisplayed()
+            .performClick()
+        composeRule.runOnIdle { assertEquals("richard_feynman", selectedSkillId) }
     }
 
     @Test
@@ -314,6 +373,17 @@ class ResourcesScreenTest {
         composeRule.onNodeWithText("保存").assertIsNotEnabled()
         composeRule.onNodeWithText("所属议题").assertDoesNotExist()
     }
+
+    private fun skillKnowledgeDocument() = SkillKnowledgeDocumentUiItem(
+        documentId = "feynman-research",
+        skillId = "richard_feynman",
+        skillName = "·",
+        relativePath = "references/research.md",
+        title = "",
+        type = SkillKnowledgeDocumentType.KNOWLEDGE,
+        contentHash = "hash",
+        content = "",
+    )
 
     private fun material(id: String, sensitive: Boolean) = MaterialUiItem(
         id = id,
