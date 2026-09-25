@@ -82,16 +82,19 @@ class IssuePurgeDatabaseCleaner(
             dao.deleteRunBudgets(issueId)
             dao.deleteMessages(issueId)
             dao.deleteParticipantSnapshots(issueId)
+
+            // 三类 usage snapshot 都可能持有 execution_run 外键，必须先于 Run 删除。
+            dao.deleteMaterialUsages(issueId)
+            dao.deletePersonalContextUsages(issueId)
+            dao.deleteSkillKnowledgeUsages(issueId)
+
             dao.clearRunRetryReferences(issueId)
             dao.deleteExecutionRuns(issueId)
 
             dao.deleteArtifacts(issueId)
             dao.deleteDraftRevisions(issueId)
             dao.deleteDrafts(issueId)
-            dao.deleteMaterialUsages(issueId)
             dao.deleteMaterialReferences(issueId)
-            dao.deletePersonalContextUsages(issueId)
-            dao.deleteSkillKnowledgeUsages(issueId)
             dao.deleteStages(issueId)
 
             dao.deleteResumeEvents(issueId)
