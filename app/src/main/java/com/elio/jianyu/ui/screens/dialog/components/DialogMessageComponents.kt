@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.ripple
@@ -61,13 +62,13 @@ fun UserMessageBubble(
                 .weight(1f, fill = false)
                 .padding(start = 36.dp)
                 .clip(RoundedCornerShape(18.dp))
-                .background(Color(0xFFEEF4FD))
+                .background(MaterialTheme.colorScheme.primaryContainer)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
         ) {
             Column {
                 Text(
                     text = message.text,
-                    color = Color(0xFF1E293B),
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 15.sp,
                     lineHeight = 22.sp,
                 )
@@ -80,14 +81,14 @@ fun UserMessageBubble(
                 ) {
                     Text(
                         text = message.timestamp,
-                        color = Color(0xFF94A3B8),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 11.5.sp,
                     )
                     if (message.isDelivered) {
                         Icon(
                             imageVector = DialogIcons.DoneAll,
                             contentDescription = "已发送",
-                            tint = Color(0xFF2563EB),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(16.dp),
                         )
                     }
@@ -102,7 +103,7 @@ fun UserMessageBubble(
             modifier = Modifier
                 .size(38.dp)
                 .clip(CircleShape)
-                .border(1.dp, Color(0xFFD6E4F8), CircleShape),
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
         )
     }
 }
@@ -153,14 +154,14 @@ fun SkillMessageCard(
             ) {
                 Text(
                     text = message.role.name,
-                    color = Color(0xFF1E293B),
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 14.5.sp,
                     fontWeight = FontWeight.Bold,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = message.timestamp,
-                    color = Color(0xFF94A3B8),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.5.sp,
                 )
             }
@@ -170,10 +171,10 @@ fun SkillMessageCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(18.dp))
-                    .background(Color.White)
+                    .background(MaterialTheme.colorScheme.surface)
                     .border(
                         width = 1.dp,
-                        color = Color(0xFFEAEBED),
+                        color = MaterialTheme.colorScheme.outlineVariant,
                         shape = RoundedCornerShape(18.dp),
                     ),
             ) {
@@ -195,14 +196,14 @@ fun SkillMessageCard(
                     Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
                         MarkdownText(
                             markdown = message.text,
-                            color = Color(0xFF1E293B),
+                            color = MaterialTheme.colorScheme.onSurface,
                             fontSize = 14.5.sp,
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
 
                     // 水平分割线
-                    HorizontalDivider(color = Color(0xFFF1F3F5), thickness = 1.dp)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
 
                     // 3. 消息操作栏
                     Row(
@@ -222,7 +223,7 @@ fun SkillMessageCard(
                         )
 
                         VerticalDivider(
-                            color = Color(0xFFF1F3F5),
+                            color = MaterialTheme.colorScheme.outlineVariant,
                             modifier = Modifier.height(18.dp),
                         )
 
@@ -237,7 +238,7 @@ fun SkillMessageCard(
                         )
 
                         VerticalDivider(
-                            color = Color(0xFFF1F3F5),
+                            color = MaterialTheme.colorScheme.outlineVariant,
                             modifier = Modifier.height(18.dp),
                         )
 
@@ -278,13 +279,13 @@ private fun MessageActionButton(
         Icon(
             imageVector = icon,
             contentDescription = text,
-            tint = Color(0xFF64748B),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(15.dp),
         )
         Spacer(modifier = Modifier.width(5.dp))
         Text(
             text = text,
-            color = Color(0xFF64748B),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp,
             fontWeight = FontWeight.Normal,
         )
