@@ -2,6 +2,7 @@ package com.elio.jianyu.skill.knowledge
 
 import com.elio.jianyu.network.SKILL_KNOWLEDGE_EMBEDDING_DIMENSION
 import com.elio.jianyu.telemetry.PrivacySafeLogger
+import kotlinx.coroutines.CancellationException
 import kotlin.math.sqrt
 
 class SkillKnowledgeRetriever(
@@ -114,6 +115,8 @@ class SkillKnowledgeRetriever(
                 knowledgeMap = knowledgeMap,
                 hits = hits,
             )
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: Exception) {
             PrivacySafeLogger.e(
                 "SkillKnowledgeRetriever",
