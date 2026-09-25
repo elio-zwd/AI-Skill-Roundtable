@@ -96,11 +96,12 @@
 
 - [x] **Step 1: 复查 branch diff**，确保没有新增 2.5 GenerateContent 分支或无关重构。
 - [x] **Step 2: 运行当前环境可执行的验证；无法执行 Android/Gradle 时明确标记 NOT_RUN。**
-  - GitHub 已在最终 Head `17f07addc56149767afae57ba662293c545bffe4` 的干净环境完成：Secret scan、`compileDebugKotlin`、`testDebugUnitTest`、`lintDebug`、Debug APK、Release/R8、Room schema、AndroidTest APK 编译，均 PASS。
-  - 本地 AI 在临时归档副本上报告 `DialogUiState.kt:95` Composable 编译错误，但同一最终 Head 的 GitHub clean build 无法复现；当前不据此修改代码。
+  - GitHub 已在代码 Head `17f07addc56149767afae57ba662293c545bffe4` 的干净环境完成：Secret scan、`compileDebugKotlin`、`testDebugUnitTest`、`lintDebug`、Debug APK、Release/R8、Room schema、AndroidTest APK 编译，均 PASS。
+  - 本地 AI 已在当前最终 Head `8a7810f4af086da30401f32d92ea37f4fecb0d66` 复验：`compileDebugKotlin` PASS，之前的 `DialogUiState.kt:95` Composable 错误已消失；聚焦 JVM 测试 9/9 PASS；`assembleDebugAndroidTest` PASS；定向 `SettingsScreenRegressionTest` 4/4 PASS。
 - [x] **Step 3: 更新本 Plan checkbox 为实际状态。**
-  - 本地实际工作区仍停在旧 Head `2b9d8307...` 且有用户已有 `.env.example` 修改；不触碰该修改。
-  - 真机 UI 与真实 Gemini 2.5 Key 验证仍为 NOT_RUN。
+  - 本地 AI 最终验收时 Branch 为 `codex/gemini-37-38-flash`，HEAD 为 `8a7810f4af086da30401f32d92ea37f4fecb0d66`，worktree clean。
+  - UI 验收 PASS：8 个 Gemini 模型存在；2.5 Flash / 2.5 Flash Lite 可访问；3.x 联网支持保留；模型 BottomSheet 可滚动；已有用户的 WEB_GROUNDING 显式选择不被新默认覆盖。
+  - 真实 Gemini API 验证 PASS：`/v1beta/interactions` + `gemini-2.5-flash` + `google_search` 返回 HTTP 200，模型文本、Google Search 步骤和搜索引用均通过；测试未输出或提交 API Key。
 - [x] **Step 4: 更新 PR #76 标题/描述，纳入 2.5、3.5 Flash-Lite 与联网默认规则。**
 - [x] **Step 5: 生成本地 AI 只读验收 Prompt，覆盖 JVM、AndroidTest、真实 Key 的 Interactions + Google Search 最小验证。**
-  - 本地 AI 已执行代码/JVM/AndroidTest 编译验收；因未提供安全测试 Key，真实 Gemini 2.5 + Google Search 未执行。
+  - 本地 AI 已执行代码/JVM/AndroidTest/UI 验收，并完成真实 Gemini 2.5 + Interactions + Google Search 最小验证。
