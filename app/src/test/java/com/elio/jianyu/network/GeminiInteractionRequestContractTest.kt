@@ -3,6 +3,7 @@ package com.elio.jianyu.network
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
@@ -33,7 +34,10 @@ class GeminiInteractionRequestContractTest {
         assertEquals("low", generationConfig.getValue("thinking_level").jsonPrimitive.content)
         assertEquals("4096", generationConfig.getValue("max_output_tokens").jsonPrimitive.content)
         assertEquals("auto", generationConfig.getValue("thinking_summaries").jsonPrimitive.content)
-        assertEquals("google_search", body.getValue("tools").toString().substringAfter("\"type\":\"").substringBefore("\""))
+        assertEquals(
+            "google_search",
+            body.getValue("tools").jsonArray.single().jsonObject.getValue("type").jsonPrimitive.content,
+        )
         assertTrue(body.getValue("store").jsonPrimitive.content.toBoolean())
         assertFalse(body.containsKey("generationConfig"))
         assertFalse(generationConfig.containsKey("thinkingLevel"))
