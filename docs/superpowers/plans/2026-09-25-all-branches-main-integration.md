@@ -446,6 +446,15 @@
 
 ### Task 10：完成 #68 原 Plan 未完成的本地设备验收
 
+
+#### Task 10 当前状态
+
+- Exact PR Head：`25bd7bed54c333616a9872a307ce85ebdb616dd7`；PR #68 OPEN / Draft / base=`main`。
+- GitHub 远端门禁已全绿：Secret scan `36097136192`、Android UI Test Compile `36097136204`、Android CI `36097136181`。
+- PR 描述与原 #68 Plan 均未记录任何本地 AI / 真机验收结果；因此 Task 10 Step 2/3 仍是真实未完成项。
+- 当前唯一阻塞是 exact-Head 设备行为：Photo Picker、无广泛相册权限、512×512 私有文件、Mine/Dialog 同步、进程重启持久化、恢复默认、取消 picker、非法图片保护与备份边界。
+- 在 Step 2/3 PASS 前不将 #68 Ready/merge；不提前进入 #69。
+
 **Must verify on exact PR Head:**
 - Photo Picker 单图选择；
 - 不弹广泛相册权限；
