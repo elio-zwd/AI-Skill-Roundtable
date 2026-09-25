@@ -3,8 +3,10 @@ package com.elio.jianyu.execution
 import com.elio.jianyu.data.ExecutionParticipantSnapshotEntity
 import com.elio.jianyu.data.IssueEntity
 import com.elio.jianyu.data.StageEntity
+import com.elio.jianyu.skill.knowledge.SkillKnowledgeHit
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class ExecutionContextBuilderTest {
@@ -156,6 +158,90 @@ class ExecutionContextBuilderTest {
             assertTrue(request.systemInstruction.contains("本次是否提供网页搜索工具由执行请求的权限说明决定"))
             assertTrue(request.systemInstruction.contains("未提供工具时不得声称已经联网检索"))
             assertTrue(request.systemInstruction.contains("未联网核验"))
+        }
+    }
+
+
+    @Test
+    fun skillKnowledgeIsIncludedBeforeUserConfirmedContextWithoutReplacingRoleCore() {
+        val request = ExecutionContextBuilder().build(
+            ExecutionContextInput(
+                issue = issue,
+                stage = stage,
+                participant = participant,
+                currentRunId = "run-2",
+                currentUserInput = "请给出建议",
+                roundIndex = 0,
+                history = emptyList(),
+                skillKnowledge = ExecutionSkillKnowledgeContext(
+                    knowledgeMap = "- 费曼研究 [KNOWLEDGE]",
+                    hits = listOf(
+                        SkillKnowledgeHit(
+                            skillId = "skill-a",
+                            documentId = "doc-1",
+                            relativePath = "references/research.md",
+                            title = "费曼研究",
+                            headingPath = "教学",
+                            content = "先确认自己真正理解了什么。",
+                            score = 0.9f,
+                            retrievalOrder = 0,
+                        ),
+                    ),
+                ),
+                contributions = listOf(
+                    ExecutionContextContribution(
+                        sourceId = "material-1",
+                        sourceType = "material",
+                        content = "用户明确选择的资料",
+                        contentHash = "hash-1",
+                        userConfirmedAt = 200,
+                        networkAllowed = true,
+                        sensitive = false,
+                    ),
+                ),
+            ),
+        )
+
+        assertTrue(request.systemInstruction.startsWith(participant.systemPrompt))
+        assertTrue(request.userContent.contains("=== Skill Knowledge Map ==="))
+        assertTrue(request.userContent.contains("先确认自己真正理解了什么。"))
+        assertTrue(request.userContent.contains("用户明确选择的资料"))
+        assertTrue(
+            request.userContent.indexOf("=== Skill Knowledge Map ===") <
+                request.userContent.indexOf("用户明确确认的资料与个人背景"),
+        )
+    }
+
+    @Test
+    fun skillKnowledgeStillObeysStableContextCharacterLimit() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ExecutionContextBuilder().build(
+                ExecutionContextInput(
+                    issue = issue,
+                    stage = stage,
+                    participant = participant,
+                    currentRunId = "run-2",
+                    currentUserInput = "问题",
+                    roundIndex = 0,
+                    history = emptyList(),
+                    skillKnowledge = ExecutionSkillKnowledgeContext(
+                        knowledgeMap = "- doc [KNOWLEDGE]",
+                        hits = listOf(
+                            SkillKnowledgeHit(
+                                skillId = "skill-a",
+                                documentId = "doc",
+                                relativePath = "references/doc.md",
+                                title = "doc",
+                                headingPath = "主题",
+                                content = "长".repeat(500),
+                                score = 1f,
+                                retrievalOrder = 0,
+                            ),
+                        ),
+                    ),
+                    maxContextCharacters = 200,
+                ),
+            )
         }
     }
 
