@@ -35,7 +35,10 @@ POST https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-00
 | `gemini-3.7-flash` | 用户可选文本模型 | 在 AI 管理页按调用用途独立选择 |
 | `gemini-3.6-flash` | 用户可选文本模型 | 在 AI 管理页按调用用途独立选择 |
 | `gemini-3.5-flash` | 用户可选文本模型 | 在 AI 管理页按调用用途独立选择 |
+| `gemini-3.5-flash-lite` | 用户可选文本模型 | 在 AI 管理页按调用用途独立选择 |
 | `gemini-3.1-flash-lite` | 用户可选文本模型 | 在 AI 管理页按调用用途独立选择 |
+| `gemini-2.5-flash` | 用户可选文本模型（联网检索默认） | 继续走 Interactions；支持 Google Search |
+| `gemini-2.5-flash-lite` | 用户可选文本模型 | 继续走 Interactions；支持 Google Search |
 | `gemini-3.1-flash-live-preview` | Live 语音音频模型 | 用于 WebSocket Bidi 实时拉取音频 PCM 裸流（TTS） |
 | `gemini-embedding-001` | 向量嵌入模型 | 获取 768 维文本相似度特征向量，供语义路由使用（注：原 text-embedding-004 已下线退休） |
 
@@ -177,69 +180,39 @@ WebSocket 握手成功后，双方采用双向 JSON 帧格式进行实时通信�
 
 ## 8. Google Search 联网接地工具协议
 
-为了获取互联网最新实时事实，我们在调用 `gemini-2.5-flash` 进行内容生成时，开启了 `google_search` tools：
+当前见域的普通文本联网接地统一使用 Interactions API。3.x 既有联网能力继续保留；`WEB_GROUNDING` 的新默认模型为 `gemini-2.5-flash`，用户仍可在 AI 管理中选择其他支持 Google Search 的 Gemini 文本模型。
 
 ### 8.1 开启联网工具请求格式
 
-在 `generateContent` 的 JSON 请求体中传入 `tools` 配置项开启谷歌搜索：
-
 ```json
 {
-  "contents": [
-    {
-      "parts": [
-        {
-          "text": "请针对以下搜索任务进行联网搜索并给出详细总结：\n任务：[searchQuery]\n脑暴背景：[prompt]"
-        }
-      ]
-    }
-  ],
+  "model": "gemini-2.5-flash",
+  "input": "请针对以下搜索任务进行联网搜索并给出详细总结",
   "tools": [
     {
-      "google_search": {}
+      "type": "google_search"
     }
-  ]
+  ],
+  "store": false
 }
 ```
 
-### 8.2 联网响应与 Grounding 元数据格式
+Google Search 工具在 Interactions 中使用 `{"type":"google_search"}`。不因为默认联网模型改为 2.5 而新增第二套传输链路。
 
-当请求携带 `google_search` 工具且模型通过搜索找到了答案，返回结果将包含 `groundingMetadata` 字段，用以指示搜索关键词与网页引用：
+### 8.2 联网响应与引用
 
-```json
-{
-  "candidates": [
-    {
-      "content": {
-        "role": "model",
-        "parts": [
-          {
-            "text": "联网搜索后的回答文本内容..."
-          }
-        ]
-      },
-      "groundingMetadata": {
-        "webSearchQueries": [
-          "搜索的关键词 1"
-        ],
-        "groundingChunks": [
-          {
-            "web": {
-              "uri": "https://example.com/source-article",
-              "title": "参考源文章网页标题"
-            }
-          }
-        ]
-      }
-    }
-  ]
-}
-```
+Interactions 响应通过 `steps` 返回：
 
-- **解析逻辑**：
-  Kotlin 段接收到此结果后，循环提取 `groundingChunks` 数组中的 `web.uri` 和 `web.title`。
-  将其转化为 Markdown 样式：`- [文章标题](网页链接)`，并附加在总结后面送给最终回答模型。
+- `google_search_call`：模型实际发起的检索调用；
+- `google_search_result`：检索工具结果；
+- `model_output`：供后续回答使用的事实摘要；
+- `model_output.content[].annotations`：引用标题与 URL。
 
+见域当前联网链路提取最终 `outputText`，并把独立检索结果作为补充上下文交给 Skill 角色最终回答模型。旧的 GenerateContent `groundingMetadata` 结构只保留给仍使用 GenerateContent 的历史/专用调用参考，不再作为普通文本联网主链路。
+
+### 8.3 2.5 访问限制
+
+Google 当前限制部分此前未活跃使用 2.5 系列的账号访问 `gemini-2.5-flash` / `gemini-2.5-flash-lite`，但官方明确说明这两个模型没有弃用。真实 Key 如果无权访问，应沿用现有 Provider 错误与 Key 重试语义，不静默切换成其他模型。
 
 ## 9. API 熔断诊断与请求遥测日志协议
 
