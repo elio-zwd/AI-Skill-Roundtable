@@ -19,6 +19,7 @@ class SkillKnowledgeIndexGeneratorTest(unittest.TestCase):
         self.assertEqual("KNOWLEDGE", classify_markdown("research/c.md"))
         self.assertEqual("KNOWLEDGE", classify_markdown("examples/demo.md"))
         self.assertEqual("SUPPORTING", classify_markdown("README.md"))
+        self.assertEqual("SUPPORTING", classify_markdown("references/README.md"))
         self.assertEqual("SUPPORTING", classify_markdown("notes.md"))
 
     def test_chunker_preserves_heading_path_and_size_bound(self):
