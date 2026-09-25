@@ -74,6 +74,37 @@ internal class UsageRepositoryComponent(
         }
     }
 
+    suspend fun recordSkillKnowledgeUsage(
+        entity: SkillKnowledgeUsageSnapshotEntity,
+    ): RepositoryResult<SkillKnowledgeUsageSnapshotEntity> {
+        return transactions.transaction("record_skill_knowledge_usage") {
+            require(entity.userConfirmedAt > 0L)
+            val existing = getSkillKnowledgeUsage(entity.id)
+            if (existing != null) {
+                return@transaction if (existing == entity) {
+                    RepositoryResult.Success(existing, idempotent = true)
+                } else {
+                    RepositoryResult.Failure(
+                        RepositoryError.IdempotencyConflict(
+                            "record_skill_knowledge_usage",
+                            entity.id,
+                        ),
+                    )
+                }
+            }
+            val relationError = validateUsageRelations(
+                issueId = entity.issueId,
+                stageId = entity.stageId,
+                runId = entity.runId,
+            )
+            if (relationError != null) {
+                return@transaction RepositoryResult.Failure(relationError)
+            }
+            insertSkillKnowledgeUsage(entity)
+            RepositoryResult.Success(entity)
+        }
+    }
+
     private suspend fun JianyuRepositoryDao.validateUsageRelations(
         issueId: String,
         stageId: String,
@@ -134,6 +165,12 @@ internal suspend fun JianyuRepositoryDao.recordPreparedConversationContextUsage(
                 runId = null,
             )
         },
+        skillKnowledge = prepared.usage.skillKnowledge.map { usage ->
+            usage.copy(
+                id = usageScopeId + ":skill-knowledge:" + usage.documentId,
+                runId = null,
+            )
+        },
     ).sorted()
 
     val missingMaterials = mutableListOf<MaterialUsageSnapshotEntity>()
@@ -164,11 +201,28 @@ internal suspend fun JianyuRepositoryDao.recordPreparedConversationContextUsage(
         }
     }
 
+    val missingSkillKnowledge = mutableListOf<SkillKnowledgeUsageSnapshotEntity>()
+    for (usage in detached.skillKnowledge) {
+        val existing = getSkillKnowledgeUsage(usage.id)
+        when {
+            existing == null -> missingSkillKnowledge += usage
+            existing != usage -> return RepositoryResult.Failure(
+                RepositoryError.IdempotencyConflict(
+                    "record_conversation_context_usage",
+                    usage.id,
+                ),
+            )
+        }
+    }
+
     if (missingMaterials.isNotEmpty()) insertMaterialUsages(missingMaterials)
     if (missingPersonal.isNotEmpty()) insertPersonalContextUsages(missingPersonal)
+    if (missingSkillKnowledge.isNotEmpty()) insertSkillKnowledgeUsages(missingSkillKnowledge)
 
     return RepositoryResult.Success(
         value = detached,
-        idempotent = missingMaterials.isEmpty() && missingPersonal.isEmpty(),
+        idempotent = missingMaterials.isEmpty() &&
+            missingPersonal.isEmpty() &&
+            missingSkillKnowledge.isEmpty(),
     )
 }
