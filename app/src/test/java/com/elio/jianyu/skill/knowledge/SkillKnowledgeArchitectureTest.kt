@@ -83,6 +83,17 @@ class SkillKnowledgeArchitectureTest {
     }
 
     @Test
+    fun collaborationRuntimePersistsValidatesAndComparesSkillKnowledgeUsage() {
+        val collaboration = projectRoot
+            .resolve("app/src/main/java/com/elio/jianyu/data/CollaborationRepositoryComponent.kt")
+            .readText()
+
+        assertTrue(collaboration.contains("insertSkillKnowledgeUsages(sortedUsage.skillKnowledge)"))
+        assertTrue(collaboration.contains("getSkillKnowledgeUsagesForRun(runId) == sorted.skillKnowledge"))
+        assertTrue(collaboration.contains("val skillKnowledgeValid = usage.skillKnowledge.all"))
+    }
+
+    @Test
     fun collaborationRetryClonesExplicitSkillKnowledgeUsage() {
         val retry = projectRoot
             .resolve("app/src/main/java/com/elio/jianyu/data/CollaborationRetryRepositoryComponent.kt")
