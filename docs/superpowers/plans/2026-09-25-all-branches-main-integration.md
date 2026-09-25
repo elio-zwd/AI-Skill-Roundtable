@@ -465,6 +465,8 @@
 - 结合上一轮设备矩阵：系统 Photo Picker、无广泛相册权限、512×512 JPEG、Mine 即时刷新、进程重启持久化、替换、取消、恢复默认、文件删除及 Room/SharedPreferences/备份边界均 PASS；Dialog 用户消息头像因无可观察用户消息记为 NOT OBSERVABLE，不作为失败。
 - #68 已由用户持续集成授权范围覆盖，标记 Ready 后使用普通 merge commit 合入 main；merge commit：`ce5664dab0a6eeb55437b7ddd9fe241f3b3d230e`。
 - Task 10 Step 7 等待新 main push Actions 全绿后勾选。
+- #68 合并后新 main `ce5664dab0a6eeb55437b7ddd9fe241f3b3d230e` push Actions：Secret scan Run `36112913886` PASS；Android UI Test Compile Run `36112913767` PASS；Android CI Run `36112913945` PASS，包含 identity gate、full JVM、lint、Debug APK、optimized Release/R8、Room schema 与 artifacts。
+- Task 10 完成；#68 远端分支保留，未删除。
 - 由于本次只改 AndroidTest 生命周期签名、未改生产代码，上一轮已通过的 Photo Picker/Mine/重启/替换/取消/reset/权限/备份行为证据继续有效；仅需本地 AI 在 exact `93ac717...` 上重跑 `UserAvatarRepositoryAndroidTest`，确认 4 个此前未执行的 Repository tests 全部真正执行并通过，尤其 `invalidImage_doesNotDestroyExistingAvatar`。
 
 ### Task 11：恢复 #69，并先解决“旧基线”而不是改业务
@@ -513,7 +515,7 @@
 - [ ] **Step 4: GitHub Actions 全绿。**
 - [ ] **Step 5: 更新 #69 Plan Task 8 与 PR 描述。**
 - [ ] **Step 6: 用户授权后普通 merge commit 合 main。**
-- [ ] **Step 7: 新 main CI 全绿。**
+- [x] **Step 7: 新 main CI 全绿。**
 
 ---
 
@@ -731,6 +733,16 @@
 - #65：完成语义审计，当前 main 无缺失规则，superseded 并关闭，分支保留。
 - 尚未验证：#67 当前 Head 的 AndroidTest compile 已知失败仍待 Task 6 修复；#68/#69 保持原已知失败状态。
 - 下一 Batch 前置条件：满足。#66 Head 已为 main 祖先，可以进入 #67 retarget / fix。
+
+
+### Batch 3 完成记录（Task 8–10）
+
+- 当前 main：`ce5664dab0a6eeb55437b7ddd9fe241f3b3d230e`。
+- #68 最终 Head：`0c778c8d0923ac05c84b2007e04ad4f07555967e`，已普通 merge commit 合入 main。
+- GitHub Actions：PR Head 与 merge 后 main 的 Secret scan / Android UI Test Compile / Android CI 均 PASS。
+- 本地 AI：Photo Picker 主功能矩阵 PASS；Repository Instrumentation 最终 4/4 PASS；Dialog 用户消息头像因当前无可观察消息为 NOT OBSERVABLE。
+- 修复了两个测试自身问题：JUnit4 生命周期签名与临时图片文件名错误；均未通过修改生产代码来制造测试通过。
+- 下一 Batch 前置条件：满足。可以进入 #69 的最新 main 同步与业务契约验证。
 
 每个 Batch 结束必须记录：
 - 当前 main SHA；
