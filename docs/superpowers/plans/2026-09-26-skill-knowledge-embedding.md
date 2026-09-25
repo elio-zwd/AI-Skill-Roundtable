@@ -1144,7 +1144,7 @@ PR 描述必须列出：
 
 ### Placeholder scan
 
-本 Plan 不包含 TBD / TODO / “稍后实现”占位；所有生产范围都有明确 Task、文件、接口和验证命令。
+占位符扫描通过；所有生产范围都有明确 Task、文件、接口和验证命令。
 
 ### Type consistency
 
