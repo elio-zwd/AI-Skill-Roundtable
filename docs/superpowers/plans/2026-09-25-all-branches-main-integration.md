@@ -779,7 +779,7 @@
 - #57：用户明确授权关闭；已追加 superseded 说明并关闭，`merged=false`。
 - #55：用户明确授权关闭；已追加 superseded 说明并关闭，`merged=false`。
 - #68/#69：均通过原 PR 普通 merge commit 进入 main，保留 merged 历史。
-- 未删除任何远端分支。
+- Task 19 执行当时尚未删除远端分支；后续 Task 20 已按用户授权删除 14 个已完成远端 `codex/*` 分支。
 
 
 在最终 main PASS 后：
@@ -814,7 +814,7 @@
 - [x] **Step 1: 删除前逐个确认对应提交已在 main 可达，或 PR 明确 superseded 且无唯一未保存工作。**
 - [x] **Step 2: 输出拟删除清单给用户。**
 - [x] **Step 3: 只有得到明确删除授权后才删除远端分支。**
-- 用户已于 2026-09-25 明确授权删除 14 个高置信度已完成 `codex/*` 分支；但当前 GitHub 连接器未暴露 branch/ref delete 写接口，因此尚未实际删除。不得把授权误记为已执行。
+- 用户已于 2026-09-25 明确授权删除 14 个高置信度已完成 `codex/*` 分支；网页 GitHub 连接器未暴露 branch/ref delete 写接口，因此改由本地 AI 按同一授权清单执行。后续验证确认 14 个目标远端分支全部删除成功，意外删除 NONE。
 - 已授权删除清单：`codex/ai-management-ui-refresh`、`codex/ai-router-mvp`、`codex/androidtest-budget-baseline`、`codex/final-resources-scroll-test-fix`、`codex/fix-app-identity-gate`、`codex/mark-ai-router-unused`、`codex/skill-role-avatars`、`codex/ui-01-mine-navigation`、`codex/ui-02-role-spec`、`codex/ui-03-role-discovery`、`codex/ui-03-spec`、`codex/ui-05-artifacts`、`codex/ui-postmerge-audit-fixes`、`codex/user-avatar-upload`。
 - 本地 AI 已执行远端删除并返回 PASS：上述 14 个远端分支全部 DELETED；意外删除 NONE；`main`、`codex/branch-integration-master-plan`、`codex/core-loop-p0`、`design/pr-08d-topic-route-html-prototypes`、`docs/pr-09-12g-gemini-interactions-rules`、`docs/skills-catalog` 均确认 PRESENT；最终 worktree/git diff CLEAN。
 - 本地仍有部分同名 branch（仅本地，不影响远端）：ai-management-ui-refresh、ai-router-mvp、fix-app-identity-gate、skill-role-avatars、ui-01、ui-02、ui-03-role-discovery、ui-03-spec、ui-05-artifacts、user-avatar-upload。未获本地分支删除授权，暂不处理。
@@ -827,18 +827,44 @@
 
 只有同时满足以下条件，执行 AI 才能报告“全部分支收口完成”：
 
-- [ ] #66 已以 merge commit 进入 main。
-- [ ] #67 当前 Head 修复、完整验证并进入 main。
-- [ ] #68 同步最新 parent/main、修复 JVM/AndroidTest、真机用户头像流程 PASS 并进入 main。
-- [ ] #69 在最新 main 上重新同步，identity gate 与 AI 管理 UI 验收 PASS 并进入 main。
-- [ ] `ai-router-mvp` 已形成独立可审 PR，并按用户选择 merge 或明确保留未集成状态。
-- [ ] #64/#65/#57/#55 已完成语义审计，不能存在“是否还需要合并”的未知状态。
-- [ ] design/research 分支已明确标记为“归档保留”或 docs-only 集成，不混入生产代码。
-- [ ] 最终 main GitHub CI 全绿。
-- [ ] 最终 main 本地 JVM / Release / AndroidTest APK / 全量 Instrumentation PASS。
-- [ ] Secret / identity / Room / R8 / backup/runtime/privacy 门禁无回退。
-- [ ] 没有通过删除测试、降低断言或恢复旧兼容实现制造绿色。
-- [ ] PR/branch 清理状态有明确记录；未获删除授权的分支明确标记“保留”。
+- [x] #66 已以 merge commit 进入 main。
+- [x] #67 当前 Head 修复、完整验证并进入 main。
+- [x] #68 同步最新 parent/main、修复 JVM/AndroidTest、真机用户头像流程 PASS 并进入 main。
+- [x] #69 在最新 main 上重新同步，identity gate 与 AI 管理 UI 验收 PASS 并进入 main。
+- [x] `ai-router-mvp` 已形成独立可审 PR，并按用户选择 merge 或明确保留未集成状态。
+- [x] #64/#65/#57/#55 已完成语义审计，不能存在“是否还需要合并”的未知状态。
+- [x] design/research 分支已明确标记为“归档保留”或 docs-only 集成，不混入生产代码。
+- [x] 最终 main GitHub CI 全绿。
+- [x] 最终 main 本地 JVM / Release / AndroidTest APK / 全量 Instrumentation PASS。
+- [x] Secret / identity / Room / R8 / backup/runtime/privacy 门禁无回退。
+- [x] 没有通过删除测试、降低断言或恢复旧兼容实现制造绿色。
+- [x] PR/branch 清理状态有明确记录；未获删除授权的分支明确标记“保留”。
+
+
+## Final Completion Evidence（权威最终状态，覆盖上文阶段性快照）
+
+- **最终正式 main：`d9a263039d5c15330b27c14b83a0f56efd7063d0`。**
+- #66 → merge commit `55c60a196d88696ffcfc90c81c8e2ff384473a21`；#67 → `4e2d87503daad6c17fadb4361f97cd75a33fbbc9`；#68 → `ce5664dab0a6eeb55437b7ddd9fe241f3b3d230e`；#69 → `9455aa80499bab0e395f0ea36e20fa6061d7fb54`。
+- Router #73 已按用户选择 merge → `b9aa4711cc82503bbf445150802655ab95f59a45`；随后 PR #75 → `d9a263039d5c15330b27c14b83a0f56efd7063d0` 明确标注 Router **当前不使用，仅保留历史实验参考**。
+- #64/#65/#57/#55 的语义状态均已关闭：不存在“是否还需要合并”的未知项；#57/#55 按 superseded 关闭且未 merge。
+- design/research：`design/pr-08d-topic-route-html-prototypes` 与 `docs/skills-catalog` 明确作为历史设计/研究归档保留，不进入生产代码。
+- GitHub：最终 main `d9a263...` Secret scan Run `36157537422` PASS、Android CI Run `36157537494` PASS；最后一个包含 Android 代码变更的 `main@545fa29...` Android UI Test Compile Run `36156205525` PASS。
+- 本地构建基线：`main@9455aa...` identity / secrets / compileDebugKotlin / 587 JVM tests / lint / Debug APK / Release+R8 / AndroidTest APK / Room v14 migration+FK 均 PASS。
+- `9455aa...` 到最终 `d9a263...` 的 Android 相关净变化只有 #74 的 `app/src/androidTest/.../ResourcesScreenTest.kt`；#74 exact Head `9d309a2...` 已完成 63 classes / 259 tests / 257 passed / 0 failed / 2 条既有条件性 skipped。#74 merge 后再到最终 main 的净变化仅为 `tools/ai-router/*`，不改变 Android `app/` 生产树。
+- 因此 JVM / Release / AndroidTest APK / 全量 Instrumentation 与 Secret / identity / Room / R8 / backup/runtime/privacy 门禁均有覆盖最终 Android 树的有效证据，无回退。
+- #74 修复仅在测试中增加 `performScrollTo()`，保留原断言与点击验证；没有删除测试、降低断言、吞异常或恢复旧兼容实现来制造绿色。
+- 当前 open PR：**0**。
+- 已按用户授权删除 14 个已完成远端 `codex/*` 分支，意外删除 NONE。
+- 当前保留的非 main 远端分支及原因：
+  - `codex/branch-integration-master-plan`：保留本次总控 Plan 与最终执行证据；未获删除授权。
+  - `codex/core-loop-p0`：#57 superseded 历史实现/UI 验收资产归档；未获删除授权，不进入生产 main。
+  - `design/pr-08d-topic-route-html-prototypes`：历史设计/HTML 原型归档。
+  - `docs/pr-09-12g-gemini-interactions-rules`：#55 superseded 历史规则文档分支；未获删除授权。
+  - `docs/skills-catalog`：Skill Catalog 研究输入归档。
+- 本地工作区仍有若干已删除远端分支的同名 local branch；它们未获本地删除授权，不属于远端收口阻塞项。
+- Task 18 Step 3 的 Dark / reduced motion / high contrast / 360dp / 200% font / keyboard / TalkBack 扩展可用性矩阵仍标记为未完整验证；这是后续可用性覆盖缺口，**不代表仍有待合并分支或生产功能缺口**，也不改写本次已有 PASS 证据。
+
+**结论：以上 Final Completion Criteria 12 项均已满足；可以报告“全部计划内分支收口完成”。**
 
 ---
 
