@@ -64,7 +64,7 @@ fun ContextConfirmationDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    "所有资料和个人背景默认不发送。勾选、查看摘录并确认本次联网发送后，才会构造执行上下文。",
+                    "资料和个人背景沿用现有确认规则；历史 Skill 资料仅在你重新勾选后进入本次执行上下文。",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (state.previousUsage.isNotEmpty()) {
@@ -121,7 +121,7 @@ fun ContextConfirmationDialog(
                     }
                 }
                 if (state.candidates.isEmpty()) {
-                    Text("当前没有可选的活跃资料或个人背景。")
+                    Text("当前没有可选的活跃资料、个人背景或历史 Skill 资料。")
                 } else {
                     state.candidates.forEach { candidate ->
                         ContextCandidateCard(
