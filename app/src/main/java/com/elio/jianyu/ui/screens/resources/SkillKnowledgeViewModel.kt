@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.elio.jianyu.skill.knowledge.SkillKnowledgeRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -45,6 +46,8 @@ class SkillKnowledgeViewModel internal constructor(
                     }
                 }
                 SkillKnowledgeUiState.Content(documents = documents)
+            } catch (error: CancellationException) {
+                throw error
             } catch (_: Exception) {
                 SkillKnowledgeUiState.Failure("Skill 资料暂时无法读取。")
             }
