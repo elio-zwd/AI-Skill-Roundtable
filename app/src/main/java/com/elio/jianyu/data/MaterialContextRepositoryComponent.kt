@@ -482,7 +482,7 @@ internal class MaterialContextRepositoryComponent(
                         expectedSourceHash = actualHash,
                         networkAllowed = true,
                         sensitive = false,
-                        sensitiveConfirmed = true,
+                        sensitiveConfirmed = false,
                     )
                 }
             }
