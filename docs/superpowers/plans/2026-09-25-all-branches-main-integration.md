@@ -374,12 +374,12 @@
 
 **Branch / PR:** `codex/user-avatar-upload` / #68（当前 closed/unmerged）
 
-- [ ] **Step 1: #67 已成功 merge main 后，checkout `codex/user-avatar-upload`。**
-- [ ] **Step 2: 普通 merge 最新 `main` 到该分支；不 rebase、不 force-push。**
-- [ ] **Step 3: 解决冲突时以当前 main 的 #67 头像实现为父事实，只保留 #68 的用户头像增量。**
-- [ ] **Step 4: 确认 `AddSkillRoleBottomSheetTest` 已继承 #67 修复，不在 #68 重复另做一套。**
-- [ ] **Step 5: 重新打开 PR #68，并将 base 设置为 `main`。**
-- [ ] **Step 6: 检查 PR diff 约束在用户头像相关文件；不得重新包含 #66/#67 整体。**
+- [x] **Step 1: #67 已成功 merge main 后，checkout `codex/user-avatar-upload`。**
+- [x] **Step 2: 普通 merge 最新 `main` 到该分支；不 rebase、不 force-push。**
+- [x] **Step 3: 解决冲突时以当前 main 的 #67 头像实现为父事实，只保留 #68 的用户头像增量。**
+- [x] **Step 4: 确认 `AddSkillRoleBottomSheetTest` 已继承 #67 修复，不在 #68 重复另做一套。**
+- [x] **Step 5: 重新打开 PR #68，并将 base 设置为 `main`。**
+- [x] **Step 6: 检查 PR diff 约束在用户头像相关文件；不得重新包含 #66/#67 整体。**
 
 ---
 
@@ -390,22 +390,42 @@
 - Read/Modify only if behavior actually wrong: `app/src/main/java/com/elio/jianyu/data/UserAvatarRepository.kt`
 - Test: `app/src/androidTest/java/com/elio/jianyu/data/UserAvatarRepositoryAndroidTest.kt`
 
-- [ ] **Step 1: 复现当前 JVM failure。**
-- [ ] **Step 2: 确认正式路径行为仍是 `filesDir/user-profile/avatar.jpg`。**
-- [ ] **Step 3: 保留 Android 行为测试对最终文件路径、512×512、原子替换、reset、损坏图片不破坏旧头像的验证。**
-- [ ] **Step 4: 把架构测试从“源码必须出现单个 literal `user-profile/avatar.jpg`”改为验证真实架构边界：**
+- [x] **Step 1: 复现当前 JVM failure。**
+- [x] **Step 2: 确认正式路径行为仍是 `filesDir/user-profile/avatar.jpg`。**
+- [x] **Step 3: 保留 Android 行为测试对最终文件路径、512×512、原子替换、reset、损坏图片不破坏旧头像的验证。**
+- [x] **Step 4: 把架构测试从“源码必须出现单个 literal `user-profile/avatar.jpg`”改为验证真实架构边界：**
   - 私有目录常量/路径组合明确；
   - 不请求 `READ_MEDIA_IMAGES` / `READ_EXTERNAL_STORAGE`；
   - 不保存 `content://` URI；
   - 不用 SharedPreferences / Room 持久化头像；
   - backup XML 不新增 filesDir include。
 - [ ] **Step 5: 先运行聚焦 JVM，再运行全量 JVM。**
-- [ ] **Step 6: Commit：**
+- [x] **Step 6: Commit：**
   ```text
   test: 修正用户头像隐私架构门禁
   ```
 
 **Do not:** 为让测试绿而把生产实现改成更脆弱的硬编码单字符串；也不得删除“私有文件路径”约束。
+
+
+#### Task 8–9 执行进度
+
+- #68 原 Head：`913b2ba2490a99af20b3fca6bdba1e98d0d123fb`，以 #67 旧 Head `362e4055...` 为父。
+- current main：`4e2d87503daad6c17fadb4361f97cd75a33fbbc9`。
+- main→#68 同步使用 GitHub 等价 Git merge 流程：
+  - 冲突交集只有 `DialogRoute.kt`；
+  - 先在 #68 保留 UserAvatar CompositionLocal/Repository 逻辑，同时补入 main 的 OfficialSkillCatalog 参数与 44 角色映射，commit `07b9e524...`；
+  - 随后以 #68 树为 base，取入 main 其余 4 个非冲突文件，并创建双父 merge commit `694587917bc13f38d2e3b6ef2ca8aa6f827730f2`；父 1 为 #68，父 2 为 main；
+  - branch ref 更新使用 `force=false`；未 rebase、未 force-push。
+- 临时同步 PR #70 因旧 base SHA 关闭；#71 在双父 merge 后 GitHub 判定 main 已被合入并自动为 merged/closed。它们仅服务分支同步，不进入 main。
+- 当前 main 已是 #68 branch 的严格祖先；#68 已重新打开并 retarget 到 main，Draft 保持，diff 精确 15 个用户头像相关文件。
+- `AddSkillRoleBottomSheetTest` 已继承 #67 编译修复（import 使用 `assertIsDisplayed`），未在 #68 创建第二套测试逻辑。
+- 旧 Android CI Run `36033635178` 复现：584 JVM / 1 failed，唯一失败 `UserAvatarPrivacyArchitectureTest.avatarUpload_doesNotRequestBroadPhotoPermissionsOrPersistExternalUri` at line 19。
+- 生产 `UserAvatarRepository` 真实契约保持正确：`File(appContext.filesDir, AVATAR_RELATIVE_PATH)`，`USER_PROFILE_DIRECTORY="user-profile"`，`AVATAR_RELATIVE_PATH="$USER_PROFILE_DIRECTORY/avatar.jpg"`；未发现生产行为缺陷。
+- Android 行为测试仍覆盖 512×512 JPEG、替换、invalid image 不破坏旧头像、reset。
+- 架构测试已改为验证 filesDir + 目录/相对路径常量组合，并继续严格断言无广泛相册权限、无 URI 持久化、无 SharedPreferences/Room、backup XML 不 include filesDir。
+- 修复 commit：`25bd7bed54c333616a9872a307ce85ebdb616dd7`（`test: 修正用户头像隐私架构门禁`）。
+- Task 9 Step 5 等待 exact Head GitHub full JVM/CI；Secret scan 已 PASS，Android UI Test Compile / Android CI 正在运行。
 
 ---
 
