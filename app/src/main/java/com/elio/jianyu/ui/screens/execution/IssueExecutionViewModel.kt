@@ -280,6 +280,32 @@ class IssueExecutionViewModel internal constructor(
                         sensitive = personal.sensitive,
                     )
                 }
+            val skillKnowledgeCandidates = previousUsage
+                .asSequence()
+                .filter { it.sourceType == ContextSourceType.SKILL_KNOWLEDGE }
+                .filter { !it.content.isNullOrBlank() && !it.contentHash.isNullOrBlank() }
+                .distinctBy { it.sourceId }
+                .mapNotNull { usage ->
+                    val sourceId = usage.sourceId ?: return@mapNotNull null
+                    ContextCandidateUi(
+                        sourceType = ContextSourceType.SKILL_KNOWLEDGE,
+                        sourceId = sourceId,
+                        title = usage.title ?: "Skill 资料",
+                        sourceKind = usage.sourceKind.orEmpty(),
+                        sourceLocator = usage.sourceLocator,
+                        sourcePublishedAt = null,
+                        sourceCapturedAt = null,
+                        originalContent = requireNotNull(usage.content),
+                        selectedContent = usage.content,
+                        sourceHash = requireNotNull(usage.contentHash),
+                        sourceUpdatedAt = 0L,
+                        sensitive = false,
+                        selected = false,
+                        networkAllowed = true,
+                        sensitiveConfirmed = true,
+                    )
+                }
+                .toList()
             val errors = buildList {
                 if (materialResult is RepositoryResult.Failure) add("资料读取失败")
                 if (personalResult is RepositoryResult.Failure) add("个人背景读取失败")
@@ -294,7 +320,7 @@ class IssueExecutionViewModel internal constructor(
                     stageId = stageId,
                     currentUserInput = input,
                     baseContextCharacters = baseCharacters,
-                    candidates = materialCandidates + personalCandidates,
+                    candidates = materialCandidates + personalCandidates + skillKnowledgeCandidates,
                     previousUsage = previousUsage,
                     errorMessage = errors.takeIf { it.isNotEmpty() }?.joinToString("；"),
                 ),
