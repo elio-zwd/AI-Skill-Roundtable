@@ -44,10 +44,10 @@ class SkillKnowledgeArchitectureTest {
 
         assertTrue(viewModel.contains("SearchMode.AUTO ->"))
         assertTrue(viewModel.contains("SearchMode.ON ->"))
-        assertTrue(viewModel.contains("SearchMode.OFF -> error(\" \""))
+        assertTrue(viewModel.contains("SearchMode.OFF -> error("))
         assertTrue(viewModel.contains("if (mode == SearchMode.ON)"))
         assertTrue(viewModel.contains("finalQueries.add(retrievalQuery.ifBlank"))
-        assertTrue(viewModel.contains("； Skill 。"))
+        assertTrue(viewModel.contains("operationName = \"WebDecision\""))
         assertFalse(viewModel.contains("selectedFiles"))
         assertFalse(viewModel.contains("skills_summaries"))
     }
