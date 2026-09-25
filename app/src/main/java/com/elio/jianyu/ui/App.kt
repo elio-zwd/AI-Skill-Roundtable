@@ -429,11 +429,19 @@ internal fun MainAppContent(
                     resourcesContent = { tab ->
                         ResourcesRoute(
                             repository = appRuntime.repository,
+                            skillKnowledgeRepository = appRuntime.skillKnowledgeRepository,
                             initialTab = tab,
                             onOpenSettings = {
                                 navController.navigateToSecondary(AppDestination.SETTINGS)
                             },
                             onOpenIssue = navController::navigateToIssue,
+                            onUseSkillKnowledgeInConversation = { selection ->
+                                val success = viewModel.addSkillKnowledgeToCurrentConversation(selection)
+                                if (success) {
+                                    navController.navigateToTopLevel(AppDestination.HOME)
+                                }
+                                success
+                            },
                         )
                     },
                     mineContent = {
