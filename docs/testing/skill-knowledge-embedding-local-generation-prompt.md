@@ -5,6 +5,10 @@
 > ：Windows 10 / JDK 17 / Android SDK / Python 3。
 > ： GEMINI_API_KEY  gemini-embedding-2， Key。
 
+## Room Schema Guard
+
+The Room v15 schema is already committed from CI. Do not regenerate, edit, reformat, or replace `app/schemas/com.elio.jianyu.data.RoundtableDatabase/15.json`. After any Gradle compile, `git diff --exit-code -- app/schemas/com.elio.jianyu.data.RoundtableDatabase/15.json` must pass.
+
 ## 
 
 1. 。
@@ -16,7 +20,7 @@
 7. ：
    - app/src/main/assets/skill_knowledge/manifest.json
    - app/src/main/assets/skill_knowledge/index-v1.bin
-   - app/schemas/com.elio.jianyu.data.RoundtableDatabase/15.json
+8. app/schemas/com.elio.jianyu.data.RoundtableDatabase/15.json  CI ，；。
 8. 、Kotlin、、Gradle 、 test、。
 9. ，， GPT 。
 
@@ -63,25 +67,29 @@ python tools/skill_knowledge/generate_index.py --repo-root . --validate-only
 
 、 API response、 Key。
 
-## 5. Room v15 Schema +
+## 5. Room v15 Schema 
 
-：.\gradlew.bat compileDebugKotlin
-：PASS；app/schemas/com.elio.jianyu.data.RoundtableDatabase/15.json 。
-，；，、/、。
+：
+.\gradlew.bat compileDebugKotlin
+git diff --exit-code -- app/schemas/com.elio.jianyu.data.RoundtableDatabase/15.json
+
+：
+- compileDebugKotlin PASS；
+- 15.json ；
+-  15.json diff， FAIL，。
 
 ## 6. 
 
 ：git status --short
-： 3 ；/。
-：FAIL；，； 3 。
+： 2 ；/。
+：FAIL；，； 2 。
 
 ## 7. 
 
  PowerShell ：
 $files = @(
   "app/src/main/assets/skill_knowledge/manifest.json",
-  "app/src/main/assets/skill_knowledge/index-v1.bin",
-  "app/schemas/com.elio.jianyu.data.RoundtableDatabase/15.json"
+  "app/src/main/assets/skill_knowledge/index-v1.bin"
 )
 $files | ForEach-Object {
   Get-Item $_ | Select-Object FullName, Length
@@ -95,7 +103,7 @@ $files | ForEach-Object {
 ：
 $zip = Join-Path $env:TEMP "skill-knowledge-generated-artifacts.zip"
 if (Test-Path $zip) { Remove-Item $zip -Force }
-Compress-Archive -Path "app/src/main/assets/skill_knowledge/manifest.json","app/src/main/assets/skill_knowledge/index-v1.bin","app/schemas/com.elio.jianyu.data.RoundtableDatabase/15.json" -DestinationPath $zip
+Compress-Archive -Path "app/src/main/assets/skill_knowledge/manifest.json","app/src/main/assets/skill_knowledge/index-v1.bin" -DestinationPath $zip
 Write-Output $zip
 
  ZIP ， commit / push。 ZIP  Elio， GPT 。
@@ -117,7 +125,7 @@ ALLOWED_OUTPUTS_ONLY: PASS | FAIL
 GENERATED:
 - manifest.json: <bytes> / sha256=<hash>
 - index-v1.bin: <bytes> / sha256=<hash>
-- 15.json: <bytes> / sha256=<hash>
+- 15.json: COMMITTED_UNCHANGED | CHANGED
 
 MANIFEST:
 - skills=<n>
