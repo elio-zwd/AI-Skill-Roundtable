@@ -52,15 +52,13 @@ class TelemetryUiStateTest {
     }
 
     @Test
-    fun riskConfirmationsAndEventTags_areStable() {
+    fun contentDebugConfirmationAndEventTags_areStable() {
         assertEquals(TelemetryConfirmation.ContentDebug, TelemetryConfirmation.ContentDebug)
-        assertEquals(TelemetryConfirmation.CloudInteraction, TelemetryConfirmation.CloudInteraction)
         assertEquals("telemetry_event_event-1", SettingsTestTags.telemetryEvent("event-1"))
         assertEquals(
             "telemetry_content_debug_confirm",
             SettingsTestTags.TELEMETRY_CONTENT_DEBUG_CONFIRM,
         )
-        assertEquals("telemetry_cloud_confirm", SettingsTestTags.TELEMETRY_CLOUD_CONFIRM)
     }
 
     private fun status(
