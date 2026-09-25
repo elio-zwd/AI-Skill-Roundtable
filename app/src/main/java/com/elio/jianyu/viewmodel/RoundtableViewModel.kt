@@ -1287,7 +1287,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         if (selected.isEmpty()) return prompt
         return buildString {
             append(prompt)
-            append("\n\n=== 用户本次明确选择的资料/个人背景 ===\n")
+            append("\n\n=== 用户本次明确选择的资料/个人背景/Skill 资料 ===\n")
             selected.forEach { item ->
                 append("--- ${item.title}（${item.sourceType.storageValue}）---\n")
                 append(item.content).append('\n')
