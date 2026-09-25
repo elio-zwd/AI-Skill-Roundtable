@@ -87,11 +87,16 @@ class SettingsScreenRegressionTest {
 
         composeRule.onNodeWithTag(AiManagementTestTags.MODEL_SHEET).assertIsDisplayed()
         composeRule.onNodeWithText("选择对话标题模型").assertIsDisplayed()
-        composeRule.onNodeWithTag(
-            AiManagementTestTags.model(
-                "${AiUseCase.SESSION_TITLE.name}_${AiModel.GEMINI_35_FLASH.name}",
-            ),
-        ).assertIsDisplayed()
+        listOf(
+            AiModel.GEMINI_38_FLASH,
+            AiModel.GEMINI_37_FLASH,
+        ).forEach { model ->
+            composeRule.onNodeWithTag(
+                AiManagementTestTags.model(
+                    "${AiUseCase.SESSION_TITLE.name}_${model.name}",
+                ),
+            ).assertIsDisplayed()
+        }
     }
 
     @Test
