@@ -67,7 +67,7 @@ enum class AiUseCase(
     MATERIAL_BROKER("资料决策", "选择本地参考资料与检索需求", setOf(AiProvider.GEMINI, AiProvider.DEEPSEEK)),
     WEB_GROUNDING("联网检索", "调用 Google Search 获取实时信息", setOf(AiProvider.GEMINI)),
     ROUNDTABLE_ANSWER("对话角色回答", "Skill 角色的最终文本回答", setOf(AiProvider.GEMINI, AiProvider.DEEPSEEK)),
-    ISSUE_EXECUTION("议题执行", "议题工作流中的文本执行", setOf(AiProvider.GEMINI, AiProvider.DEEPSEEK)),
+    ISSUE_EXECUTION("成果生成", "生成并整理可保存的成果内容", setOf(AiProvider.GEMINI, AiProvider.DEEPSEEK)),
 }
 
 /** 只持久化用户明确选择的提供商与模型，不保存任何密钥。 */
