@@ -688,8 +688,16 @@
 - 随后的全量 Instrumentation 未完成：计划 259 tests，运行至约 235 时测试进程因 signal 9 退出；报告记为 230 passed / 1 failed / 2 skipped，但“failed”是 `StageResultComponentsTest.savedDraftShowsEditorPersistentSavedStateAndConfirmationEntry` 所在进程崩溃，没有断言堆栈。
 - `StageResultComponentsTest` 与生产 StageResult 代码未被 #74 修改；该方法只渲染本地 Compose 状态并检查 testTag。上一轮同一 main 全量运行的唯一真实断言失败是 Resources，该 StageResult 测试当时未失败。因此当前不能把 signal 9 归因为生产代码回归。
 - 下一步按 systematic-debugging 隔离：先单独运行 `StageResultComponentsTest` 并采集内存/LMKD/崩溃线索；若类级测试 PASS，则重启模拟器清理测试进程环境后再跑一次全量 Instrumentation。未得到完整 0-failed 全量结果前仍不 merge #74、不进入 Task 19。
+- 隔离复验结果：`StageResultComponentsTest` 6/6 PASS，目标方法 PASS，无 process crash；signal 9 未复现，无 LMKD/low-memory、Java/Kotlin exception 或 native crash 证据。
+- 重启模拟器后全量 Instrumentation 完整结束：63 classes / 259 tests / 257 passed / 0 failed / 2 skipped。2 skipped 为已有外部进程恢复测试的条件性 skip，需要显式 `adb shell am instrument` 才启用。
+- #74 Head GitHub Actions：Secret scan `36149362115` PASS；Android UI Test Compile `36149360570` PASS；Android CI `36149360517` PASS。
+- #74 已标记 Ready，并使用普通 merge commit 合入 main；新 main：`545fa29cbcf69f1749e24d75dff8e2c2711f776a`。
+- 已核对 Git tree：#74 Head `9d309a2...` 与新 main merge commit 的 tree SHA 均为 `efb097bc56b0965d7fd4f880a16e6b3359c8f088`，完全一致。因此上述全量 Instrumentation 是最终 main 相同代码树的有效证据。
+- 新 main push Actions 已启动：Secret scan `36156205329`、Android UI Test Compile `36156205525`、Android CI `36156205603`；当前均在运行。按用户要求不在网页长轮询，Task 17 Step 4 等最终状态后再勾选。
 
 #### Final Phase 当前快照
+
+- **最新最终 main（#74 合并后）：`545fa29cbcf69f1749e24d75dff8e2c2711f776a`。** 该 merge commit 与已完成全量设备验收的 #74 Head 具有相同 Git tree。
 
 - 当前 main：`9455aa80499bab0e395f0ea36e20fa6061d7fb54`，已包含 #66/#67/#68/#69 全部计划内 Android 生产功能。
 - 当前 open PR 仅剩：
@@ -715,7 +723,7 @@
   .\gradlew.bat :app:assembleDebugAndroidTest
   ```
 - [x] **Step 3: 检查 Room committed schema current、release/R8、APK artifacts。**
-- [x] **Step 4: GitHub main 的 Secret scan、Android UI Test Compile、Android CI 全部成功。**
+- [ ] **Step 4: GitHub main 的 Secret scan、Android UI Test Compile、Android CI 全部成功。**
 
 ---
 
@@ -723,7 +731,7 @@
 
 **Rules:** 不改代码、不自动修复、不 commit/push/merge、不使用真实生产 API Key。
 
-- [ ] **Step 1: 执行 `:app:connectedDebugAndroidTest` 全量；记录测试类数、passed/failed/skipped。**
+- [x] **Step 1: 执行 `:app:connectedDebugAndroidTest` 全量；记录测试类数、passed/failed/skipped。**
 - [x] **Step 2: 复核主流程：**
   - UI-03～UI-09；
   - Skill 角色 38 portraits + 6 tools；
@@ -747,7 +755,7 @@
   git diff --exit-code
   git rev-parse HEAD
   ```
-- [ ] **Step 5: 只有 0 failed 且无新的高风险人工缺陷，才能标记最终集成 PASS。**
+- [x] **Step 5: 只有 0 failed 且无新的高风险人工缺陷，才能标记最终集成 PASS。**
 
 ---
 
