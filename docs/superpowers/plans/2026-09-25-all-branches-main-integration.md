@@ -586,6 +586,7 @@
 - 示例配置仅占位符；`.gitignore` 已忽略整个 `work/`，cursor/log/local-ai-request 不应进入 Git。
 - 已创建独立 Draft PR #73 到 main，仅 5 个 Router 文件。
 - 待本地 AI：`python .\tools\ai-router\test_router.py` 与 `python .\tools\ai-router\router.py doctor`；不得访问真实 Drive。Step 3/4/7 在结果回来前保持未完成。
+- PR #73 Secret scan 已 PASS；Router Android CI 在最后一次状态确认时仍运行中，但该 PR 无 Android 生产代码，最终是否 merge 以离线 Router tests/doctor + Secret scan + 用户决定为准。
 
 ---
 
@@ -665,6 +666,17 @@
 # Phase H：最终 main 统一验证
 
 ### Task 17：最终代码/安全/构建门禁
+
+
+#### Final Phase 当前快照
+
+- 当前 main：`9455aa80499bab0e395f0ea36e20fa6061d7fb54`，已包含 #66/#67/#68/#69 全部计划内 Android 生产功能。
+- 当前 open PR 仅剩：
+  - #73 `codex/ai-router-mvp`：独立工具 Draft PR，仅 `tools/ai-router/*`；
+  - #57：已完成语义审计，superseded，待最终 main PASS 后关闭；
+  - #55：已完成语义审计，superseded，待最终 main PASS 后关闭。
+- #69 merge 后 main 的 Secret scan 与 Android UI Test Compile 已 PASS；Android CI 在最后一次 GitHub 状态确认时仍在运行。按用户要求不再由网页长轮询，最终状态交本地 AI/后续一次性 GitHub 查询确认。
+- Router PR #73 Secret scan 已 PASS；Android CI 在最后一次确认时运行中。Router 的正式 Gate 仍是本地离线 `test_router.py` + `doctor`，不访问真实 Drive。
 
 **Target:** 所有计划内生产功能已进入 `main` 后的精确 SHA。
 
