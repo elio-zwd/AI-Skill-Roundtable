@@ -3,6 +3,8 @@ package com.elio.jianyu.ui.screens.execution
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.data.ExecutionRunStatus
 import com.elio.jianyu.result.ArtifactRevisionResolver
@@ -77,6 +79,7 @@ class IssueExecutionStageResultScreenTest {
             }
         }
 
+        composeRule.onNodeWithText("助手与成果").performClick()
         composeRule.onNodeWithTag(IssueExecutionTestTags.STATUS).assertIsDisplayed()
         composeRule.onNodeWithTag(StageResultTestTags.PANEL).assertIsDisplayed()
         composeRule.onNodeWithTag(StageResultTestTags.DRAFT_CREATE).assertIsDisplayed()

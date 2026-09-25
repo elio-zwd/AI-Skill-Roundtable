@@ -241,29 +241,13 @@ private fun RoleDetailIdentityVisual(
     role: SkillRoleCardUi,
     modifier: Modifier,
 ) {
-    if (role.isPersonSimulation) {
-        JianyuRoleAvatar(
-            name = role.name,
-            assetPath = role.avatarAssetPath ?: "avatars/${role.skillId}.jpg",
-            fallbackContainerColor = roleDetailContainerColor(role.primaryDiscoveryCategory),
-            fallbackContentColor = roleDetailContentColor(role.primaryDiscoveryCategory),
-            modifier = modifier.clip(RoundedCornerShape(24.dp)),
-        )
-    } else {
-        Box(
-            modifier = modifier
-                .clip(RoundedCornerShape(24.dp))
-                .background(roleDetailContainerColor(role.primaryDiscoveryCategory)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = role.name.take(2),
-                color = roleDetailContentColor(role.primaryDiscoveryCategory),
-                fontSize = 30.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
-    }
+    JianyuRoleAvatar(
+        name = role.name,
+        assetPath = role.avatarAssetPath,
+        fallbackContainerColor = roleDetailContainerColor(role.primaryDiscoveryCategory),
+        fallbackContentColor = roleDetailContentColor(role.primaryDiscoveryCategory),
+        modifier = modifier.clip(RoundedCornerShape(24.dp)),
+    )
 }
 
 @Composable

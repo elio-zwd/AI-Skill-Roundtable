@@ -33,7 +33,7 @@ class BackupPrototypeIsolationTest {
     }
 
     @Test
-    fun cryptographicPrototypeDependenciesAreTestOnly() {
+    fun productionUsesFrozenCryptographicDependenciesAndKeepsVectorFixtures() {
         val buildFile = File(repositoryRoot(), "app/build.gradle.kts")
         val relevantLines = buildFile.readLines(Charsets.UTF_8)
             .map(String::trim)
@@ -41,9 +41,10 @@ class BackupPrototypeIsolationTest {
                 line.contains("bcprov-jdk15to18") || line.contains("tink-android")
             }
 
+        assertTrue(relevantLines.any { it == "implementation(\"org.bouncycastle:bcprov-jdk15to18:1.84\")" })
+        assertTrue(relevantLines.any { it == "implementation(\"com.google.crypto.tink:tink-android:1.23.0\")" })
         assertTrue(relevantLines.any { it == "testImplementation(\"org.bouncycastle:bcprov-jdk15to18:1.84\")" })
         assertTrue(relevantLines.any { it == "testImplementation(\"com.google.crypto.tink:tink-android:1.23.0\")" })
-        assertFalse(relevantLines.any { it.startsWith("implementation(") })
         assertFalse(relevantLines.any { it.startsWith("api(") })
         assertFalse(relevantLines.any { it.startsWith("androidTestImplementation(") })
     }

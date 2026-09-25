@@ -40,6 +40,19 @@ class MineUiStateTest {
     }
 
     @Test
+    fun mineCountIncludesMaintainableStatesButSummaryUsesActiveOnly() {
+        val contexts = listOf(
+            personalContext("active", "活跃", false, ContextSourceLifecycle.ACTIVE),
+            personalContext("disabled", "停用", false, ContextSourceLifecycle.DISABLED),
+            personalContext("archived", "归档", false, ContextSourceLifecycle.ARCHIVED),
+            personalContext("deleted", "删除中", false, ContextSourceLifecycle.DELETED),
+        )
+
+        assertEquals(3, contexts.minePersonalContextCount())
+        assertEquals(listOf("活跃"), contexts.toMineSummaryLabels())
+    }
+
+    @Test
     fun summaryLabels_onlyUseRealNonSensitiveUniqueTitles() {
         val contexts = listOf(
             personalContext(id = "career-a", title = "职业方向", sensitive = false),
@@ -58,13 +71,14 @@ class MineUiStateTest {
         id: String,
         title: String,
         sensitive: Boolean,
+        lifecycle: ContextSourceLifecycle = ContextSourceLifecycle.ACTIVE,
     ): PersonalContext = PersonalContext(
         id = id,
         title = title,
         content = "content-$id",
         contentHash = "hash-$id",
         sensitive = sensitive,
-        lifecycle = ContextSourceLifecycle.ACTIVE,
+        lifecycle = lifecycle,
         createdAt = 1L,
         updatedAt = 1L,
     )

@@ -20,6 +20,7 @@ import com.elio.jianyu.data.SaveIssueCommand
 import com.elio.jianyu.data.TransitionRunCommand
 import com.elio.jianyu.data.listStageAdvancements
 import kotlinx.coroutines.async
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -58,7 +59,7 @@ class AdvanceIssueViewModelDatabaseTest {
     }
 
     @Test
-    fun openingAndCancellingEveryStepNeverCreatesStage() = runBlocking {
+    fun openingAndCancellingEveryStepNeverCreatesStage(): Unit = runBlocking {
         prepareCompletedStandardRun()
         val viewModel = viewModel(SavedStateHandle())
 
@@ -76,7 +77,7 @@ class AdvanceIssueViewModelDatabaseTest {
     }
 
     @Test
-    fun savedStateRestoresUnconfirmedChoicesAndRosterWithoutCreatingStage() = runBlocking {
+    fun savedStateRestoresUnconfirmedChoicesAndRosterWithoutCreatingStage(): Unit = runBlocking {
         prepareCompletedStandardRun()
         val savedState = SavedStateHandle()
         val first = viewModel(savedState)
@@ -106,7 +107,7 @@ class AdvanceIssueViewModelDatabaseTest {
     }
 
     @Test
-    fun doubleConfirmCreatesExactlyOneStage() = runBlocking {
+    fun doubleConfirmCreatesExactlyOneStage(): Unit = runBlocking {
         prepareCompletedStandardRun()
         val viewModel = viewModel(SavedStateHandle())
 
@@ -131,7 +132,7 @@ class AdvanceIssueViewModelDatabaseTest {
     }
 
     @Test
-    fun activeRunRequiresExplicitStopEventAndNeverCreatesStageByItself() = runBlocking {
+    fun activeRunRequiresExplicitStopEventAndNeverCreatesStageByItself(): Unit = runBlocking {
         prepareActiveStandardRun()
         val viewModel = viewModel(SavedStateHandle())
 
@@ -148,7 +149,7 @@ class AdvanceIssueViewModelDatabaseTest {
         viewModel.confirm()
         awaitState<AdvanceIssueUiState.WaitingForRun>(viewModel)
 
-        val event = async { viewModel.events.first() }
+        val event = async(start = CoroutineStart.UNDISPATCHED) { viewModel.events.first() }
         viewModel.requestStopCurrentRun()
 
         assertEquals(AdvanceIssueEvent.RequestStopCurrentRun, event.await())

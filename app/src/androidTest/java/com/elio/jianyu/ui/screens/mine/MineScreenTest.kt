@@ -1,7 +1,7 @@
 package com.elio.jianyu.ui.screens.mine
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -21,7 +21,7 @@ class MineScreenTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun minePage_exposesApprovedContentAndUnavailableActions() {
+    fun minePage_exposesApprovedContentAndImplementedActions() {
         composeRule.setContent {
             SkillRoundtableTheme(darkTheme = false) {
                 MineScreen(
@@ -58,12 +58,36 @@ class MineScreenTest {
 
         listOf(
             MineTestTags.PERSONAL_BACKGROUND_ACTION,
-            MineTestTags.AVATAR_SWITCH_UNAVAILABLE,
+            MineTestTags.AVATAR_EDIT_BUTTON,
             MineTestTags.DATA_PRIVACY_CARD,
             MineTestTags.BACKUP_RESTORE_CARD,
             MineTestTags.ABOUT_ENTRY,
-        ).forEach { tag ->
-            composeRule.onNodeWithTag(tag).assertIsNotEnabled()
+        ).forEach { tag -> composeRule.onNodeWithTag(tag).assertIsEnabled() }
+    }
+
+
+    @Test
+    fun minePage_avatarEditButtonIsEnabledAndDispatchesCallback() {
+        var avatarEditClicks = 0
+
+        composeRule.setContent {
+            SkillRoundtableTheme(darkTheme = false) {
+                MineScreen(
+                    uiState = MineUiState(),
+                    onEditAvatar = { avatarEditClicks++ },
+                    onOpenSettings = {},
+                    onOpenAiManagement = {},
+                    onOpenTelemetry = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(MineTestTags.AVATAR_EDIT_BUTTON)
+            .assertIsEnabled()
+            .performClick()
+
+        composeRule.runOnIdle {
+            assertEquals(1, avatarEditClicks)
         }
     }
 

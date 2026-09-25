@@ -28,6 +28,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -119,8 +121,22 @@ internal fun SkillRolePageScreen(
         }
     }
 
-    if (uiState.filterDialogVisible) {
-        SkillRoleFilterDialog(filters = uiState.filters, onEvent = onEvent)
+    val roleCatalog = uiState.roleCatalog
+    if (uiState.discoveryFilterSheetVisible && roleCatalog != null) {
+        SkillRoleFilterSheet(
+            visible = true,
+            appliedFilters = uiState.discoveryFilters,
+            onDismiss = {
+                onEvent(OfficialSkillCatalogEvent.DiscoveryFilterSheetChanged(false))
+            },
+            onApply = { filters ->
+                onEvent(OfficialSkillCatalogEvent.DiscoveryFiltersApplied(filters))
+            },
+            matchCountProvider = { filters ->
+                applyDiscoveryFilters(roleCatalog.allRoles, filters).size
+            },
+            showMyUsageFilters = true,
+        )
     }
 
     uiState.message?.let { message ->
@@ -159,15 +175,9 @@ private fun SkillRolePageContent(
 
     RolePageHeader(
         favoritesOnly = favoritesOnly,
-        onToggleFavorites = {
-            onEvent(
-                OfficialSkillCatalogEvent.SectionChanged(
-                    if (favoritesOnly) OfficialSkillCatalogSection.DISCOVER
-                    else OfficialSkillCatalogSection.FAVORITES,
-                ),
-            )
-        },
-        onOpenFilters = { onEvent(OfficialSkillCatalogEvent.FilterDialogChanged(true)) },
+        activeFilterCount = uiState.discoveryFilters.activeCount(),
+        onToggleFavorites = { onEvent(OfficialSkillCatalogEvent.NavigateToFavorites) },
+        onOpenFilters = { onEvent(OfficialSkillCatalogEvent.DiscoveryFilterSheetChanged(true)) },
     )
 
     LazyColumn(
@@ -183,6 +193,7 @@ private fun SkillRolePageContent(
                 selectedCategory = selectedCategory,
                 onQueryChanged = { onEvent(OfficialSkillCatalogEvent.SearchChanged(it)) },
                 onCategorySelected = { category -> selectedCategoryName = category?.name.orEmpty() },
+                onSearchClicked = { onEvent(OfficialSkillCatalogEvent.NavigateToSearch) },
             )
         }
 
@@ -245,7 +256,21 @@ private fun SkillRolePageContent(
 
             if (recentRoles.isNotEmpty()) {
                 item(key = "recent_title") {
-                    RoleSectionTitle("最近使用", Modifier.padding(top = 8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RoleSectionTitle("最近使用")
+                        TextButton(
+                            onClick = { onEvent(OfficialSkillCatalogEvent.NavigateToRecent) },
+                            modifier = Modifier.testTag("role_page_recent_more_button"),
+                        ) {
+                            Text("查看全部")
+                        }
+                    }
                 }
                 item(key = "recent_cards") {
                     RoleRecentCards(recentRoles, onEvent)
@@ -288,6 +313,7 @@ private fun SkillRolePageContent(
 @Composable
 private fun RolePageHeader(
     favoritesOnly: Boolean,
+    activeFilterCount: Int,
     onToggleFavorites: () -> Unit,
     onOpenFilters: () -> Unit,
 ) {
@@ -322,13 +348,21 @@ private fun RolePageHeader(
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
-        TextButton(
-            onClick = onOpenFilters,
-            modifier = Modifier
-                .heightIn(min = 48.dp)
-                .testTag(OfficialSkillCatalogTestTags.FILTER_BUTTON),
+        BadgedBox(
+            badge = {
+                if (activeFilterCount > 0) {
+                    Badge { Text(activeFilterCount.toString()) }
+                }
+            },
         ) {
-            Text("筛选")
+            TextButton(
+                onClick = onOpenFilters,
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .testTag(OfficialSkillCatalogTestTags.FILTER_BUTTON),
+            ) {
+                Text("筛选")
+            }
         }
     }
 }
@@ -339,26 +373,41 @@ private fun RoleSearchAndCategories(
     selectedCategory: SkillRoleDiscoveryCategory?,
     onQueryChanged: (String) -> Unit,
     onCategorySelected: (SkillRoleDiscoveryCategory?) -> Unit,
+    onSearchClicked: () -> Unit = {},
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        OutlinedTextField(
-            value = query,
-            onValueChange = onQueryChanged,
-            singleLine = true,
-            placeholder = { Text("搜索角色、能力或问题") },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-            shape = RoundedCornerShape(24.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
-                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-            ),
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 52.dp)
-                .testTag(OfficialSkillCatalogTestTags.SEARCH),
-        )
+                .clip(RoundedCornerShape(24.dp))
+                .clickable(onClick = onSearchClicked),
+        ) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = onQueryChanged,
+                singleLine = true,
+                readOnly = true,
+                placeholder = { Text("搜索角色、能力或问题") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                shape = RoundedCornerShape(24.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 52.dp)
+                    .testTag(OfficialSkillCatalogTestTags.SEARCH),
+            )
+            // 覆盖透明层捕获所有点击，触发打开搜索二级页
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clickable(onClick = onSearchClicked),
+            )
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -526,13 +575,27 @@ private fun RoleFeatureMiniCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Row(Modifier.fillMaxSize()) {
-            RoleIdentityVisual(
-                role = role,
+            Column(
                 modifier = Modifier
                     .width(72.dp)
-                    .fillMaxHeight(),
-                cornerRadius = 20.dp,
-            )
+                    .padding(top = 8.dp, bottom = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                RoleIdentityVisual(
+                    role = role,
+                    modifier = Modifier.size(72.dp),
+                    cornerRadius = 16.dp,
+                )
+                if (role.isPersonSimulation) {
+                    Text(
+                        text = "AI 模拟角色",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                    )
+                }
+            }
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -557,13 +620,6 @@ private fun RoleFeatureMiniCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (role.isPersonSimulation) {
-                    Text(
-                        text = "AI 模拟角色",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
             }
         }
     }
@@ -820,29 +876,13 @@ private fun RoleIdentityVisual(
     modifier: Modifier,
     cornerRadius: androidx.compose.ui.unit.Dp,
 ) {
-    if (role.isPersonSimulation) {
-        JianyuRoleAvatar(
-            name = role.name,
-            assetPath = role.visualAvatarPath(),
-            modifier = modifier.clip(RoundedCornerShape(cornerRadius)),
-            fallbackContainerColor = roleVisualContainerColor(role.primaryDiscoveryCategory),
-            fallbackContentColor = roleVisualContentColor(role.primaryDiscoveryCategory),
-        )
-    } else {
-        Box(
-            modifier = modifier
-                .clip(RoundedCornerShape(cornerRadius))
-                .background(roleVisualContainerColor(role.primaryDiscoveryCategory)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = role.name.take(2),
-                color = roleVisualContentColor(role.primaryDiscoveryCategory),
-                fontSize = 24.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
-    }
+    JianyuRoleAvatar(
+        name = role.name,
+        assetPath = role.avatarAssetPath,
+        modifier = modifier.clip(RoundedCornerShape(cornerRadius)),
+        fallbackContainerColor = roleVisualContainerColor(role.primaryDiscoveryCategory),
+        fallbackContentColor = roleVisualContentColor(role.primaryDiscoveryCategory),
+    )
 }
 
 @Composable
@@ -882,9 +922,6 @@ private fun RoleFavoriteButton(
         )
     }
 }
-
-private fun SkillRoleCardUi.visualAvatarPath(): String? =
-    avatarAssetPath ?: if (isPersonSimulation) "avatars/$skillId.jpg" else null
 
 private fun SkillRoleCardUi.visualTypeLabel(): String = when (primaryType) {
     OfficialSkillPrimaryType.PERSON_PERSPECTIVE -> "人物视角"

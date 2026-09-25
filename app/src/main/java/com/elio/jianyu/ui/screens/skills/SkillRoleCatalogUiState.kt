@@ -8,12 +8,13 @@ import com.elio.jianyu.skill.catalog.OfficialSkillPrimaryType
 import com.elio.jianyu.skill.catalog.RecentOfficialSkillUse
 import com.elio.jianyu.skill.role.SkillRoleDiscoveryCategory
 import com.elio.jianyu.skill.role.SkillRolePresentationCatalog
+import com.elio.jianyu.skill.role.officialSkillVisualAssetPath
 
 /**
  * 【角色】页消费的不可变卡片投影。
  *
  * 角色身份、名称、能力与执行资格始终来自 OfficialSkillCatalog；这里仅叠加
- * Presentation Manifest 的发现分类/编辑精选，以及用户收藏、最近使用和旧头像视觉补充。
+ * Presentation Manifest 的发现分类/编辑精选，以及用户收藏、最近使用和正式视觉路径。
  */
 internal data class SkillRoleCardUi(
     val skillId: String,
@@ -28,6 +29,8 @@ internal data class SkillRoleCardUi(
     val isExecutable: Boolean,
     val featuredOrder: Int?,
     val officialSkill: OfficialSkillDefinition,
+    val matchEvidences: List<SkillRoleMatchEvidence> = emptyList(),
+    val relevanceTier: SkillRoleRelevanceTier = SkillRoleRelevanceTier.NO_MATCH,
 )
 
 internal data class SkillRoleCatalogUiState(
@@ -38,9 +41,7 @@ internal data class SkillRoleCatalogUiState(
     val selectedCategory: SkillRoleDiscoveryCategory?,
 )
 
-/**
- * 纯投影函数：44 项 Catalog 是列表基数，legacy Character 只能补头像，不能裁掉角色。
- */
+/** 纯投影函数：44 项 Catalog 是列表基数，视觉路径由官方 Skill 类型统一解析。 */
 internal fun projectSkillRoleCatalog(
     catalog: OfficialSkillCatalog,
     presentationCatalog: SkillRolePresentationCatalog,
@@ -49,7 +50,6 @@ internal fun projectSkillRoleCatalog(
     filters: OfficialSkillCatalogFilters = OfficialSkillCatalogFilters(),
     favoriteIds: Set<String> = emptySet(),
     recentUses: List<RecentOfficialSkillUse> = emptyList(),
-    legacyAvatarPaths: Map<String, String> = emptyMap(),
 ): SkillRoleCatalogUiState {
     val latestUseBySkillId = recentUses
         .asSequence()
@@ -61,7 +61,7 @@ internal fun projectSkillRoleCatalog(
         .sortedWith(compareBy(OfficialSkillDefinition::defaultOrder, OfficialSkillDefinition::id))
         .map { skill ->
             val presentation = requireNotNull(presentationCatalog.findBySkillId(skill.id)) {
-                "角色展示 Manifest 缺少官方 Skill：${skill.id}"
+                "角色展示 Manifest 缺少官方 Skill：" + skill.id
             }
             SkillRoleCardUi(
                 skillId = skill.id,
@@ -70,7 +70,7 @@ internal fun projectSkillRoleCatalog(
                 primaryType = skill.primaryType,
                 primaryDiscoveryCategory = presentation.primaryDiscoveryCategory,
                 isPersonSimulation = skill.primaryType == OfficialSkillPrimaryType.PERSON_PERSPECTIVE,
-                avatarAssetPath = legacyAvatarPaths[skill.id]?.takeIf(String::isNotBlank),
+                avatarAssetPath = officialSkillVisualAssetPath(skill),
                 isFavorite = skill.id in favoriteIds,
                 lastUsedAt = latestUseBySkillId[skill.id],
                 isExecutable = skill.availability.executable,

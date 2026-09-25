@@ -11,6 +11,7 @@ import com.elio.jianyu.skill.catalog.OfficialSkillExecutionContext
 import com.elio.jianyu.skill.catalog.OfficialSkillExecutionContextEligibility
 import com.elio.jianyu.skill.catalog.OfficialSkillExecutionEligibility
 import com.elio.jianyu.skill.catalog.OfficialSkillExecutionSelectedMode
+import com.elio.jianyu.skill.role.officialSkillVisualAssetPath
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -104,8 +105,7 @@ class OfficialCatalogExecutionSkillResolver(
                 sourceType = OFFICIAL_SKILL_SOURCE_TYPE,
                 sourceId = definition.id,
                 displayName = config?.name?.takeIf(String::isNotBlank) ?: definition.nameZh,
-                avatar = config?.avatar?.takeIf(String::isNotBlank)
-                    ?: definition.nameZh.take(1),
+                avatar = officialSkillVisualAssetPath(definition),
                 skillAssetPath = assetPath,
                 systemPrompt = systemPrompt,
                 configurationJson = json.encodeToString(definition),

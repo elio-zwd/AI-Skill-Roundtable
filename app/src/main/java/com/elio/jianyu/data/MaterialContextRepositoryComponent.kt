@@ -367,94 +367,118 @@ internal class MaterialContextRepositoryComponent(
         command: PrepareExecutionContextCommand,
     ): RepositoryResult<PreparedExecutionContext> =
         transactions.transaction("prepare_execution_context") {
-            require(command.preparedAt > 0L)
-            val draft = command.draft
-            if (!draft.confirmed) {
-                return@transaction validationFailure(ContextValidationError.CONFIRMATION_REQUIRED)
-            }
-            val stage = getStage(draft.stageId)
-            if (stage == null || stage.issueId != draft.issueId) {
-                return@transaction RepositoryResult.Failure(
-                    RepositoryError.NotFound("stage", draft.stageId),
-                )
-            }
-            val verified = mutableListOf<ConfirmedContextItem>()
-            for (item in draft.items) {
-                when (item.sourceType) {
-                    ContextSourceType.MATERIAL -> {
-                        val source = getMaterialReference(item.sourceId)
-                            ?: return@transaction validationFailure(
-                                ContextValidationError.SOURCE_NOT_FOUND,
-                            )
-                        lifecycleError(source.lifecycleState)?.let {
-                            return@transaction validationFailure(it)
-                        }
-                        if (source.issueId != draft.issueId ||
-                            (source.stageId != null && source.stageId != draft.stageId)
-                        ) {
-                            return@transaction validationFailure(
-                                ContextValidationError.SOURCE_NOT_FOUND,
-                            )
-                        }
-                        if (source.updatedAt != item.expectedSourceUpdatedAt ||
-                            source.contentHash != item.expectedSourceHash
-                        ) {
-                            return@transaction validationFailure(ContextValidationError.SOURCE_STALE)
-                        }
-                        if (!ContextContentHasher.normalize(source.content)
-                                .contains(ContextContentHasher.normalize(item.content))
-                        ) {
-                            return@transaction validationFailure(
-                                ContextValidationError.CONTENT_HASH_MISMATCH,
-                            )
-                        }
-                        verified += item.copy(
-                            title = source.title,
-                            sourceKind = source.sourceType,
-                            sourceLocator = source.sourceLocator,
-                            sourcePublishedAt = source.sourcePublishedAt,
-                            sourceCapturedAt = source.sourceCapturedAt,
-                            sensitive = source.sensitive,
+            prepareExecutionContextInTransaction(command)
+        }
+
+    suspend fun prepareAndRecordConversationContextUsage(
+        command: PrepareExecutionContextCommand,
+        usageScopeId: String,
+    ): RepositoryResult<PreparedExecutionContext> =
+        transactions.transaction("prepare_conversation_context_usage") {
+            when (val prepared = prepareExecutionContextInTransaction(command)) {
+                is RepositoryResult.Failure -> prepared
+                is RepositoryResult.Success -> {
+                    when (
+                        val recorded = recordPreparedConversationContextUsage(
+                            prepared = prepared.value,
+                            usageScopeId = usageScopeId,
+                        )
+                    ) {
+                        is RepositoryResult.Failure -> recorded
+                        is RepositoryResult.Success -> RepositoryResult.Success(
+                            value = prepared.value.copy(usage = recorded.value),
+                            idempotent = recorded.idempotent,
                         )
                     }
-                    ContextSourceType.PERSONAL_CONTEXT -> {
-                        val source = getPersonalContextEntry(item.sourceId)
-                            ?: return@transaction validationFailure(
-                                ContextValidationError.SOURCE_NOT_FOUND,
-                            )
-                        lifecycleError(source.lifecycleState)?.let {
-                            return@transaction validationFailure(it)
-                        }
-                        if (source.updatedAt != item.expectedSourceUpdatedAt ||
-                            source.contentHash != item.expectedSourceHash
-                        ) {
-                            return@transaction validationFailure(ContextValidationError.SOURCE_STALE)
-                        }
-                        if (!ContextContentHasher.normalize(source.content)
-                                .contains(ContextContentHasher.normalize(item.content))
-                        ) {
-                            return@transaction validationFailure(
-                                ContextValidationError.CONTENT_HASH_MISMATCH,
-                            )
-                        }
-                        verified += item.copy(title = source.title, sensitive = source.sensitive)
-                    }
-                }
-            }
-            when (val validated = ContextSelectionValidator.validate(
-                baseContextCharacters = draft.baseContextCharacters,
-                items = verified,
-                maxContextCharacters = command.maxContextCharacters,
-            )) {
-                is ContextPreparationResult.Invalid -> {
-                    return@transaction validationFailure(validated.errors.first())
-                }
-                is ContextPreparationResult.Ready -> {
-                    val usage = createUsageWriteSet(draft, validated.items, command.preparedAt)
-                    RepositoryResult.Success(PreparedExecutionContext(validated, usage))
                 }
             }
         }
+
+    private suspend fun JianyuRepositoryDao.prepareExecutionContextInTransaction(
+        command: PrepareExecutionContextCommand,
+    ): RepositoryResult<PreparedExecutionContext> {
+        require(command.preparedAt > 0L)
+        val draft = command.draft
+        if (!draft.confirmed) {
+            return validationFailure(ContextValidationError.CONFIRMATION_REQUIRED)
+        }
+        val stage = getStage(draft.stageId)
+        if (stage == null || stage.issueId != draft.issueId) {
+            return RepositoryResult.Failure(
+                RepositoryError.NotFound("stage", draft.stageId),
+            )
+        }
+        val verified = mutableListOf<ConfirmedContextItem>()
+        for (item in draft.items) {
+            when (item.sourceType) {
+                ContextSourceType.MATERIAL -> {
+                    val source = getMaterialReference(item.sourceId)
+                        ?: return validationFailure(ContextValidationError.SOURCE_NOT_FOUND)
+                    lifecycleError(source.lifecycleState)?.let { return validationFailure(it) }
+                    if (
+                        source.issueId != draft.issueId ||
+                        (source.stageId != null && source.stageId != draft.stageId)
+                    ) {
+                        return validationFailure(ContextValidationError.SOURCE_NOT_FOUND)
+                    }
+                    if (
+                        source.updatedAt != item.expectedSourceUpdatedAt ||
+                        source.contentHash != item.expectedSourceHash
+                    ) {
+                        return validationFailure(ContextValidationError.SOURCE_STALE)
+                    }
+                    if (
+                        !ContextContentHasher.normalize(source.content)
+                            .contains(ContextContentHasher.normalize(item.content))
+                    ) {
+                        return validationFailure(ContextValidationError.CONTENT_HASH_MISMATCH)
+                    }
+                    verified += item.copy(
+                        title = source.title,
+                        sourceKind = source.sourceType,
+                        sourceLocator = source.sourceLocator,
+                        sourcePublishedAt = source.sourcePublishedAt,
+                        sourceCapturedAt = source.sourceCapturedAt,
+                        sensitive = source.sensitive,
+                    )
+                }
+                ContextSourceType.PERSONAL_CONTEXT -> {
+                    val source = getPersonalContextEntry(item.sourceId)
+                        ?: return validationFailure(ContextValidationError.SOURCE_NOT_FOUND)
+                    lifecycleError(source.lifecycleState)?.let { return validationFailure(it) }
+                    if (
+                        source.updatedAt != item.expectedSourceUpdatedAt ||
+                        source.contentHash != item.expectedSourceHash
+                    ) {
+                        return validationFailure(ContextValidationError.SOURCE_STALE)
+                    }
+                    if (
+                        !ContextContentHasher.normalize(source.content)
+                            .contains(ContextContentHasher.normalize(item.content))
+                    ) {
+                        return validationFailure(ContextValidationError.CONTENT_HASH_MISMATCH)
+                    }
+                    verified += item.copy(title = source.title, sensitive = source.sensitive)
+                }
+            }
+        }
+        return when (
+            val validated = ContextSelectionValidator.validate(
+                baseContextCharacters = draft.baseContextCharacters,
+                items = verified,
+                maxContextCharacters = command.maxContextCharacters,
+            )
+        ) {
+            is ContextPreparationResult.Invalid ->
+                validationFailure(validated.errors.first())
+            is ContextPreparationResult.Ready -> RepositoryResult.Success(
+                PreparedExecutionContext(
+                    preparation = validated,
+                    usage = createUsageWriteSet(draft, validated.items, command.preparedAt),
+                ),
+            )
+        }
+    }
 
     suspend fun listRunContextUsage(
         runId: String,

@@ -23,6 +23,9 @@ object JianyuNavigationRoutes {
 
     const val ISSUE_DETAIL_PATTERN = "issues/{$ISSUE_ID_ARGUMENT}?$STAGE_ID_ARGUMENT={$STAGE_ID_ARGUMENT}"
     const val SKILL_DETAIL_PATTERN = "skills/{$SKILL_ID_ARGUMENT}"
+    const val SKILL_SEARCH_PATTERN = "skills/search"
+    const val SKILL_FAVORITES_PATTERN = "skills/favorites"
+    const val SKILL_RECENT_PATTERN = "skills/recent"
     const val ISSUE_DEEP_LINK_PATTERN = "jianyu://issues/{$ISSUE_ID_ARGUMENT}?$STAGE_ID_ARGUMENT={$STAGE_ID_ARGUMENT}"
     const val SKILL_DEEP_LINK_PATTERN = "jianyu://skills/{$SKILL_ID_ARGUMENT}"
     const val RESOURCES_DEEP_LINK_PATTERN = "jianyu://resources?$RESOURCE_TAB_ARGUMENT={$RESOURCE_TAB_ARGUMENT}"

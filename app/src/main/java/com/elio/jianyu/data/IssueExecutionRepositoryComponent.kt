@@ -13,7 +13,7 @@ internal class IssueExecutionRepositoryComponent(
                 title = command.title,
                 createdAt = command.createdAt,
                 updatedAt = command.createdAt,
-                legacyChatSessionId = null
+                legacyChatSessionId = command.legacyChatSessionId
             )
             val requestedStage = StageEntity(
                 id = command.initialStageId,
@@ -41,9 +41,13 @@ internal class IssueExecutionRepositoryComponent(
                             "missing_issue_lifecycle"
                         )
                     )
+                // 兼容消息写入可能在首次保存后补齐 legacyChatSessionId；调用方未指定该字段时，
+                // 重试仍应保持幂等，而明确指定的正式关系必须严格匹配。
                 val sameIssuePayload = existingIssue.id == requestedIssue.id &&
                     existingIssue.title == requestedIssue.title &&
-                    existingIssue.createdAt == requestedIssue.createdAt
+                    existingIssue.createdAt == requestedIssue.createdAt &&
+                    (command.legacyChatSessionId == null ||
+                        existingIssue.legacyChatSessionId == requestedIssue.legacyChatSessionId)
                 val sameStagePayload = existingStage?.id == requestedStage.id &&
                     existingStage.issueId == requestedStage.issueId &&
                     existingStage.sequenceIndex == 0 &&

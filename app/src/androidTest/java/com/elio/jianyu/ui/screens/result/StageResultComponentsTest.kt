@@ -2,8 +2,13 @@ package com.elio.jianyu.ui.screens.result
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollTo
 import com.elio.jianyu.result.ArtifactRevisionResolver
 import com.elio.jianyu.result.ArtifactType
 import com.elio.jianyu.result.StageResultWorkspace
@@ -118,6 +123,39 @@ class StageResultComponentsTest {
             .assertIsDisplayed()
         composeRule.onNodeWithTag(StageResultTestTags.ARTIFACT_CONFIRMATION_DIALOG)
             .assertIsDisplayed()
+        composeRule.onAllNodesWithText("保存为成果").assertCountEquals(2)
+        composeRule.onNodeWithTag(StageResultTestTags.ARTIFACT_CONFIRMATION_CONFIRM)
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("确认后，这段内容才会成为正式成果。")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun artifactConfirmationDisablesDismissAndResubmitWhileConfirming() {
+        composeRule.setContent {
+            MaterialTheme {
+                StageDraftResultPanel(
+                    state = contentState(
+                        draftId = "draft-1",
+                        editorContent = "待确认正文",
+                        persistedContent = "待确认正文",
+                        currentRevision = 1,
+                        showArtifactConfirmation = true,
+                        artifactTitle = "阶段总结",
+                        artifactStatus = StageArtifactConfirmationStatus.Confirming,
+                    ),
+                    callbacks = StageResultCallbacks.Empty,
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(StageResultTestTags.ARTIFACT_CONFIRMATION_CONFIRM)
+            .performScrollTo()
+            .assertIsNotEnabled()
+        composeRule.onNodeWithTag(StageResultTestTags.ARTIFACT_CONFIRMATION_CANCEL)
+            .assertIsNotEnabled()
     }
 
     private fun contentState(
@@ -130,6 +168,7 @@ class StageResultComponentsTest {
         showArtifactConfirmation: Boolean = false,
         artifactTitle: String = "",
         artifactType: ArtifactType = ArtifactType.GENERAL_SUMMARY,
+        artifactStatus: StageArtifactConfirmationStatus = StageArtifactConfirmationStatus.Idle,
     ) = StageResultUiState.Content(
         workspace = StageResultWorkspace(
             issueId = "issue-1",
@@ -153,6 +192,6 @@ class StageResultComponentsTest {
         revisionOfArtifactId = null,
         showAbandonConfirmation = showAbandonConfirmation,
         showArtifactConfirmation = showArtifactConfirmation,
-        artifactStatus = StageArtifactConfirmationStatus.Idle,
+        artifactStatus = artifactStatus,
     )
 }
