@@ -1036,7 +1036,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 confirmationOrder = order,
                 networkAllowed = true,
                 sensitive = false,
-                sensitiveConfirmed = true,
+                sensitiveConfirmed = false,
             ),
         )
     }
