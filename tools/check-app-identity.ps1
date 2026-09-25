@@ -11,7 +11,7 @@ $CurrentPackage = 'com.elio.jianyu'
 $LegacyPackage = 'com.elio.skillroundtable'
 $LegacySchema = 'app/schemas/com.elio.skillroundtable.data.RoundtableDatabase/5.json'
 $CurrentIdentitySchema = 'app/schemas/com.elio.jianyu.data.RoundtableDatabase/5.json'
-$CurrentExecutionSchema = 'app/schemas/com.elio.jianyu.data.RoundtableDatabase/14.json'
+$PreviousExecutionSchema = 'app/schemas/com.elio.jianyu.data.RoundtableDatabase/14.json'
 $MoveManifest = 'docs/testing/pr-09-01-package-move-manifest.txt'
 
 function Pass {
@@ -243,21 +243,24 @@ try {
         'MIGRATION_10_11',
         'MIGRATION_11_12',
         'MIGRATION_12_13',
-        'MIGRATION_13_14'
+        'MIGRATION_13_14',
+        'MIGRATION_14_15'
     )
     $missingMigrations = @($requiredMigrations | Where-Object { $databaseSource -notmatch [regex]::Escape($_) })
     $materialContextMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/MaterialContextMigration.kt' -Raw
     $collaborationMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/CollaborationMigration.kt' -Raw
     $stageAdvancementMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/StageAdvancementMigration.kt' -Raw
     $issueLifecycleMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/IssueLifecycleV12Migration.kt' -Raw
-    if ($databaseSource -match 'version\s*=\s*14' -and
+    $skillKnowledgeMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/SkillKnowledgeContextMigration.kt' -Raw
+    if ($databaseSource -match 'version\s*=\s*15' -and
         $missingMigrations.Count -eq 0 -and
         $databaseSource -match '"roundtable_database"' -and
-        (Test-Path $CurrentExecutionSchema -PathType Leaf) -and
+        (Test-Path $PreviousExecutionSchema -PathType Leaf) -and
         $materialContextMigration -match 'Migration\(8,\s*9\)' -and
         $collaborationMigration -match 'Migration\(9,\s*10\)' -and
         $stageAdvancementMigration -match 'Migration\(10,\s*11\)' -and
-        $issueLifecycleMigration -match 'Migration\(11,\s*12\)') {
+        $issueLifecycleMigration -match 'Migration\(11,\s*12\)' -and
+        $skillKnowledgeMigration -match 'Migration\(14,\s*15\)') {
         Pass 'Room Runtime Contract' 'Room v14 Schema、数据库名和 v1→v14 Migration 链保持完整'
     } else {
         Fail 'Room Runtime Contract' "Room v14 Schema、数据库名或 Migration 链异常；缺失迁移=$($missingMigrations -join ', ')"
