@@ -287,6 +287,60 @@ class MaterialContextRepositoryTest {
     }
 
     @Test
+    fun explicitSkillKnowledgeContextCreatesStableNonSensitiveUsageSnapshot() = runBlocking {
+        saveIssue()
+        val skillContent = "费曼资料：先用可验证的例子解释概念。"
+        val skillHash = ContextContentHasher.hash(skillContent)
+        val prepared = repository.prepareExecutionContext(
+            PrepareExecutionContextCommand(
+                draft = ContextSelectionDraft(
+                    issueId = ISSUE_ID,
+                    stageId = STAGE_ID,
+                    runId = RUN_ID,
+                    baseContextCharacters = 100,
+                    items = listOf(
+                        ConfirmedContextItem(
+                            sourceType = ContextSourceType.SKILL_KNOWLEDGE,
+                            sourceId = "feynman-research",
+                            title = "费曼研究",
+                            sourceKind = "richard_feynman",
+                            sourceLocator = "references/research.md",
+                            content = skillContent,
+                            contentHash = skillHash,
+                            expectedSourceHash = skillHash,
+                            expectedSourceUpdatedAt = 0L,
+                            confirmationOrder = 0,
+                            userConfirmedAt = 180L,
+                            networkAllowed = true,
+                            sensitive = false,
+                            sensitiveConfirmed = false,
+                        ),
+                    ),
+                    confirmed = true,
+                ),
+                preparedAt = 200L,
+            ),
+        ).successValue()
+
+        assertEquals(1, prepared.usage.skillKnowledge.size)
+        assertTrue(prepared.usage.materials.isEmpty())
+        assertTrue(prepared.usage.personalContexts.isEmpty())
+
+        repository.createExecutionRuntime(runtimeCommand(prepared.usage)).successValue()
+        val usage = repository.listRunContextUsage(RUN_ID).successValue().single()
+
+        assertEquals(ContextSourceType.SKILL_KNOWLEDGE, usage.sourceType)
+        assertEquals("feynman-research", usage.sourceId)
+        assertEquals("richard_feynman", usage.sourceKind)
+        assertEquals("references/research.md", usage.sourceLocator)
+        assertEquals(skillContent, usage.content)
+        assertEquals(skillHash, usage.contentHash)
+        assertTrue(usage.networkAllowed)
+        assertFalse(usage.sensitive)
+        assertEquals(0, foreignKeyViolations())
+    }
+
+    @Test
     fun purgeAnonymizesCurrentAndHistoricalContentWithoutBreakingRelations() = runBlocking {
         saveIssue()
         val material = repository.createMaterial(materialCommand(sensitive = true)).successValue()
