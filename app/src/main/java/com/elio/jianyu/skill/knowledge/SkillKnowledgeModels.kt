@@ -85,7 +85,7 @@ fun interface SkillKnowledgeRetrievalGateway {
         ownerSkillId: String,
         sessionId: Long,
         currentUserInput: String,
-        onAttemptStarted: suspend () -> Unit = {},
+        onAttemptStarted: suspend () -> Unit,
     ): SkillKnowledgeRetrievalResult
 }
 
