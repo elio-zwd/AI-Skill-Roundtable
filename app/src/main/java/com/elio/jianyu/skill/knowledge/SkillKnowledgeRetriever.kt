@@ -11,7 +11,7 @@ class SkillKnowledgeRetriever(
     private val candidateLimit: Int = 12,
     private val hitLimit: Int = 8,
     private val maxPerDocument: Int = 2,
-    private val maxContextCharacters: Int = 9_000,
+    private val maxContextCharacters: Int = SKILL_KNOWLEDGE_CONTEXT_BUDGET_CHARACTERS,
 ) : SkillKnowledgeRetrievalGateway {
     init {
         require(embeddingDimension > 0)
