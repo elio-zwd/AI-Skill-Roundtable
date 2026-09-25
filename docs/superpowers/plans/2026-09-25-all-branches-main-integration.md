@@ -601,11 +601,11 @@
 - `14cd489` style: 升级全应用背景色调与工作区收纳抽屉
 - `399b8e3` docs: 归档 PR09 UI 设计原型资产
 
-- [ ] **Step 1: 在所有新功能合入 main 后，对每个 commit 做 semantic diff，不以 commit SHA 是否祖先作为唯一判断。**
-- [ ] **Step 2: 对 `24a5e3e` 检查当前 main 已存在的点名回应、交叉讨论、Stage/Issue collaboration、相关 Repository 和测试；若当前行为已覆盖，则标 superseded。**
-- [ ] **Step 3: 对 `3d84382` / `14cd489` 对照当前 ADR/UI 规范与 #66 后的现状；旧视觉不能覆盖当前已验收 UI。**
-- [ ] **Step 4: 对 `399b8e3` 仅判断设计证据是否值得归档；不把 screenshots/XML 当生产代码依赖。**
-- [ ] **Step 5: 若发现当前 main 真缺失且仍符合现行产品契约的行为，创建**新的小分支**从最新 main 移植最小代码和测试；禁止 merge #57。**
+- [x] **Step 1: 在所有新功能合入 main 后，对每个 commit 做 semantic diff，不以 commit SHA 是否祖先作为唯一判断。**
+- [x] **Step 2: 对 `24a5e3e` 检查当前 main 已存在的点名回应、交叉讨论、Stage/Issue collaboration、相关 Repository 和测试；若当前行为已覆盖，则标 superseded。**
+- [x] **Step 3: 对 `3d84382` / `14cd489` 对照当前 ADR/UI 规范与 #66 后的现状；旧视觉不能覆盖当前已验收 UI。**
+- [x] **Step 4: 对 `399b8e3` 仅判断设计证据是否值得归档；不把 screenshots/XML 当生产代码依赖。**
+- [x] **Step 5 (N/A): 若发现当前 main 真缺失且仍符合现行产品契约的行为，创建**新的小分支**从最新 main 移植最小代码和测试；禁止 merge #57。** 未发现需要移植的有效缺口。
 - [ ] **Step 6: 若无缺失，获得授权后关闭 #57 为 superseded。**
 
 ---
@@ -614,12 +614,32 @@
 
 **PR:** #55 `docs/pr-09-12g-gemini-interactions-rules`
 
-- [ ] **Step 1: 对照当前 Accepted ADR、Gemini API guide、产品模型和 #66 后实际网络实现。**
-- [ ] **Step 2: 把 #55 文档内容分为：仍有效 / 已被覆盖 / 与当前实现冲突。**
+- [x] **Step 1: 对照当前 Accepted ADR、Gemini API guide、产品模型和 #66 后实际网络实现。**
+- [x] **Step 2: 把 #55 文档内容分为：仍有效 / 已被覆盖 / 与当前实现冲突。**
 - [ ] **Step 3A: 若全部被更新文档覆盖：关闭 #55，不 merge。**
-- [ ] **Step 3B: 若有仍有效且 main 缺失的规则：在 docs-only 小 PR 中只移植有效部分，并明确 supersession；不要整分支 merge。**
+- [x] **Step 3B (N/A): 若有仍有效且 main 缺失的规则：在 docs-only 小 PR 中只移植有效部分，并明确 supersession；不要整分支 merge。** 没有发现 main 缺失的有效规则。
 
 ---
+
+
+#### Task 14 审计结论
+
+- #57 当前相对 main 仍有 4 个历史独有 commits，但不是应整合的“缺失功能包”。
+- `24a5e3e` 的 Directed Response / Cross Discussion / Collaboration Repository / Coordinator / UI state / database tests 在 current main 中均可找到同一正式能力，并已叠加 thinking/search、lifecycle write gate 等后续增强；判定 superseded。
+- `3d84382` / `14cd489` 是旧 Issue/Workspace UI 视觉调整；现行 ADR-009 与 UI-01～UI-09 已将用户模型迁移到 Conversation/Dialog，并有更新验收 UI，不允许旧 style commit 覆盖。
+- `399b8e3` 仅添加 PR09-16A screenshots/XML 历史验收资产，可保留在旧分支作为审计证据，不是生产依赖。
+- 未发现符合现行产品契约但 current main 缺失、需要小分支移植的行为。
+- #57 结论：**superseded / 禁止整分支 merge**；PR 关闭动作留给最终 Task 19 的统一清场授权。
+
+#### Task 15 审计结论
+
+- #55 唯一净文件为 `docs/planning/pr-09-12g-gemini-interactions-product-rules.md`。
+- 仍有效规则已经进入 current main：`IssueThinkingPolicy`、`ExecutionThinkingSource`、`ExecutionThinkingPolicyResolver`、Run actual model/thinking snapshots、Gemini Interactions transport、CloudInteractionRequestPolicy、session+role InteractionChainStore。
+- 当前 Transport 会把调用方请求的 `store=true` 在发送前按用户云端授权收敛；未授权时不能使用 previous interaction chain。
+- 当前协议/产品文档已覆盖 thinking_level、store/previous_interaction_id 角色隔离、无显式 Cache/TTL 承诺、Room 重建上下文等边界；且比 2026-08-11 的 #55 模型矩阵更新。
+- #55 的“议题”用户术语已被 ADR-009 的 Conversation/Dialog 产品模型覆盖。
+- 没有 main 缺失的有效规则，因此不创建 docs-only 移植 PR。
+- #55 结论：**superseded / 不整分支 merge**；关闭动作留给 Task 19。
 
 ### Task 16：审计无 PR 的 design / research 分支
 
@@ -627,10 +647,18 @@
 - `design/pr-08d-topic-route-html-prototypes`
 - `docs/skills-catalog`
 
-- [ ] **Step 1: 确认两者均不承载当前生产 App 唯一实现。**
-- [ ] **Step 2: 检查 main 是否已有等价/更新的品牌设计、Skill catalog 文档。**
-- [ ] **Step 3: 若只是历史研究/原型，保持远端归档，不进入 main。**
-- [ ] **Step 4: 若团队明确希望把研究资料纳入主仓文档，创建 docs-only PR，从最新 main 只移植文档目录；不得夹带旧生产实现。**
+#### Task 16 审计结论
+
+- 两个分支均为 docs/design/research-only，不含 `app/` 生产实现。
+- PR08-D 的 `jianyu-brand-system.md`、`jianyu-visual-design-system.md`、`jianyu-screen-specs.md` 已有版本进入 main；当前 UI 另有更新的 `docs/product/重构/UI界面/*` 共享视觉基线和已选页面规格。
+- design 分支独有的 `prototypes/topic-route/*` README 明确声明“仅用于 PR08-D 视觉方向比较，不代表 Android 功能/正式品牌/最终文案”，且基于旧“议题航线”模型；作为远端历史原型保留，不进入 main。
+- `docs/skills-catalog` 的 research-catalog 在 current main 的 `docs/skills/jianyu-skill-catalog-mapping.md` 中被明确引用为研究输入；current main 已形成 44 项正式 catalog、execution manifest 与正式 Skill assets。
+- 因此两个分支均保留为远端归档，不另建 docs-only PR，也不删除。
+
+- [x] **Step 1: 确认两者均不承载当前生产 App 唯一实现。**
+- [x] **Step 2: 检查 main 是否已有等价/更新的品牌设计、Skill catalog 文档。**
+- [x] **Step 3: 若只是历史研究/原型，保持远端归档，不进入 main。**
+- [x] **Step 4 (N/A): 若团队明确希望把研究资料纳入主仓文档，创建 docs-only PR，从最新 main 只移植文档目录；不得夹带旧生产实现。** 当前无此明确需求。
 
 ---
 
