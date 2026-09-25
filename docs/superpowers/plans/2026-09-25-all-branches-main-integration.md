@@ -506,6 +506,11 @@
 - Android CI 还完成 compileDebugKotlin、full testDebugUnitTest、lintDebug、Debug APK、optimized Release/R8、Room schema 与 artifacts；因此 Task 12 Step 1/2 的远端等价验证已覆盖，设置页 AndroidTest 已成功编译。
 - 代码契约审查：#69 Route 仍复用既有 `AiManager.configuration` / `AiManager.keys` / `importBatch` / `validateKey(s)` / `setDisabled` / `delete` / `clear`；未修改模型枚举、Provider 协议、Key 加密存储格式或网络实现。
 - 剩余唯一 #69 Gate 为 Task 12 Step 3 本地 AI 只读设备 UI 验收。
+- 本地 AI 在 `6350014896c30dd1a1f2e81f5f97e74c01eaa19b` 上完成大型本地验证：identity/secrets/Kotlin/JVM/lint/Debug/Release-R8/AndroidTest APK 均 PASS；`SettingsScreenRegressionTest` 3/3 PASS；AI 管理除第五个模型用途文案外其余 UI/契约全部 PASS。
+- 唯一真实 FAIL：第五项仍显示旧术语 `议题执行`，Bottom Sheet 标题为“选择议题执行模型”；根因位于 `AiUseCase.ISSUE_EXECUTION.displayName`，与当前 conversation/artifact 产品模型不一致。
+- 修复策略保持内部兼容：枚举 ID `ISSUE_EXECUTION` 不改，只把用户可见名称改为“成果生成”、说明改为“生成并整理可保存的成果内容”；新增 JVM 契约测试同时锁定内部 ID 与新展示术语。
+- 修复 commit / 当前 #69 Head：`e6790e0c7a52a7a5f78b8fc34ad17f6d6ac8b4a6`（`fix: 更新成果生成模型用途文案`）。
+- 因本次仅为显示文案 + JVM 断言，按用户新的执行资源约束，不在网页端长时间等待大型 CI；由本地 AI做 exact-Head 定点 JVM/Instrumentation/UI 复验。此前大型构建证据来自直接父 Head，可在无生产逻辑变化前提下保留为背景证据。
 - Exact Head Actions 已完成：Secret scan Run `36114313051` PASS；Android UI Test Compile Run `36114312992` PASS；Android CI Run `36114312997` PASS。
 - Android CI 中 `Run static app identity gate` 直接 PASS，证明原 #69 的旧 Package Move / Room v13 / Key Store / README failures 已由同步最新 main 消除。
 - 同一 Android CI 的 full `testDebugUnitTest` PASS，覆盖 `AiManagementUiStateTest`；compileDebugKotlin、lint、Debug APK、optimized Release/R8、Room schema 与 artifacts 同样 PASS。
