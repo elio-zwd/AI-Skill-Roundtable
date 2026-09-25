@@ -2,7 +2,6 @@ package com.elio.jianyu.network
 
 import android.content.Context
 import com.elio.jianyu.network.retry.ApiCallFailure
-import com.elio.jianyu.telemetry.CloudInteractionSettings
 import com.elio.jianyu.telemetry.TelemetryRepository
 
 /** AI 模块组合入口：统一暴露提供商配置、Key 仓库与请求执行器。 */
@@ -21,7 +20,6 @@ object AiManager {
         if (initialized) return
         val appContext = context.applicationContext
         TelemetryRepository.init(appContext)
-        CloudInteractionSettings.init(appContext)
         configurationRepository = AiConfigurationRepository(appContext)
         geminiKeys = ProviderKeyRepository(appContext, AiProvider.GEMINI)
         deepSeekKeys = ProviderKeyRepository(appContext, AiProvider.DEEPSEEK)

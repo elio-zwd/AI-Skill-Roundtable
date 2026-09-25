@@ -29,11 +29,9 @@ fun TelemetryScreen(
     onToggleContentDebug: () -> Unit,
     onClearTelemetry: () -> Unit,
     onDisableContentDebugAndPurge: () -> Unit,
-    onCloudInteractionChange: (Boolean) -> Unit,
     onToggleEvent: (TelemetryEvent) -> Unit,
     onDismissConfirmation: () -> Unit,
     onConfirmContentDebug: () -> Unit,
-    onConfirmCloudInteraction: () -> Unit,
 ) {
     Surface(
         modifier = Modifier
@@ -62,13 +60,6 @@ fun TelemetryScreen(
                         onToggleContentDebug = onToggleContentDebug,
                         onClearTelemetry = onClearTelemetry,
                         onDisableContentDebugAndPurge = onDisableContentDebugAndPurge,
-                    )
-                }
-
-                item {
-                    CloudInteractionCard(
-                        enabled = uiState.cloudInteractionEnabled,
-                        onEnabledChange = onCloudInteractionChange,
                     )
                 }
 
@@ -109,6 +100,5 @@ fun TelemetryScreen(
         confirmation = uiState.confirmation,
         onDismiss = onDismissConfirmation,
         onConfirmContentDebug = onConfirmContentDebug,
-        onConfirmCloudInteraction = onConfirmCloudInteraction,
     )
 }

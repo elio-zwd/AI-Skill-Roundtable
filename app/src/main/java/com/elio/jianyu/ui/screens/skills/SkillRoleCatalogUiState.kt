@@ -41,6 +41,31 @@ internal data class SkillRoleCatalogUiState(
     val selectedCategory: SkillRoleDiscoveryCategory?,
 )
 
+private val POST_KARPATHY_ALL_ROLE_IDS = listOf("zhang_xuefeng", "elon_musk")
+
+/**
+ * “全部角色”的展示顺序是 UI 编辑顺序；不改 OfficialSkillCatalog.defaultOrder，
+ * 避免把目录调整扩散到执行 Manifest 与其他依赖 canonical 顺序的链路。
+ */
+private fun List<OfficialSkillDefinition>.orderedForAllRoles(): List<OfficialSkillDefinition> {
+    val baseOrder = sortedWith(compareBy(OfficialSkillDefinition::defaultOrder, OfficialSkillDefinition::id))
+    val movedRoles = POST_KARPATHY_ALL_ROLE_IDS.mapNotNull { id ->
+        baseOrder.firstOrNull { it.id == id }
+    }
+    if (movedRoles.size != POST_KARPATHY_ALL_ROLE_IDS.size) return baseOrder
+
+    val movedIds = POST_KARPATHY_ALL_ROLE_IDS.toSet()
+    val remaining = baseOrder.filterNot { it.id in movedIds }
+    val anchorIndex = remaining.indexOfFirst { it.id == "andrej_karpathy" }
+    if (anchorIndex < 0) return baseOrder
+
+    return buildList(baseOrder.size) {
+        addAll(remaining.take(anchorIndex + 1))
+        addAll(movedRoles)
+        addAll(remaining.drop(anchorIndex + 1))
+    }
+}
+
 /** 纯投影函数：44 项 Catalog 是列表基数，视觉路径由官方 Skill 类型统一解析。 */
 internal fun projectSkillRoleCatalog(
     catalog: OfficialSkillCatalog,
@@ -58,7 +83,7 @@ internal fun projectSkillRoleCatalog(
         .mapValues { (_, uses) -> uses.maxOf(RecentOfficialSkillUse::usedAt) }
 
     val allRoles = catalog.skills
-        .sortedWith(compareBy(OfficialSkillDefinition::defaultOrder, OfficialSkillDefinition::id))
+        .orderedForAllRoles()
         .map { skill ->
             val presentation = requireNotNull(presentationCatalog.findBySkillId(skill.id)) {
                 "角色展示 Manifest 缺少官方 Skill：" + skill.id

@@ -51,7 +51,6 @@ object TelemetryRepository {
         loadEvents(applicationContext)
         enforceExpiry(System.currentTimeMillis())
         if (_level.value != TelemetryLevel.CONTENT_DEBUG) purgePreviewsLocked()
-        CloudInteractionSettings.init(applicationContext)
         initialized = true
     }
 

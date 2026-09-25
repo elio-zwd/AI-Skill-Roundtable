@@ -6,14 +6,12 @@ import com.elio.jianyu.telemetry.TelemetryLevel
 
 sealed interface TelemetryConfirmation {
     data object ContentDebug : TelemetryConfirmation
-    data object CloudInteraction : TelemetryConfirmation
 }
 
 data class TelemetryUiState(
     val events: List<TelemetryEvent>,
     val level: TelemetryLevel,
     val storageError: String?,
-    val cloudInteractionEnabled: Boolean,
     val expandedEventId: String?,
     val confirmation: TelemetryConfirmation?,
     val remainingContentDebugMinutes: Long?,

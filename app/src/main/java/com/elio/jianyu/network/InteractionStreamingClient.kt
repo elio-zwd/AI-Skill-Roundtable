@@ -8,7 +8,6 @@ import com.elio.jianyu.roundtable.DefaultDelayProvider
 import com.elio.jianyu.roundtable.DelayProvider
 import com.elio.jianyu.roundtable.RequestBudgetTracker
 import com.elio.jianyu.telemetry.CloudInteractionRequestPolicy
-import com.elio.jianyu.telemetry.CloudInteractionSettings
 import com.elio.jianyu.telemetry.InteractionChainStore
 import com.elio.jianyu.telemetry.PrivacySafeLogger
 import com.elio.jianyu.telemetry.TelemetryRepository
@@ -76,18 +75,16 @@ object GeminiInteractionsTransport {
         onTextUpdate: suspend (String) -> Unit = {}
     ): StreamedInteraction {
         TelemetryRepository.init(context)
-        val cloudEnabled = CloudInteractionSettings.isEnabled(context)
         val characterId = interactionChainKey?.takeIf(String::isNotBlank)
             ?: interactionCharacterId(operationName)
         val requestedPreviousId = request.previousInteractionId
             ?.takeIf(String::isNotBlank)
-            ?: if (cloudEnabled && characterId != null) {
+            ?: if (characterId != null) {
                 InteractionChainStore.get(sessionId, characterId)
             } else {
                 null
             }
         val cloudPolicy = CloudInteractionRequestPolicy.apply(
-            enabled = cloudEnabled,
             requestedStore = request.store,
             requestedPreviousInteractionId = requestedPreviousId
         )
@@ -117,8 +114,7 @@ object GeminiInteractionsTransport {
 
         if (
             cloudPolicy.store &&
-            characterId != null &&
-            CloudInteractionSettings.isEnabled(context)
+            characterId != null
         ) {
             InteractionChainStore.put(sessionId, characterId, result.id)
         }

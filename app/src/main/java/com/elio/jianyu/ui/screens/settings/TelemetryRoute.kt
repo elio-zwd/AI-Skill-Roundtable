@@ -11,7 +11,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.elio.jianyu.network.AiManager
 import com.elio.jianyu.network.AiUseCase
-import com.elio.jianyu.telemetry.CloudInteractionSettings
 import com.elio.jianyu.telemetry.TelemetryLevel
 import com.elio.jianyu.telemetry.TelemetryRepository
 
@@ -25,13 +24,11 @@ fun TelemetryRoute(
     LaunchedEffect(Unit) {
         AiManager.initialize(context)
         TelemetryRepository.init(context)
-        CloudInteractionSettings.init(context)
     }
 
     val events by TelemetryRepository.events.collectAsState()
     val level by TelemetryRepository.level.collectAsState()
     val storageError by TelemetryRepository.storageError.collectAsState()
-    val cloudInteractionEnabled by CloudInteractionSettings.enabled.collectAsState()
     var expandedEventId by remember { mutableStateOf<String?>(null) }
     var confirmation by remember { mutableStateOf<TelemetryConfirmation?>(null) }
 
@@ -53,7 +50,6 @@ fun TelemetryRoute(
             events = events,
             level = level,
             storageError = storageError,
-            cloudInteractionEnabled = cloudInteractionEnabled,
             expandedEventId = expandedEventId,
             confirmation = confirmation,
             remainingContentDebugMinutes = remainingMinutes,
@@ -85,13 +81,6 @@ fun TelemetryRoute(
         onDisableContentDebugAndPurge = {
             TelemetryRepository.disableContentDebugAndPurgePreviews(context)
         },
-        onCloudInteractionChange = { enabled ->
-            if (enabled) {
-                confirmation = TelemetryConfirmation.CloudInteraction
-            } else {
-                CloudInteractionSettings.setEnabled(context, false)
-            }
-        },
         onToggleEvent = { event ->
             if (event.containsContentPreview) {
                 expandedEventId = if (expandedEventId == event.id) null else event.id
@@ -111,10 +100,6 @@ fun TelemetryRoute(
                 },
                 Toast.LENGTH_SHORT,
             ).show()
-            confirmation = null
-        },
-        onConfirmCloudInteraction = {
-            CloudInteractionSettings.setEnabled(context, true)
             confirmation = null
         },
     )

@@ -20,7 +20,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,7 +43,6 @@ import com.elio.jianyu.network.AiProvider
 import com.elio.jianyu.skill.catalog.OfficialSkillPreferences
 import com.elio.jianyu.skill.catalog.clearStoredOfficialSkillPreferences
 import com.elio.jianyu.data.ConversationSessionPreferences
-import com.elio.jianyu.telemetry.CloudInteractionSettings
 import com.elio.jianyu.telemetry.TelemetryRepository
 import com.elio.jianyu.ui.components.JianyuMetadataRow
 import com.elio.jianyu.ui.components.JianyuPageShell
@@ -118,10 +116,8 @@ fun DataPrivacyRoute(
 ) {
     val context = LocalContext.current
     LaunchedEffect(context) {
-        CloudInteractionSettings.init(context)
         TelemetryRepository.init(context)
     }
-    val cloudInteractionEnabled by CloudInteractionSettings.enabled.collectAsState()
     val scope = rememberCoroutineScope()
     var overview by remember { mutableStateOf<DataOverview?>(null) }
     var loadError by remember { mutableStateOf<String?>(null) }
@@ -173,14 +169,6 @@ fun DataPrivacyRoute(
             JianyuMetadataRow("正式成果", "${overview!!.artifactCount} 项")
             JianyuMetadataRow("个人背景", "${overview!!.personalContextCount} 项")
         }
-        JianyuStateCard(
-            title = "云端交互授权",
-            message = if (cloudInteractionEnabled) {
-                "已允许需要云端模型的功能按本次确认发送选定内容。"
-            } else {
-                "当前未开启额外的云端交互授权。具体请求仍会在执行前显示确认。"
-            },
-        )
         Button(
             onClick = { exportLauncher.launch("jianyu-data-${System.currentTimeMillis()}.json") },
             enabled = !busy,
@@ -429,7 +417,6 @@ private suspend fun clearAllLocalData(
                     }
                     val modelConfigurationCleared = AiManager.configuration(context).reset()
                     val telemetryCleared = TelemetryRepository.clearAllTelemetry(context)
-                    val cloudSettingsCleared = CloudInteractionSettings.setEnabled(context, false)
                     val appPreferencesCleared = AppPreferences.reset(context)
                     val officialSkillPreferencesCleared =
                         officialSkillPreferences?.clearAll()
@@ -443,7 +430,6 @@ private suspend fun clearAllLocalData(
                     val cleanupSucceeded = keyResults.all { it } &&
                         modelConfigurationCleared &&
                         telemetryCleared &&
-                        cloudSettingsCleared &&
                         appPreferencesCleared &&
                         officialSkillPreferencesCleared &&
                         conversationPreferencesCleared &&

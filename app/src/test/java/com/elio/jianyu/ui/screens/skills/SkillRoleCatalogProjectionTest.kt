@@ -59,6 +59,22 @@ class SkillRoleCatalogProjectionTest {
     }
 
     @Test
+    fun allRoles_placesZhangXuefengAndElonMuskImmediatelyAfterKarpathy() {
+        val projection = projectSkillRoleCatalog(
+            catalog = officialCatalog,
+            presentationCatalog = presentationCatalog,
+        )
+
+        val ids = projection.allRoles.map { it.skillId }
+        val karpathyIndex = ids.indexOf("andrej_karpathy")
+        assertTrue(karpathyIndex >= 0)
+        assertEquals(
+            listOf("andrej_karpathy", "zhang_xuefeng", "elon_musk"),
+            ids.drop(karpathyIndex).take(3),
+        )
+    }
+
+    @Test
     fun featuredRoles_followApprovedEditorialOrder_notDefaultOrder() {
         val projection = projectSkillRoleCatalog(
             catalog = officialCatalog,

@@ -15,7 +15,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -92,32 +91,6 @@ internal fun TelemetryPrivacyCard(
             uiState.storageError?.let { error ->
                 Text(error, color = Color.Red, fontSize = 11.sp)
             }
-        }
-    }
-}
-
-@Composable
-internal fun CloudInteractionCard(
-    enabled: Boolean,
-    onEnabledChange: (Boolean) -> Unit,
-) {
-    Card(colors = CardDefaults.cardColors(containerColor = CardBg)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text("云端会话链优化", fontWeight = FontWeight.Bold, color = TextPrimary)
-                Text(
-                    "默认关闭。开启后仅在当前进程内保存成功 Interaction 的短期连续上下文标识；不会写入 Room。",
-                    fontSize = 11.sp,
-                    color = TextSecondary,
-                )
-            }
-            Switch(
-                checked = enabled,
-                onCheckedChange = onEnabledChange,
-            )
         }
     }
 }
@@ -232,7 +205,6 @@ internal fun TelemetryConfirmationDialogs(
     confirmation: TelemetryConfirmation?,
     onDismiss: () -> Unit,
     onConfirmContentDebug: () -> Unit,
-    onConfirmCloudInteraction: () -> Unit,
 ) {
     when (confirmation) {
         TelemetryConfirmation.ContentDebug -> AlertDialog(
@@ -247,26 +219,6 @@ internal fun TelemetryConfirmationDialogs(
             confirmButton = {
                 Button(onClick = onConfirmContentDebug) {
                     Text("确认开启")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = onDismiss) {
-                    Text("取消")
-                }
-            },
-        )
-        TelemetryConfirmation.CloudInteraction -> AlertDialog(
-            modifier = Modifier.testTag(SettingsTestTags.TELEMETRY_CLOUD_CONFIRM),
-            onDismissRequest = onDismiss,
-            title = { Text("启用云端会话链优化？") },
-            text = {
-                Text(
-                    "开启后，成功请求可把当前进程内的上一 Interaction 标识用于同一议题阶段和 Skill 的短期连续上下文。关闭、应用重启或链失效后不会续接，系统会由 Room 内容重建必要上下文。不会创建显式 Cache，也不承诺 Cache 或 TTL。服务商侧存储仍受其政策约束。",
-                )
-            },
-            confirmButton = {
-                Button(onClick = onConfirmCloudInteraction) {
-                    Text("确认启用")
                 }
             },
             dismissButton = {

@@ -5,7 +5,6 @@ import com.elio.jianyu.BuildConfig
 import com.elio.jianyu.network.keys.ApiKeyLease
 import com.elio.jianyu.roundtable.RequestBudgetTracker
 import com.elio.jianyu.telemetry.CloudInteractionRequestPolicy
-import com.elio.jianyu.telemetry.CloudInteractionSettings
 import com.elio.jianyu.telemetry.InteractionChainStore
 import com.elio.jianyu.telemetry.PrivacySafeLogger
 import com.elio.jianyu.telemetry.TelemetryInterceptor
@@ -321,17 +320,15 @@ object GeminiRestTransport {
         onAttemptStarted: suspend () -> Unit = {},
     ): Interaction {
         TelemetryRepository.init(context)
-        val cloudEnabled = CloudInteractionSettings.isEnabled(context)
         val characterId = interactionCharacterId(operationName)
         val requestedPreviousId = request.previousInteractionId
             ?.takeIf(String::isNotBlank)
-            ?: if (cloudEnabled && operationName.startsWith(MAIN_ANSWER_PREFIX) && characterId != null) {
+            ?: if (operationName.startsWith(MAIN_ANSWER_PREFIX) && characterId != null) {
                 InteractionChainStore.get(sessionId, characterId)
             } else {
                 null
             }
         val cloudPolicy = CloudInteractionRequestPolicy.apply(
-            enabled = cloudEnabled,
             requestedStore = request.store,
             requestedPreviousInteractionId = requestedPreviousId
         )
@@ -354,8 +351,7 @@ object GeminiRestTransport {
         }
         if (
             cloudPolicy.store &&
-            characterId != null &&
-            CloudInteractionSettings.isEnabled(context)
+            characterId != null
         ) {
             InteractionChainStore.put(sessionId, characterId, response.id)
         }

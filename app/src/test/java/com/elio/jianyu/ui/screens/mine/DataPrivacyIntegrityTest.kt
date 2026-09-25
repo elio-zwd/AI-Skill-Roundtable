@@ -53,7 +53,6 @@ class DataPrivacyIntegrityTest {
             "AiManager.configuration(context).reset()",
             "AiManager.keys(context, provider).clear()",
             "TelemetryRepository.clearAllTelemetry(context)",
-            "CloudInteractionSettings.setEnabled(context, false)",
             "AppPreferences.reset(context)",
             "officialSkillPreferencesCleared",
             "conversationPreferencesCleared",

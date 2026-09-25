@@ -175,10 +175,10 @@ AI 管理分为三块：
 
 - Broker 与搜索不会因累计 API 调用次数跳过。
 - 搜索词、Broker 原文和搜索结果正文不写入默认遥测。
-- 云端 Interaction 默认关闭，所有请求强制 `store=false` 且不发送 `previousInteractionId`。
-- 用户显式开启后，主回答按“会话 ID × 角色 ID”维护进程内游标。
+- 角色主回答的云端 Interaction 链固定启用；只有调用场景明确请求 `store=true` 时才会存储并发送有效的 `previousInteractionId`。
+- 主回答按“会话 ID × 角色 ID”维护独立的进程内游标，不在角色之间共享。
 - Broker、Embedding、标题生成和联网搜索不进入角色 Interaction 链。
-- 关闭开关或删除会话会清理对应游标；游标不写入磁盘或系统备份。
+- 删除会话或应用进程结束后不再复用对应游标；游标不写入 Room、磁盘偏好或系统备份。
 
 ## 6. 遥测与隐私架构
 

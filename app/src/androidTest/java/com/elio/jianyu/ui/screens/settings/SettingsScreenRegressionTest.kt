@@ -103,7 +103,6 @@ class SettingsScreenRegressionTest {
                         events = emptyList(),
                         level = TelemetryLevel.METADATA_ONLY,
                         storageError = null,
-                        cloudInteractionEnabled = false,
                         expandedEventId = null,
                         confirmation = null,
                         remainingContentDebugMinutes = null,
@@ -118,16 +117,15 @@ class SettingsScreenRegressionTest {
                     onToggleContentDebug = {},
                     onClearTelemetry = {},
                     onDisableContentDebugAndPurge = {},
-                    onCloudInteractionChange = {},
                     onToggleEvent = {},
                     onDismissConfirmation = {},
                     onConfirmContentDebug = {},
-                    onConfirmCloudInteraction = {},
                 )
             }
         }
 
         composeRule.onNodeWithTag(SettingsTestTags.TELEMETRY_ROOT).assertExists()
+        composeRule.onNodeWithText("云端会话链优化").assertDoesNotExist()
     }
 
     private fun emptyAiManagementState() = AiManagementUiState(

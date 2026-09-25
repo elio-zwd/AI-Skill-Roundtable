@@ -44,7 +44,6 @@ import com.elio.jianyu.network.Tool
 import com.elio.jianyu.network.CreateInteractionRequest
 import com.elio.jianyu.network.InteractionGenerationConfig
 import com.elio.jianyu.network.outputText
-import com.elio.jianyu.telemetry.CloudInteractionSettings
 import com.elio.jianyu.telemetry.PrivacySafeLogger
 import com.elio.jianyu.network.keys.ApiKeyLease
 import com.elio.jianyu.roundtable.RoundtableBudget
@@ -2010,45 +2009,41 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             !responseText.trim().endsWith("。") &&
             !responseText.trim().endsWith("}")
         if (maxTokensLimitation) {
-            if (!CloudInteractionSettings.isEnabled(context)) {
-                PrivacySafeLogger.w("RoundtableViewModel", "Continuation skipped: cloud chain disabled")
-            } else {
-                PrivacySafeLogger.d("RoundtableViewModel", "Starting interaction continuation")
-                val continueRequest = CreateInteractionRequest(
-                    model = model.modelId,
-                    input = JsonPrimitive("请继续"),
-                    systemInstruction = referencesText,
-                    store = true,
-                    previousInteractionId = currentResponse.id,
-                    generationConfig = InteractionGenerationConfig(
-                        maxOutputTokens = budget.maxOutputTokensPerAnswer,
-                        thinkingLevel = currentThinkingLevel(),
-                        thinkingSummaries = "auto"
-                    )
+            PrivacySafeLogger.d("RoundtableViewModel", "Starting interaction continuation")
+            val continueRequest = CreateInteractionRequest(
+                model = model.modelId,
+                input = JsonPrimitive("请继续"),
+                systemInstruction = referencesText,
+                store = true,
+                previousInteractionId = currentResponse.id,
+                generationConfig = InteractionGenerationConfig(
+                    maxOutputTokens = budget.maxOutputTokensPerAnswer,
+                    thinkingLevel = currentThinkingLevel(),
+                    thinkingSummaries = "auto"
                 )
-                val continueResponse = try {
-                    GeminiInteractionsTransport.createInteraction(
-                        context = context,
-                        request = continueRequest,
-                        sessionId = sessionId,
-                        attemptPlan = attemptPlan,
-                        tracker = tracker,
-                        operationName = "ContinueAnswer-${character.id}",
-                        isRequired = false,
-                        reserveForRequired = reserveForRequired,
-                        onAttemptStarted = { onTextUpdate(responseText) },
-                        onTextUpdate = { continuationText ->
-                            onTextUpdate(responseText + continuationText)
-                        }
-                    )
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (error: Exception) {
-                    PrivacySafeLogger.e("RoundtableViewModel", "Continuation request failed", error)
-                    null
-                }
-                continueResponse?.outputText?.takeIf { it.isNotBlank() }?.let { responseText += it }
+            )
+            val continueResponse = try {
+                GeminiInteractionsTransport.createInteraction(
+                    context = context,
+                    request = continueRequest,
+                    sessionId = sessionId,
+                    attemptPlan = attemptPlan,
+                    tracker = tracker,
+                    operationName = "ContinueAnswer-${character.id}",
+                    isRequired = false,
+                    reserveForRequired = reserveForRequired,
+                    onAttemptStarted = { onTextUpdate(responseText) },
+                    onTextUpdate = { continuationText ->
+                        onTextUpdate(responseText + continuationText)
+                    }
+                )
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                PrivacySafeLogger.e("RoundtableViewModel", "Continuation request failed", error)
+                null
             }
+            continueResponse?.outputText?.takeIf { it.isNotBlank() }?.let { responseText += it }
         }
 
         responseText
