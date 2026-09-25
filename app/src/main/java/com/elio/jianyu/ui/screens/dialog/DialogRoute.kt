@@ -336,7 +336,7 @@ fun DialogRoute(
                                         selected = true,
                                         selectionOrder = previous.confirmationOrder,
                                         networkAllowed = true,
-                                        sensitiveConfirmed = true,
+                                        sensitiveConfirmed = false,
                                     )
                                 }
                             val candidates =

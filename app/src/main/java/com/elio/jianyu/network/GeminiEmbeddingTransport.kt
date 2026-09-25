@@ -23,7 +23,7 @@ private const val GEMINI_EMBEDDING_ENDPOINT =
 internal data class SkillKnowledgeEmbeddingRequest(
     val content: Content,
     @SerialName("output_dimensionality")
-    val outputDimensionality: Int = SKILL_KNOWLEDGE_EMBEDDING_DIMENSION,
+    val outputDimensionality: Int,
 )
 
 internal fun formatSkillKnowledgeQuery(text: String): String {
@@ -39,6 +39,7 @@ internal fun buildSkillKnowledgeEmbeddingRequest(text: String): SkillKnowledgeEm
                 Part(text = formatSkillKnowledgeQuery(text)),
             ),
         ),
+        outputDimensionality = SKILL_KNOWLEDGE_EMBEDDING_DIMENSION,
     )
 
 internal fun parseSkillKnowledgeEmbedding(rawJson: String): FloatArray {

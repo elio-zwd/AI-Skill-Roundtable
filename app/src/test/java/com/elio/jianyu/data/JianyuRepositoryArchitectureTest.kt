@@ -12,7 +12,7 @@ class JianyuRepositoryArchitectureTest {
     }
 
     @Test
-    fun roomUsesVersionThirteenThinkingSchema() {
+    fun roomUsesVersionFifteenSkillKnowledgeSchema() {
         val databaseSource = source("app/src/main/java/com/elio/jianyu/data/RoundtableDatabase.kt")
         val coreDomainSource = source("app/src/main/java/com/elio/jianyu/data/CoreDomain.kt")
         val executionMigrationSource = source(
@@ -33,10 +33,14 @@ class JianyuRepositoryArchitectureTest {
         val thinkingMigrationSource = source(
             "app/src/main/java/com/elio/jianyu/data/ExecutionThinkingPolicyMigration.kt",
         )
+        val skillKnowledgeMigrationSource = source(
+            "app/src/main/java/com/elio/jianyu/data/SkillKnowledgeContextMigration.kt",
+        )
 
-        assertTrue(databaseSource.contains("version = 14"))
+        assertTrue(databaseSource.contains("version = 15"))
         assertTrue(databaseSource.contains("MIGRATION_12_13"))
         assertTrue(databaseSource.contains("MIGRATION_13_14"))
+        assertTrue(databaseSource.contains("MIGRATION_14_15"))
         assertTrue(databaseSource.contains("MIGRATION_7_8"))
         assertTrue(databaseSource.contains("MIGRATION_8_9"))
         assertTrue(databaseSource.contains("MIGRATION_9_10"))
@@ -46,6 +50,7 @@ class JianyuRepositoryArchitectureTest {
         assertTrue(databaseSource.contains("ExecutionRunBudgetEntity::class"))
         assertTrue(databaseSource.contains("CrossDiscussionSessionEntity::class"))
         assertTrue(databaseSource.contains("ExecutionMessageUsageSnapshotEntity::class"))
+        assertTrue(databaseSource.contains("SkillKnowledgeUsageSnapshotEntity::class"))
         assertTrue(databaseSource.contains("StageAdvancementEntity::class"))
         assertTrue(databaseSource.contains("StageAdvancementSkillMemberEntity::class"))
         assertTrue(databaseSource.contains("IssueArchiveEventEntity::class"))
@@ -74,6 +79,8 @@ class JianyuRepositoryArchitectureTest {
         assertTrue(thinkingMigrationSource.contains("Migration(12, 13)"))
         assertTrue(thinkingMigrationSource.contains("defaultThinkingPolicy"))
         assertTrue(thinkingMigrationSource.contains("actualThinkingLevel"))
+        assertTrue(skillKnowledgeMigrationSource.contains("Migration(14, 15)"))
+        assertTrue(skillKnowledgeMigrationSource.contains("skill_knowledge_usage_snapshots"))
     }
 
     @Test
