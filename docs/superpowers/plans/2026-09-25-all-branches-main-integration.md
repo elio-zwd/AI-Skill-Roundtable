@@ -501,6 +501,11 @@
 - 同步后 compare：`behind_by=0`，相对 main 仅 6 个预期 changed files。
 - PR #69 已重新 OPEN / Draft，base=`main@ce5664d...`，Head=`6350014896c30dd1a1f2e81f5f97e74c01eaa19b`，GitHub 重新计算后 mergeable=true。
 - 当前等待 exact Head GitHub Actions，以确认旧基线 identity gate 失败已消失。
+- Exact #69 Head `6350014896c30dd1a1f2e81f5f97e74c01eaa19b` GitHub Actions 已全绿：Secret scan Run `36114313051` PASS；Android UI Test Compile Run `36114312992` PASS；Android CI Run `36114312997` PASS。
+- Android CI 中 `Run static app identity gate` 直接 PASS，证明旧 Package Move / Room v13 / Key Store / README 失败确由旧基线造成；未通过修改 AI 管理 UI 规避 identity gate。
+- Android CI 还完成 compileDebugKotlin、full testDebugUnitTest、lintDebug、Debug APK、optimized Release/R8、Room schema 与 artifacts；因此 Task 12 Step 1/2 的远端等价验证已覆盖，设置页 AndroidTest 已成功编译。
+- 代码契约审查：#69 Route 仍复用既有 `AiManager.configuration` / `AiManager.keys` / `importBatch` / `validateKey(s)` / `setDisabled` / `delete` / `clear`；未修改模型枚举、Provider 协议、Key 加密存储格式或网络实现。
+- 剩余唯一 #69 Gate 为 Task 12 Step 3 本地 AI 只读设备 UI 验收。
 - Exact Head Actions 已完成：Secret scan Run `36114313051` PASS；Android UI Test Compile Run `36114312992` PASS；Android CI Run `36114312997` PASS。
 - Android CI 中 `Run static app identity gate` 直接 PASS，证明原 #69 的旧 Package Move / Room v13 / Key Store / README failures 已由同步最新 main 消除。
 - 同一 Android CI 的 full `testDebugUnitTest` PASS，覆盖 `AiManagementUiStateTest`；compileDebugKotlin、lint、Debug APK、optimized Release/R8、Room schema 与 artifacts 同样 PASS。
@@ -509,7 +514,7 @@
 
 ### Task 12：验证 #69 没有改变模型/BYOK 业务契约
 
-- [ ] **Step 1: 运行 `AiManagementUiStateTest` 和设置页聚焦 JVM/UI tests。**
+- [x] **Step 1: 运行 `AiManagementUiStateTest` 和设置页聚焦 JVM/UI tests。**
 - [x] **Step 2: 全量：**
   ```powershell
   pwsh -NoProfile -File tools/check-app-identity.ps1
@@ -725,6 +730,12 @@
 - [ ] PR/branch 清理状态有明确记录；未获删除授权的分支明确标记“保留”。
 
 ---
+
+## 执行资源约束更新（2026-09-25）
+
+- 用户明确要求：后续大型 Gradle 编译、全量测试、长耗时 CI/设备验收优先交给本地 AI 执行；网页 GPT 不再长时间轮询等待大型构建。
+- GPT 网页侧继续负责：GitHub 状态读取、代码/Plan 修改、根因分析、小范围静态审查，以及在需要时对已经运行完的 GitHub Actions 做一次性结果确认。
+- 最终 main 的 GitHub CI 仍需满足总 Plan 的绿色门禁，但不通过网页长轮询来消耗执行时间。
 
 # Execution Handoff
 
