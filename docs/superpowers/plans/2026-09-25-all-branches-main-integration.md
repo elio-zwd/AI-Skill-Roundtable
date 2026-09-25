@@ -459,7 +459,7 @@
 - [ ] **Step 4: GitHub 三项 Actions 全绿。**
 - [ ] **Step 5: 更新 #68 Plan checkbox 与 PR 描述。**
 - [ ] **Step 6: 用户授权后使用普通 merge commit 合入 main。**
-- [ ] **Step 7: 新 main CI 全绿。**
+- [x] **Step 7: 新 main CI 全绿。**
 
 ---
 
