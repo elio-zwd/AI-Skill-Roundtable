@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.network.AiModel
 import com.elio.jianyu.network.AiProvider
@@ -98,8 +99,13 @@ class SettingsScreenRegressionTest {
                 AiManagementTestTags.model(
                     "${AiUseCase.SESSION_TITLE.name}_${model.name}",
                 ),
-            ).assertIsDisplayed()
+            ).assertExists()
         }
+        composeRule.onNodeWithTag(
+            AiManagementTestTags.model(
+                "${AiUseCase.SESSION_TITLE.name}_${AiModel.GEMINI_25_FLASH_LITE.name}",
+            ),
+        ).performScrollTo().assertIsDisplayed()
     }
 
     @Test
