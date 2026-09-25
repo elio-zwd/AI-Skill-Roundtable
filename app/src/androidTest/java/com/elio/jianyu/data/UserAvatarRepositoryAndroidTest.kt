@@ -115,7 +115,7 @@ class UserAvatarRepositoryAndroidTest {
     private fun createSourceBitmap(width: Int, height: Int, color: Int): File {
         val file = File(
             context.cacheDir,
-            "avatar-repository-test-\${System.nanoTime()}-\$width-\$height.jpg",
+            "avatar-repository-test-${System.nanoTime()}-$width-$height.jpg",
         )
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).apply {
             eraseColor(color)
