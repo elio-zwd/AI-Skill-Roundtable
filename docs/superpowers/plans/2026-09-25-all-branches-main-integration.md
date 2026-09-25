@@ -684,6 +684,10 @@
 - 最小修复独立分支：`codex/final-resources-scroll-test-fix`；commit `9d309a228dc593e542fcc2004805a18a0e014a3b`。
 - Draft PR #74：仅修改 `ResourcesScreenTest.kt`，为“恢复”和“彻底清除”在断言/点击前增加 `performScrollTo()`；不改生产 UI、生命周期或 Repository，不降低断言。
 - 下一 Gate：本地 AI 在 #74 exact Head 先跑 `ResourcesScreenTest`，PASS 后再跑全量 `:app:connectedDebugAndroidTest`。在 0 failed 前 Task 18 Step 1/5 保持未完成，Task 19 不执行。
+- #74 exact Head `9d309a228dc593e542fcc2004805a18a0e014a3b` 本地定点结果：`ResourcesScreenTest` 11/11 PASS，原 `deletedMaterialOffersRestoreAndPurgeActions` 已 PASS，证明滚动测试修复有效。
+- 随后的全量 Instrumentation 未完成：计划 259 tests，运行至约 235 时测试进程因 signal 9 退出；报告记为 230 passed / 1 failed / 2 skipped，但“failed”是 `StageResultComponentsTest.savedDraftShowsEditorPersistentSavedStateAndConfirmationEntry` 所在进程崩溃，没有断言堆栈。
+- `StageResultComponentsTest` 与生产 StageResult 代码未被 #74 修改；该方法只渲染本地 Compose 状态并检查 testTag。上一轮同一 main 全量运行的唯一真实断言失败是 Resources，该 StageResult 测试当时未失败。因此当前不能把 signal 9 归因为生产代码回归。
+- 下一步按 systematic-debugging 隔离：先单独运行 `StageResultComponentsTest` 并采集内存/LMKD/崩溃线索；若类级测试 PASS，则重启模拟器清理测试进程环境后再跑一次全量 Instrumentation。未得到完整 0-failed 全量结果前仍不 merge #74、不进入 Task 19。
 
 #### Final Phase 当前快照
 
