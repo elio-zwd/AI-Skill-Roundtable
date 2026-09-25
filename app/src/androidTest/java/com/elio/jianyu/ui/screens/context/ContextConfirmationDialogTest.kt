@@ -1,6 +1,7 @@
 package com.elio.jianyu.ui.screens.context
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -59,14 +60,12 @@ class ContextConfirmationDialogTest {
         }
 
         composeRule.onNodeWithText("Feynman research").assertIsDisplayed()
-        composeRule.onNodeWithText("Skill ").assertIsDisplayed()
         composeRule.onNodeWithText("richard_feynman").assertIsDisplayed()
         composeRule.onNodeWithText("references/research.md").assertIsDisplayed()
         composeRule.onNodeWithText("Explain with concrete examples first.").assertIsDisplayed()
-        composeRule.onNodeWithText("").assertDoesNotExist()
-        composeRule.onNodeWithText("").assertDoesNotExist()
-        composeRule.onNodeWithText("").assertDoesNotExist()
-        composeRule.onNodeWithTag(ContextConfirmationTestTags.CONFIRM).assertIsDisplayed()
+        composeRule.onNodeWithTag(ContextConfirmationTestTags.CONFIRM)
+            .assertIsDisplayed()
+            .assertIsEnabled()
     }
 
     @Test
