@@ -52,6 +52,21 @@ class GeminiEmbeddingTransportTest {
     }
 
     @Test
+    fun parseEmbeddingResponseRejectsTooManyDimensions() {
+        val json = """
+            {
+              "embedding": {
+                "values": [${List(769) { "0.25" }.joinToString(",")}]
+              }
+            }
+        """.trimIndent()
+
+        assertThrows(IllegalArgumentException::class.java) {
+            parseSkillKnowledgeEmbedding(json)
+        }
+    }
+
+    @Test
     fun parseEmbeddingResponseRejectsWrongDimensions() {
         val json = """
             {
