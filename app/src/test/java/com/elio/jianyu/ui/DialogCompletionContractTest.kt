@@ -76,13 +76,13 @@ class DialogCompletionContractTest {
 
         assertFalse(route.contains("|| !appPreferences.confirmSensitiveContext"))
         assertFalse(route.contains("candidate.sensitiveConfirmed || !requireSensitiveConfirmation"))
-        assertFalse(route.contains(""))
         assertTrue(route.contains("candidate.sourceType != ContextSourceType.SKILL_KNOWLEDGE"))
         assertTrue(route.contains("candidate.sensitive && !candidate.sensitiveConfirmed"))
+        assertTrue(route.contains("if (candidate.sensitive)"))
+        assertTrue(route.contains("checked = candidate.sensitiveConfirmed"))
+        assertTrue(route.contains("onChange(candidate.copy(sensitiveConfirmed = it))"))
         assertTrue(route.contains("sensitive = false"))
         assertTrue(route.contains("sensitiveConfirmed = false"))
-        assertTrue(route.contains(""))
-        assertTrue(route.contains(""))
     }
 
     private fun findAppRoot(): File {
