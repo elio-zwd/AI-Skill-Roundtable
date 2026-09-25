@@ -575,13 +575,27 @@ private fun RoleFeatureMiniCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Row(Modifier.fillMaxSize()) {
-            RoleIdentityVisual(
-                role = role,
+            Column(
                 modifier = Modifier
                     .width(72.dp)
-                    .fillMaxHeight(),
-                cornerRadius = 20.dp,
-            )
+                    .padding(top = 8.dp, bottom = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                RoleIdentityVisual(
+                    role = role,
+                    modifier = Modifier.size(72.dp),
+                    cornerRadius = 16.dp,
+                )
+                if (role.isPersonSimulation) {
+                    Text(
+                        text = "AI 模拟角色",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                    )
+                }
+            }
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -606,13 +620,6 @@ private fun RoleFeatureMiniCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (role.isPersonSimulation) {
-                    Text(
-                        text = "AI 模拟角色",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
             }
         }
     }
@@ -869,29 +876,13 @@ private fun RoleIdentityVisual(
     modifier: Modifier,
     cornerRadius: androidx.compose.ui.unit.Dp,
 ) {
-    if (role.isPersonSimulation) {
-        JianyuRoleAvatar(
-            name = role.name,
-            assetPath = role.visualAvatarPath(),
-            modifier = modifier.clip(RoundedCornerShape(cornerRadius)),
-            fallbackContainerColor = roleVisualContainerColor(role.primaryDiscoveryCategory),
-            fallbackContentColor = roleVisualContentColor(role.primaryDiscoveryCategory),
-        )
-    } else {
-        Box(
-            modifier = modifier
-                .clip(RoundedCornerShape(cornerRadius))
-                .background(roleVisualContainerColor(role.primaryDiscoveryCategory)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = role.name.take(2),
-                color = roleVisualContentColor(role.primaryDiscoveryCategory),
-                fontSize = 24.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
-    }
+    JianyuRoleAvatar(
+        name = role.name,
+        assetPath = role.avatarAssetPath,
+        modifier = modifier.clip(RoundedCornerShape(cornerRadius)),
+        fallbackContainerColor = roleVisualContainerColor(role.primaryDiscoveryCategory),
+        fallbackContentColor = roleVisualContentColor(role.primaryDiscoveryCategory),
+    )
 }
 
 @Composable
@@ -931,9 +922,6 @@ private fun RoleFavoriteButton(
         )
     }
 }
-
-private fun SkillRoleCardUi.visualAvatarPath(): String? =
-    avatarAssetPath ?: if (isPersonSimulation) "avatars/$skillId.jpg" else null
 
 private fun SkillRoleCardUi.visualTypeLabel(): String = when (primaryType) {
     OfficialSkillPrimaryType.PERSON_PERSPECTIVE -> "人物视角"

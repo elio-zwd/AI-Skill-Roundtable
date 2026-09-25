@@ -295,6 +295,10 @@ internal fun MainAppContent(
                     homeContent = {
                         com.elio.jianyu.ui.screens.dialog.DialogRoute(
                             viewModel = viewModel,
+                            officialSkillCatalog = (
+                                appRuntime.officialSkillCatalogRuntimeResult
+                                    as? OfficialSkillCatalogRuntimeResult.Success
+                                )?.runtime?.catalog,
                         )
                     },
                     issuesContent = { deepLinkedIssueId, deepLinkedStageId ->

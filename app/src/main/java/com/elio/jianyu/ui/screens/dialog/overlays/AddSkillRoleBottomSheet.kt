@@ -47,6 +47,7 @@ import com.elio.jianyu.ui.screens.dialog.AddSkillCatalogUiModel
 import com.elio.jianyu.ui.screens.dialog.DialogEvent
 import com.elio.jianyu.ui.screens.dialog.DialogTokens
 import com.elio.jianyu.ui.screens.dialog.SkillRoleUiModel
+import com.elio.jianyu.ui.screens.dialog.components.SkillRoleAvatar
 
 /**
  * 增加 Skill 角色大型 Bottom Sheet
@@ -307,32 +308,13 @@ private fun MiniSkillGridCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top,
             ) {
-                // 头像
-                Box(
+                // 头像统一复用 Dialog 共享加载链路，优先正式 assetPath，失败时才文字 fallback。
+                SkillRoleAvatar(
+                    role = skill,
                     modifier = Modifier
                         .size(34.dp)
-                        .clip(CircleShape)
-                        .background(skill.tintBorder),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (skill.avatarResId != null) {
-                        androidx.compose.foundation.Image(
-                            painter = androidx.compose.ui.res.painterResource(id = skill.avatarResId),
-                            contentDescription = skill.name,
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(CircleShape),
-                        )
-                    } else {
-                        Text(
-                            text = skill.avatarText.take(1),
-                            color = skill.accentColor,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                }
+                        .clip(CircleShape),
+                )
 
                 // 增加按钮 或 已加入标签
                 if (skill.isInCurrentSession) {
@@ -403,20 +385,12 @@ private fun FullWidthSkillRow(
             modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
+            SkillRoleAvatar(
+                role = skill,
                 modifier = Modifier
                     .size(38.dp)
-                    .clip(CircleShape)
-                    .background(skill.tintBorder),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = skill.avatarText.take(1),
-                    color = skill.accentColor,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
+                    .clip(CircleShape),
+            )
 
             Spacer(modifier = Modifier.width(10.dp))
 

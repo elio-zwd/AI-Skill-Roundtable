@@ -58,12 +58,20 @@ class OfficialCatalogExecutionSkillResolverIntegrationTest {
         assertEquals("study-planner", single.single().sourceId)
         assertEquals(0, single.single().position)
         assertEquals("拆解学习目标和检查节点", single.single().defaultResponsibility)
+        assertEquals("avatars/portraits/study-planner.jpg", single.single().avatar)
         assertTrue(single.single().systemPrompt.isNotBlank())
         assertEquals(
             listOf("research-fact-checker", "report-proposal-writer"),
             multiple.map { it.sourceId },
         )
         assertEquals(listOf(0, 1), multiple.map { it.position })
+        assertEquals(
+            listOf(
+                "avatars/tools/research-fact-checker.png",
+                "avatars/portraits/report-proposal-writer.jpg",
+            ),
+            multiple.map { it.avatar },
+        )
         assertTrue(multiple.all { it.systemPrompt.isNotBlank() })
         assertTrue(multiple.all { it.skillAssetPath.endsWith("/SKILL.md") })
         assertTrue(multiple.all { it.configurationJson.contains(it.sourceId) })

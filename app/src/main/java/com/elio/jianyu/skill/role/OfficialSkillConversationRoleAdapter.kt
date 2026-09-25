@@ -5,12 +5,12 @@ import com.elio.jianyu.data.Character
 import com.elio.jianyu.data.CharacterRepository
 import com.elio.jianyu.skill.SkillLoader
 import com.elio.jianyu.skill.catalog.OfficialSkillDefinition
-import com.elio.jianyu.skill.catalog.OfficialSkillPrimaryType
 
 /**
  * 把 44 项官方 Skill 按需投影为旧圆桌仍能消费的 Character 行。
  *
- * OfficialSkillDefinition 始终是身份/能力事实源；旧 Character 只允许贡献稳定视觉补充。
+ * OfficialSkillDefinition 始终是身份/能力事实源；旧 Character 只保留向量和声音等运行期字段。
+ * 角色视觉统一由官方 Skill 视觉契约决定，避免 legacy 文本头像或旧路径继续覆盖正式资源。
  * systemPrompt 不复制进兼容行，旧圆桌执行时仍根据正式 skillAssetPath 动态读取 SKILL.md。
  */
 internal class OfficialSkillConversationRoleAdapter(
@@ -43,23 +43,17 @@ internal fun buildOfficialSkillCompatibleCharacter(
     existing: Character?,
 ): Character {
     require(definition.availability.executable) {
-        "不可执行的官方 Skill 不能生成对话兼容角色：${definition.id}"
+        "不可执行的官方 Skill 不能生成对话兼容角色：" + definition.id
     }
     val assetPath = requireNotNull(definition.assetPath?.takeIf(String::isNotBlank)) {
-        "可执行官方 Skill 缺少 assetPath：${definition.id}"
+        "可执行官方 Skill 缺少 assetPath：" + definition.id
     }
     val stableExisting = existing?.takeIf { it.id == definition.id }
-    val avatar = stableExisting?.avatar
-        ?.takeIf(String::isNotBlank)
-        ?: when (definition.primaryType) {
-            OfficialSkillPrimaryType.PERSON_PERSPECTIVE -> "avatars/${definition.id}.jpg"
-            else -> deterministicFunctionalRoleAvatar(definition.nameZh)
-        }
 
     return Character(
         id = definition.id,
         name = definition.nameZh,
-        avatar = avatar,
+        avatar = officialSkillVisualAssetPath(definition),
         tagline = definition.summary,
         systemPrompt = "",
         skillAssetPath = assetPath,
@@ -68,9 +62,4 @@ internal fun buildOfficialSkillCompatibleCharacter(
         skillDescriptionVector = stableExisting?.skillDescriptionVector.orEmpty(),
         voiceConfig = stableExisting?.voiceConfig?.takeIf(String::isNotBlank) ?: "Aoede",
     )
-}
-
-internal fun deterministicFunctionalRoleAvatar(name: String): String {
-    val normalized = name.trim()
-    return normalized.take(2).ifBlank { "AI" }
 }

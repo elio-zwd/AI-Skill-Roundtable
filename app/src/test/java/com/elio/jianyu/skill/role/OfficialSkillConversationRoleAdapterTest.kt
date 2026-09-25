@@ -17,17 +17,18 @@ import org.junit.Test
 
 class OfficialSkillConversationRoleAdapterTest {
     @Test
-    fun officialFactsOverrideLegacyIdentityWhileStableVisualFieldsArePreserved() {
+    fun officialFactsAndVisualOverrideLegacyIdentityWhileStableRuntimeFieldsArePreserved() {
         val definition = definition(
             id = "meeting-to-action",
             name = "会议行动助手",
             order = 23,
             assetPath = "skills/meeting-to-action/SKILL.md",
+            primaryType = OfficialSkillPrimaryType.WORKFLOW_CAPABILITY,
         )
         val legacy = Character(
             id = definition.id,
             name = "旧名称",
-            avatar = "avatars/custom-stable.jpg",
+            avatar = "会议",
             tagline = "旧说明",
             systemPrompt = "旧 Prompt",
             skillAssetPath = "skills/old/SKILL.md",
@@ -45,25 +46,39 @@ class OfficialSkillConversationRoleAdapterTest {
         assertEquals("skills/meeting-to-action/SKILL.md", actual.skillAssetPath)
         assertEquals(23, actual.order)
         assertEquals("", actual.systemPrompt)
-        assertEquals("avatars/custom-stable.jpg", actual.avatar)
+        assertEquals("avatars/tools/meeting-to-action.png", actual.avatar)
         assertEquals("0.1,0.2", actual.skillDescriptionVector)
         assertEquals("Kore", actual.voiceConfig)
     }
 
     @Test
-    fun functionalRoleWithoutLegacyAvatarUsesDeterministicNonPersonFallback() {
+    fun functionalRoleWithoutLegacyAvatarUsesCanonicalToolVisual() {
         val definition = definition(
             id = "meeting-to-action",
             name = "会议行动助手",
             order = 23,
             assetPath = "skills/meeting-to-action/SKILL.md",
+            primaryType = OfficialSkillPrimaryType.WORKFLOW_CAPABILITY,
         )
 
-        val first = buildOfficialSkillCompatibleCharacter(definition, existing = null)
-        val second = buildOfficialSkillCompatibleCharacter(definition, existing = null)
+        val actual = buildOfficialSkillCompatibleCharacter(definition, existing = null)
 
-        assertEquals("会议", first.avatar)
-        assertEquals(first.avatar, second.avatar)
+        assertEquals("avatars/tools/meeting-to-action.png", actual.avatar)
+    }
+
+    @Test
+    fun advisorRoleUsesCanonicalPortraitVisual() {
+        val definition = definition(
+            id = "career-navigator",
+            name = "职业发展顾问",
+            order = 24,
+            assetPath = "skills/official/career-navigator/SKILL.md",
+            primaryType = OfficialSkillPrimaryType.PROFESSIONAL_ADVISOR,
+        )
+
+        val actual = buildOfficialSkillCompatibleCharacter(definition, existing = null)
+
+        assertEquals("avatars/portraits/career-navigator.jpg", actual.avatar)
     }
 
     @Test
@@ -87,12 +102,13 @@ class OfficialSkillConversationRoleAdapterTest {
         order: Int,
         assetPath: String,
         executable: Boolean = true,
+        primaryType: OfficialSkillPrimaryType = OfficialSkillPrimaryType.TASK_ASSISTANT,
     ) = OfficialSkillDefinition(
         id = id,
         nameZh = name,
         aliases = emptyList(),
         summary = "把输入整理成明确行动项。",
-        primaryType = OfficialSkillPrimaryType.TASK_ASSISTANT,
+        primaryType = primaryType,
         primaryValue = OfficialSkillPrimaryValue.REALITY_SUPPORT,
         domainTags = listOf("office"),
         scenarioTags = listOf("meeting"),
