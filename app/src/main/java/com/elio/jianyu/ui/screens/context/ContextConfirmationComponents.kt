@@ -203,8 +203,11 @@ private fun ContextCandidateCard(
                 Column(modifier = Modifier.padding(top = 10.dp)) {
                     Text(candidate.title, style = MaterialTheme.typography.titleSmall)
                     Text(
-                        if (candidate.sourceType == ContextSourceType.MATERIAL) "资料"
-                        else "个人背景",
+                        when (candidate.sourceType) {
+                            ContextSourceType.MATERIAL -> "资料"
+                            ContextSourceType.PERSONAL_CONTEXT -> "个人背景"
+                            ContextSourceType.SKILL_KNOWLEDGE -> "Skill 资料"
+                        },
                         style = MaterialTheme.typography.labelMedium,
                     )
                 }
@@ -220,6 +223,9 @@ private fun ContextCandidateCard(
                     "采集时间",
                     candidate.sourceCapturedAt?.toString() ?: "未知",
                 )
+            } else if (candidate.sourceType == ContextSourceType.SKILL_KNOWLEDGE) {
+                JianyuMetadataRow("来源 Skill", candidate.sourceKind)
+                candidate.sourceLocator?.let { JianyuMetadataRow("文档路径", it) }
             }
             if (!candidate.selected) {
                 Text(
@@ -228,35 +234,44 @@ private fun ContextCandidateCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
-                OutlinedTextField(
-                    value = candidate.selectedContent,
-                    onValueChange = onExcerptChanged,
-                    label = { Text("本次发送的精确正文或摘录") },
-                    supportingText = { Text("${candidate.characterCount} 字符；Hash 将对应此文本") },
-                    minLines = 3,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Row {
-                    Checkbox(
-                        checked = candidate.networkAllowed,
-                        onCheckedChange = onNetworkAllowed,
-                    )
+                if (candidate.sourceType == ContextSourceType.SKILL_KNOWLEDGE) {
                     Text(
-                        "允许本次发送给模型服务",
-                        modifier = Modifier.padding(top = 12.dp),
+                        candidate.selectedContent,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                }
-                if (candidate.sensitive) {
+                } else {
+                    OutlinedTextField(
+                        value = candidate.selectedContent,
+                        onValueChange = onExcerptChanged,
+                        label = { Text("本次发送的精确正文或摘录") },
+                        supportingText = {
+                            Text("${candidate.characterCount} 字符；Hash 将对应此文本")
+                        },
+                        minLines = 3,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                     Row {
                         Checkbox(
-                            checked = candidate.sensitiveConfirmed,
-                            onCheckedChange = onSensitiveConfirmed,
+                            checked = candidate.networkAllowed,
+                            onCheckedChange = onNetworkAllowed,
                         )
                         Text(
-                            "我已查看并确认发送敏感内容",
+                            "允许本次发送给模型服务",
                             modifier = Modifier.padding(top = 12.dp),
-                            color = MaterialTheme.colorScheme.error,
                         )
+                    }
+                    if (candidate.sensitive) {
+                        Row {
+                            Checkbox(
+                                checked = candidate.sensitiveConfirmed,
+                                onCheckedChange = onSensitiveConfirmed,
+                            )
+                            Text(
+                                "我已查看并确认发送敏感内容",
+                                modifier = Modifier.padding(top = 12.dp),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
                     }
                 }
             }
