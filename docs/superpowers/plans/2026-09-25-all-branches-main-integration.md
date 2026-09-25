@@ -562,11 +562,11 @@
 
 - [x] **Step 1: 比较最新 main 与该分支，确认唯一业务增量仍是 `tools/ai-router/*`。**
 - [x] **Step 2: 普通 merge 最新 main 到 `codex/ai-router-mvp`；若会产生大量无意义冲突，则创建新的 `codex/ai-router-mvp-refresh` 从 main 出发，只 cherry-pick `f5590406...`。只有在现有分支无法安全快进/合并时才用新 refresh branch。**
-- [ ] **Step 3: 运行离线测试：**
+- [x] **Step 3: 运行离线测试：**
   ```powershell
   python .\tools\ai-router\test_router.py
   ```
-- [ ] **Step 4: 运行 doctor（不得访问真实 Drive）：**
+- [x] **Step 4: 运行 doctor（不得访问真实 Drive）：**
   ```powershell
   python .\tools\ai-router\router.py doctor
   ```
@@ -587,6 +587,7 @@
 - 已创建独立 Draft PR #73 到 main，仅 5 个 Router 文件。
 - 待本地 AI：`python .\tools\ai-router\test_router.py` 与 `python .\tools\ai-router\router.py doctor`；不得访问真实 Drive。Step 3/4/7 在结果回来前保持未完成。
 - PR #73 Secret scan 已 PASS；Router Android CI 在最后一次状态确认时仍运行中，但该 PR 无 Android 生产代码，最终是否 merge 以离线 Router tests/doctor + Secret scan + 用户决定为准。
+- 本地 AI 在 exact Router Head `6310db0e5fb04964e0fc77fa4088960b35950503` 上验证：`test_router.py` 7 tests PASS；`router.py doctor` exit 0；未连接真实 Drive/浏览器/Local AI；drive.readonly、browser-send 默认关闭、历史正文不读取、Local AI trigger 未实现、`work/` 忽略和运行时 secret 文件不被 Git 跟踪均 PASS。Task 13 Step 7 仅剩用户对 #73 merge/保留的产品决策。
 
 ---
 
@@ -668,6 +669,22 @@
 ### Task 17：最终代码/安全/构建门禁
 
 
+
+#### Final main 首轮全量验收结果
+
+- Exact main：`9455aa80499bab0e395f0ea36e20fa6061d7fb54`，worktree clean。
+- GitHub：Secret scan Run `36123638032` PASS；Android UI Test Compile Run `36123638313` PASS；Android CI Run `36123638482` PASS。
+- 本地环境：Eclipse Adoptium JDK 17.0.19+10 / Gradle 8.14。
+- identity / secrets / compileDebugKotlin / 587 JVM tests / lint / Debug APK / Release+R8 / AndroidTest APK / Room schema v14 + migration/FK 均 PASS。
+- 主 UI/产品矩阵：UI-03～UI-09、44 角色、38 portraits + 6 tools、用户头像、AI 管理、对话多角色、Portable Backup、Device Snapshot、Runtime reopen、Privacy 均 PASS；云端 Skill 消息因无生产 Key 为 NOT OBSERVABLE。
+- 可用性中 Light 已验证；Dark / reduced motion / high contrast / 360dp / 200% font / keyboard / TalkBack 未验证，因此 Task 18 Step 3 暂不勾选。
+- 全量 Instrumentation：63 classes / 259 tests；256 passed / 1 failed / 2 skipped。
+- 唯一失败：`ResourcesScreenTest.deletedMaterialOffersRestoreAndPurgeActions` 在行 80 对“恢复”直接 `assertIsDisplayed()` 失败。
+- 根因：生产 DELETED 资料仍渲染恢复/彻底清除；但资料卡现有多行元数据使底部操作位于 `JianyuPageShell(contentScrollable=true)` 的 viewport 下方。测试只确认卡片上部显示，未先滚动到底部操作。同仓库多个滚动页面测试均使用 `performScrollTo()`，此前 Settings 全量回归也有同型修复。
+- 最小修复独立分支：`codex/final-resources-scroll-test-fix`；commit `9d309a228dc593e542fcc2004805a18a0e014a3b`。
+- Draft PR #74：仅修改 `ResourcesScreenTest.kt`，为“恢复”和“彻底清除”在断言/点击前增加 `performScrollTo()`；不改生产 UI、生命周期或 Repository，不降低断言。
+- 下一 Gate：本地 AI 在 #74 exact Head 先跑 `ResourcesScreenTest`，PASS 后再跑全量 `:app:connectedDebugAndroidTest`。在 0 failed 前 Task 18 Step 1/5 保持未完成，Task 19 不执行。
+
 #### Final Phase 当前快照
 
 - 当前 main：`9455aa80499bab0e395f0ea36e20fa6061d7fb54`，已包含 #66/#67/#68/#69 全部计划内 Android 生产功能。
@@ -680,8 +697,8 @@
 
 **Target:** 所有计划内生产功能已进入 `main` 后的精确 SHA。
 
-- [ ] **Step 1: 锁定最终 main SHA，并确认无未解释的 open feature PR 仍包含计划内生产能力。**
-- [ ] **Step 2: Windows 10 / JDK 17 执行：**
+- [x] **Step 1: 锁定最终 main SHA，并确认无未解释的 open feature PR 仍包含计划内生产能力。**
+- [x] **Step 2: Windows 10 / JDK 17 执行：**
   ```powershell
   .\gradlew.bat --stop
   pwsh -NoProfile -File tools/check-app-identity.ps1
@@ -693,8 +710,8 @@
   .\gradlew.bat :app:assembleRelease
   .\gradlew.bat :app:assembleDebugAndroidTest
   ```
-- [ ] **Step 3: 检查 Room committed schema current、release/R8、APK artifacts。**
-- [ ] **Step 4: GitHub main 的 Secret scan、Android UI Test Compile、Android CI 全部成功。**
+- [x] **Step 3: 检查 Room committed schema current、release/R8、APK artifacts。**
+- [x] **Step 4: GitHub main 的 Secret scan、Android UI Test Compile、Android CI 全部成功。**
 
 ---
 
@@ -703,7 +720,7 @@
 **Rules:** 不改代码、不自动修复、不 commit/push/merge、不使用真实生产 API Key。
 
 - [ ] **Step 1: 执行 `:app:connectedDebugAndroidTest` 全量；记录测试类数、passed/failed/skipped。**
-- [ ] **Step 2: 复核主流程：**
+- [x] **Step 2: 复核主流程：**
   - UI-03～UI-09；
   - Skill 角色 38 portraits + 6 tools；
   - 用户自定义头像 Photo Picker / 重启 / reset；
@@ -720,7 +737,7 @@
   - 200% 字号；
   - 键盘；
   - TalkBack 真实朗读若测试设备具备 TTS。
-- [ ] **Step 4: 最终 Git cleanliness：**
+- [x] **Step 4: 最终 Git cleanliness：**
   ```powershell
   git status --short
   git diff --exit-code
