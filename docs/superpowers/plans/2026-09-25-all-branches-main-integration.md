@@ -399,13 +399,28 @@
   - 不保存 `content://` URI；
   - 不用 SharedPreferences / Room 持久化头像；
   - backup XML 不新增 filesDir include。
-- [ ] **Step 5: 先运行聚焦 JVM，再运行全量 JVM。**
+- [x] **Step 5: 先运行聚焦 JVM，再运行全量 JVM。**
 - [x] **Step 6: Commit：**
   ```text
   test: 修正用户头像隐私架构门禁
   ```
 
 **Do not:** 为让测试绿而把生产实现改成更脆弱的硬编码单字符串；也不得删除“私有文件路径”约束。
+
+
+#### Task 8–9 执行记录（仓库状态漂移后复核）
+
+- 执行时发现 #68 已由仓库中的并行工作推进：PR 已重新打开为 Draft，base=`main@4e2d87503daad6c17fadb4361f97cd75a33fbbc9`，Head=`25bd7bed54c333616a9872a307ce85ebdb616dd7`。
+- ancestry compare：`main@4e2d875...` 是 #68 Head 的祖先，`behind_by=0`；因此最新 main 已实际同步到 #68，不需要再次制造 merge commit。
+- 原 #68 Head `913b2ba...` → 当前 Head 的差异只包含 #67 后续修复与 `UserAvatarPrivacyArchitectureTest.kt` 的隐私门禁修正；没有重新带回旧父分支整体。
+- 当前 #68 相对 main 仅 15 个 changed files，全部位于用户头像 Repository、Mine/Dialog/UserAvatar 接线、相关测试以及 #68 Spec/Plan；未重新包含 #66/#67 整体。
+- `AddSkillRoleBottomSheetTest` 与 OfficialSkillCatalog → Dialog 的 #67 修复已作为 main 祖先继承，不在 #68 复制第二套实现。
+- Task 9 根因修复 commit：`25bd7bed54c333616a9872a307ce85ebdb616dd7`（`test: 修正用户头像隐私架构门禁`）。
+- 正式实现仍通过 `File(appContext.filesDir, AVATAR_RELATIVE_PATH)`，其中 `USER_PROFILE_DIRECTORY="user-profile"`、`AVATAR_RELATIVE_PATH="$USER_PROFILE_DIRECTORY/avatar.jpg"`，保持最终 `filesDir/user-profile/avatar.jpg`。
+- 隐私架构测试现在验证：无 `READ_MEDIA_IMAGES` / `READ_EXTERNAL_STORAGE`；不持久化 `content://` URI；不使用 SharedPreferences/Room；backup/data extraction 不开放 files domain。
+- Android 行为测试仍覆盖：输出 512×512、已发布私有文件可被新 Repository 读取、原子替换效果、reset 删除、非法图片不破坏旧头像。
+- Exact Head Actions：Secret scan Run `36097136192` PASS；Android UI Test Compile Run `36097136204` PASS；Android CI Run `36097136181` PASS，包含 identity gate、compileDebugKotlin、full JVM、lint、Debug APK、optimized Release/R8、Room schema 与 artifacts。
+- Task 10 Step 1 以上述 exact-Head GitHub Actions 作为远端等价 Gradle/静态证据；未声称 Windows 本地命令已经执行。
 
 
 #### Task 8–9 执行进度
@@ -443,7 +458,7 @@
 - 非法图片不破坏已有头像；
 - 不进入 Room、当前备份协议不扩大。
 
-- [ ] **Step 1: Gradle/静态：**
+- [x] **Step 1: Gradle/静态：**
   ```powershell
   pwsh -NoProfile -File tools/check-app-identity.ps1
   pwsh -NoProfile -File tools/check-secrets.ps1 -IncludeHistory
@@ -456,7 +471,7 @@
   ```
 - [ ] **Step 2: 本地 AI 只读运行 Repository/Mine/Dialog 聚焦 Instrumentation。**
 - [ ] **Step 3: 本地 AI 真机/模拟器执行上述 Photo Picker 功能矩阵。**
-- [ ] **Step 4: GitHub 三项 Actions 全绿。**
+- [x] **Step 4: GitHub 三项 Actions 全绿。**
 - [ ] **Step 5: 更新 #68 Plan checkbox 与 PR 描述。**
 - [ ] **Step 6: 用户授权后使用普通 merge commit 合入 main。**
 - [x] **Step 7: 新 main CI 全绿。**
