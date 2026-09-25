@@ -54,6 +54,7 @@ import com.elio.jianyu.roundtable.TranscriptBuilder
 import com.elio.jianyu.execution.SearchMode
 import com.elio.jianyu.skill.knowledge.SkillKnowledgeContextFormatter
 import com.elio.jianyu.skill.knowledge.SkillKnowledgeRetrievalResult
+import com.elio.jianyu.skill.knowledge.SkillKnowledgeSelection
 import com.elio.jianyu.roundtable.RoundtableDatabaseGateway
 import com.elio.jianyu.roundtable.CharacterAnswerGateway
 import com.elio.jianyu.roundtable.RoundtableBudgetManager
@@ -114,6 +115,8 @@ data class ConversationContextSelection(
     val sourceId: String,
     val title: String,
     val content: String,
+    val sourceKind: String = "",
+    val sourceLocator: String? = null,
     val expectedSourceHash: String,
     val expectedSourceUpdatedAt: Long,
     val confirmationOrder: Int,
@@ -952,7 +955,10 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         val valid = selections.all { selection ->
             selection.content.isNotBlank() &&
                 selection.expectedSourceHash.isNotBlank() &&
-                selection.expectedSourceUpdatedAt > 0L &&
+                (
+                    selection.sourceType == ContextSourceType.SKILL_KNOWLEDGE ||
+                        selection.expectedSourceUpdatedAt > 0L
+                    ) &&
                 selection.networkAllowed &&
                 (!selection.sensitive || selection.sensitiveConfirmed)
         } &&
@@ -973,6 +979,44 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
     fun currentConversationContextSelections(): List<ConversationContextSelection> =
         _currentSessionId.value?.let(pendingConversationContexts::get).orEmpty()
+
+    fun addSkillKnowledgeToCurrentConversation(
+        selection: SkillKnowledgeSelection,
+    ): Boolean {
+        val sessionId = _currentSessionId.value ?: return false
+        if (
+            selection.skillId.isBlank() ||
+            selection.documentId.isBlank() ||
+            selection.title.isBlank() ||
+            selection.relativePath.isBlank() ||
+            selection.content.isBlank() ||
+            selection.contentHash != ContextContentHasher.hash(selection.content)
+        ) {
+            return false
+        }
+        val existing = pendingConversationContexts[sessionId].orEmpty()
+            .filterNot {
+                it.sourceType == ContextSourceType.SKILL_KNOWLEDGE &&
+                    it.sourceId == selection.documentId
+            }
+        val order = (existing.maxOfOrNull { it.confirmationOrder } ?: -1) + 1
+        return confirmConversationContext(
+            existing + ConversationContextSelection(
+                sourceType = ContextSourceType.SKILL_KNOWLEDGE,
+                sourceId = selection.documentId,
+                title = selection.title,
+                content = selection.content,
+                sourceKind = selection.skillId,
+                sourceLocator = selection.relativePath,
+                expectedSourceHash = selection.contentHash,
+                expectedSourceUpdatedAt = 0L,
+                confirmationOrder = order,
+                networkAllowed = true,
+                sensitive = false,
+                sensitiveConfirmed = true,
+            ),
+        )
+    }
 
     fun currentActiveConversationContextSelections(): List<ConversationContextSelection> =
         _currentSessionId.value?.let(activeConversationContexts::get).orEmpty()
@@ -1032,6 +1076,8 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 sourceType = selection.sourceType,
                 sourceId = selection.sourceId,
                 title = selection.title,
+                sourceKind = selection.sourceKind,
+                sourceLocator = selection.sourceLocator,
                 content = selection.content,
                 contentHash = ContextContentHasher.hash(selection.content),
                 expectedSourceHash = selection.expectedSourceHash,
