@@ -12,7 +12,7 @@ class SkillKnowledgeRetriever(
     private val hitLimit: Int = 8,
     private val maxPerDocument: Int = 2,
     private val maxContextCharacters: Int = 9_000,
-) {
+) : SkillKnowledgeRetrievalGateway {
     init {
         require(embeddingDimension > 0)
         require(candidateLimit > 0)
@@ -21,7 +21,7 @@ class SkillKnowledgeRetriever(
         require(maxContextCharacters > 0)
     }
 
-    suspend fun retrieve(
+    override suspend fun retrieve(
         ownerSkillId: String,
         sessionId: Long,
         currentUserInput: String,
