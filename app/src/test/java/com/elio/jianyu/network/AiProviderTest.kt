@@ -29,11 +29,7 @@ class AiProviderTest {
         assertEquals("gemini-3.5-flash-lite", AiModel.GEMINI_35_FLASH_LITE.modelId)
         assertEquals("gemini-2.5-flash", AiModel.GEMINI_25_FLASH.modelId)
         assertEquals("gemini-2.5-flash-lite", AiModel.GEMINI_25_FLASH_LITE.modelId)
-        assertTrue(AiModel.GEMINI_38_FLASH.supportsWebGrounding)
-        assertTrue(AiModel.GEMINI_37_FLASH.supportsWebGrounding)
-        assertTrue(AiModel.GEMINI_35_FLASH_LITE.supportsWebGrounding)
-        assertTrue(AiModel.GEMINI_25_FLASH.supportsWebGrounding)
-        assertTrue(AiModel.GEMINI_25_FLASH_LITE.supportsWebGrounding)
+        assertTrue(geminiModels.all { it.supportsWebGrounding })
         assertEquals(AiModel.DEEPSEEK_V4_FLASH, defaultModel(AiProvider.DEEPSEEK))
         assertTrue(AiModel.entries.filter { it.provider == AiProvider.DEEPSEEK }.contains(AiModel.DEEPSEEK_V4_PRO))
     }
