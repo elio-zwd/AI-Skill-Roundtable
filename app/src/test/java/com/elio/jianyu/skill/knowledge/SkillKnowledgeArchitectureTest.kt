@@ -83,6 +83,23 @@ class SkillKnowledgeArchitectureTest {
     }
 
     @Test
+    fun skillKnowledgeUiStateNeverFakesSensitiveConfirmation() {
+        val issueExecution = projectRoot
+            .resolve("app/src/main/java/com/elio/jianyu/ui/screens/execution/IssueExecutionViewModel.kt")
+            .readText()
+        val retryStart = issueExecution.indexOf(
+            "filter { it.sourceType == ContextSourceType.SKILL_KNOWLEDGE }",
+        )
+        val retryEnd = issueExecution.indexOf(".toList()", startIndex = retryStart)
+        assertTrue(retryStart >= 0)
+        assertTrue(retryEnd > retryStart)
+        val retryBlock = issueExecution.substring(retryStart, retryEnd)
+        assertTrue(retryBlock.contains("sensitive = false"))
+        assertTrue(retryBlock.contains("sensitiveConfirmed = false"))
+        assertFalse(retryBlock.contains("sensitiveConfirmed = true"))
+    }
+
+    @Test
     fun collaborationRuntimePersistsValidatesAndComparesSkillKnowledgeUsage() {
         val collaboration = projectRoot
             .resolve("app/src/main/java/com/elio/jianyu/data/CollaborationRepositoryComponent.kt")

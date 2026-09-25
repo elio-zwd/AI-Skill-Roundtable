@@ -558,7 +558,7 @@ private fun DialogContextSelectionDialog(
                                             candidate.copy(
                                                 selected = !candidate.selected,
                                                 networkAllowed = true,
-                                                sensitiveConfirmed = true,
+                                                sensitiveConfirmed = false,
                                             )
                                         } else {
                                             candidate.copy(

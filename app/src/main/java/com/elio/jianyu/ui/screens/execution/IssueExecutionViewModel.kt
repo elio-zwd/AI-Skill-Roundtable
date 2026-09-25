@@ -302,7 +302,7 @@ class IssueExecutionViewModel internal constructor(
                         sensitive = false,
                         selected = false,
                         networkAllowed = true,
-                        sensitiveConfirmed = true,
+                        sensitiveConfirmed = false,
                     )
                 }
                 .toList()

@@ -83,6 +83,7 @@ class DialogCompletionContractTest {
         assertTrue(route.contains("onChange(candidate.copy(sensitiveConfirmed = it))"))
         assertTrue(route.contains("sensitive = false"))
         assertTrue(route.contains("sensitiveConfirmed = false"))
+        assertFalse(route.contains("sensitiveConfirmed = true"))
     }
 
     private fun findAppRoot(): File {
