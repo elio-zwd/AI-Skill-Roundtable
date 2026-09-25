@@ -1,6 +1,6 @@
 # Gemini API 协议说明
 
-> 当前 Gemini 文本模型的模型 ID、请求字段与思考档位请以 [Gemini 模型请求与思考档位契约](../models/gemini-model-request-contract.md) 为准。该契约已按 2026-09-02 官方文档核验；本页保留历史协议资料，出现冲突时以前者为准。
+> 当前 Gemini 文本模型的模型 ID、请求字段与思考档位请以 [Gemini 模型请求与思考档位契约](../models/gemini-model-request-contract.md) 为准。该契约已按 2026-09-26 官方文档核验；本页保留历史协议资料，出现冲突时以前者为准。
 
 ## 1. 基本信息
 
@@ -31,6 +31,8 @@ POST https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-00
 
 | 模型名 | 用途 | 配置说明 |
 |--------|------|------|
+| `gemini-3.8-flash` | 用户可选文本模型（默认） | 在 AI 管理页按调用用途独立选择 |
+| `gemini-3.7-flash` | 用户可选文本模型 | 在 AI 管理页按调用用途独立选择 |
 | `gemini-3.6-flash` | 用户可选文本模型 | 在 AI 管理页按调用用途独立选择 |
 | `gemini-3.5-flash` | 用户可选文本模型 | 在 AI 管理页按调用用途独立选择 |
 | `gemini-3.1-flash-lite` | 用户可选文本模型 | 在 AI 管理页按调用用途独立选择 |
