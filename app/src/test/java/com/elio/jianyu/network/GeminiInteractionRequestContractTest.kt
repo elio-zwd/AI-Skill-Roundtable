@@ -42,4 +42,29 @@ class GeminiInteractionRequestContractTest {
         assertFalse(body.containsKey("generationConfig"))
         assertFalse(generationConfig.containsKey("thinkingLevel"))
     }
+
+    @Test
+    fun gemini25FlashInteractionRequestKeepsGoogleSearchOnUnifiedInteractionsPath() {
+        val model = AiModel.GEMINI_25_FLASH
+        val request = CreateInteractionRequest(
+            model = model.modelId,
+            input = JsonPrimitive("latest facts"),
+            tools = listOf(Tool(type = "google_search")),
+            store = false,
+            generationConfig = InteractionGenerationConfig(
+                thinkingLevel = model.geminiInteractionThinkingLevel("minimal"),
+            ),
+        )
+
+        val body = Json.parseToJsonElement(Json.encodeToString(request)).jsonObject
+        val generationConfig = body.getValue("generation_config").jsonObject
+
+        assertEquals("gemini-2.5-flash", body.getValue("model").jsonPrimitive.content)
+        assertEquals("low", generationConfig.getValue("thinking_level").jsonPrimitive.content)
+        assertEquals(
+            "google_search",
+            body.getValue("tools").jsonArray.single().jsonObject.getValue("type").jsonPrimitive.content,
+        )
+        assertFalse(body.getValue("store").jsonPrimitive.content.toBoolean())
+    }
 }
