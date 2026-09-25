@@ -83,6 +83,17 @@ class SkillKnowledgeArchitectureTest {
     }
 
     @Test
+    fun collaborationRetryClonesExplicitSkillKnowledgeUsage() {
+        val retry = projectRoot
+            .resolve("app/src/main/java/com/elio/jianyu/data/CollaborationRetryRepositoryComponent.kt")
+            .readText()
+
+        assertTrue(retry.contains("getSkillKnowledgeUsagesForRun(sourceRunId)"))
+        assertTrue(retry.contains("insertSkillKnowledgeUsages(skillKnowledge)"))
+        assertTrue(retry.contains("runId = targetRunId"))
+    }
+
+    @Test
     fun collaborationRebindKeepsExplicitSkillKnowledgeUsage() {
         val coordinator = projectRoot
             .resolve("app/src/main/java/com/elio/jianyu/collaboration/IssueCollaborationCoordinator.kt")
