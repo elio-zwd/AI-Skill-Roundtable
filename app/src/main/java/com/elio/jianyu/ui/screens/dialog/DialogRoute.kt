@@ -265,7 +265,7 @@ fun DialogRoute(
                             val (materials, personalContexts) = viewModel.loadAvailableConversationContext()
                             val selected = viewModel.currentConversationContextSelections()
                                 .associateBy { it.sourceType to it.sourceId }
-                            val candidates = materials.map { material ->
+                            val materialCandidates = materials.map { material ->
                                 val key = ContextSourceType.MATERIAL to material.id
                                 val previous = selected[key]?.takeIf {
                                     it.expectedSourceHash == material.contentHash &&
@@ -276,6 +276,8 @@ fun DialogRoute(
                                     sourceId = material.id,
                                     title = material.title,
                                     content = previous?.content ?: material.content,
+                                    sourceKind = material.sourceType,
+                                    sourceLocator = material.sourceLocator,
                                     expectedSourceHash = material.contentHash,
                                     expectedSourceUpdatedAt = material.updatedAt,
                                     sensitive = material.sensitive,
@@ -284,7 +286,8 @@ fun DialogRoute(
                                     networkAllowed = previous?.networkAllowed == true,
                                     sensitiveConfirmed = previous?.sensitiveConfirmed == true,
                                 )
-                            } + personalContexts.map { personal ->
+                            }
+                            val personalCandidates = personalContexts.map { personal ->
                                 val key = ContextSourceType.PERSONAL_CONTEXT to personal.id
                                 val previous = selected[key]?.takeIf {
                                     it.expectedSourceHash == personal.contentHash &&
@@ -295,6 +298,7 @@ fun DialogRoute(
                                     sourceId = personal.id,
                                     title = personal.title,
                                     content = previous?.content ?: personal.content,
+                                    sourceKind = "personal_context",
                                     expectedSourceHash = personal.contentHash,
                                     expectedSourceUpdatedAt = personal.updatedAt,
                                     sensitive = personal.sensitive,
@@ -304,6 +308,28 @@ fun DialogRoute(
                                     sensitiveConfirmed = previous?.sensitiveConfirmed == true,
                                 )
                             }
+                            val skillKnowledgeCandidates = selected.values
+                                .filter { it.sourceType == ContextSourceType.SKILL_KNOWLEDGE }
+                                .sortedBy { it.confirmationOrder }
+                                .map { previous ->
+                                    DialogContextCandidate(
+                                        sourceType = ContextSourceType.SKILL_KNOWLEDGE,
+                                        sourceId = previous.sourceId,
+                                        title = previous.title,
+                                        content = previous.content,
+                                        sourceKind = previous.sourceKind,
+                                        sourceLocator = previous.sourceLocator,
+                                        expectedSourceHash = previous.expectedSourceHash,
+                                        expectedSourceUpdatedAt = 0L,
+                                        sensitive = false,
+                                        selected = true,
+                                        selectionOrder = previous.confirmationOrder,
+                                        networkAllowed = true,
+                                        sensitiveConfirmed = true,
+                                    )
+                                }
+                            val candidates =
+                                materialCandidates + personalCandidates + skillKnowledgeCandidates
                             contextConfirmation = DialogContextState(candidates)
                         }
                     }
@@ -362,6 +388,8 @@ fun DialogRoute(
                         sourceId = candidate.sourceId,
                         title = candidate.title,
                         content = candidate.content,
+                        sourceKind = candidate.sourceKind,
+                        sourceLocator = candidate.sourceLocator,
                         expectedSourceHash = candidate.expectedSourceHash,
                         expectedSourceUpdatedAt = candidate.expectedSourceUpdatedAt,
                         confirmationOrder = requireNotNull(candidate.selectionOrder),
@@ -385,7 +413,7 @@ fun DialogRoute(
             title = { Text("本次参考内容") },
             text = {
                 Text(
-                    if (selected.isEmpty()) "当前没有选择资料或个人背景。"
+                    if (selected.isEmpty()) "当前没有选择资料、个人背景或 Skill 资料。"
                     else selected.joinToString("\n\n") { "${it.title}\n${it.content.take(300)}" },
                 )
             },
@@ -428,6 +456,8 @@ internal data class DialogContextCandidate(
     val sourceId: String,
     val title: String,
     val content: String,
+    val sourceKind: String = "",
+    val sourceLocator: String? = null,
     val expectedSourceHash: String,
     val expectedSourceUpdatedAt: Long,
     val sensitive: Boolean,
@@ -479,10 +509,15 @@ private fun DialogContextSelectionDialog(
     onChange: (DialogContextCandidate) -> Unit,
     onConfirm: () -> Unit,
 ) {
-    val hasMissingPermission = state.selectedItems.any {
-        !it.networkAllowed ||
-            (it.sensitive && !it.sensitiveConfirmed) ||
-            it.content.isBlank()
+    val hasMissingPermission = state.selectedItems.any { candidate ->
+        candidate.content.isBlank() ||
+            (
+                candidate.sourceType != ContextSourceType.SKILL_KNOWLEDGE &&
+                    (
+                        !candidate.networkAllowed ||
+                            (candidate.sensitive && !candidate.sensitiveConfirmed)
+                        )
+                )
     }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -499,7 +534,7 @@ private fun DialogContextSelectionDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (state.candidates.isEmpty()) {
-                    Text("当前没有可选的活跃资料或个人背景。")
+                    Text("当前没有可选的活跃资料、个人背景或已带入的 Skill 资料。")
                 }
                 state.candidates.forEach { candidate ->
                     Column(modifier = Modifier.padding(vertical = 4.dp)) {
@@ -508,57 +543,87 @@ private fun DialogContextSelectionDialog(
                                 checked = candidate.selected,
                                 onCheckedChange = {
                                     onChange(
-                                        candidate.copy(
-                                            selected = !candidate.selected,
-                                            networkAllowed = if (candidate.selected) false else candidate.networkAllowed,
-                                            sensitiveConfirmed = if (candidate.selected) {
-                                                false
-                                            } else {
-                                                candidate.sensitiveConfirmed
-                                            },
-                                        )
+                                        if (candidate.sourceType == ContextSourceType.SKILL_KNOWLEDGE) {
+                                            candidate.copy(
+                                                selected = !candidate.selected,
+                                                networkAllowed = true,
+                                                sensitiveConfirmed = true,
+                                            )
+                                        } else {
+                                            candidate.copy(
+                                                selected = !candidate.selected,
+                                                networkAllowed = if (candidate.selected) {
+                                                    false
+                                                } else {
+                                                    candidate.networkAllowed
+                                                },
+                                                sensitiveConfirmed = if (candidate.selected) {
+                                                    false
+                                                } else {
+                                                    candidate.sensitiveConfirmed
+                                                },
+                                            )
+                                        }
                                     )
                                 },
                             )
                             Column(modifier = Modifier.padding(top = 12.dp)) {
                                 Text(candidate.title, style = MaterialTheme.typography.titleSmall)
                                 Text(
-                                    if (candidate.sourceType == ContextSourceType.MATERIAL) "资料" else "个人背景",
+                                    when (candidate.sourceType) {
+                                        ContextSourceType.MATERIAL -> "资料"
+                                        ContextSourceType.PERSONAL_CONTEXT -> "个人背景"
+                                        ContextSourceType.SKILL_KNOWLEDGE -> "Skill 资料"
+                                    },
                                     style = MaterialTheme.typography.labelMedium,
                                 )
                             }
                         }
                         if (candidate.selected) {
-                            OutlinedTextField(
-                                value = candidate.content,
-                                onValueChange = { onChange(candidate.copy(content = it)) },
-                                label = { Text("本次发送的正文或摘录") },
-                                minLines = 3,
-                            )
-                            Row {
-                                Checkbox(
-                                    checked = candidate.networkAllowed,
-                                    onCheckedChange = { onChange(candidate.copy(networkAllowed = it)) },
+                            if (candidate.sourceType == ContextSourceType.SKILL_KNOWLEDGE) {
+                                Text(
+                                    candidate.content,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
-                                Text("允许本次发送给模型服务", modifier = Modifier.padding(top = 12.dp))
-                            }
-                            if (candidate.sensitive) {
-                                if (showSensitiveReminder) {
-                                    Text(
-                                        "这项内容标记为敏感；请确认本次确实需要发送。",
-                                        color = MaterialTheme.colorScheme.error,
-                                    )
-                                }
+                            } else {
+                                OutlinedTextField(
+                                    value = candidate.content,
+                                    onValueChange = { onChange(candidate.copy(content = it)) },
+                                    label = { Text("本次发送的正文或摘录") },
+                                    minLines = 3,
+                                )
                                 Row {
                                     Checkbox(
-                                        checked = candidate.sensitiveConfirmed,
-                                        onCheckedChange = { onChange(candidate.copy(sensitiveConfirmed = it)) },
+                                        checked = candidate.networkAllowed,
+                                        onCheckedChange = {
+                                            onChange(candidate.copy(networkAllowed = it))
+                                        },
                                     )
                                     Text(
-                                        "我已查看并确认发送敏感内容",
+                                        "允许本次发送给模型服务",
                                         modifier = Modifier.padding(top = 12.dp),
-                                        color = MaterialTheme.colorScheme.error,
                                     )
+                                }
+                                if (candidate.sensitive) {
+                                    if (showSensitiveReminder) {
+                                        Text(
+                                            "这项内容标记为敏感；请确认本次确实需要发送。",
+                                            color = MaterialTheme.colorScheme.error,
+                                        )
+                                    }
+                                    Row {
+                                        Checkbox(
+                                            checked = candidate.sensitiveConfirmed,
+                                            onCheckedChange = {
+                                                onChange(candidate.copy(sensitiveConfirmed = it))
+                                            },
+                                        )
+                                        Text(
+                                            "我已查看并确认发送敏感内容",
+                                            modifier = Modifier.padding(top = 12.dp),
+                                            color = MaterialTheme.colorScheme.error,
+                                        )
+                                    }
                                 }
                             }
                         } else {
