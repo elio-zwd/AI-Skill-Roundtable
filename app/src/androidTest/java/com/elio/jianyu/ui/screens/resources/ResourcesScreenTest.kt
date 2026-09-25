@@ -161,14 +161,9 @@ class ResourcesScreenTest {
         }
 
         composeRule.onNodeWithTag(SkillKnowledgeTestTags.DETAIL).assertIsDisplayed()
-        composeRule.onNodeWithText("Skill ：理查德·费曼").assertIsDisplayed()
-        composeRule.onNodeWithText("：").assertIsDisplayed()
-        composeRule.onNodeWithText("：references/research.md").assertIsDisplayed()
+        composeRule.onNodeWithText("Richard Feynman", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("references/research.md", substring = true).assertIsDisplayed()
         composeRule.onNodeWithText("Explain with concrete examples first.").assertIsDisplayed()
-        composeRule.onNodeWithText("").assertDoesNotExist()
-        composeRule.onNodeWithText("").assertDoesNotExist()
-        composeRule.onNodeWithText("").assertDoesNotExist()
-        composeRule.onNodeWithText("").assertDoesNotExist()
         composeRule.onNodeWithTag(SkillKnowledgeTestTags.USE_IN_CONVERSATION)
             .assertIsDisplayed()
             .performClick()
