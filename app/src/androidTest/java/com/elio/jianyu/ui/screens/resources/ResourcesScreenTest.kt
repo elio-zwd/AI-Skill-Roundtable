@@ -6,6 +6,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.data.ContextSourceLifecycle
 import com.elio.jianyu.result.ArtifactLibraryItem
@@ -77,8 +78,8 @@ class ResourcesScreenTest {
         }
 
         composeRule.onNodeWithTag(ResourcesTestTags.material("material-1")).assertIsDisplayed()
-        composeRule.onNodeWithText("恢复").assertIsDisplayed()
-        composeRule.onNodeWithText("彻底清除").performClick()
+        composeRule.onNodeWithText("恢复").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("彻底清除").performScrollTo().performClick()
     }
 
     @Test
