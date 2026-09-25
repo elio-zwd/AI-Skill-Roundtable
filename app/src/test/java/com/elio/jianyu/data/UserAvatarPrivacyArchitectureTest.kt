@@ -16,7 +16,13 @@ class UserAvatarPrivacyArchitectureTest {
         assertFalse(manifest.contains("READ_MEDIA_IMAGES"))
         assertFalse(manifest.contains("READ_EXTERNAL_STORAGE"))
 
-        assertTrue(repository.contains("user-profile/avatar.jpg"))
+        assertTrue(repository.contains("File(appContext.filesDir, AVATAR_RELATIVE_PATH)"))
+        assertTrue(repository.contains("const val USER_PROFILE_DIRECTORY = \"user-profile\""))
+        assertTrue(
+            repository.contains(
+                "const val AVATAR_RELATIVE_PATH = \"\$USER_PROFILE_DIRECTORY/avatar.jpg\"",
+            ),
+        )
         assertFalse(repository.contains("SharedPreferences"))
         assertFalse(repository.contains("Room"))
         assertFalse(repository.contains("takePersistableUriPermission"))
