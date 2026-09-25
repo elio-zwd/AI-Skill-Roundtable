@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.network.AiModel
 import com.elio.jianyu.network.AiProvider
@@ -87,11 +88,64 @@ class SettingsScreenRegressionTest {
 
         composeRule.onNodeWithTag(AiManagementTestTags.MODEL_SHEET).assertIsDisplayed()
         composeRule.onNodeWithText("选择对话标题模型").assertIsDisplayed()
+        listOf(
+            AiModel.GEMINI_38_FLASH,
+            AiModel.GEMINI_37_FLASH,
+            AiModel.GEMINI_35_FLASH_LITE,
+            AiModel.GEMINI_25_FLASH,
+            AiModel.GEMINI_25_FLASH_LITE,
+        ).forEach { model ->
+            composeRule.onNodeWithTag(
+                AiManagementTestTags.model(
+                    "${AiUseCase.SESSION_TITLE.name}_${model.name}",
+                ),
+            ).assertExists()
+        }
         composeRule.onNodeWithTag(
             AiManagementTestTags.model(
-                "${AiUseCase.SESSION_TITLE.name}_${AiModel.GEMINI_35_FLASH.name}",
+                "${AiUseCase.SESSION_TITLE.name}_${AiModel.GEMINI_25_FLASH_LITE.name}",
             ),
-        ).assertIsDisplayed()
+        ).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun aiManagementScreen_webGroundingKeeps3xAndAdds25SearchModels() {
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                AiManagementScreen(
+                    uiState = emptyAiManagementState(),
+                    onBack = {},
+                    onSelectProvider = { _, _ -> },
+                    onSelectModel = { _, _ -> },
+                    onSelectKeyProvider = {},
+                    onInputChange = {},
+                    onImport = {},
+                    onToggleKey = { _, _ -> },
+                    onValidateKey = {},
+                    onRequestDeleteKey = {},
+                    onRequestClearProviderKeys = {},
+                    onDismissConfirmation = {},
+                    onConfirmDeleteKey = {},
+                    onConfirmClearProviderKeys = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(AiManagementTestTags.useCase(AiUseCase.WEB_GROUNDING.name))
+            .performClick()
+
+        listOf(
+            AiModel.GEMINI_38_FLASH,
+            AiModel.GEMINI_35_FLASH_LITE,
+            AiModel.GEMINI_25_FLASH,
+            AiModel.GEMINI_25_FLASH_LITE,
+        ).forEach { model ->
+            composeRule.onNodeWithTag(
+                AiManagementTestTags.model(
+                    "${AiUseCase.WEB_GROUNDING.name}_${model.name}",
+                ),
+            ).assertExists()
+        }
     }
 
     @Test
@@ -131,7 +185,7 @@ class SettingsScreenRegressionTest {
     private fun emptyAiManagementState() = AiManagementUiState(
         configuration = AiRuntimeConfiguration(
             AiUseCase.entries.associateWith { useCase ->
-                defaultModel(useCase.supportedProviders.first())
+                defaultModel(useCase)
             },
         ),
         keyProvider = AiProvider.GEMINI,

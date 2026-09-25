@@ -14,6 +14,7 @@ import com.elio.jianyu.network.GeminiInteractionsTransport
 import com.elio.jianyu.network.Tool
 import com.elio.jianyu.network.keys.ApiKeyLease
 import com.elio.jianyu.network.outputText
+import com.elio.jianyu.network.geminiInteractionThinkingLevel
 import com.elio.jianyu.roundtable.RequestBudgetTracker
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.JsonPrimitive
@@ -110,7 +111,7 @@ class AiExecutionNetworkGateway(
                             systemInstruction = systemInstruction,
                             generationConfig = InteractionGenerationConfig(
                                 maxOutputTokens = request.maxOutputTokens,
-                                thinkingLevel = request.thinkingLevel,
+                                thinkingLevel = model.geminiInteractionThinkingLevel(request.thinkingLevel),
                             ),
                             store = true,
                         ),

@@ -18,7 +18,6 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -162,9 +161,8 @@ private fun ComposerFeatureRow(
     title: String,
     onClick: () -> Unit,
     trailingText: String? = null,
-    trailingTextColor: Color? = null,
+    trailingTextColor: Color = DialogTokens.TextSecondary,
 ) {
-    val resolvedTrailingTextColor = trailingTextColor ?: MaterialTheme.colorScheme.onSurfaceVariant
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -197,7 +195,7 @@ private fun ComposerFeatureRow(
             if (trailingText != null) {
                 Text(
                     text = trailingText,
-                    color = resolvedTrailingTextColor,
+                    color = trailingTextColor,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                 )

@@ -21,6 +21,18 @@ enum class AiModel(
     val displayName: String,
     val supportsWebGrounding: Boolean = false,
 ) {
+    GEMINI_38_FLASH(
+        provider = AiProvider.GEMINI,
+        modelId = "gemini-3.8-flash",
+        displayName = "Gemini 3.8 Flash",
+        supportsWebGrounding = true,
+    ),
+    GEMINI_37_FLASH(
+        provider = AiProvider.GEMINI,
+        modelId = "gemini-3.7-flash",
+        displayName = "Gemini 3.7 Flash",
+        supportsWebGrounding = true,
+    ),
     GEMINI_36_FLASH(
         provider = AiProvider.GEMINI,
         modelId = "gemini-3.6-flash",
@@ -33,10 +45,28 @@ enum class AiModel(
         displayName = "Gemini 3.5 Flash",
         supportsWebGrounding = true,
     ),
+    GEMINI_35_FLASH_LITE(
+        provider = AiProvider.GEMINI,
+        modelId = "gemini-3.5-flash-lite",
+        displayName = "Gemini 3.5 Flash Lite",
+        supportsWebGrounding = true,
+    ),
     GEMINI_31_FLASH_LITE(
         provider = AiProvider.GEMINI,
         modelId = "gemini-3.1-flash-lite",
         displayName = "Gemini 3.1 Flash Lite",
+        supportsWebGrounding = true,
+    ),
+    GEMINI_25_FLASH(
+        provider = AiProvider.GEMINI,
+        modelId = "gemini-2.5-flash",
+        displayName = "Gemini 2.5 Flash",
+        supportsWebGrounding = true,
+    ),
+    GEMINI_25_FLASH_LITE(
+        provider = AiProvider.GEMINI,
+        modelId = "gemini-2.5-flash-lite",
+        displayName = "Gemini 2.5 Flash Lite",
         supportsWebGrounding = true,
     ),
     DEEPSEEK_V4_FLASH(
@@ -84,7 +114,7 @@ class AiConfigurationRepository(context: Context) {
 
     fun selectProvider(useCase: AiUseCase, provider: AiProvider) {
         require(provider in useCase.supportedProviders) { "该用途不支持 ${provider.displayName}" }
-        selectModel(useCase, defaultModel(provider))
+        selectModel(useCase, defaultModel(useCase, provider))
     }
 
     fun selectModel(useCase: AiUseCase, model: AiModel) {
@@ -106,14 +136,14 @@ class AiConfigurationRepository(context: Context) {
                 preferences.getString("$KEY_MODEL.${useCase.name}", null)
                     ?.let { raw -> AiModel.entries.firstOrNull { it.name == raw } }
                     ?.takeIf { it.provider in useCase.supportedProviders }
-                    ?: defaultModel(useCase.supportedProviders.first())
+                    ?: defaultModel(useCase)
             },
         )
     }
 
     private fun defaultConfiguration(): AiRuntimeConfiguration = AiRuntimeConfiguration(
         AiUseCase.entries.associateWith { useCase ->
-            defaultModel(useCase.supportedProviders.first())
+            defaultModel(useCase)
         },
     )
 
@@ -134,7 +164,41 @@ private fun AiRuntimeConfiguration.copyWith(
     AiUseCase.entries.associateWith { entry -> if (entry == useCase) model else modelFor(entry) },
 )
 
+private val GEMINI_MODELS_WITHOUT_MINIMAL_THINKING = setOf(
+    AiModel.GEMINI_38_FLASH,
+    AiModel.GEMINI_37_FLASH,
+    AiModel.GEMINI_25_FLASH,
+    AiModel.GEMINI_25_FLASH_LITE,
+)
+
+internal fun AiModel.geminiInteractionThinkingLevel(requestedLevel: String): String {
+    require(provider == AiProvider.GEMINI) { "只有 Gemini 模型可以使用 Interactions thinking_level" }
+    require(requestedLevel in setOf("minimal", "low", "medium", "high")) {
+        "Gemini 不支持思考档位：$requestedLevel"
+    }
+    return if (requestedLevel == "minimal" && this in GEMINI_MODELS_WITHOUT_MINIMAL_THINKING) {
+        "low"
+    } else {
+        requestedLevel
+    }
+}
+
 fun defaultModel(provider: AiProvider): AiModel = when (provider) {
-    AiProvider.GEMINI -> AiModel.GEMINI_35_FLASH
+    AiProvider.GEMINI -> AiModel.GEMINI_38_FLASH
     AiProvider.DEEPSEEK -> AiModel.DEEPSEEK_V4_FLASH
+}
+
+fun defaultModel(useCase: AiUseCase): AiModel =
+    defaultModel(useCase, useCase.supportedProviders.first())
+
+private fun defaultModel(
+    useCase: AiUseCase,
+    provider: AiProvider,
+): AiModel {
+    require(provider in useCase.supportedProviders) { "该用途不支持 ${provider.displayName}" }
+    return if (useCase == AiUseCase.WEB_GROUNDING && provider == AiProvider.GEMINI) {
+        AiModel.GEMINI_25_FLASH
+    } else {
+        defaultModel(provider)
+    }
 }

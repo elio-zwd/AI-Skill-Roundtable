@@ -283,4 +283,4 @@ object StableExecutionIds {
     }
 }
 
-const val DEFAULT_EXECUTION_MODEL = "gemini-3.6-flash"
+const val DEFAULT_EXECUTION_MODEL = "gemini-3.8-flash"
