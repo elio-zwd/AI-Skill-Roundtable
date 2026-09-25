@@ -35,6 +35,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.data.ContextSourceType
 import com.elio.jianyu.execution.SearchMode
+import com.elio.jianyu.skill.catalog.OfficialSkillCatalog
 import com.elio.jianyu.ui.settings.AppPreferences
 import com.elio.jianyu.viewmodel.RoundtableViewModel
 import com.elio.jianyu.viewmodel.ConversationContextSelection
@@ -49,6 +50,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun DialogRoute(
     viewModel: RoundtableViewModel,
+    officialSkillCatalog: OfficialSkillCatalog? = null,
     modifier: Modifier = Modifier,
     initialUiState: DialogUiState = DialogUiState(),
 ) {
@@ -100,6 +102,7 @@ fun DialogRoute(
         currentSession = currentSession,
         messages = messages,
         characters = characters,
+        officialSkills = officialSkillCatalog?.skills.orEmpty(),
         participantIds = participantIds,
         archivedSessionIds = archivedSessionIds,
         showArchivedSessions = showArchivedSessions,
