@@ -43,6 +43,7 @@ object ResourcesOverviewTestTags {
     const val ADD = "resources_overview_add"
     const val MATERIAL_SUMMARY = "resources_overview_material_summary"
     const val ARTIFACT_SUMMARY = "resources_overview_artifact_summary"
+    const val SKILL_KNOWLEDGE = "resources_overview_skill_knowledge"
 
     fun material(id: String) = "resources_overview_material_$id"
     fun artifact(id: String) = "resources_overview_artifact_$id"
@@ -55,6 +56,9 @@ fun ResourcesOverviewScreen(
     onAddMaterial: () -> Unit,
     onShowMaterials: () -> Unit,
     onShowArtifacts: () -> Unit,
+    skillKnowledgeCount: Int = 0,
+    skillKnowledgeUnavailable: Boolean = false,
+    onShowSkillKnowledge: () -> Unit = {},
     onOpenMaterial: (MaterialUiItem) -> Unit,
     onOpenArtifact: (String) -> Unit,
     onOpenSettings: () -> Unit = {},
@@ -126,6 +130,18 @@ fun ResourcesOverviewScreen(
                     .testTag(ResourcesOverviewTestTags.ARTIFACT_SUMMARY),
             )
         }
+
+        OverviewSummaryCard(
+            title = "Skill 资料",
+            count = skillKnowledgeCount,
+            description = "Skill 角色自带的知识与参考来源",
+            unavailable = skillKnowledgeUnavailable,
+            icon = { Icon(Icons.Default.Info, contentDescription = null) },
+            onClick = onShowSkillKnowledge,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(ResourcesOverviewTestTags.SKILL_KNOWLEDGE),
+        )
 
         OverviewSectionHeader("最近使用的资料", "全部资料", onShowMaterials)
         if (overview.recentMaterials.isEmpty()) {
