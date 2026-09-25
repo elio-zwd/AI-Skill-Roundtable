@@ -137,8 +137,17 @@ internal class CollaborationRetryRepositoryComponent(
                 createdAt = createdAt,
             )
         }
+        val skillKnowledge = core.getSkillKnowledgeUsagesForRun(sourceRunId)
+            .mapIndexed { index, usage ->
+                usage.copy(
+                    id = "$targetRunId-skill-knowledge-usage-$index",
+                    runId = targetRunId,
+                    createdAt = createdAt,
+                )
+            }
         if (materials.isNotEmpty()) core.insertMaterialUsages(materials)
         if (personal.isNotEmpty()) core.insertPersonalContextUsages(personal)
+        if (skillKnowledge.isNotEmpty()) core.insertSkillKnowledgeUsages(skillKnowledge)
     }
 
     private suspend fun CollaborationTransactionScope.cloneMessageUsage(
