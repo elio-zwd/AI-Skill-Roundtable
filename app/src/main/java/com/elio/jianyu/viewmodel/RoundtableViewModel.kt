@@ -2125,7 +2125,6 @@ enum class RoundActionState {
 
 @kotlinx.serialization.Serializable
 data class BrokerDecision(
-    val selectedFiles: List<String> = emptyList(),
     val needSearch: Boolean = false,
-    val searchQueries: List<String> = emptyList()
+    val searchQueries: List<String> = emptyList(),
 )
