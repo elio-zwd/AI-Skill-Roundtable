@@ -1974,7 +1974,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 systemInstruction = referencesText,
                 userContent = promptWithContext,
                 maxOutputTokens = budget.maxOutputTokensPerAnswer,
-                thinkingLevel = model.geminiInteractionThinkingLevel(currentThinkingLevel()),
+                thinkingLevel = currentThinkingLevel(),
                 operationName = "MainAnswer-${character.id}",
                 tracker = tracker,
                 onAttemptStarted = onAttemptStarted,
