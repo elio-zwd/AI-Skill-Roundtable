@@ -62,54 +62,6 @@ object SkillLoader {
     }
 
     /**
-     * 罗列 assets 指定目录下的所有文件名。
-     */
-    fun listFilesInAssetDir(context: Context, path: String): List<String> {
-        return try {
-            context.assets.list(path)?.toList() ?: emptyList()
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    /**
-     * 根据 Broker 选择的文件列表，动态读取并拼装对应的 examples/ 或 references/ 内容。
-     */
-    fun loadSelectedFiles(
-        context: Context,
-        skillFolder: String,
-        selectedFiles: List<String>,
-        isExample: Boolean
-    ): String {
-        if (selectedFiles.isEmpty()) return ""
-        val sb = StringBuilder()
-        val subDir = if (isExample) "examples" else "references"
-        val header = if (isExample) "\n\n## Few-Shot Selected Examples\n" else "\n\n## Selected Reference Knowledge\n"
-        
-        sb.append(header)
-        for (fileName in selectedFiles) {
-            val assetPath = "skills/$skillFolder/$subDir/$fileName"
-            try {
-                context.assets.open(assetPath).use { inputStream ->
-                    BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8)).use { reader ->
-                        val fileContent = reader.readText()
-                        sb.append("\n### Selected File: $fileName\n")
-                        sb.append(fileContent)
-                        sb.append("\n")
-                    }
-                }
-            } catch (e: Exception) {
-                PrivacySafeLogger.e(
-                    "SkillLoader",
-                    "加载已选技能文件失败",
-                    e
-                )
-            }
-        }
-        return sb.toString()
-    }
-
-    /**
      * 从 assets 目录读取指定路径的技能主文件并剥离头部 YAML frontmatter。
      *
      * @param context Android 上下文
