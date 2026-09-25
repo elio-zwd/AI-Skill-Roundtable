@@ -56,6 +56,8 @@ def classify_markdown(relative_path: str) -> str:
     lower = path.lower()
     if lower == "skill.md":
         return "CORE"
+    if Path(lower).name.startswith("readme"):
+        return "SUPPORTING"
     if (
         lower.startswith("references/")
         or lower.startswith("research/")
