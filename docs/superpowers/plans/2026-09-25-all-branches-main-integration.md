@@ -320,7 +320,7 @@
   .\gradlew.bat :app:assembleRelease
   .\gradlew.bat :app:assembleDebugAndroidTest
   ```
-- [ ] **Step 2: 本地 AI 只读执行角色头像聚焦 Instrumentation / UI：**
+- [x] **Step 2: 本地 AI 只读执行角色头像聚焦 Instrumentation / UI：**
   - 角色发现首页
   - 搜索
   - 收藏
@@ -330,25 +330,43 @@
   - 对话角色头像一致性
   - 38 portraits + 6 tools
   - 人物模拟免责声明仍存在
-- [ ] **Step 3: 若聚焦设备测试有新失败，GPT/执行 AI 按 systematic-debugging 修复后重跑。**
+- [x] **Step 3: 若聚焦设备测试有新失败，GPT/执行 AI 按 systematic-debugging 修复后重跑。**
 - [x] **Step 4: 当前 Head GitHub Secret/UI Test Compile/Android CI 全绿。**
-- [ ] **Step 5: 更新 #67 Plan/PR 描述中的最终验证 Head。**
-- [ ] **Step 6: 用户授权后将 #67 Ready，并使用普通 merge commit 合入 main。**
-- [ ] **Step 7: 新 main CI 全绿。**
+- [x] **Step 5: 更新 #67 Plan/PR 描述中的最终验证 Head。**
+- [x] **Step 6: 用户授权后将 #67 Ready，并使用普通 merge commit 合入 main。**
+- [x] **Step 7: 新 main CI 全绿。**
 
 **Gate:** #67 不得带任何已知 FAIL 进入 main。
 
 
-#### Task 7 当前验证状态
+#### Task 7 最终执行记录
 
-- Exact #67 Head：`07b186a8203259cccb7d690a3133f04cf8432a07`。
-- Secret scan Run `36049894792`：PASS。
-- Android UI Test Compile Run `36049894770`：PASS，原 `assertExists` compile failure 已消失。
-- Android CI Run `36049894937`：PASS；identity gate、compileDebugKotlin、full testDebugUnitTest、lintDebug、assembleDebug、package/schema verification、optimized Release/R8、release verification、Room committed schema 和 artifacts 全部成功；条件性 legacy/migration jobs 为 skipped。
-- Task 7 Step 1 在 GPT 环境通过上述 exact-Head GitHub Actions 取得等价远端证据；没有声称 Windows 本地 Gradle 已执行。
-- **仍未完成：Task 7 Step 2 exact-Head 本地 AI 聚焦 Instrumentation/UI 验收。** 在该验收 PASS 前保持 Draft，不执行 Ready/merge。
+- 本地 AI 首轮验收目标 Head：`07b186a8203259cccb7d690a3133f04cf8432a07`，worktree clean。
+- 本地构建 PASS；资源门禁：38 portraits / 6 tools / 0 legacy root JPG；Catalog 44 项无缺失路径。
+- 聚焦 Instrumentation：3 classes / 7 passed / 0 failed / 0 skipped；`recommendedAndAllSkills_renderCanonicalAvatarImages` PASS。
+- UI 验收中角色发现、搜索、收藏、最近使用、详情大头像、38+6 资源、人物模拟免责声明均 PASS。
+- 两项初始 FAIL 已拆分：
+  1. **真实代码问题：** Add Skill Role Bottom Sheet 初始只有旧 Room `Character` 的 20 项，缺少完整官方目录。根因确认：`DialogUiMapper` 把 legacy Character 当成角色全集，而当前产品事实源应为 44 项 `OfficialSkillCatalog`。已修复为 `AppRuntime OfficialSkillCatalog → DialogRoute → DialogUiMapper`，legacy Character 只保留 participant/message 兼容；新增 JVM 回归测试验证 Room 仅有旧角色时仍展示“职业发展顾问 / 学习规划师”等官方角色及正式头像路径。
+  2. **非本任务代码失败：** 对话消息头像一致性因当前发送/API 功能不可用，无法生成 Skill 消息；参与角色区域已可验证。用户明确说明当前发送本身存在既有 API 问题，并授权先继续合并，因此该项记录为环境/既有功能阻塞，最终 main 全量验收时再覆盖，不冒充 PASS。
+- 修复最终 #67 Head：`7554e91ba5ce2a0f49dc33ae5a95ed8efee3899d`。
+- Final Head GitHub：Secret scan Run `36095486256` PASS；Android UI Test Compile Run `36095486268` PASS；Android CI Run `36095486255` PASS。Android CI 覆盖新增回归测试、full JVM、lint、Debug、optimized Release/R8、Room schema。
+- 用户于本轮明确授权“先继续合并”；#67 标记 Ready 后使用普通 merge commit 合入。
+- 新 main：`4e2d87503daad6c17fadb4361f97cd75a33fbbc9`。
+- 新 main push Actions：Secret scan Run `36096219895` PASS；Android UI Test Compile Run `36096219988` PASS；Android CI Run `36096219890` PASS，Release/R8/Room schema 全部成功；条件性 legacy/migration jobs 为 skipped。
+- 远端 `codex/skill-role-avatars` 分支保留，未删除。
 
 ---
+
+
+### Batch 2 完成记录（Task 5–7）
+
+- #67：已 retarget 到 main，已修复 AndroidTest `assertExists` 编译问题与本地 AI 暴露的 Bottom Sheet 20/44 数据源缺陷。
+- 最终 #67 Head：`7554e91ba5ce2a0f49dc33ae5a95ed8efee3899d`。
+- Merge commit / 当前 main：`4e2d87503daad6c17fadb4361f97cd75a33fbbc9`。
+- GitHub PR Head 和 merge 后 main 的 Secret / Android UI Test Compile / Android CI 均 PASS。
+- 本地 AI：7 项聚焦 Instrumentation 全 PASS；视觉矩阵除 Bottom Sheet 数据源问题和 API 阻塞消息头像外均 PASS。Bottom Sheet 已通过代码修复 + JVM 回归 + GitHub 全量门禁闭环；消息头像验证延期至最终 main 全量设备验收。
+- 未删除任何远端分支。
+- 下一 Batch 前置条件满足：#67 已进入 main 且 merge 后 CI 全绿。
 
 # Phase D：同步、修复并合入用户自定义头像 #68
 
