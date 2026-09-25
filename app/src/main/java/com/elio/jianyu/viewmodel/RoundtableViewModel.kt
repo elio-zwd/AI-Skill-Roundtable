@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.elio.jianyu.JianyuAppRuntimeProvider
+import com.elio.jianyu.skill.catalog.OfficialSkillCatalogRuntimeResult
+import com.elio.jianyu.skill.role.OfficialSkillConversationRoleAdapter
 import com.elio.jianyu.data.Character
 import com.elio.jianyu.data.ChatSession
 import com.elio.jianyu.data.ArtifactMessageSourceEntity
@@ -706,17 +708,6 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    fun addSkillRoleToCurrentSession(skillId: String) {
-        val sessionId = _currentSessionId.value ?: return
-        viewModelScope.launch {
-            val available = charRepo.getCharacterById(skillId) ?: return@launch
-            if (_currentSessionId.value != sessionId) return@launch
-            val updated = (_currentParticipantIds.value + available.id).distinct().take(15)
-            conversationPreferences.setParticipantIds(sessionId, updated)
-            _currentParticipantIds.value = updated
-        }
-    }
-
     fun removeSkillRoleFromCurrentSession(skillId: String) {
         val sessionId = _currentSessionId.value ?: return
         val current = _currentParticipantIds.value
@@ -748,7 +739,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
     private suspend fun loadParticipantIds(sessionId: Long): List<String> {
         val immediatelyAvailable = charRepo.allCharacters.first()
-        val availableIds = if (immediatelyAvailable.isNotEmpty()) {
+        val initiallyAvailableIds = if (immediatelyAvailable.isNotEmpty()) {
             immediatelyAvailable.map(Character::id)
         } else {
             withTimeoutOrNull(5_000L) {
@@ -757,13 +748,39 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     .map(Character::id)
             }.orEmpty()
         }
-        val defaults = resolveDefaultSessionRoleIds(availableIds)
-        val stored = conversationPreferences.getParticipantIds(sessionId, defaults)
-            .filter { it in availableIds }
+        val initialDefaults = resolveDefaultSessionRoleIds(initiallyAvailableIds)
+        val stored = conversationPreferences.getParticipantIds(sessionId, initialDefaults)
+            .distinct()
             .take(15)
-        val resolved = stored.ifEmpty { defaults }
+
+        // 覆盖安装可能保留“官方角色 participant 已保存、legacy Character 行尚未存在”的状态。
+        // OfficialSkillCatalog 才是角色事实源；过滤旧会话 participant 前先补齐执行兼容行，
+        // 避免因为旧 Room 快照缺行而永久删掉仍然有效的正式角色。
+        ensureOfficialParticipantCharacters(stored)
+
+        val availableIds = charRepo.allCharacters.first().map(Character::id)
+        val defaults = resolveDefaultSessionRoleIds(availableIds)
+        val resolved = stored.filter { it in availableIds }.ifEmpty { defaults }
         conversationPreferences.setParticipantIds(sessionId, resolved)
         return resolved
+    }
+
+    private suspend fun ensureOfficialParticipantCharacters(participantIds: List<String>) {
+        if (participantIds.isEmpty()) return
+        val application = getApplication<Application>()
+        val runtime = runCatching { JianyuAppRuntimeProvider.get(application) }.getOrNull() ?: return
+        val catalogRuntime = runtime.officialSkillCatalogRuntimeResult
+            as? OfficialSkillCatalogRuntimeResult.Success
+            ?: return
+        val adapter = OfficialSkillConversationRoleAdapter(application, charRepo)
+
+        participantIds.distinct().forEach { skillId ->
+            if (charRepo.getCharacterById(skillId) != null) return@forEach
+            val definition = catalogRuntime.runtime.catalog.findById(skillId)
+                ?.takeIf { it.availability.executable }
+                ?: return@forEach
+            adapter.ensureCompatibleCharacter(definition)
+        }
     }
 
     fun addOrUpdateCharacter(character: Character) {
