@@ -10,6 +10,14 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-26-skill-knowledge-embedding-design.md`
 
+## 
+
+> 2026-09-26 GPT ：、/、main 、/purge/backup ； ./Gradle/Room Schema 15  Gemini 。
+>
+> ：`app/src/main/assets/skill_knowledge/manifest.json`、`index-v1.bin`、`app/schemas/com.elio.jianyu.data.RoundtableDatabase/15.json`； Gradle / JVM / AndroidTest / / API / UI 。
+>
+> ：`codex/skill-knowledge-embedding`  `main@d56850bf3f77d95a40048137898cdac5cff81ca3` ， Draft PR `main`。
+
 ## Global Constraints
 
 - 实现分支固定为 `codex/skill-knowledge-embedding`，基线为 `codex/gemini-37-38-flash@8a7810f4af086da30401f32d92ea37f4fecb0d66`。
@@ -178,7 +186,7 @@ Run:
 
 Expected: PASS。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add app/src/main/java/com/elio/jianyu/network/GeminiEmbeddingTransport.kt app/src/test/java/com/elio/jianyu/network/GeminiEmbeddingTransportTest.kt
@@ -525,7 +533,7 @@ onAttemptStarted = {
 
 Embedding 失败返回 null knowledge context，继续最终回答。
 
-- [ ] **Step 4: Runtime wiring**
+- [x] **Step 4: Runtime wiring**
 
 `JianyuAppRuntimeProvider.create()` 中创建：
 - `SkillKnowledgeAssetRepository`
