@@ -14,6 +14,13 @@ class AiProviderTest {
     }
 
     @Test
+    fun issueExecutionKeepsStableInternalIdButUsesCurrentArtifactTerminology() {
+        assertEquals("ISSUE_EXECUTION", AiUseCase.ISSUE_EXECUTION.name)
+        assertEquals("成果生成", AiUseCase.ISSUE_EXECUTION.displayName)
+        assertEquals("生成并整理可保存的成果内容", AiUseCase.ISSUE_EXECUTION.description)
+    }
+
+    @Test
     fun modelSelectionIsIndependentForEachTextUseCase() {
         val configuration = AiRuntimeConfiguration(
             mapOf(

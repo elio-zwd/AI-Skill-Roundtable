@@ -3,11 +3,11 @@ package com.elio.jianyu.ui.screens.settings
 import com.elio.jianyu.network.AiProvider
 import com.elio.jianyu.network.AiRuntimeConfiguration
 import com.elio.jianyu.network.AiUseCase
-import com.elio.jianyu.network.defaultModel
 import com.elio.jianyu.network.ApiKeySource
 import com.elio.jianyu.network.ApiKeySummary
 import com.elio.jianyu.network.ApiKeyValidationState
 import com.elio.jianyu.network.BatchImportResult
+import com.elio.jianyu.network.defaultModel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -19,11 +19,14 @@ class AiManagementUiStateTest {
         val state = AiManagementUiState(
             configuration = configuration(),
             keyProvider = AiProvider.DEEPSEEK,
-            summaries = listOf(
-                summary("available"),
-                summary("disabled", enabled = false),
-                summary("invalid", validationState = ApiKeyValidationState.INVALID),
-                summary("cooling", remainingBanTimeMs = 60_000L),
+            providerSummaries = mapOf(
+                AiProvider.GEMINI to emptyList(),
+                AiProvider.DEEPSEEK to listOf(
+                    summary("available"),
+                    summary("disabled", enabled = false),
+                    summary("invalid", validationState = ApiKeyValidationState.INVALID),
+                    summary("cooling", remainingBanTimeMs = 60_000L),
+                ),
             ),
             storageError = null,
             currentKeyAccount = null,
@@ -33,7 +36,31 @@ class AiManagementUiStateTest {
         )
 
         assertEquals(1, state.availableKeyCount)
+        assertEquals(1, state.availableKeyCount(AiProvider.DEEPSEEK))
         assertTrue(state.canImport)
+    }
+
+    @Test
+    fun providerStatusUsesFriendlySummaryForEmptyAndConfiguredPools() {
+        val state = AiManagementUiState(
+            configuration = configuration(),
+            keyProvider = AiProvider.GEMINI,
+            providerSummaries = mapOf(
+                AiProvider.GEMINI to emptyList(),
+                AiProvider.DEEPSEEK to listOf(
+                    summary("available"),
+                    summary("disabled", enabled = false),
+                ),
+            ),
+            storageError = null,
+            currentKeyAccount = null,
+            input = "",
+            resultMessage = null,
+            confirmation = null,
+        )
+
+        assertEquals("未配置 Key", state.providerStatus(AiProvider.GEMINI))
+        assertEquals("2 个 Key · 1 个可用", state.providerStatus(AiProvider.DEEPSEEK))
     }
 
     @Test
@@ -42,7 +69,10 @@ class AiManagementUiStateTest {
             AiManagementUiState(
                 configuration = configuration(),
                 keyProvider = AiProvider.GEMINI,
-                summaries = emptyList(),
+                providerSummaries = mapOf(
+                    AiProvider.GEMINI to emptyList(),
+                    AiProvider.DEEPSEEK to emptyList(),
+                ),
                 storageError = null,
                 currentKeyAccount = null,
                 input = " ",
@@ -54,6 +84,14 @@ class AiManagementUiStateTest {
         assertEquals(
             "ai_management_model_ROUNDTABLE_ANSWER_GEMINI_36_FLASH",
             AiManagementTestTags.model("ROUNDTABLE_ANSWER_GEMINI_36_FLASH"),
+        )
+        assertEquals(
+            "ai_management_use_case_SESSION_TITLE",
+            AiManagementTestTags.useCase("SESSION_TITLE"),
+        )
+        assertEquals(
+            "ai_management_key_provider_GEMINI",
+            AiManagementTestTags.keyProviderCard("GEMINI"),
         )
     }
 
