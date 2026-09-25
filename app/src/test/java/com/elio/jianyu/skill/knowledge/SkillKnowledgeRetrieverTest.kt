@@ -1,5 +1,6 @@
 package com.elio.jianyu.skill.knowledge
 
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -7,7 +8,7 @@ import org.junit.Test
 
 class SkillKnowledgeRetrieverTest {
     @Test
-    fun retrievalStaysInsideOwnerSkillAndCapsHitsPerDocumentAndBudget() {
+    fun retrievalStaysInsideOwnerSkillAndCapsHitsPerDocumentAndBudget() = runBlocking {
         val repository = FakeRepository(
             documents = buildList {
                 addAll(documentsFor("richard_feynman", "a", 6, baseScore = 1.0f))
@@ -32,6 +33,7 @@ class SkillKnowledgeRetrieverTest {
             ownerSkillId = "richard_feynman",
             sessionId = 1L,
             currentUserInput = "怎么解释复杂概念？",
+            onAttemptStarted = {},
         ) as SkillKnowledgeRetrievalResult.Available
 
         assertTrue(result.hits.isNotEmpty())
@@ -49,7 +51,7 @@ class SkillKnowledgeRetrieverTest {
     }
 
     @Test
-    fun embeddingFailureBecomesUnavailableInsteadOfThrowing() {
+    fun embeddingFailureBecomesUnavailableInsteadOfThrowing() = runBlocking {
         val repository = FakeRepository(
             documents = documentsFor("richard_feynman", "a", 1, baseScore = 1f),
         )
@@ -63,6 +65,7 @@ class SkillKnowledgeRetrieverTest {
             ownerSkillId = "richard_feynman",
             sessionId = 1L,
             currentUserInput = "问题",
+            onAttemptStarted = {},
         )
 
         assertTrue(result is SkillKnowledgeRetrievalResult.Unavailable)
