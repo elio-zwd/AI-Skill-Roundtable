@@ -40,6 +40,7 @@ import com.elio.jianyu.network.AiProvider
 import com.elio.jianyu.network.AiUseCase
 import com.elio.jianyu.network.DeepSeekTransport
 import com.elio.jianyu.network.defaultModel
+import com.elio.jianyu.network.geminiInteractionThinkingLevel
 import com.elio.jianyu.network.Tool
 import com.elio.jianyu.network.CreateInteractionRequest
 import com.elio.jianyu.network.InteractionGenerationConfig
@@ -1973,7 +1974,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 systemInstruction = referencesText,
                 userContent = promptWithContext,
                 maxOutputTokens = budget.maxOutputTokensPerAnswer,
-                thinkingLevel = currentThinkingLevel(),
+                thinkingLevel = model.geminiInteractionThinkingLevel(currentThinkingLevel()),
                 operationName = "MainAnswer-${character.id}",
                 tracker = tracker,
                 onAttemptStarted = onAttemptStarted,
@@ -1992,7 +1993,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             previousInteractionId = null,
             generationConfig = InteractionGenerationConfig(
                 maxOutputTokens = budget.maxOutputTokensPerAnswer,
-                thinkingLevel = currentThinkingLevel(),
+                thinkingLevel = model.geminiInteractionThinkingLevel(currentThinkingLevel()),
                 thinkingSummaries = "auto"
             )
         )
@@ -2026,7 +2027,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 previousInteractionId = currentResponse.id,
                 generationConfig = InteractionGenerationConfig(
                     maxOutputTokens = budget.maxOutputTokensPerAnswer,
-                    thinkingLevel = currentThinkingLevel(),
+                    thinkingLevel = model.geminiInteractionThinkingLevel(currentThinkingLevel()),
                     thinkingSummaries = "auto"
                 )
             )
