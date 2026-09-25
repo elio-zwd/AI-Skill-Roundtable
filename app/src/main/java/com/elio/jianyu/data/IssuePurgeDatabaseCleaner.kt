@@ -91,6 +91,7 @@ class IssuePurgeDatabaseCleaner(
             dao.deleteMaterialUsages(issueId)
             dao.deleteMaterialReferences(issueId)
             dao.deletePersonalContextUsages(issueId)
+            dao.deleteSkillKnowledgeUsages(issueId)
             dao.deleteStages(issueId)
 
             dao.deleteResumeEvents(issueId)
