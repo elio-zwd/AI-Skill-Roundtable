@@ -162,7 +162,10 @@ class ResourcesScreenTest {
 
         composeRule.onNodeWithTag(SkillKnowledgeTestTags.DETAIL).assertIsDisplayed()
         composeRule.onNodeWithText("Skill ：理查德·费曼").assertIsDisplayed()
-        composeRule.onNodeWithText("：").assertDoesNotExist()
+        composeRule.onNodeWithText("：").assertIsDisplayed()
+        composeRule.onNodeWithText("：references/research.md").assertIsDisplayed()
+        composeRule.onNodeWithText("Explain with concrete examples first.").assertIsDisplayed()
+        composeRule.onNodeWithText("").assertDoesNotExist()
         composeRule.onNodeWithText("").assertDoesNotExist()
         composeRule.onNodeWithText("").assertDoesNotExist()
         composeRule.onNodeWithText("").assertDoesNotExist()
@@ -377,12 +380,12 @@ class ResourcesScreenTest {
     private fun skillKnowledgeDocument() = SkillKnowledgeDocumentUiItem(
         documentId = "feynman-research",
         skillId = "richard_feynman",
-        skillName = "·",
+        skillName = "Richard Feynman",
         relativePath = "references/research.md",
-        title = "",
+        title = "Feynman research",
         type = SkillKnowledgeDocumentType.KNOWLEDGE,
         contentHash = "hash",
-        content = "",
+        content = "Explain with concrete examples first.",
     )
 
     private fun material(id: String, sensitive: Boolean) = MaterialUiItem(
