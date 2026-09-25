@@ -1,0 +1,139 @@
+# Skill Knowledge 
+
+> ，。
+> ：codex/skill-knowledge-embedding
+> ：Windows 10 / JDK 17 / Android SDK / Python 3。
+> ： GEMINI_API_KEY  gemini-embedding-2， Key。
+
+## 
+
+1. 。
+2. 。
+3.  commit。
+4.  push。
+5.  PR。
+6.  main。
+7. ：
+   - app/src/main/assets/skill_knowledge/manifest.json
+   - app/src/main/assets/skill_knowledge/index-v1.bin
+   - app/schemas/com.elio.jianyu.data.RoundtableDatabase/15.json
+8. 、Kotlin、、Gradle 、 test、。
+9. ，， GPT 。
+
+## 1. 
+
+：
+git fetch origin
+git checkout codex/skill-knowledge-embedding
+git pull --ff-only origin codex/skill-knowledge-embedding
+git status --short
+git rev-parse HEAD
+git merge-base --is-ancestor 18e1fa1a7ea7638ee99efb985745e5e2b2be6402 HEAD
+
+：worktree ；ancestor  0。，。
+
+## 2. Python 
+
+：python -m unittest tools.skill_knowledge.test_generate_index
+：PASS。，、、。
+
+## 3. Gemini Key
+
+ Key 。：
+if ([string]::IsNullOrWhiteSpace($env:GEMINI_API_KEY)) { "GEMINI_API_KEY=MISSING" } else { "GEMINI_API_KEY=SET" }
+
+ MISSING： FAIL；； Key； Key。
+
+## 4. 
+
+：
+python tools/skill_knowledge/generate_index.py --repo-root . --model gemini-embedding-2 --dimension 768
+python tools/skill_knowledge/generate_index.py --repo-root . --validate-only
+
+：
+- manifest.json 
+- index-v1.bin 
+- validate-only  VALID
+- manifest schemaVersion=1
+- model=gemini-embedding-2
+- vectorDimension=768
+- vectorEncoding=float32-le
+- contentHash Markdown 
+- vector offset 
+
+、 API response、 Key。
+
+## 5. Room v15 Schema +
+
+：.\gradlew.bat compileDebugKotlin
+：PASS；app/schemas/com.elio.jianyu.data.RoundtableDatabase/15.json 。
+，；，、/、。
+
+## 6. 
+
+：git status --short
+： 3 ；/。
+：FAIL；，； 3 。
+
+## 7. 
+
+ PowerShell ：
+$files = @(
+  "app/src/main/assets/skill_knowledge/manifest.json",
+  "app/src/main/assets/skill_knowledge/index-v1.bin",
+  "app/schemas/com.elio.jianyu.data.RoundtableDatabase/15.json"
+)
+$files | ForEach-Object {
+  Get-Item $_ | Select-Object FullName, Length
+  Get-FileHash $_ -Algorithm SHA256 | Select-Object Path, Hash
+}
+
+ manifest ：skill 、document 、KNOWLEDGE document 、chunk 、index 。
+
+## 8. ZIP
+
+：
+$zip = Join-Path $env:TEMP "skill-knowledge-generated-artifacts.zip"
+if (Test-Path $zip) { Remove-Item $zip -Force }
+Compress-Archive -Path "app/src/main/assets/skill_knowledge/manifest.json","app/src/main/assets/skill_knowledge/index-v1.bin","app/schemas/com.elio.jianyu.data.RoundtableDatabase/15.json" -DestinationPath $zip
+Write-Output $zip
+
+ ZIP ， commit / push。 ZIP  Elio， GPT 。
+
+## 
+
+RESULT: PASS | FAIL
+HEAD: <sha>
+ANCESTOR_18e1fa1: PASS | FAIL
+WORKTREE_BEFORE: CLEAN | DIRTY
+PYTHON_GENERATOR_TEST: PASS | FAIL
+GEMINI_KEY_STATE: SET | MISSING
+INDEX_GENERATION: PASS | FAIL
+VALIDATE_ONLY: PASS | FAIL
+COMPILE_DEBUG_KOTLIN: PASS | FAIL
+ROOM_SCHEMA_15: PASS | FAIL
+ALLOWED_OUTPUTS_ONLY: PASS | FAIL
+
+GENERATED:
+- manifest.json: <bytes> / sha256=<hash>
+- index-v1.bin: <bytes> / sha256=<hash>
+- 15.json: <bytes> / sha256=<hash>
+
+MANIFEST:
+- skills=<n>
+- documents=<n>
+- knowledgeDocuments=<n>
+- chunks=<n>
+- vectorDimension=768
+- indexBytes=<n>
+
+ZIP:
+<absolute path>
+
+FAILURE:
+- command:
+- file/line:
+- key error:
+- minimal log:
+
+：PASS ，；FAIL ，，； Key；。
