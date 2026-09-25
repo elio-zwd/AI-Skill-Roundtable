@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.data.ContextSourceLifecycle
 import com.elio.jianyu.result.ArtifactType
+import com.elio.jianyu.skill.knowledge.SkillKnowledgeSelection
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.components.JianyuPageShell
 import com.elio.jianyu.ui.components.JianyuStateCard
@@ -30,6 +31,8 @@ import com.elio.jianyu.ui.navigation.ResourceTab
 @Composable
 fun ResourcesScreen(
     showOverview: Boolean = false,
+    showSkillKnowledge: Boolean = false,
+    skillKnowledgeState: SkillKnowledgeUiState = SkillKnowledgeUiState.Loading,
     addMaterialSheetVisible: Boolean = false,
     requestMaterialSearchFocus: Boolean = false,
     selectedTab: ResourceTab,
@@ -37,6 +40,12 @@ fun ResourcesScreen(
     onBackToOverview: () -> Unit = {},
     onShowMaterials: () -> Unit = {},
     onShowArtifacts: () -> Unit = {},
+    onShowSkillKnowledge: () -> Unit = {},
+    onSkillKnowledgeRetry: () -> Unit = {},
+    onSkillKnowledgeQueryChange: (String) -> Unit = {},
+    onOpenSkillKnowledgeDocument: (String) -> Unit = {},
+    onDismissSkillKnowledgeDocument: () -> Unit = {},
+    onUseSkillKnowledgeInConversation: (SkillKnowledgeSelection) -> Unit = {},
     onSearchMaterials: () -> Unit = {},
     onOpenAddMaterialSheet: () -> Unit = {},
     onDismissAddMaterialSheet: () -> Unit = {},
@@ -69,14 +78,29 @@ fun ResourcesScreen(
     onOpenArtifactIssue: (String, String) -> Unit = { _, _ -> },
     onCopyArtifact: (com.elio.jianyu.result.ArtifactLibraryItem) -> Unit = {},
 ) {
-    if (showOverview) {
+    if (showSkillKnowledge) {
+        SkillKnowledgeScreen(
+            state = skillKnowledgeState,
+            onBack = onBackToOverview,
+            onRetry = onSkillKnowledgeRetry,
+            onQueryChange = onSkillKnowledgeQueryChange,
+            onOpenDocument = onOpenSkillKnowledgeDocument,
+            onDismissDocument = onDismissSkillKnowledgeDocument,
+            onUseInConversation = onUseSkillKnowledgeInConversation,
+            onOpenSettings = onOpenSettings,
+        )
+    } else if (showOverview) {
         Box(modifier = Modifier.fillMaxSize().testTag(ResourcesTestTags.SCREEN)) {
+            val knowledgeContent = skillKnowledgeState as? SkillKnowledgeUiState.Content
             ResourcesOverviewScreen(
                 overview = buildResourceOverview(state, artifactState),
                 onSearchMaterials = onSearchMaterials,
                 onAddMaterial = onOpenAddMaterialSheet,
                 onShowMaterials = onShowMaterials,
                 onShowArtifacts = onShowArtifacts,
+                skillKnowledgeCount = knowledgeContent?.documents?.size ?: 0,
+                skillKnowledgeUnavailable = skillKnowledgeState !is SkillKnowledgeUiState.Content,
+                onShowSkillKnowledge = onShowSkillKnowledge,
                 onOpenMaterial = onOpenMaterial,
                 onOpenArtifact = onOpenArtifact,
                 onOpenSettings = onOpenSettings,
