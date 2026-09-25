@@ -156,6 +156,16 @@ class JianyuNavigationArchitectureTest {
         assertTrue(resourcesSource.contains("resources_tab_artifacts"))
     }
 
+    @Test
+    fun app_skillDetailDoesNotPrepareConversationAsBrowseSideEffect() {
+        val appSource = uiRoot.resolve("App.kt").readText()
+
+        assertFalse(
+            "浏览 Skill 角色详情不得隐式创建或选择对话",
+            appSource.contains("viewModel.ensureConversationReady()"),
+        )
+    }
+
     private fun findMainSourceRoot(): File {
         var current: File? = File(System.getProperty("user.dir")).absoluteFile
         while (current != null) {

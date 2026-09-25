@@ -55,6 +55,8 @@ internal fun SkillRoleDetailScreen(
     role: SkillRoleCardUi,
     isFavorite: Boolean,
     canAddToCurrentConversation: Boolean,
+    actionInProgress: Boolean,
+    actionMessage: String?,
     onBack: () -> Unit,
     onToggleFavorite: () -> Unit,
     onStartNewConversation: () -> Unit,
@@ -127,6 +129,8 @@ internal fun SkillRoleDetailScreen(
         RoleDetailActions(
             role = role,
             canAddToCurrentConversation = canAddToCurrentConversation,
+            actionInProgress = actionInProgress,
+            actionMessage = actionMessage,
             onStartNewConversation = onStartNewConversation,
             onAddToCurrentConversation = onAddToCurrentConversation,
         )
@@ -237,29 +241,13 @@ private fun RoleDetailIdentityVisual(
     role: SkillRoleCardUi,
     modifier: Modifier,
 ) {
-    if (role.isPersonSimulation) {
-        JianyuRoleAvatar(
-            name = role.name,
-            assetPath = role.avatarAssetPath ?: "avatars/${role.skillId}.jpg",
-            fallbackContainerColor = roleDetailContainerColor(role.primaryDiscoveryCategory),
-            fallbackContentColor = roleDetailContentColor(role.primaryDiscoveryCategory),
-            modifier = modifier.clip(RoundedCornerShape(24.dp)),
-        )
-    } else {
-        Box(
-            modifier = modifier
-                .clip(RoundedCornerShape(24.dp))
-                .background(roleDetailContainerColor(role.primaryDiscoveryCategory)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = role.name.take(2),
-                color = roleDetailContentColor(role.primaryDiscoveryCategory),
-                fontSize = 30.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
-    }
+    JianyuRoleAvatar(
+        name = role.name,
+        assetPath = role.avatarAssetPath,
+        fallbackContainerColor = roleDetailContainerColor(role.primaryDiscoveryCategory),
+        fallbackContentColor = roleDetailContentColor(role.primaryDiscoveryCategory),
+        modifier = modifier.clip(RoundedCornerShape(24.dp)),
+    )
 }
 
 @Composable
@@ -392,6 +380,8 @@ private fun RoleDetailSourceCard(role: SkillRoleCardUi) {
 private fun RoleDetailActions(
     role: SkillRoleCardUi,
     canAddToCurrentConversation: Boolean,
+    actionInProgress: Boolean,
+    actionMessage: String?,
     onStartNewConversation: () -> Unit,
     onAddToCurrentConversation: () -> Unit,
 ) {
@@ -412,7 +402,7 @@ private fun RoleDetailActions(
             ) {
                 Button(
                     onClick = onStartNewConversation,
-                    enabled = role.isExecutable,
+                    enabled = role.isExecutable && !actionInProgress,
                     shape = RoundedCornerShape(18.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
@@ -425,7 +415,7 @@ private fun RoleDetailActions(
                 }
                 OutlinedButton(
                     onClick = onAddToCurrentConversation,
-                    enabled = role.isExecutable && canAddToCurrentConversation,
+                    enabled = role.isExecutable && canAddToCurrentConversation && !actionInProgress,
                     shape = RoundedCornerShape(18.dp),
                     modifier = Modifier
                         .weight(1f)
@@ -444,6 +434,13 @@ private fun RoleDetailActions(
                     text = "当前没有可加入的会话",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            actionMessage?.let { message ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
                 )
             }
         }

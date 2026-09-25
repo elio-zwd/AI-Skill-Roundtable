@@ -6,6 +6,7 @@ class RoomJianyuRepository(
     officialSkillIdValidator: OfficialSkillIdValidator = RejectingOfficialSkillIdValidator,
 ) : JianyuRepository,
     JianyuExecutionRuntimeRepository,
+    JianyuConversationContextUsageRepository,
     JianyuCollaborationRepository,
     JianyuArtifactSourceRecoveryRepository,
     JianyuStageAdvancementRepository {
@@ -41,6 +42,12 @@ class RoomJianyuRepository(
         materialContext = materialContext,
         lifecycleRecovery = lifecycleRecovery,
     )
+
+    override suspend fun clearAllData(): RepositoryResult<Unit> =
+        transactions.databaseTransaction("clear_all_data") {
+            clearAllTables()
+            RepositoryResult.Success(Unit)
+        }
 
     override suspend fun saveIssue(command: SaveIssueCommand): RepositoryResult<SavedIssue> {
         if (command.issueId.startsWith(LEGACY_ISSUE_ID_PREFIX)) {
@@ -181,6 +188,11 @@ class RoomJianyuRepository(
 
     override suspend fun prepareExecutionContext(command: PrepareExecutionContextCommand) =
         lifecycleWrites.prepareExecutionContext(command)
+
+    override suspend fun prepareAndRecordConversationContextUsage(
+        command: PrepareExecutionContextCommand,
+        usageScopeId: String,
+    ) = lifecycleWrites.prepareAndRecordConversationContextUsage(command, usageScopeId)
 
     override suspend fun listRunContextUsage(runId: String) =
         materialContext.listRunContextUsage(runId)

@@ -136,6 +136,8 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation("com.github.jeziellago:compose-markdown:0.5.4")
     implementation("androidx.work:work-runtime-ktx:2.9.0")
+    implementation("org.bouncycastle:bcprov-jdk15to18:1.84")
+    implementation("com.google.crypto.tink:tink-android:1.23.0")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.mockito:mockito-core:4.11.0")
@@ -143,7 +145,7 @@ dependencies {
     testImplementation("org.mockito.kotlin:mockito-kotlin:4.1.0")
     testImplementation("org.json:json:20240303")
 
-    // PR09-13A design prototype only; these dependencies are not packaged in the production APK.
+    // PR09-13A reference vectors remain test-only; production uses the same frozen versions above.
     testImplementation("org.bouncycastle:bcprov-jdk15to18:1.84")
     testImplementation("com.google.crypto.tink:tink-android:1.23.0")
 

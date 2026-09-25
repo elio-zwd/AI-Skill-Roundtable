@@ -25,13 +25,20 @@ fun AiManagementRoute(
     val scope = rememberCoroutineScope()
     val configurationRepository = remember(context) { AiManager.configuration(context) }
     val configuration by configurationRepository.configuration.collectAsState()
+
+    val geminiKeyRepository = remember(context) { AiManager.keys(context, AiProvider.GEMINI) }
+    val deepSeekKeyRepository = remember(context) { AiManager.keys(context, AiProvider.DEEPSEEK) }
+    val geminiSummaries by geminiKeyRepository.summaries.collectAsState()
+    val deepSeekSummaries by deepSeekKeyRepository.summaries.collectAsState()
+    val geminiStorageError by geminiKeyRepository.storageError.collectAsState()
+    val deepSeekStorageError by deepSeekKeyRepository.storageError.collectAsState()
+
     var keyProviderName by rememberSaveable { mutableStateOf(AiProvider.GEMINI.name) }
     val keyProvider = AiProvider.valueOf(keyProviderName)
-    val keyRepository = remember(keyProvider) {
-        AiManager.keys(context, keyProvider)
+    val keyRepository = when (keyProvider) {
+        AiProvider.GEMINI -> geminiKeyRepository
+        AiProvider.DEEPSEEK -> deepSeekKeyRepository
     }
-    val summaries by keyRepository.summaries.collectAsState()
-    val storageError by keyRepository.storageError.collectAsState()
     var input by remember { mutableStateOf("") }
     var resultMessage by remember { mutableStateOf<String?>(null) }
     var confirmation by remember { mutableStateOf<AiManagementConfirmation?>(null) }
@@ -42,7 +49,11 @@ fun AiManagementRoute(
         confirmation = null
     }
 
-    val currentKeyAccount = remember(keyProvider, currentSessionId, summaries) {
+    val selectedSummaries = when (keyProvider) {
+        AiProvider.GEMINI -> geminiSummaries
+        AiProvider.DEEPSEEK -> deepSeekSummaries
+    }
+    val currentKeyAccount = remember(keyProvider, currentSessionId, selectedSummaries) {
         currentSessionId?.let(keyRepository::getOrBindSessionKey)?.account
     }
 
@@ -50,8 +61,14 @@ fun AiManagementRoute(
         uiState = AiManagementUiState(
             configuration = configuration,
             keyProvider = keyProvider,
-            summaries = summaries,
-            storageError = storageError,
+            providerSummaries = mapOf(
+                AiProvider.GEMINI to geminiSummaries,
+                AiProvider.DEEPSEEK to deepSeekSummaries,
+            ),
+            storageError = when (keyProvider) {
+                AiProvider.GEMINI -> geminiStorageError
+                AiProvider.DEEPSEEK -> deepSeekStorageError
+            },
             currentKeyAccount = currentKeyAccount,
             input = input,
             resultMessage = resultMessage,
@@ -60,7 +77,12 @@ fun AiManagementRoute(
         onBack = onBack,
         onSelectProvider = configurationRepository::selectProvider,
         onSelectModel = configurationRepository::selectModel,
-        onSelectKeyProvider = { provider -> keyProviderName = provider.name },
+        onSelectKeyProvider = { provider ->
+            input = ""
+            resultMessage = null
+            confirmation = null
+            keyProviderName = provider.name
+        },
         onInputChange = { input = it },
         onImport = {
             val result = keyRepository.importBatch(input)

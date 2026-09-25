@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.elio.jianyu.ui.theme.LocalReducedMotion
 import com.elio.jianyu.ui.theme.skillRoundtableSpacing
 
 object JianyuShellTestTags {
@@ -90,6 +91,7 @@ fun JianyuPageShell(
     contentScrollable: Boolean = false,
     content: @Composable () -> Unit,
 ) {
+    val spacing = MaterialTheme.skillRoundtableSpacing
     JianyuBackgroundAtmosphere(modifier = modifier) {
         Column(modifier = Modifier.fillMaxSize()) {
             Surface(
@@ -163,8 +165,8 @@ fun JianyuPageShell(
                 .weight(1f)
                 .fillMaxWidth()
                 .padding(
-                    horizontal = MaterialTheme.skillRoundtableSpacing.screenHorizontal,
-                    vertical = MaterialTheme.skillRoundtableSpacing.small,
+                    horizontal = spacing.screenHorizontal,
+                    vertical = spacing.small,
                 )
             val contentModifier = if (contentScrollable) {
                 baseContentModifier.verticalScroll(scrollState)
@@ -173,7 +175,7 @@ fun JianyuPageShell(
             }
             Column(
                 modifier = contentModifier,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(spacing.small),
             ) {
                 content()
             }
@@ -190,6 +192,7 @@ fun JianyuStateCard(
     actionTestTag: String? = null,
     onAction: (() -> Unit)? = null,
 ) {
+    val spacing = MaterialTheme.skillRoundtableSpacing
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -199,8 +202,8 @@ fun JianyuStateCard(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(spacing.medium),
+            verticalArrangement = Arrangement.spacedBy(spacing.compact),
         ) {
             Text(
                 text = title,
@@ -234,6 +237,7 @@ fun JianyuMetadataRow(
     value: String,
     modifier: Modifier = Modifier,
 ) {
+    val spacing = MaterialTheme.skillRoundtableSpacing
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.Top,
@@ -243,7 +247,7 @@ fun JianyuMetadataRow(
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(spacing.small))
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
@@ -258,21 +262,30 @@ fun JianyuSkeletonShimmer(
     height: androidx.compose.ui.unit.Dp = 20.dp,
     shape: androidx.compose.ui.graphics.Shape = MaterialTheme.shapes.small,
 ) {
-    val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "shimmer")
-    val alphaState = infiniteTransition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = 0.6f,
-        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
-            animation = androidx.compose.animation.core.tween(1000, easing = androidx.compose.animation.core.EaseInOutSine),
-            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse,
-        ),
-        label = "shimmerAlpha",
-    )
+    val reducedMotion = LocalReducedMotion.current
+    val alpha = if (reducedMotion) {
+        0.4f
+    } else {
+        val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "shimmer")
+        val alphaState = infiniteTransition.animateFloat(
+            initialValue = 0.2f,
+            targetValue = 0.6f,
+            animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                animation = androidx.compose.animation.core.tween(
+                    1000,
+                    easing = androidx.compose.animation.core.EaseInOutSine,
+                ),
+                repeatMode = androidx.compose.animation.core.RepeatMode.Reverse,
+            ),
+            label = "shimmerAlpha",
+        )
+        alphaState.value
+    }
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = height),
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = alphaState.value * 0.15f),
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha * 0.15f),
         shape = shape,
         content = {},
     )

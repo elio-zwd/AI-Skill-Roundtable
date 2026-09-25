@@ -157,7 +157,7 @@ class StageResultViewModel internal constructor(
                     artifactTitle = current.artifactTitle.ifBlank {
                         current.revisionOfArtifactId?.let { revisionId ->
                             current.workspace.artifacts.firstOrNull { it.id == revisionId }?.title
-                        }.orEmpty().ifBlank { "阶段总结" }
+                        }.orEmpty().ifBlank { "节点总结" }
                     },
                     artifactStatus = StageArtifactConfirmationStatus.Idle,
                 )

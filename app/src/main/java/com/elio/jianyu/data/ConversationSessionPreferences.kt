@@ -54,6 +54,8 @@ class ConversationSessionPreferences(context: Context) {
         return archived
     }
 
+    fun clearAll(): Boolean = preferences.edit().clear().commit()
+
     private fun participantKey(sessionId: Long): String = "session_${sessionId}_participant_ids"
 
     private companion object {

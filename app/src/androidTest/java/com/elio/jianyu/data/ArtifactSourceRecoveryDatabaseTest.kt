@@ -34,7 +34,7 @@ class ArtifactSourceRecoveryDatabaseTest {
     }
 
     @Test
-    fun roomV12RecoversAllArtifactSourcesAfterDraftIsAbandoned() = runBlocking {
+    fun roomV14RecoversAllArtifactSourcesAfterDraftIsAbandoned() = runBlocking {
         repository.saveIssue(
             SaveIssueCommand(
                 issueId = ISSUE_ID,
@@ -175,7 +175,7 @@ class ArtifactSourceRecoveryDatabaseTest {
             ),
         ).successValue()
 
-        assertEquals(12, database.openHelper.writableDatabase.version)
+        assertEquals(14, database.openHelper.writableDatabase.version)
         val recovered = repository.listArtifactSourcesForIssue(ISSUE_ID).successValue().single()
         assertEquals(ARTIFACT_ID, recovered.artifactId)
         assertEquals(listOf(MESSAGE_ID), recovered.messages.map { it.messageId })

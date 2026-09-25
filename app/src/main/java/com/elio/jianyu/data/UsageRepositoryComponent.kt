@@ -113,3 +113,62 @@ internal class UsageRepositoryComponent(
         return null
     }
 }
+
+
+internal suspend fun JianyuRepositoryDao.recordPreparedConversationContextUsage(
+    prepared: PreparedExecutionContext,
+    usageScopeId: String,
+): RepositoryResult<ContextUsageWriteSet> {
+    require(usageScopeId.isNotBlank())
+
+    val detached = prepared.usage.copy(
+        materials = prepared.usage.materials.map { usage ->
+            usage.copy(
+                id = usageScopeId + ":material:" + requireNotNull(usage.materialReferenceId),
+                runId = null,
+            )
+        },
+        personalContexts = prepared.usage.personalContexts.map { usage ->
+            usage.copy(
+                id = usageScopeId + ":personal:" + requireNotNull(usage.personalContextEntryId),
+                runId = null,
+            )
+        },
+    ).sorted()
+
+    val missingMaterials = mutableListOf<MaterialUsageSnapshotEntity>()
+    for (usage in detached.materials) {
+        val existing = getMaterialUsage(usage.id)
+        when {
+            existing == null -> missingMaterials += usage
+            existing != usage -> return RepositoryResult.Failure(
+                RepositoryError.IdempotencyConflict(
+                    "record_conversation_context_usage",
+                    usage.id,
+                ),
+            )
+        }
+    }
+
+    val missingPersonal = mutableListOf<PersonalContextUsageSnapshotEntity>()
+    for (usage in detached.personalContexts) {
+        val existing = getPersonalContextUsage(usage.id)
+        when {
+            existing == null -> missingPersonal += usage
+            existing != usage -> return RepositoryResult.Failure(
+                RepositoryError.IdempotencyConflict(
+                    "record_conversation_context_usage",
+                    usage.id,
+                ),
+            )
+        }
+    }
+
+    if (missingMaterials.isNotEmpty()) insertMaterialUsages(missingMaterials)
+    if (missingPersonal.isNotEmpty()) insertPersonalContextUsages(missingPersonal)
+
+    return RepositoryResult.Success(
+        value = detached,
+        idempotent = missingMaterials.isEmpty() && missingPersonal.isEmpty(),
+    )
+}

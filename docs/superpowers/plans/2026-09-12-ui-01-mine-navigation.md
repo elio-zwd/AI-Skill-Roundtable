@@ -1,9 +1,11 @@
 # UI-01《我的 B + 四项一级导航》Implementation Plan
 
-> 目标分支：`codex/ui-01-mine-navigation`
+> 历史目标分支：`codex/ui-01-mine-navigation`
 >
-> PR 约束：本批次只允许一个 Draft PR；所有实现、修复和测试继续同一 PR。
+> PR #61 已于 2026-09-11 合入 `main`，merge commit：`871057b33d37396f9e560ac18887d3aa0083c6ef`。
 >
+> **Post-Merge 修正（2026-09-12）：** 原 Task 9 的运行证据来自 `emulator-5554 / 1080×2400`，不能勾选为 Xiaomi 14 Ultra 1440×3200 真机最终验收；Mine 摘要 Chip 也被 post-merge audit 发现仍使用静态示例。当前修复与最终设备门禁见 `2026-09-12-ui-postmerge-audit-fixes.md`。
+
 ## 执行顺序
 
 ### Task 0：刷新基线并持久化合同
@@ -40,15 +42,17 @@
 ### Task 5：建立 Mine UiState / data projection
 
 - [x] 新增 `mine/` 页面域的 Route、Screen、UiState 和必要展示组件。
-- [x] 通过现有 repository 读取个人背景数量/读取错误；不把设计图固定示例当成用户数据。
+- [x] 通过现有 repository 读取个人背景数量/读取错误。
 - [x] 通过现有 `AiManager` 与 `TelemetryRepository` 投影当前模型、可用 Key 数量和遥测状态。
 - [x] 为数据缺失/读取失败定义可读状态；不吞异常或伪造成功。
+- [ ] **Post-Merge 修正门禁：** 摘要 Chip 不能使用设计图固定示例冒充用户数据。原合入版本在此项存在偏差；修复已进入 `codex/ui-postmerge-audit-fixes`，待本地验证后才能重新勾选。
 
 ### Task 6：实现 Mine B 视觉
 
 - [x] 实现居中标题、设置入口、个人背景 Hero、摘要 Chip、2×2 快捷卡和应用偏好分组。
 - [x] 使用 `MaterialTheme` 语义颜色、现有主题形状/间距和共享视觉基线；不新增页面硬编码颜色。
 - [x] 个人背景主页面不展示敏感正文，正式查看/编辑入口在 UI-06 前明确 unavailable。
+- [ ] **Post-Merge 修正门禁：** 快捷卡正式文案 `模型与 API Key` 与真实摘要 Chip 需在目标设备重新验收。
 
 ### Task 7：接入真实能力并标记缺口
 
@@ -66,12 +70,14 @@
 
 ### Task 9：最终设备 UI 验收
 
-- [x] 在显式目标设备上完成必要 instrumentation、ADB UI dump、截图和状态验证。
-- [x] 以 Xiaomi 14 Ultra 1440×3200 portrait zh-CN 作为视觉基准；所有证据写到仓库外。
-- [x] 通过 AGY MCP 执行昂贵的 compile/test/lint/assemble，Codex 只保留压缩结果和失败根因。
-- [x] 回读文件、`git diff --check`、检查工作区与 PR body；达到 merge-ready 后停止，不开始 UI-03。
+- [ ] 在 **Xiaomi 14 Ultra** 上完成必要 instrumentation、ADB/UI dump、截图和状态验证；历史 `emulator-5554 / 1080×2400` 不能替代该门禁。
+- [ ] 以 Xiaomi 14 Ultra **1440×3200 portrait zh-CN** 作为最终视觉基准；证据写到仓库外 Google Drive。
+- [x] 历史 UI-01 分支曾通过 AGY compile/test/lint/assemble；该证据不自动覆盖 post-merge 修复分支。
+- [ ] 对 post-merge 修复 HEAD 重新执行必要 compile/test/assemble、回读文件与 diff 检查；仅在新鲜证据通过后收口。
 
 ## 预期文件范围
+
+历史 UI-01 范围：
 
 - `app/src/main/java/com/elio/jianyu/ui/App.kt`
 - `app/src/main/java/com/elio/jianyu/ui/navigation/`
@@ -81,4 +87,4 @@
 - 受影响的导航、头像和 Mine 测试
 - 本 Plan 与对应 status/PR 对账文档
 
-不在任务范围内的文件不修改；如验证发现历史 `check-app-identity.ps1` 失败，记录为 `PRE_EXISTING_BASELINE`，不在 UI-01 修复。
+当前 post-merge 修复不得扩展到 UI-03、Room Schema、Gemini transport、Gradle/依赖或历史 `check-app-identity.ps1` baseline。

@@ -53,11 +53,13 @@ import com.elio.jianyu.ui.GoldAccent
 import com.elio.jianyu.ui.PrimaryAccent
 import com.elio.jianyu.ui.SecondaryAccent
 import com.elio.jianyu.ui.TextPrimary
+import com.elio.jianyu.ui.theme.LocalReducedMotion
 
 fun Modifier.bounceClick(): Modifier = composed {
+    val reducedMotion = LocalReducedMotion.current
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.96f else 1.0f,
+        targetValue = if (reducedMotion) 1.0f else if (isPressed) 0.96f else 1.0f,
         animationSpec = spring(stiffness = Spring.StiffnessMedium),
         label = "bounceScale"
     )
@@ -77,25 +79,31 @@ fun Modifier.bounceClick(): Modifier = composed {
 
 @Composable
 fun MinimalistPulseIndicator(modifier: Modifier = Modifier) {
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 0.85f,
-        targetValue = 1.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2200, easing = EaseInOutSine),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "scale"
-    )
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.25f,
-        targetValue = 0.75f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2200, easing = EaseInOutSine),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "alpha"
-    )
+    val reducedMotion = LocalReducedMotion.current
+    val (scale, alpha) = if (reducedMotion) {
+        1.0f to 0.5f
+    } else {
+        val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+        val animatedScale by infiniteTransition.animateFloat(
+            initialValue = 0.85f,
+            targetValue = 1.05f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(2200, easing = EaseInOutSine),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "scale"
+        )
+        val animatedAlpha by infiniteTransition.animateFloat(
+            initialValue = 0.25f,
+            targetValue = 0.75f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(2200, easing = EaseInOutSine),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "alpha"
+        )
+        animatedScale to animatedAlpha
+    }
 
     Box(
         modifier = modifier.size(100.dp),

@@ -11,7 +11,10 @@ import com.elio.jianyu.skill.catalog.OfficialSkillCatalogRuntimeResult
 import com.elio.jianyu.skill.catalog.OfficialSkillDefinition
 import com.elio.jianyu.skill.role.OfficialSkillConversationRoleAdapter
 import com.elio.jianyu.telemetry.PrivacySafeLogger
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 private const val ROLE_ACTION_SETTLE_TIMEOUT_MS = 5_000L
@@ -26,6 +29,7 @@ private const val ROLE_ACTION_SETTLE_TIMEOUT_MS = 5_000L
 suspend fun RoundtableViewModel.createNewSessionWithSkillRole(
     skillId: String,
     title: String = "新建对话",
+    settleTimeoutMs: Long = ROLE_ACTION_SETTLE_TIMEOUT_MS,
 ): Boolean {
     val definition = resolveExecutableOfficialSkill(skillId)
         ?: return roleActionFailure("start_new", "official_role_unavailable")
@@ -37,16 +41,37 @@ suspend fun RoundtableViewModel.createNewSessionWithSkillRole(
         return roleActionFailure("start_new", "compatibility_adapter_rejected")
     }
 
+    val previousSessionId = currentSessionId.value
     val chatRepository = ChatRepository(database.chatDao())
     val conversationPreferences = ConversationSessionPreferences(application)
-    val sessionId = runCatching { chatRepository.createSession(title) }.getOrNull()
-        ?: return roleActionFailure("start_new", "session_create_failed")
+    val sessionId = try {
+        chatRepository.createSession(title)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        return roleActionFailure("start_new", "session_create_failed")
+    }
     conversationPreferences.setParticipantIds(sessionId, listOf(skillId))
 
-    return if (refreshSessionRosterAndAwait(sessionId, skillId)) {
-        true
-    } else {
-        roleActionFailure("start_new", "session_roster_not_settled")
+    try {
+        if (refreshSessionRosterAndAwait(sessionId, skillId, settleTimeoutMs)) {
+            return true
+        }
+        compensateCreatedRoleSession(
+            chatRepository = chatRepository,
+            conversationPreferences = conversationPreferences,
+            createdSessionId = sessionId,
+            previousSessionId = previousSessionId,
+        )
+        return roleActionFailure("start_new", "session_roster_not_settled")
+    } catch (cancelled: CancellationException) {
+        compensateCreatedRoleSession(
+            chatRepository = chatRepository,
+            conversationPreferences = conversationPreferences,
+            createdSessionId = sessionId,
+            previousSessionId = previousSessionId,
+        )
+        throw cancelled
     }
 }
 
@@ -59,6 +84,7 @@ suspend fun RoundtableViewModel.createNewSessionWithSkillRole(
  */
 suspend fun RoundtableViewModel.addSkillRoleToCurrentSessionAwait(
     skillId: String,
+    settleTimeoutMs: Long = ROLE_ACTION_SETTLE_TIMEOUT_MS,
 ): Boolean {
     val sessionId = currentSessionId.value
         ?: return roleActionFailure("add_current", "no_current_session")
@@ -91,10 +117,61 @@ suspend fun RoundtableViewModel.addSkillRoleToCurrentSessionAwait(
         return roleActionFailure("add_current", "session_changed_before_refresh")
     }
 
-    return if (refreshSessionRosterAndAwait(sessionId, skillId)) {
-        true
-    } else {
-        roleActionFailure("add_current", "session_roster_not_settled")
+    try {
+        if (refreshSessionRosterAndAwait(sessionId, skillId, settleTimeoutMs)) {
+            return true
+        }
+        compensateAddedRole(
+            conversationPreferences = conversationPreferences,
+            sessionId = sessionId,
+            originalParticipantIds = originalParticipantIds,
+        )
+        return roleActionFailure("add_current", "session_roster_not_settled")
+    } catch (cancelled: CancellationException) {
+        compensateAddedRole(
+            conversationPreferences = conversationPreferences,
+            sessionId = sessionId,
+            originalParticipantIds = originalParticipantIds,
+        )
+        throw cancelled
+    }
+}
+
+private suspend fun RoundtableViewModel.compensateCreatedRoleSession(
+    chatRepository: ChatRepository,
+    conversationPreferences: ConversationSessionPreferences,
+    createdSessionId: Long,
+    previousSessionId: Long?,
+) {
+    withContext(NonCancellable) {
+        conversationPreferences.clearSession(createdSessionId)
+        try {
+            chatRepository.deleteSession(createdSessionId)
+        } catch (error: Exception) {
+            PrivacySafeLogger.e(
+                "RoundtableViewModel",
+                "Failed to compensate incomplete skill-role session",
+                error,
+            )
+        }
+        restoreSessionSelectionAfterRoleAction(
+            expectedCurrentSessionId = createdSessionId,
+            restoreSessionId = previousSessionId,
+        )
+    }
+}
+
+private suspend fun RoundtableViewModel.compensateAddedRole(
+    conversationPreferences: ConversationSessionPreferences,
+    sessionId: Long,
+    originalParticipantIds: List<String>,
+) {
+    withContext(NonCancellable) {
+        conversationPreferences.setParticipantIds(sessionId, originalParticipantIds)
+        restoreSessionSelectionAfterRoleAction(
+            expectedCurrentSessionId = sessionId,
+            restoreSessionId = sessionId,
+        )
     }
 }
 
@@ -107,16 +184,17 @@ suspend fun RoundtableViewModel.addSkillRoleToCurrentSessionAwait(
 private suspend fun RoundtableViewModel.refreshSessionRosterAndAwait(
     sessionId: Long,
     skillId: String,
+    settleTimeoutMs: Long,
 ): Boolean {
     selectSession(sessionId)
-    val sessionPublished = withTimeoutOrNull(ROLE_ACTION_SETTLE_TIMEOUT_MS) {
-        currentSession.first { session -> session?.id == sessionId }
+    return withTimeoutOrNull(settleTimeoutMs) {
+        // currentSession 可能仍保留同一 session 的旧值；真正能证明角色动作
+        // 已完成的是 rehydrate 后发布的 participant roster。
+        currentParticipantIds.first { participants ->
+            currentSessionId.value == sessionId && skillId in participants
+        }
         true
     } == true
-    if (!sessionPublished) return false
-
-    return currentSessionId.value == sessionId &&
-        skillId in currentParticipantIds.value
 }
 
 private fun roleActionFailure(action: String, reason: String): Boolean {

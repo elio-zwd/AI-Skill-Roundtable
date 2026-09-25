@@ -3,6 +3,7 @@ package com.elio.jianyu.ui.screens.skills
 import com.elio.jianyu.skill.catalog.OfficialSkillCatalog
 import com.elio.jianyu.skill.catalog.OfficialSkillCatalogLoadResult
 import com.elio.jianyu.skill.catalog.OfficialSkillCatalogParser
+import com.elio.jianyu.skill.catalog.OfficialSkillPrimaryType
 import com.elio.jianyu.skill.catalog.RecentOfficialSkillUse
 import com.elio.jianyu.skill.role.SkillRoleDiscoveryCategory
 import com.elio.jianyu.skill.role.SkillRolePresentationCatalog
@@ -34,22 +35,27 @@ class SkillRoleCatalogProjectionTest {
     }
 
     @Test
-    fun projection_keepsAll44RolesEvenWhenLegacyVisualsCoverOnly20() {
-        val legacyVisuals = officialCatalog.skills.take(20).associate { it.id to "avatars/${it.id}.jpg" }
-
+    fun projection_assignsStableVisualPathForAll44Roles() {
         val projection = projectSkillRoleCatalog(
             catalog = officialCatalog,
             presentationCatalog = presentationCatalog,
-            query = "",
-            selectedCategory = null,
-            favoriteIds = emptySet(),
-            recentUses = emptyList(),
-            legacyAvatarPaths = legacyVisuals,
         )
 
         assertEquals(44, projection.allRoles.size)
         assertEquals(44, projection.visibleRoles.size)
-        assertEquals(20, projection.allRoles.count { it.avatarAssetPath != null })
+        assertEquals(44, projection.allRoles.count { !it.avatarAssetPath.isNullOrBlank() })
+
+        val toolRoles = projection.allRoles.filter {
+            it.primaryType == OfficialSkillPrimaryType.WORKFLOW_CAPABILITY
+        }
+        val portraitRoles = projection.allRoles.filter {
+            it.primaryType != OfficialSkillPrimaryType.WORKFLOW_CAPABILITY
+        }
+
+        assertEquals(6, toolRoles.size)
+        assertEquals(38, portraitRoles.size)
+        assertTrue(toolRoles.all { it.avatarAssetPath == "avatars/tools/${it.skillId}.png" })
+        assertTrue(portraitRoles.all { it.avatarAssetPath == "avatars/portraits/${it.skillId}.jpg" })
     }
 
     @Test
