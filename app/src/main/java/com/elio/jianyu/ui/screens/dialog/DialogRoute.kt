@@ -530,7 +530,7 @@ private fun DialogContextSelectionDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text(
-                    "资料和个人背景默认不发送。只有勾选、允许本次发送并确认后，才会进入模型请求。",
+                    "资料和个人背景沿用现有确认规则；Skill 资料只会在你主动“带入当前会话”后出现在这里。",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (state.candidates.isEmpty()) {
