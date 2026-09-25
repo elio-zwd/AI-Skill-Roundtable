@@ -170,6 +170,9 @@ internal interface IssueLifecycleV12Dao {
     @Query("SELECT COUNT(*) FROM personal_context_usage_snapshots WHERE issueId = :issueId")
     suspend fun countPersonalContextUsages(issueId: String): Long
 
+    @Query("SELECT COUNT(*) FROM skill_knowledge_usage_snapshots WHERE issueId = :issueId")
+    suspend fun countSkillKnowledgeUsages(issueId: String): Long
+
     @Query("SELECT COUNT(*) FROM stage_summary_drafts WHERE issueId = :issueId")
     suspend fun countDrafts(issueId: String): Long
 
@@ -301,6 +304,9 @@ internal interface IssueLifecycleV12Dao {
 
     @Query("DELETE FROM personal_context_usage_snapshots WHERE issueId = :issueId")
     suspend fun deletePersonalContextUsages(issueId: String): Int
+
+    @Query("DELETE FROM skill_knowledge_usage_snapshots WHERE issueId = :issueId")
+    suspend fun deleteSkillKnowledgeUsages(issueId: String): Int
 
     @Query("DELETE FROM stages WHERE issueId = :issueId")
     suspend fun deleteStages(issueId: String): Int
