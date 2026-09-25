@@ -511,6 +511,9 @@
 - 修复策略保持内部兼容：枚举 ID `ISSUE_EXECUTION` 不改，只把用户可见名称改为“成果生成”、说明改为“生成并整理可保存的成果内容”；新增 JVM 契约测试同时锁定内部 ID 与新展示术语。
 - 修复 commit / 当前 #69 Head：`e6790e0c7a52a7a5f78b8fc34ad17f6d6ac8b4a6`（`fix: 更新成果生成模型用途文案`）。
 - 因本次仅为显示文案 + JVM 断言，按用户新的执行资源约束，不在网页端长时间等待大型 CI；由本地 AI做 exact-Head 定点 JVM/Instrumentation/UI 复验。此前大型构建证据来自直接父 Head，可在无生产逻辑变化前提下保留为背景证据。
+- 本地 AI 在 exact `e6790e0c7a52a7a5f78b8fc34ad17f6d6ac8b4a6` 上定点复验 PASS：compileDebugKotlin PASS；`AiProviderTest` 3/3 PASS；`SettingsScreenRegressionTest` 3/3 PASS；第五项显示“成果生成”，Bottom Sheet 显示“选择成果生成模型”，联网检索仍仅 Gemini，AI 管理用户可见界面不再出现“议题执行”；worktree clean。fetch 曾遇 TLS EOF，但已有 origin ref、Actual Head 与 Expected Head 一致。
+- #69 已标记 Ready，并使用普通 merge commit 合入 main；新 main：`9455aa80499bab0e395f0ea36e20fa6061d7fb54`。
+- Task 12 Step 7 等待新 main GitHub Actions 最终结果；按用户约束网页端不做长时间轮询。
 - Exact Head Actions 已完成：Secret scan Run `36114313051` PASS；Android UI Test Compile Run `36114312992` PASS；Android CI Run `36114312997` PASS。
 - Android CI 中 `Run static app identity gate` 直接 PASS，证明原 #69 的旧 Package Move / Room v13 / Key Store / README failures 已由同步最新 main 消除。
 - 同一 Android CI 的 full `testDebugUnitTest` PASS，覆盖 `AiManagementUiStateTest`；compileDebugKotlin、lint、Debug APK、optimized Release/R8、Room schema 与 artifacts 同样 PASS。
@@ -531,7 +534,7 @@
   .\gradlew.bat :app:assembleRelease
   .\gradlew.bat :app:assembleDebugAndroidTest
   ```
-- [ ] **Step 3: 本地 AI 只读 UI 验收：**
+- [x] **Step 3: 本地 AI 只读 UI 验收：**
   - 首页五种模型用途只显示当前选择；
   - 联网检索只显示 Gemini 支持模型；
   - 模型选择 Bottom Sheet；
@@ -542,8 +545,8 @@
   - Bottom Sheet 切 Provider 不串前一个 Provider 的输入/状态；
   - Back 行为正确。
 - [x] **Step 4: GitHub Actions 全绿。**
-- [ ] **Step 5: 更新 #69 Plan Task 8 与 PR 描述。**
-- [ ] **Step 6: 用户授权后普通 merge commit 合 main。**
+- [x] **Step 5: 更新 #69 Plan Task 8 与 PR 描述。**
+- [x] **Step 6: 用户授权后普通 merge commit 合 main。**
 - [ ] **Step 7: 新 main CI 全绿。**
 
 ---
