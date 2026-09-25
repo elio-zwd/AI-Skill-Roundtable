@@ -47,7 +47,10 @@ object JianyuAutomationTags {
     object Mine {
         const val PERSONAL_BACKGROUND_HERO = "mine_personal_background_hero"
         const val PERSONAL_BACKGROUND_ACTION = "mine_personal_background_action"
-        const val AVATAR_SWITCH_UNAVAILABLE = "mine_avatar_switch_unavailable"
+        const val AVATAR_EDIT_BUTTON = "mine_avatar_edit_button"
+        const val AVATAR_ACTION_SHEET = "mine_avatar_action_sheet"
+        const val AVATAR_PICK_ACTION = "mine_avatar_pick_action"
+        const val AVATAR_RESET_ACTION = "mine_avatar_reset_action"
         const val AI_MANAGEMENT_CARD = "mine_ai_management_card"
         const val DATA_PRIVACY_CARD = "mine_data_privacy_card"
         const val BACKUP_RESTORE_CARD = "mine_backup_restore_card"
@@ -298,7 +301,10 @@ object JianyuAutomationTags {
         Screen.MINE,
         Mine.PERSONAL_BACKGROUND_HERO,
         Mine.PERSONAL_BACKGROUND_ACTION,
-        Mine.AVATAR_SWITCH_UNAVAILABLE,
+        Mine.AVATAR_EDIT_BUTTON,
+        Mine.AVATAR_ACTION_SHEET,
+        Mine.AVATAR_PICK_ACTION,
+        Mine.AVATAR_RESET_ACTION,
         Mine.AI_MANAGEMENT_CARD,
         Mine.DATA_PRIVACY_CARD,
         Mine.BACKUP_RESTORE_CARD,

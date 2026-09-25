@@ -12,6 +12,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -20,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
@@ -34,8 +36,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.data.ContextSourceType
+import com.elio.jianyu.data.UserAvatarRepository
+import com.elio.jianyu.data.UserAvatarSnapshot
 import com.elio.jianyu.execution.SearchMode
 import com.elio.jianyu.skill.catalog.OfficialSkillCatalog
+import com.elio.jianyu.ui.components.LocalUserAvatarImage
 import com.elio.jianyu.ui.settings.AppPreferences
 import com.elio.jianyu.viewmodel.RoundtableViewModel
 import com.elio.jianyu.viewmodel.ConversationContextSelection
@@ -75,6 +80,16 @@ fun DialogRoute(
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
+    val avatarRepository = remember(context.applicationContext) {
+        UserAvatarRepository(context.applicationContext)
+    }
+    val avatarFlow = remember(avatarRepository) { avatarRepository.observeAvatar() }
+    val avatarSnapshot by avatarFlow.collectAsState(
+        initial = UserAvatarSnapshot(bitmap = null, revision = 0L),
+    )
+    val avatarImage = remember(avatarSnapshot.bitmap, avatarSnapshot.revision) {
+        avatarSnapshot.bitmap?.asImageBitmap()
+    }
     val attachmentLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri ->
@@ -127,176 +142,178 @@ fun DialogRoute(
         }
     }
 
-    DialogScreen(
-        uiState = uiState,
-        onEvent = { event ->
-            when (event) {
-                DialogEvent.SendMessage -> {
-                    if (isGenerating) {
-                        viewModel.cancelRoundtable()
-                    } else {
-                        val text = uiState.composerState.inputText.trim()
-                        if (text.isNotEmpty()) {
-                            val accepted = viewModel.askQuestion(
-                                text,
-                                uiState.composerState.targetRole?.id,
-                            )
-                            if (accepted) {
-                                localState = uiState.copy(
-                                    composerState = clearComposerAfterSubmission(uiState.composerState),
+    CompositionLocalProvider(LocalUserAvatarImage provides avatarImage) {
+        DialogScreen(
+            uiState = uiState,
+            onEvent = { event ->
+                when (event) {
+                    DialogEvent.SendMessage -> {
+                        if (isGenerating) {
+                            viewModel.cancelRoundtable()
+                        } else {
+                            val text = uiState.composerState.inputText.trim()
+                            if (text.isNotEmpty()) {
+                                val accepted = viewModel.askQuestion(
+                                    text,
+                                    uiState.composerState.targetRole?.id,
+                                )
+                                if (accepted) {
+                                    localState = uiState.copy(
+                                        composerState = clearComposerAfterSubmission(uiState.composerState),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    DialogEvent.CreateNewSession -> {
+                        viewModel.createNewSession("新建对话")
+                        showArchivedSessions = false
+                        localState = uiState.copy(
+                            activeOverlay = DialogOverlayType.NONE,
+                            composerState = clearComposerReplySelection(uiState.composerState),
+                        )
+                    }
+                    is DialogEvent.SelectSession -> {
+                        event.sessionId.toLongOrNull()?.let { sessionId ->
+                            if (sessionId in archivedSessionIds) {
+                                viewModel.restoreSession(sessionId)
+                                showArchivedSessions = false
+                            } else {
+                                viewModel.selectSession(sessionId)
+                            }
+                        }
+                        localState = uiState.copy(
+                            activeOverlay = DialogOverlayType.NONE,
+                            composerState = clearComposerReplySelection(uiState.composerState),
+                        )
+                    }
+                    is DialogEvent.AddSkillToSession -> {
+                        viewModel.addSkillRoleToCurrentSession(event.skillId)
+                        localState = uiState.copy(activeOverlay = DialogOverlayType.NONE)
+                    }
+                    is DialogEvent.RemoveSkillFromSession -> {
+                        viewModel.removeSkillRoleFromCurrentSession(event.skillId)
+                        localState = uiState.copy(
+                            activeOverlay = DialogOverlayType.NONE,
+                            selectedSkillDetail = null,
+                            composerState = if (uiState.composerState.targetRole?.id == event.skillId) {
+                                clearComposerReplySelection(uiState.composerState)
+                            } else {
+                                uiState.composerState
+                            },
+                        )
+                    }
+                    is DialogEvent.LetSkillAnswerCurrent -> {
+                        viewModel.letSkillRoleAnswerCurrent(event.skillId)
+                        localState = uiState.copy(activeOverlay = DialogOverlayType.NONE)
+                    }
+                    DialogEvent.ToggleSearchMode -> viewModel.setSearchMode(
+                        if (searchMode == SearchMode.OFF) SearchMode.AUTO else SearchMode.OFF,
+                    )
+                    is DialogEvent.SelectThinkingIntensity -> viewModel.setThinkingIntensity(event.intensity)
+                    DialogEvent.TriggerCrossDiscussion -> viewModel.triggerCrossDiscussion()
+                    DialogEvent.ContinueDeeper -> viewModel.askQuestion(
+                        "请基于当前对话继续深入，补充尚未展开的关键判断、适用条件和下一步。",
+                    )
+                    is DialogEvent.CopyMessage -> {
+                        clipboard.setText(AnnotatedString(event.content))
+                        Toast.makeText(context, "已复制消息。", Toast.LENGTH_SHORT).show()
+                    }
+                    is DialogEvent.SaveMessageAsArtifact -> {
+                        scope.launch {
+                            val result = viewModel.saveMessageAsArtifact(event.messageId.toLongOrNull() ?: 0L)
+                            Toast.makeText(context, artifactSaveMessage(result), Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    is DialogEvent.ClickMessageMore -> messageActionId = event.messageId
+                    is DialogEvent.RenameSession -> {
+                        if (resolveSessionId(event.sessionId) != null) {
+                            renameTitle = currentSession?.title.orEmpty()
+                        }
+                    }
+                    is DialogEvent.ExportSession -> resolveSessionId(event.sessionId)?.let { sessionId ->
+                        exportSession(sessionId, "会话已整理为 Markdown 并复制。")
+                    }
+                    is DialogEvent.ArchiveSession -> {
+                        resolveSessionId(event.sessionId)?.let(viewModel::archiveSession)
+                        localState = uiState.copy(isMoreMenuOpen = false)
+                    }
+                    is DialogEvent.DeleteSession -> {
+                        resolveSessionId(event.sessionId)?.let(viewModel::deleteSession)
+                        localState = uiState.copy(isMoreMenuOpen = false)
+                    }
+                    DialogEvent.OpenArchivedSessions -> {
+                        showArchivedSessions = !showArchivedSessions
+                        localState = uiState.copy(activeOverlay = DialogOverlayType.DRAWER_SESSIONS)
+                    }
+                    DialogEvent.SaveOrOrganizeArtifacts -> currentSession?.id?.let { sessionId ->
+                        scope.launch {
+                            val result = viewModel.saveConversationAsArtifact(sessionId)
+                            Toast.makeText(context, artifactSaveMessage(result), Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    DialogEvent.AddFileAttachment -> attachmentLauncher.launch(
+                        arrayOf(
+                            "text/*",
+                            "application/json",
+                            "application/pdf",
+                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        ),
+                    )
+                    DialogEvent.SelectMaterials -> {
+                        scope.launch {
+                            val (materials, personalContexts) = viewModel.loadAvailableConversationContext()
+                            val selected = viewModel.currentConversationContextSelections()
+                                .associateBy { it.sourceType to it.sourceId }
+                            val candidates = materials.map { material ->
+                                val key = ContextSourceType.MATERIAL to material.id
+                                val previous = selected[key]?.takeIf {
+                                    it.expectedSourceHash == material.contentHash &&
+                                        it.expectedSourceUpdatedAt == material.updatedAt
+                                }
+                                DialogContextCandidate(
+                                    sourceType = ContextSourceType.MATERIAL,
+                                    sourceId = material.id,
+                                    title = material.title,
+                                    content = previous?.content ?: material.content,
+                                    expectedSourceHash = material.contentHash,
+                                    expectedSourceUpdatedAt = material.updatedAt,
+                                    sensitive = material.sensitive,
+                                    selected = previous != null,
+                                    selectionOrder = previous?.confirmationOrder,
+                                    networkAllowed = previous?.networkAllowed == true,
+                                    sensitiveConfirmed = previous?.sensitiveConfirmed == true,
+                                )
+                            } + personalContexts.map { personal ->
+                                val key = ContextSourceType.PERSONAL_CONTEXT to personal.id
+                                val previous = selected[key]?.takeIf {
+                                    it.expectedSourceHash == personal.contentHash &&
+                                        it.expectedSourceUpdatedAt == personal.updatedAt
+                                }
+                                DialogContextCandidate(
+                                    sourceType = ContextSourceType.PERSONAL_CONTEXT,
+                                    sourceId = personal.id,
+                                    title = personal.title,
+                                    content = previous?.content ?: personal.content,
+                                    expectedSourceHash = personal.contentHash,
+                                    expectedSourceUpdatedAt = personal.updatedAt,
+                                    sensitive = personal.sensitive,
+                                    selected = previous != null,
+                                    selectionOrder = previous?.confirmationOrder,
+                                    networkAllowed = previous?.networkAllowed == true,
+                                    sensitiveConfirmed = previous?.sensitiveConfirmed == true,
                                 )
                             }
+                            contextConfirmation = DialogContextState(candidates)
                         }
                     }
+                    DialogEvent.ViewReferenceContent -> showReferenceDialog = true
+                    else -> localState = reduceDialogLocalState(uiState, event)
                 }
-                DialogEvent.CreateNewSession -> {
-                    viewModel.createNewSession("新建对话")
-                    showArchivedSessions = false
-                    localState = uiState.copy(
-                        activeOverlay = DialogOverlayType.NONE,
-                        composerState = clearComposerReplySelection(uiState.composerState),
-                    )
-                }
-                is DialogEvent.SelectSession -> {
-                    event.sessionId.toLongOrNull()?.let { sessionId ->
-                        if (sessionId in archivedSessionIds) {
-                            viewModel.restoreSession(sessionId)
-                            showArchivedSessions = false
-                        } else {
-                            viewModel.selectSession(sessionId)
-                        }
-                    }
-                    localState = uiState.copy(
-                        activeOverlay = DialogOverlayType.NONE,
-                        composerState = clearComposerReplySelection(uiState.composerState),
-                    )
-                }
-                is DialogEvent.AddSkillToSession -> {
-                    viewModel.addSkillRoleToCurrentSession(event.skillId)
-                    localState = uiState.copy(activeOverlay = DialogOverlayType.NONE)
-                }
-                is DialogEvent.RemoveSkillFromSession -> {
-                    viewModel.removeSkillRoleFromCurrentSession(event.skillId)
-                    localState = uiState.copy(
-                        activeOverlay = DialogOverlayType.NONE,
-                        selectedSkillDetail = null,
-                        composerState = if (uiState.composerState.targetRole?.id == event.skillId) {
-                            clearComposerReplySelection(uiState.composerState)
-                        } else {
-                            uiState.composerState
-                        },
-                    )
-                }
-                is DialogEvent.LetSkillAnswerCurrent -> {
-                    viewModel.letSkillRoleAnswerCurrent(event.skillId)
-                    localState = uiState.copy(activeOverlay = DialogOverlayType.NONE)
-                }
-                DialogEvent.ToggleSearchMode -> viewModel.setSearchMode(
-                    if (searchMode == SearchMode.OFF) SearchMode.AUTO else SearchMode.OFF,
-                )
-                is DialogEvent.SelectThinkingIntensity -> viewModel.setThinkingIntensity(event.intensity)
-                DialogEvent.TriggerCrossDiscussion -> viewModel.triggerCrossDiscussion()
-                DialogEvent.ContinueDeeper -> viewModel.askQuestion(
-                    "请基于当前对话继续深入，补充尚未展开的关键判断、适用条件和下一步。",
-                )
-                is DialogEvent.CopyMessage -> {
-                    clipboard.setText(AnnotatedString(event.content))
-                    Toast.makeText(context, "已复制消息。", Toast.LENGTH_SHORT).show()
-                }
-                is DialogEvent.SaveMessageAsArtifact -> {
-                    scope.launch {
-                        val result = viewModel.saveMessageAsArtifact(event.messageId.toLongOrNull() ?: 0L)
-                        Toast.makeText(context, artifactSaveMessage(result), Toast.LENGTH_SHORT).show()
-                    }
-                }
-                is DialogEvent.ClickMessageMore -> messageActionId = event.messageId
-                is DialogEvent.RenameSession -> {
-                    if (resolveSessionId(event.sessionId) != null) {
-                        renameTitle = currentSession?.title.orEmpty()
-                    }
-                }
-                is DialogEvent.ExportSession -> resolveSessionId(event.sessionId)?.let { sessionId ->
-                    exportSession(sessionId, "会话已整理为 Markdown 并复制。")
-                }
-                is DialogEvent.ArchiveSession -> {
-                    resolveSessionId(event.sessionId)?.let(viewModel::archiveSession)
-                    localState = uiState.copy(isMoreMenuOpen = false)
-                }
-                is DialogEvent.DeleteSession -> {
-                    resolveSessionId(event.sessionId)?.let(viewModel::deleteSession)
-                    localState = uiState.copy(isMoreMenuOpen = false)
-                }
-                DialogEvent.OpenArchivedSessions -> {
-                    showArchivedSessions = !showArchivedSessions
-                    localState = uiState.copy(activeOverlay = DialogOverlayType.DRAWER_SESSIONS)
-                }
-                DialogEvent.SaveOrOrganizeArtifacts -> currentSession?.id?.let { sessionId ->
-                    scope.launch {
-                        val result = viewModel.saveConversationAsArtifact(sessionId)
-                        Toast.makeText(context, artifactSaveMessage(result), Toast.LENGTH_SHORT).show()
-                    }
-                }
-                DialogEvent.AddFileAttachment -> attachmentLauncher.launch(
-                    arrayOf(
-                        "text/*",
-                        "application/json",
-                        "application/pdf",
-                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    ),
-                )
-                DialogEvent.SelectMaterials -> {
-                    scope.launch {
-                        val (materials, personalContexts) = viewModel.loadAvailableConversationContext()
-                        val selected = viewModel.currentConversationContextSelections()
-                            .associateBy { it.sourceType to it.sourceId }
-                        val candidates = materials.map { material ->
-                            val key = ContextSourceType.MATERIAL to material.id
-                            val previous = selected[key]?.takeIf {
-                                it.expectedSourceHash == material.contentHash &&
-                                    it.expectedSourceUpdatedAt == material.updatedAt
-                            }
-                            DialogContextCandidate(
-                                sourceType = ContextSourceType.MATERIAL,
-                                sourceId = material.id,
-                                title = material.title,
-                                content = previous?.content ?: material.content,
-                                expectedSourceHash = material.contentHash,
-                                expectedSourceUpdatedAt = material.updatedAt,
-                                sensitive = material.sensitive,
-                                selected = previous != null,
-                                selectionOrder = previous?.confirmationOrder,
-                                networkAllowed = previous?.networkAllowed == true,
-                                sensitiveConfirmed = previous?.sensitiveConfirmed == true,
-                            )
-                        } + personalContexts.map { personal ->
-                            val key = ContextSourceType.PERSONAL_CONTEXT to personal.id
-                            val previous = selected[key]?.takeIf {
-                                it.expectedSourceHash == personal.contentHash &&
-                                    it.expectedSourceUpdatedAt == personal.updatedAt
-                            }
-                            DialogContextCandidate(
-                                sourceType = ContextSourceType.PERSONAL_CONTEXT,
-                                sourceId = personal.id,
-                                title = personal.title,
-                                content = previous?.content ?: personal.content,
-                                expectedSourceHash = personal.contentHash,
-                                expectedSourceUpdatedAt = personal.updatedAt,
-                                sensitive = personal.sensitive,
-                                selected = previous != null,
-                                selectionOrder = previous?.confirmationOrder,
-                                networkAllowed = previous?.networkAllowed == true,
-                                sensitiveConfirmed = previous?.sensitiveConfirmed == true,
-                            )
-                        }
-                        contextConfirmation = DialogContextState(candidates)
-                    }
-                }
-                DialogEvent.ViewReferenceContent -> showReferenceDialog = true
-                else -> localState = reduceDialogLocalState(uiState, event)
-            }
-        },
-        modifier = modifier,
-    )
+            },
+            modifier = modifier,
+        )
+    }
 
     renameTitle?.let { currentTitle ->
         AlertDialog(

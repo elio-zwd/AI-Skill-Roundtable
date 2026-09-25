@@ -63,7 +63,10 @@ internal object MineTestTags {
     const val SETTINGS_BUTTON = JianyuAutomationTags.Mine.SETTINGS_BUTTON
     const val PERSONAL_BACKGROUND_HERO = JianyuAutomationTags.Mine.PERSONAL_BACKGROUND_HERO
     const val PERSONAL_BACKGROUND_ACTION = JianyuAutomationTags.Mine.PERSONAL_BACKGROUND_ACTION
-    const val AVATAR_SWITCH_UNAVAILABLE = JianyuAutomationTags.Mine.AVATAR_SWITCH_UNAVAILABLE
+    const val AVATAR_EDIT_BUTTON = JianyuAutomationTags.Mine.AVATAR_EDIT_BUTTON
+    const val AVATAR_ACTION_SHEET = JianyuAutomationTags.Mine.AVATAR_ACTION_SHEET
+    const val AVATAR_PICK_ACTION = JianyuAutomationTags.Mine.AVATAR_PICK_ACTION
+    const val AVATAR_RESET_ACTION = JianyuAutomationTags.Mine.AVATAR_RESET_ACTION
     const val AI_MANAGEMENT_CARD = JianyuAutomationTags.Mine.AI_MANAGEMENT_CARD
     const val DATA_PRIVACY_CARD = JianyuAutomationTags.Mine.DATA_PRIVACY_CARD
     const val BACKUP_RESTORE_CARD = JianyuAutomationTags.Mine.BACKUP_RESTORE_CARD
