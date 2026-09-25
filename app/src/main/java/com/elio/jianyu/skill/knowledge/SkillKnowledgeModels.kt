@@ -69,6 +69,15 @@ fun interface SkillKnowledgeQueryEmbedder {
     ): FloatArray
 }
 
+fun interface SkillKnowledgeRetrievalGateway {
+    suspend fun retrieve(
+        ownerSkillId: String,
+        sessionId: Long,
+        currentUserInput: String,
+        onAttemptStarted: suspend () -> Unit,
+    ): SkillKnowledgeRetrievalResult
+}
+
 sealed interface SkillKnowledgeRetrievalResult {
     data class Available(
         val knowledgeMap: String,
