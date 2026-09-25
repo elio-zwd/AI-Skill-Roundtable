@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
@@ -138,9 +139,11 @@ private fun PopoverMenuItem(
     icon: ImageVector,
     text: String,
     onClick: () -> Unit,
-    textColor: Color = DialogTokens.TextPrimary,
-    iconColor: Color = DialogTokens.TextSecondary,
+    textColor: Color? = null,
+    iconColor: Color? = null,
 ) {
+    val resolvedTextColor = textColor ?: MaterialTheme.colorScheme.onSurface
+    val resolvedIconColor = iconColor ?: MaterialTheme.colorScheme.onSurfaceVariant
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -156,13 +159,13 @@ private fun PopoverMenuItem(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = iconColor,
+            tint = resolvedIconColor,
             modifier = Modifier.size(18.dp),
         )
         Spacer(modifier = Modifier.width(12.dp))
         Text(
             text = text,
-            color = textColor,
+            color = resolvedTextColor,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
         )

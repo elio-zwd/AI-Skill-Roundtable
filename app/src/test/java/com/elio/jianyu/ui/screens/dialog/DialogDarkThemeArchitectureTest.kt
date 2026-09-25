@@ -41,6 +41,14 @@ class DialogDarkThemeArchitectureTest {
         assertTrue(historyDrawer.contains("MaterialTheme.colorScheme.surfaceContainerHigh"))
         assertTrue(historyDrawer.contains("MaterialTheme.colorScheme.primaryContainer"))
         assertFalse(historyDrawer.contains(".background(Color(0xFFF1F5F9))"))
+
+        val state = sourceFile("DialogUiState.kt").readText()
+        val moreMenu = sourceFile("overlays/SessionMoreMenuPopover.kt").readText()
+        val featuresSheet = sourceFile("overlays/ComposerFeaturesBottomSheet.kt").readText()
+        assertFalse(state.contains("accentColor = DialogTokens.TextPrimary"))
+        assertTrue(moreMenu.contains("textColor: Color? = null"))
+        assertTrue(moreMenu.contains("iconColor: Color? = null"))
+        assertTrue(featuresSheet.contains("trailingTextColor: Color? = null"))
     }
 
     private fun sourceFile(relativePath: String): File = listOf(

@@ -92,7 +92,7 @@ data class DialogUiState(
                 avatarText = "乔",
                 tintBg = Color(0xFFF5F5F7),
                 tintBorder = Color(0xFFE1E1E6),
-                accentColor = DialogTokens.TextPrimary,
+                accentColor = Color(0xFF111116),
                 isInCurrentSession = false,
             )
 
