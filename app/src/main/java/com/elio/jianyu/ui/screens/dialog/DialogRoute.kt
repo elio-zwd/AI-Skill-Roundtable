@@ -43,6 +43,7 @@ import com.elio.jianyu.skill.catalog.OfficialSkillCatalog
 import com.elio.jianyu.ui.components.LocalUserAvatarImage
 import com.elio.jianyu.ui.settings.AppPreferences
 import com.elio.jianyu.viewmodel.RoundtableViewModel
+import com.elio.jianyu.viewmodel.addSkillRoleToCurrentSessionAwait
 import com.elio.jianyu.viewmodel.ConversationContextSelection
 import kotlinx.coroutines.launch
 
@@ -188,8 +189,18 @@ fun DialogRoute(
                         )
                     }
                     is DialogEvent.AddSkillToSession -> {
-                        viewModel.addSkillRoleToCurrentSession(event.skillId)
-                        localState = uiState.copy(activeOverlay = DialogOverlayType.NONE)
+                        scope.launch {
+                            val success = viewModel.addSkillRoleToCurrentSessionAwait(event.skillId)
+                            if (success) {
+                                localState = localState.copy(activeOverlay = DialogOverlayType.NONE)
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    " Skill ，。",
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            }
+                        }
                     }
                     is DialogEvent.RemoveSkillFromSession -> {
                         viewModel.removeSkillRoleFromCurrentSession(event.skillId)
