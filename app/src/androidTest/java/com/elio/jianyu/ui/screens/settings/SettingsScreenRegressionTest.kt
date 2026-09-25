@@ -90,12 +90,55 @@ class SettingsScreenRegressionTest {
         listOf(
             AiModel.GEMINI_38_FLASH,
             AiModel.GEMINI_37_FLASH,
+            AiModel.GEMINI_35_FLASH_LITE,
+            AiModel.GEMINI_25_FLASH,
+            AiModel.GEMINI_25_FLASH_LITE,
         ).forEach { model ->
             composeRule.onNodeWithTag(
                 AiManagementTestTags.model(
                     "${AiUseCase.SESSION_TITLE.name}_${model.name}",
                 ),
             ).assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun aiManagementScreen_webGroundingKeeps3xAndAdds25SearchModels() {
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                AiManagementScreen(
+                    uiState = emptyAiManagementState(),
+                    onBack = {},
+                    onSelectProvider = { _, _ -> },
+                    onSelectModel = { _, _ -> },
+                    onSelectKeyProvider = {},
+                    onInputChange = {},
+                    onImport = {},
+                    onToggleKey = { _, _ -> },
+                    onValidateKey = {},
+                    onRequestDeleteKey = {},
+                    onRequestClearProviderKeys = {},
+                    onDismissConfirmation = {},
+                    onConfirmDeleteKey = {},
+                    onConfirmClearProviderKeys = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(AiManagementTestTags.useCase(AiUseCase.WEB_GROUNDING.name))
+            .performClick()
+
+        listOf(
+            AiModel.GEMINI_38_FLASH,
+            AiModel.GEMINI_35_FLASH_LITE,
+            AiModel.GEMINI_25_FLASH,
+            AiModel.GEMINI_25_FLASH_LITE,
+        ).forEach { model ->
+            composeRule.onNodeWithTag(
+                AiManagementTestTags.model(
+                    "${AiUseCase.WEB_GROUNDING.name}_${model.name}",
+                ),
+            ).assertExists()
         }
     }
 
@@ -136,7 +179,7 @@ class SettingsScreenRegressionTest {
     private fun emptyAiManagementState() = AiManagementUiState(
         configuration = AiRuntimeConfiguration(
             AiUseCase.entries.associateWith { useCase ->
-                defaultModel(useCase.supportedProviders.first())
+                defaultModel(useCase)
             },
         ),
         keyProvider = AiProvider.GEMINI,
