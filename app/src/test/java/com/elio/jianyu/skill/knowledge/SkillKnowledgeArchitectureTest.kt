@@ -30,6 +30,59 @@ class SkillKnowledgeArchitectureTest {
     }
 
     @Test
+    fun roundtableLocalKnowledgeIsIndependentFromWebDecisionModes() {
+        val viewModel = projectRoot
+            .resolve("app/src/main/java/com/elio/jianyu/viewmodel/RoundtableViewModel.kt")
+            .readText()
+
+        val retrievalIndex = viewModel.indexOf("skillKnowledgeRetriever?.retrieve")
+        val modeIndex = viewModel.indexOf("val mode = _searchMode.value")
+        val brokerGuardIndex = viewModel.indexOf("if (mode != SearchMode.OFF)")
+        assertTrue(retrievalIndex >= 0)
+        assertTrue(modeIndex > retrievalIndex)
+        assertTrue(brokerGuardIndex > modeIndex)
+
+        assertTrue(viewModel.contains("SearchMode.AUTO ->"))
+        assertTrue(viewModel.contains("SearchMode.ON ->"))
+        assertTrue(viewModel.contains("SearchMode.OFF -> error(\" \""))
+        assertTrue(viewModel.contains("if (mode == SearchMode.ON)"))
+        assertTrue(viewModel.contains("finalQueries.add(retrievalQuery.ifBlank"))
+        assertTrue(viewModel.contains("； Skill 。"))
+        assertFalse(viewModel.contains("selectedFiles"))
+        assertFalse(viewModel.contains("skills_summaries"))
+    }
+
+    @Test
+    fun explicitCrossSkillSelectionUsesDedicatedConfirmedContextWithoutPrivacyFlags() {
+        val viewModel = projectRoot
+            .resolve("app/src/main/java/com/elio/jianyu/viewmodel/RoundtableViewModel.kt")
+            .readText()
+
+        val actionStart = viewModel.indexOf("fun addSkillKnowledgeToCurrentConversation(")
+        assertTrue(actionStart >= 0)
+        val actionEnd = viewModel.indexOf(
+            "fun currentActiveConversationContextSelections()",
+            startIndex = actionStart,
+        )
+        assertTrue(actionEnd > actionStart)
+        val action = viewModel.substring(actionStart, actionEnd)
+
+        assertTrue(action.contains("sourceType = ContextSourceType.SKILL_KNOWLEDGE"))
+        assertTrue(action.contains("sourceKind = selection.skillId"))
+        assertTrue(action.contains("sourceLocator = selection.relativePath"))
+        assertTrue(action.contains("networkAllowed = true"))
+        assertTrue(action.contains("sensitive = false"))
+        assertTrue(action.contains("sensitiveConfirmed = false"))
+
+        val retrievalCall = viewModel.substring(
+            viewModel.indexOf("skillKnowledgeRetriever?.retrieve"),
+            viewModel.indexOf("val configuration =", viewModel.indexOf("skillKnowledgeRetriever?.retrieve")),
+        )
+        assertTrue(retrievalCall.contains("ownerSkillId = character.id"))
+        assertFalse(retrievalCall.contains("selection.skillId"))
+    }
+
+    @Test
     fun collaborationRebindKeepsExplicitSkillKnowledgeUsage() {
         val coordinator = projectRoot
             .resolve("app/src/main/java/com/elio/jianyu/collaboration/IssueCollaborationCoordinator.kt")
