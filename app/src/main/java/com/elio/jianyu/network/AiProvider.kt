@@ -21,6 +21,18 @@ enum class AiModel(
     val displayName: String,
     val supportsWebGrounding: Boolean = false,
 ) {
+    GEMINI_38_FLASH(
+        provider = AiProvider.GEMINI,
+        modelId = "gemini-3.8-flash",
+        displayName = "Gemini 3.8 Flash",
+        supportsWebGrounding = true,
+    ),
+    GEMINI_37_FLASH(
+        provider = AiProvider.GEMINI,
+        modelId = "gemini-3.7-flash",
+        displayName = "Gemini 3.7 Flash",
+        supportsWebGrounding = true,
+    ),
     GEMINI_36_FLASH(
         provider = AiProvider.GEMINI,
         modelId = "gemini-3.6-flash",
@@ -134,7 +146,24 @@ private fun AiRuntimeConfiguration.copyWith(
     AiUseCase.entries.associateWith { entry -> if (entry == useCase) model else modelFor(entry) },
 )
 
+private val GEMINI_MODELS_WITHOUT_MINIMAL_THINKING = setOf(
+    AiModel.GEMINI_38_FLASH,
+    AiModel.GEMINI_37_FLASH,
+)
+
+internal fun AiModel.geminiInteractionThinkingLevel(requestedLevel: String): String {
+    require(provider == AiProvider.GEMINI) { "只有 Gemini 模型可以使用 Interactions thinking_level" }
+    require(requestedLevel in setOf("minimal", "low", "medium", "high")) {
+        "Gemini 不支持思考档位：$requestedLevel"
+    }
+    return if (requestedLevel == "minimal" && this in GEMINI_MODELS_WITHOUT_MINIMAL_THINKING) {
+        "low"
+    } else {
+        requestedLevel
+    }
+}
+
 fun defaultModel(provider: AiProvider): AiModel = when (provider) {
-    AiProvider.GEMINI -> AiModel.GEMINI_35_FLASH
+    AiProvider.GEMINI -> AiModel.GEMINI_38_FLASH
     AiProvider.DEEPSEEK -> AiModel.DEEPSEEK_V4_FLASH
 }
