@@ -22,6 +22,9 @@ import com.elio.jianyu.data.StageEntity
 import com.elio.jianyu.data.TransitionExecutionParticipantCommand
 import com.elio.jianyu.data.TransitionRunCommand
 import com.elio.jianyu.data.UpdatePendingDomainMessageCommand
+import com.elio.jianyu.skill.knowledge.SkillKnowledgeHit
+import com.elio.jianyu.skill.knowledge.SkillKnowledgeRetrievalGateway
+import com.elio.jianyu.skill.knowledge.SkillKnowledgeRetrievalResult
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CompletableDeferred
@@ -206,10 +209,63 @@ class ExecutionRunCoordinatorTest {
         assertFalse(persistence.messages.single().text.contains("late"))
     }
 
+
+    @Test
+    fun eachParticipantRetrievesOnlyOwnSkillKnowledge() = runBlocking {
+        val persistence = FakeExecutionPersistence()
+        val network = FakeExecutionNetworkGateway(
+            mutableMapOf(
+                "skill-a" to FakeOutcome.Success(listOf("A")),
+                "skill-b" to FakeOutcome.Success(listOf("B")),
+            ),
+        )
+        val retrievalCalls = mutableListOf<String>()
+        val retriever = SkillKnowledgeRetrievalGateway {
+                ownerSkillId,
+                _,
+                _,
+                onAttemptStarted,
+            ->
+            retrievalCalls += ownerSkillId
+            onAttemptStarted()
+            SkillKnowledgeRetrievalResult.Available(
+                knowledgeMap = "- $ownerSkillId [KNOWLEDGE]",
+                hits = listOf(
+                    SkillKnowledgeHit(
+                        skillId = ownerSkillId,
+                        documentId = "doc-$ownerSkillId",
+                        relativePath = "references/$ownerSkillId.md",
+                        title = ownerSkillId,
+                        headingPath = "主题",
+                        content = "knowledge-$ownerSkillId",
+                        score = 1f,
+                        retrievalOrder = 0,
+                    ),
+                ),
+            )
+        }
+
+        val result = coordinator(
+            persistence = persistence,
+            network = network,
+            skillKnowledgeRetriever = retriever,
+        ).start(startCommand("run-1", "skill-a", "skill-b"))
+
+        assertEquals(listOf("skill-a", "skill-b"), retrievalCalls)
+        assertTrue(network.requests[0].modelRequest.userContent.contains("knowledge-skill-a"))
+        assertFalse(network.requests[0].modelRequest.userContent.contains("knowledge-skill-b"))
+        assertTrue(network.requests[1].modelRequest.userContent.contains("knowledge-skill-b"))
+        assertFalse(network.requests[1].modelRequest.userContent.contains("knowledge-skill-a"))
+        assertEquals(4, result.runtime.budget.usedApiCalls)
+    }
+
     private fun coordinator(
         persistence: FakeExecutionPersistence,
         network: FakeExecutionNetworkGateway,
         modelIdResolver: (String) -> String = { requestedModel -> requestedModel },
+        skillKnowledgeRetriever: SkillKnowledgeRetrievalGateway = SkillKnowledgeRetrievalGateway { _, _, _, _ ->
+            SkillKnowledgeRetrievalResult.Unavailable("not_configured")
+        },
     ): ExecutionRunCoordinator {
         val resolver = ExecutionSkillResolver { runId, selections, createdAt ->
             selections.mapIndexed { index, selection ->
@@ -233,6 +289,7 @@ class ExecutionRunCoordinatorTest {
             persistence = persistence,
             skillResolver = resolver,
             networkGateway = network,
+            skillKnowledgeRetriever = skillKnowledgeRetriever,
             clock = ExecutionClock { persistence.nextTime() },
             modelIdResolver = modelIdResolver,
         )
