@@ -30,6 +30,16 @@ class SkillKnowledgeArchitectureTest {
     }
 
     @Test
+    fun collaborationRebindKeepsExplicitSkillKnowledgeUsage() {
+        val coordinator = projectRoot
+            .resolve("app/src/main/java/com/elio/jianyu/collaboration/IssueCollaborationCoordinator.kt")
+            .readText()
+
+        assertTrue(coordinator.contains("skillKnowledge = source.skillKnowledge.mapIndexed"))
+        assertTrue(coordinator.contains("runId = runId"))
+    }
+
+    @Test
     fun legacySummaryAssetsAndGeneratorsAreRemoved() {
         assertFalse(projectRoot.resolve("app/src/main/assets/skills_summaries.json").exists())
         assertFalse(projectRoot.resolve("workspace/tools/generate_summaries.py").exists())
