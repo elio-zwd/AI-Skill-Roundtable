@@ -482,8 +482,8 @@
   - `SettingsScreenRegressionTest.kt`
   - `docs/superpowers/plans/2026-09-25-ai-management-ui-refresh.md`
 - [x] **Step 3: 对 `tools/check-app-identity.ps1`、Room、Backup、Avatar、Dialog 等非 #69 任务文件一律保留最新 main 版本。**
-- [ ] **Step 4: 运行 identity gate；预期旧“Package Move Mapping / Room v13 / Key Store Contract / README”失败因同步最新 main 而消失。**
-- [ ] **Step 5: 若 identity gate 仍失败，先比较最新 main 脚本与分支脚本，禁止修改 AI 管理 UI 来规避脚本问题。**
+- [x] **Step 4: 运行 identity gate；预期旧“Package Move Mapping / Room v13 / Key Store Contract / README”失败因同步最新 main 而消失。**
+- [x] **Step 5 (N/A): 若 identity gate 仍失败，先比较最新 main 脚本与分支脚本，禁止修改 AI 管理 UI 来规避脚本问题。** 未触发，因为同步后 identity gate 直接 PASS。
 - [x] **Step 6: 重新打开 PR #69，base=`main`。**
 
 ---
@@ -501,11 +501,16 @@
 - 同步后 compare：`behind_by=0`，相对 main 仅 6 个预期 changed files。
 - PR #69 已重新 OPEN / Draft，base=`main@ce5664d...`，Head=`6350014896c30dd1a1f2e81f5f97e74c01eaa19b`，GitHub 重新计算后 mergeable=true。
 - 当前等待 exact Head GitHub Actions，以确认旧基线 identity gate 失败已消失。
+- Exact Head Actions 已完成：Secret scan Run `36114313051` PASS；Android UI Test Compile Run `36114312992` PASS；Android CI Run `36114312997` PASS。
+- Android CI 中 `Run static app identity gate` 直接 PASS，证明原 #69 的旧 Package Move / Room v13 / Key Store / README failures 已由同步最新 main 消除。
+- 同一 Android CI 的 full `testDebugUnitTest` PASS，覆盖 `AiManagementUiStateTest`；compileDebugKotlin、lint、Debug APK、optimized Release/R8、Room schema 与 artifacts 同样 PASS。
+- PR diff 仍精确为 6 个 AI 管理 UI/测试/Plan 文件，不包含 network、EncryptedApiKeyStore、ProviderKeyRepository、AiModel/AiUseCase 枚举或 Room/Backup/Avatar/Dialog 生产改动。
+- Task 12 Step 1 的 JVM 部分已有 exact-Head 远端证据；设置页 UI test 运行与人工 Bottom Sheet 行为留给 Step 3 本地 AI 一次完成。
 
 ### Task 12：验证 #69 没有改变模型/BYOK 业务契约
 
 - [ ] **Step 1: 运行 `AiManagementUiStateTest` 和设置页聚焦 JVM/UI tests。**
-- [ ] **Step 2: 全量：**
+- [x] **Step 2: 全量：**
   ```powershell
   pwsh -NoProfile -File tools/check-app-identity.ps1
   pwsh -NoProfile -File tools/check-secrets.ps1 -IncludeHistory
@@ -526,7 +531,7 @@
   - 不显示完整 Key；
   - Bottom Sheet 切 Provider 不串前一个 Provider 的输入/状态；
   - Back 行为正确。
-- [ ] **Step 4: GitHub Actions 全绿。**
+- [x] **Step 4: GitHub Actions 全绿。**
 - [ ] **Step 5: 更新 #69 Plan Task 8 与 PR 描述。**
 - [ ] **Step 6: 用户授权后普通 merge commit 合 main。**
 - [ ] **Step 7: 新 main CI 全绿。**
