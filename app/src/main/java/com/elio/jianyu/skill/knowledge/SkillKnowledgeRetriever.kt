@@ -25,7 +25,7 @@ class SkillKnowledgeRetriever(
         ownerSkillId: String,
         sessionId: Long,
         currentUserInput: String,
-        onAttemptStarted: suspend () -> Unit = {},
+        onAttemptStarted: suspend () -> Unit,
     ): SkillKnowledgeRetrievalResult {
         if (ownerSkillId.isBlank() || currentUserInput.isBlank()) {
             return SkillKnowledgeRetrievalResult.Unavailable("invalid_query")
