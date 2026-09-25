@@ -208,10 +208,10 @@ private fun AddSkillRoleEntryCard(
         modifier = modifier
             .height(72.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFFF7F7FA))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
             .border(
                 width = 1.dp,
-                color = Color(0xFFEBEBF0),
+                color = MaterialTheme.colorScheme.outlineVariant,
                 shape = RoundedCornerShape(16.dp),
             )
             .clickable(
@@ -229,7 +229,7 @@ private fun AddSkillRoleEntryCard(
             Icon(
                 imageVector = DialogIcons.Add,
                 contentDescription = "增加",
-                tint = Color(0xFF8B5CF6),
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp),
             )
             Spacer(modifier = Modifier.width(4.dp))

@@ -34,7 +34,8 @@ object DialogTokens {
     val InteractionBlue = Color(0xFF176DFF)     // 交互蓝：发送按钮、选中导航、联网搜索
     val InteractionBlueLight = Color(0xFFE9F0FD)// 浅蓝底：用户消息气泡背景、联网状态底
     val BrandPurple = Color(0xFF6340F8)         // 品牌紫：新建会话、增加按钮、CTA 渐变
-    val BrandPurpleLight = Color(0xFFF2EFFF)    // 浅紫背景：新建会话背景、+ 号按钮背景
+    val BrandPurpleLight: Color
+        @Composable get() = MaterialTheme.colorScheme.primaryContainer
     val StatusGreen = Color(0xFF18B96C)         // 状态绿：已开、在会话状态点、Check 标记
 
     // 角色专属个性弱识别色（非阵营色）

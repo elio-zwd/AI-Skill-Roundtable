@@ -12,6 +12,8 @@ class DialogDarkThemeArchitectureTest {
         val composer = sourceFile("components/DialogComposer.kt").readText()
         val messages = sourceFile("components/DialogMessageComponents.kt").readText()
         val roleStrip = sourceFile("components/SkillRoleStrip.kt").readText()
+        val addSkillSheet = sourceFile("overlays/AddSkillRoleBottomSheet.kt").readText()
+        val historyDrawer = sourceFile("overlays/ConversationHistoryDrawer.kt").readText()
 
         assertTrue(tokens.contains("MaterialTheme.colorScheme.background"))
         assertTrue(tokens.contains("MaterialTheme.colorScheme.surface"))
@@ -29,6 +31,16 @@ class DialogDarkThemeArchitectureTest {
         assertFalse(messages.contains(".background(Color.White)"))
 
         assertTrue(roleStrip.contains("MaterialTheme.colorScheme.surfaceContainer"))
+        assertFalse(roleStrip.contains(".background(Color(0xFFF7F7FA))"))
+
+        assertTrue(addSkillSheet.contains("MaterialTheme.colorScheme.surfaceContainerHigh"))
+        assertTrue(addSkillSheet.contains("MaterialTheme.colorScheme.surfaceContainer"))
+        assertFalse(addSkillSheet.contains(".background(Color(0xFFF1F5F9))"))
+        assertFalse(addSkillSheet.contains(".background(skill.tintBg)"))
+
+        assertTrue(historyDrawer.contains("MaterialTheme.colorScheme.surfaceContainerHigh"))
+        assertTrue(historyDrawer.contains("MaterialTheme.colorScheme.primaryContainer"))
+        assertFalse(historyDrawer.contains(".background(Color(0xFFF1F5F9))"))
     }
 
     private fun sourceFile(relativePath: String): File = listOf(
