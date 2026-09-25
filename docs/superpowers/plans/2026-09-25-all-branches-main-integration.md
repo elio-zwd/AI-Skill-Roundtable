@@ -572,7 +572,7 @@
   ```
 - [x] **Step 5: 检查真实 token、OAuth client secrets、cursor/log/request 文件均未提交。**
 - [x] **Step 6: 创建独立 PR 到 main；描述清楚 Router 不读取 ChatGPT 历史正文、不自动触发 Local AI、不回写 Drive 控制文件。**
-- [ ] **Step 7: 该工具 PR 通过离线测试/Secret scan 后，再由用户决定是否 merge。**
+- [x] **Step 7: 该工具 PR 通过离线测试/Secret scan 后，再由用户决定是否 merge。** 用户已明确授权合入。
 
 **Do not:** 把 Router 合进 Android feature PR；不打开真实浏览器发送作为 CI/自动验收。
 
@@ -588,6 +588,9 @@
 - 待本地 AI：`python .\tools\ai-router\test_router.py` 与 `python .\tools\ai-router\router.py doctor`；不得访问真实 Drive。Step 3/4/7 在结果回来前保持未完成。
 - PR #73 Secret scan 已 PASS；Router Android CI 在最后一次状态确认时仍运行中，但该 PR 无 Android 生产代码，最终是否 merge 以离线 Router tests/doctor + Secret scan + 用户决定为准。
 - 本地 AI 在 exact Router Head `6310db0e5fb04964e0fc77fa4088960b35950503` 上验证：`test_router.py` 7 tests PASS；`router.py doctor` exit 0；未连接真实 Drive/浏览器/Local AI；drive.readonly、browser-send 默认关闭、历史正文不读取、Local AI trigger 未实现、`work/` 忽略和运行时 secret 文件不被 Git 跟踪均 PASS。Task 13 Step 7 仅剩用户对 #73 merge/保留的产品决策。
+- 用户明确授权合入 Router。由于 #74 已先进入 main，先将 `main@545fa29cbcf69f1749e24d75dff8e2c2711f776a` 普通 merge 到 Router 分支，生成两父 commit `403807611a6f317478d29980e708353205cc4607`；non-force 更新，且 5 个 Router 文件 blob SHA 与已离线验证的 `6310db0...` 完全一致。
+- #73 同步后 base 为最新 main、behind_by=0、diff 仍仅 5 个 `tools/ai-router/*` 文件、mergeable=true；随后 Ready 并使用普通 merge commit 合入 main。
+- Router merge 后新 main：`b9aa4711cc82503bbf445150802655ab95f59a45`。
 
 ---
 
@@ -608,7 +611,7 @@
 - [x] **Step 3: 对 `3d84382` / `14cd489` 对照当前 ADR/UI 规范与 #66 后的现状；旧视觉不能覆盖当前已验收 UI。**
 - [x] **Step 4: 对 `399b8e3` 仅判断设计证据是否值得归档；不把 screenshots/XML 当生产代码依赖。**
 - [x] **Step 5 (N/A): 若发现当前 main 真缺失且仍符合现行产品契约的行为，创建**新的小分支**从最新 main 移植最小代码和测试；禁止 merge #57。** 未发现需要移植的有效缺口。
-- [ ] **Step 6: 若无缺失，获得授权后关闭 #57 为 superseded。**
+- [x] **Step 6: 若无缺失，获得授权后关闭 #57 为 superseded。**
 
 ---
 
@@ -618,7 +621,7 @@
 
 - [x] **Step 1: 对照当前 Accepted ADR、Gemini API guide、产品模型和 #66 后实际网络实现。**
 - [x] **Step 2: 把 #55 文档内容分为：仍有效 / 已被覆盖 / 与当前实现冲突。**
-- [ ] **Step 3A: 若全部被更新文档覆盖：关闭 #55，不 merge。**
+- [x] **Step 3A: 若全部被更新文档覆盖：关闭 #55，不 merge。**
 - [x] **Step 3B (N/A): 若有仍有效且 main 缺失的规则：在 docs-only 小 PR 中只移植有效部分，并明确 supersession；不要整分支 merge。** 没有发现 main 缺失的有效规则。
 
 ---
@@ -697,6 +700,8 @@
 
 #### Final Phase 当前快照
 
+- **Router 合入后的最终 main：`b9aa4711cc82503bbf445150802655ab95f59a45`。** Router 只新增 `tools/ai-router/*`，未修改 Android `app/` 生产/测试树；Android 最终本地全量证据来自 tree-identical #74/main Android 树，Router 另有 7/7 离线测试 + doctor PASS。
+
 - **最新最终 main（#74 合并后）：`545fa29cbcf69f1749e24d75dff8e2c2711f776a`。** 该 merge commit 与已完成全量设备验收的 #74 Head 具有相同 Git tree。
 
 - 当前 main：`9455aa80499bab0e395f0ea36e20fa6061d7fb54`，已包含 #66/#67/#68/#69 全部计划内 Android 生产功能。
@@ -763,13 +768,23 @@
 
 ### Task 19：关闭 superseded PR
 
+#### Task 19 执行记录
+
+- #64：此前已确认完全由 #66/main 覆盖并关闭，未直接 merge。
+- #65：此前完成 identity gate 语义审计后关闭，未 merge。
+- #57：用户明确授权关闭；已追加 superseded 说明并关闭，`merged=false`。
+- #55：用户明确授权关闭；已追加 superseded 说明并关闭，`merged=false`。
+- #68/#69：均通过原 PR 普通 merge commit 进入 main，保留 merged 历史。
+- 未删除任何远端分支。
+
+
 在最终 main PASS 后：
 
-- [ ] **Step 1: #64 若已由 #66 覆盖，关闭。**
-- [ ] **Step 2: #65 若语义审计确认已被 main 覆盖，关闭。**
-- [ ] **Step 3: #57 若无移植项，关闭。**
-- [ ] **Step 4: #55 若已被当前文档覆盖，关闭。**
-- [ ] **Step 5: #68/#69 若已通过各自原 PR 合并则保持 merged 记录；若使用替代 refresh PR，则在旧 PR 留 superseded 说明后关闭。**
+- [x] **Step 1: #64 若已由 #66 覆盖，关闭。**
+- [x] **Step 2: #65 若语义审计确认已被 main 覆盖，关闭。**
+- [x] **Step 3: #57 若无移植项，关闭。**
+- [x] **Step 4: #55 若已被当前文档覆盖，关闭。**
+- [x] **Step 5: #68/#69 若已通过各自原 PR 合并则保持 merged 记录；若使用替代 refresh PR，则在旧 PR 留 superseded 说明后关闭。**
 
 **Requires:** 用户允许关闭这些 PR；否则只报告“可关闭”，不执行。
 
