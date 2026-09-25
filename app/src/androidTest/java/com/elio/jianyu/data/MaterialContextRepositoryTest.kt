@@ -341,6 +341,63 @@ class MaterialContextRepositoryTest {
     }
 
     @Test
+    fun explicitSkillKnowledgeUsageIsIdempotentAndConflictingReplayIsRejected() = runBlocking {
+        saveIssue()
+        val content = ""
+        val hash = ContextContentHasher.hash(content)
+        val prepared = repository.prepareExecutionContext(
+            PrepareExecutionContextCommand(
+                draft = ContextSelectionDraft(
+                    issueId = ISSUE_ID,
+                    stageId = STAGE_ID,
+                    runId = RUN_ID,
+                    baseContextCharacters = 100,
+                    items = listOf(
+                        ConfirmedContextItem(
+                            sourceType = ContextSourceType.SKILL_KNOWLEDGE,
+                            sourceId = "feynman-research",
+                            title = "",
+                            sourceKind = "richard_feynman",
+                            sourceLocator = "references/research.md",
+                            content = content,
+                            contentHash = hash,
+                            expectedSourceHash = hash,
+                            expectedSourceUpdatedAt = 0L,
+                            confirmationOrder = 0,
+                            userConfirmedAt = 180L,
+                            networkAllowed = true,
+                            sensitive = false,
+                            sensitiveConfirmed = false,
+                        ),
+                    ),
+                    confirmed = true,
+                ),
+                preparedAt = 200L,
+            ),
+        ).successValue()
+        val command = runtimeCommand(prepared.usage)
+
+        val first = repository.createExecutionRuntime(command)
+        val repeated = repository.createExecutionRuntime(command)
+        val changedSnapshot = prepared.usage.copy(
+            skillKnowledge = prepared.usage.skillKnowledge.map { usage ->
+                val changedContent = usage.contentSnapshot + ""
+                usage.copy(
+                    contentSnapshot = changedContent,
+                    contentHash = ContextContentHasher.hash(changedContent),
+                )
+            },
+        )
+        val conflict = repository.createExecutionRuntime(command.copy(contextUsage = changedSnapshot))
+
+        assertFalse((first as RepositoryResult.Success).idempotent)
+        assertTrue((repeated as RepositoryResult.Success).idempotent)
+        assertTrue(conflict.failureError() is RepositoryError.IdempotencyConflict)
+        assertEquals(1, repository.listRunContextUsage(RUN_ID).successValue().size)
+        assertEquals(0, foreignKeyViolations())
+    }
+
+    @Test
     fun purgeAnonymizesCurrentAndHistoricalContentWithoutBreakingRelations() = runBlocking {
         saveIssue()
         val material = repository.createMaterial(materialCommand(sensitive = true)).successValue()
