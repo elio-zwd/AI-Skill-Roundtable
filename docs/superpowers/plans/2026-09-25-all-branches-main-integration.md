@@ -455,7 +455,8 @@
 - 本地 AI 聚焦 Instrumentation 出现真实测试初始化失败：`UserAvatarRepositoryAndroidTest` 的 `@Before setUp()` / `@After tearDown()` 使用表达式体 `= runBlocking { ... }`，JUnit4 判定返回类型非 void，4 个 Repository tests 未执行；`MineScreenTest` 4 tests PASS。
 - GPT 仅修改测试生命周期签名为显式 block body + 内部 `runBlocking`，不修改生产代码、不降低任何断言。
 - 修复 commit / 当前 #68 Head：`93ac71710361414ae0441ffa813c99488642e7a2`（`test: 修复用户头像 AndroidTest 生命周期签名`）。
-- 当前等待 exact new Head 的 GitHub Actions；远端 PASS 后只需本地 AI 重跑聚焦 Instrumentation，重点确认此前未执行的非法图片保护测试。
+- Exact new Head GitHub Actions 已全绿：Secret scan Run `36106900099` PASS；Android UI Test Compile Run `36106900073` PASS；Android CI Run `36106900083` PASS，包含 identity gate、compileDebugKotlin、full JVM、lint、Debug APK、optimized Release/R8、release verification、Room schema 与 artifacts。
+- 由于本次只改 AndroidTest 生命周期签名、未改生产代码，上一轮已通过的 Photo Picker/Mine/重启/替换/取消/reset/权限/备份行为证据继续有效；仅需本地 AI 在 exact `93ac717...` 上重跑 `UserAvatarRepositoryAndroidTest`，确认 4 个此前未执行的 Repository tests 全部真正执行并通过，尤其 `invalidImage_doesNotDestroyExistingAvatar`。
 
 ### Task 11：恢复 #69，并先解决“旧基线”而不是改业务
 
