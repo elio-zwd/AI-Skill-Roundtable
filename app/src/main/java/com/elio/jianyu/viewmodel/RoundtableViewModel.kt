@@ -90,7 +90,15 @@ import java.util.concurrent.ConcurrentHashMap
 
 private const val ROUNDTABLE_SEQUENCE_TIMEOUT_MS = 8 * 60 * 1000L
 private const val DEFAULT_SESSION_ROLE_COUNT = 2
+private val DEFAULT_SESSION_ROLE_IDS = listOf("naval_ravikant", "richard_feynman")
 private const val DIALOG_ISSUE_ID_PREFIX = "dialog-session-"
+
+internal fun resolveDefaultSessionRoleIds(availableIds: List<String>): List<String> {
+    val available = availableIds.distinct()
+    val preferred = DEFAULT_SESSION_ROLE_IDS.filter { it in available }
+    return (preferred + available.filterNot { it in preferred })
+        .take(DEFAULT_SESSION_ROLE_COUNT)
+}
 private const val DIALOG_STAGE_ID_PREFIX = "dialog-node-"
 
 data class FormalConversationContext(
@@ -748,7 +756,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     .map(Character::id)
             }.orEmpty()
         }
-        val defaults = availableIds.take(DEFAULT_SESSION_ROLE_COUNT)
+        val defaults = resolveDefaultSessionRoleIds(availableIds)
         val stored = conversationPreferences.getParticipantIds(sessionId, defaults)
             .filter { it in availableIds }
             .take(15)

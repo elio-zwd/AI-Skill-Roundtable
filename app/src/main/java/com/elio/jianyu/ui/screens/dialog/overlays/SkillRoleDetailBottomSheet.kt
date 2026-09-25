@@ -43,6 +43,7 @@ import com.elio.jianyu.ui.screens.dialog.DialogIcons
 import com.elio.jianyu.ui.screens.dialog.DialogTokens
 import com.elio.jianyu.ui.screens.dialog.SkillCapabilityIconType
 import com.elio.jianyu.ui.screens.dialog.SkillCapabilityItem
+import com.elio.jianyu.ui.components.JianyuRoleAvatar
 import com.elio.jianyu.ui.screens.dialog.SkillRoleDetailUiModel
 
 /**
@@ -140,31 +141,17 @@ fun SkillRoleDetailBottomSheet(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         // 左侧人物肖像容器（占宽约 38%-42%）
-                        Box(
+                        JianyuRoleAvatar(
+                            name = detail.role.name,
+                            assetPath = detail.role.avatarUrl.takeIf(String::isNotBlank),
+                            avatarResId = detail.role.avatarResId,
+                            fallbackText = detail.role.avatarText,
+                            fallbackContainerColor = detail.role.tintBorder.copy(alpha = 0.5f),
+                            fallbackContentColor = detail.role.accentColor,
                             modifier = Modifier
                                 .size(90.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(detail.role.tintBorder.copy(alpha = 0.5f)),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            if (detail.role.avatarResId != null) {
-                                androidx.compose.foundation.Image(
-                                    painter = androidx.compose.ui.res.painterResource(id = detail.role.avatarResId),
-                                    contentDescription = detail.role.name,
-                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                                    modifier = Modifier
-                                        .size(90.dp)
-                                        .clip(RoundedCornerShape(16.dp)),
-                                )
-                            } else {
-                                Text(
-                                    text = detail.role.avatarText.take(2),
-                                    color = detail.role.accentColor,
-                                    fontSize = 28.sp,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                            }
-                        }
+                                .clip(RoundedCornerShape(16.dp)),
+                        )
 
                         Spacer(modifier = Modifier.width(14.dp))
 
