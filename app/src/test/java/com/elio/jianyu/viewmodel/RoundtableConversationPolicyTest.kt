@@ -78,6 +78,35 @@ class RoundtableConversationPolicyTest {
     }
 
     @Test
+    fun baseContextBudgetCanReserveSkillKnowledgeCharacters() {
+        val character = Character(
+            id = "role-a",
+            name = "角色 A",
+            avatar = "A",
+            tagline = "",
+            systemPrompt = "",
+            skillAssetPath = "skills/role-a/SKILL.md",
+            order = 0,
+        )
+
+        val withoutReserve = conversationBaseContextCharacters(
+            messages = emptyList(),
+            targetCharacters = listOf(character),
+            responseMode = TranscriptBuilder.ResponseMode.INDEPENDENT,
+            skillPromptCharacters = mapOf(character.id to 1_200),
+        )
+        val withReserve = conversationBaseContextCharacters(
+            messages = emptyList(),
+            targetCharacters = listOf(character),
+            responseMode = TranscriptBuilder.ResponseMode.INDEPENDENT,
+            skillPromptCharacters = mapOf(character.id to 1_200),
+            skillKnowledgeReserveCharacters = 9_000,
+        )
+
+        assertEquals(withoutReserve + 9_000, withReserve)
+    }
+
+    @Test
     fun roundtableThinkingIntensityMapsToProviderLevels() {
         assertEquals("minimal", roundtableThinkingLevel("极简"))
         assertEquals("medium", roundtableThinkingLevel("均衡"))
