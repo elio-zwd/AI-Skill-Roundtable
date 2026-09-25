@@ -4,6 +4,8 @@ package com.elio.jianyu.ui.screens.settings
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -403,6 +405,7 @@ private fun ModelSelectionSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .testTag(AiManagementTestTags.MODEL_SHEET)
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 28.dp),
