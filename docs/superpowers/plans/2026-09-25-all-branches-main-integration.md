@@ -473,20 +473,34 @@
 
 **Branch / PR:** `codex/ai-management-ui-refresh` / #69（当前 closed/unmerged）
 
-- [ ] **Step 1: #68 已 merge main 后，将最新 main 普通 merge 到 `codex/ai-management-ui-refresh`。**
-- [ ] **Step 2: 冲突仅围绕以下 6 个功能文件处理：**
+- [x] **Step 1: #68 已 merge main 后，将最新 main 普通 merge 到 `codex/ai-management-ui-refresh`。**
+- [x] **Step 2: 冲突仅围绕以下 6 个功能文件处理：**
   - `AiManagementRoute.kt`
   - `AiManagementScreen.kt`
   - `AiManagementUiState.kt`
   - `AiManagementUiStateTest.kt`
   - `SettingsScreenRegressionTest.kt`
   - `docs/superpowers/plans/2026-09-25-ai-management-ui-refresh.md`
-- [ ] **Step 3: 对 `tools/check-app-identity.ps1`、Room、Backup、Avatar、Dialog 等非 #69 任务文件一律保留最新 main 版本。**
+- [x] **Step 3: 对 `tools/check-app-identity.ps1`、Room、Backup、Avatar、Dialog 等非 #69 任务文件一律保留最新 main 版本。**
 - [ ] **Step 4: 运行 identity gate；预期旧“Package Move Mapping / Room v13 / Key Store Contract / README”失败因同步最新 main 而消失。**
 - [ ] **Step 5: 若 identity gate 仍失败，先比较最新 main 脚本与分支脚本，禁止修改 AI 管理 UI 来规避脚本问题。**
-- [ ] **Step 6: 重新打开 PR #69，base=`main`。**
+- [x] **Step 6: 重新打开 PR #69，base=`main`。**
 
 ---
+
+
+
+#### Task 11 执行记录
+
+- #68 合并后 main：`ce5664dab0a6eeb55437b7ddd9fe241f3b3d230e`。
+- #69 原 Head：`ab8ff6daa34a8499072ce703299709ef8b1594f7`，相对 main 落后 199 commits，独有增量仍精确为 6 个计划文件。
+- 使用临时同步 PR #72 探测普通 main→分支 merge，GitHub 确认存在冲突；该临时 PR 后续已自动 closed，未进入 main。
+- 冲突审计显示 main 在 6 个功能文件中仅同时修改 3 个：`SettingsScreenRegressionTest.kt`、`AiManagementScreen.kt`、`AiManagementUiState.kt`。main 的变化仅为旧页面滚动测试所需 `CONTENT` testTag。
+- 解决策略：#69 新布局/新回归测试保留；`CONTENT` 稳定 tag 继续保留到新首页；其余非 #69 文件全部直接采用最新 main tree。
+- 创建真实两父 merge commit：`6350014896c30dd1a1f2e81f5f97e74c01eaa19b`，第一父为 #69 原 Head，第二父为 `main@ce5664d...`；branch ref 以 non-force fast-forward 更新。
+- 同步后 compare：`behind_by=0`，相对 main 仅 6 个预期 changed files。
+- PR #69 已重新 OPEN / Draft，base=`main@ce5664d...`，Head=`6350014896c30dd1a1f2e81f5f97e74c01eaa19b`，GitHub 重新计算后 mergeable=true。
+- 当前等待 exact Head GitHub Actions，以确认旧基线 identity gate 失败已消失。
 
 ### Task 12：验证 #69 没有改变模型/BYOK 业务契约
 
@@ -515,7 +529,7 @@
 - [ ] **Step 4: GitHub Actions 全绿。**
 - [ ] **Step 5: 更新 #69 Plan Task 8 与 PR 描述。**
 - [ ] **Step 6: 用户授权后普通 merge commit 合 main。**
-- [x] **Step 7: 新 main CI 全绿。**
+- [ ] **Step 7: 新 main CI 全绿。**
 
 ---
 
