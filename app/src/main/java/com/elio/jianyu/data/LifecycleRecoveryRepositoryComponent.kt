@@ -81,7 +81,8 @@ internal class LifecycleRecoveryRepositoryComponent(
                         artifacts = getArtifactsForIssue(issueId),
                         materialUsages = getMaterialUsagesForIssue(issueId),
                         personalContextUsages = getPersonalContextUsagesForIssue(issueId),
-                        audioAssets = getAudioAssetsForIssue(issueId)
+                        audioAssets = getAudioAssetsForIssue(issueId),
+                        skillKnowledgeUsages = getSkillKnowledgeUsagesForIssue(issueId),
                     )
                 )
             )
