@@ -4,6 +4,16 @@ import com.elio.jianyu.data.Character
 import com.elio.jianyu.data.ChatSession
 import com.elio.jianyu.data.ContextSourceType
 import com.elio.jianyu.data.Message
+import com.elio.jianyu.skill.catalog.OfficialSkillAvailability
+import com.elio.jianyu.skill.catalog.OfficialSkillDefinition
+import com.elio.jianyu.skill.catalog.OfficialSkillMaterialRequirement
+import com.elio.jianyu.skill.catalog.OfficialSkillNetworkRequirement
+import com.elio.jianyu.skill.catalog.OfficialSkillPrimaryType
+import com.elio.jianyu.skill.catalog.OfficialSkillPrimaryValue
+import com.elio.jianyu.skill.catalog.OfficialSkillPublicationStatus
+import com.elio.jianyu.skill.catalog.OfficialSkillRiskLevel
+import com.elio.jianyu.skill.catalog.OfficialSkillSourceStatus
+import com.elio.jianyu.skill.catalog.OfficialSkillUseMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -285,6 +295,49 @@ class DialogUiStateTest {
     }
 
     @Test
+    fun mapDialogUiState_usesOfficialCatalogAsCompleteAddRoleSource() {
+        val legacyCharacter = Character(
+            id = "legacy-role",
+            name = "旧兼容角色",
+            avatar = "",
+            tagline = "旧 Room 兼容数据",
+            systemPrompt = "保持角色视角",
+            order = 1,
+        )
+        val officialSkills = listOf(
+            officialSkill("legacy-role", "旧兼容角色", 1),
+            officialSkill("career-navigator", "职业发展顾问", 2),
+            officialSkill("study-planner", "学习规划师", 3),
+        )
+
+        val mapped = mapDialogUiState(
+            localState = DialogUiState(),
+            sessions = listOf(ChatSession(id = 1, title = "测试会话")),
+            currentSession = ChatSession(id = 1, title = "测试会话"),
+            messages = emptyList(),
+            characters = listOf(legacyCharacter),
+            officialSkills = officialSkills,
+            participantIds = listOf(legacyCharacter.id),
+            archivedSessionIds = emptySet(),
+            showArchivedSessions = false,
+            isGenerating = false,
+            searchEnabled = false,
+            thinkingIntensity = "标准",
+        )
+
+        assertEquals(
+            listOf("legacy-role", "career-navigator", "study-planner"),
+            mapped.addSkillCatalog.allSkills.map { it.id },
+        )
+        assertTrue(mapped.addSkillCatalog.allSkills.any { it.name == "职业发展顾问" })
+        assertTrue(mapped.addSkillCatalog.allSkills.any { it.name == "学习规划师" })
+        assertEquals(
+            "avatars/portraits/career-navigator.jpg",
+            mapped.addSkillCatalog.allSkills.first { it.id == "career-navigator" }.avatarUrl,
+        )
+    }
+
+    @Test
     fun mapDialogUiState_removesReplyScopeThatIsNotAvailableInCurrentSession() {
         val available = Character(
             id = "available",
@@ -324,4 +377,40 @@ class DialogUiStateTest {
         assertNull(mapped.composerState.targetRole)
         assertFalse(mapped.composerState.isMultiRoleAnswer)
     }
+    private fun officialSkill(
+        id: String,
+        name: String,
+        order: Int,
+    ): OfficialSkillDefinition = OfficialSkillDefinition(
+        id = id,
+        nameZh = name,
+        summary = "$name summary",
+        primaryType = OfficialSkillPrimaryType.PROFESSIONAL_ADVISOR,
+        primaryValue = OfficialSkillPrimaryValue.REALITY_SUPPORT,
+        domainTags = emptyList(),
+        scenarioTags = emptyList(),
+        inputTags = emptyList(),
+        outputTags = emptyList(),
+        useMode = OfficialSkillUseMode.BOTH,
+        networkRequirement = OfficialSkillNetworkRequirement.NOT_NEEDED,
+        materialRequirements = listOf(OfficialSkillMaterialRequirement.NONE),
+        riskLevel = OfficialSkillRiskLevel.GENERAL,
+        publicationStatus = OfficialSkillPublicationStatus.PUBLISHABLE,
+        sourceStatus = OfficialSkillSourceStatus.VERIFIED_IMPLEMENTATION_SOURCE,
+        availability = OfficialSkillAvailability(
+            v1Target = true,
+            hasAsset = true,
+            discoverable = true,
+            searchable = true,
+            recommendable = true,
+            executable = true,
+        ),
+        typicalScenarios = emptyList(),
+        inputRequirements = emptyList(),
+        outputForms = emptyList(),
+        boundaries = emptyList(),
+        sourceSummary = "test",
+        defaultOrder = order,
+    )
+
 }

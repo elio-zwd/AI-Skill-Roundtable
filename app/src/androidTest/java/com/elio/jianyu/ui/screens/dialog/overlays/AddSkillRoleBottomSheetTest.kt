@@ -1,6 +1,6 @@
 package com.elio.jianyu.ui.screens.dialog.overlays
 
-import androidx.compose.ui.test.assertExists
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import com.elio.jianyu.ui.screens.dialog.AddSkillCatalogUiModel
@@ -44,7 +44,7 @@ class AddSkillRoleBottomSheetTest {
             }
         }
 
-        composeRule.onNodeWithContentDescription("职业发展顾问").assertExists()
+        composeRule.onNodeWithContentDescription("职业发展顾问").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("学习规划师").assertExists()
     }
 }

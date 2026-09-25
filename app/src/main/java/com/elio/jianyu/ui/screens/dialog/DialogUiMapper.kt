@@ -3,6 +3,8 @@ package com.elio.jianyu.ui.screens.dialog
 import com.elio.jianyu.data.Character
 import com.elio.jianyu.data.ChatSession
 import com.elio.jianyu.data.Message
+import com.elio.jianyu.skill.catalog.OfficialSkillDefinition
+import com.elio.jianyu.skill.role.officialSkillVisualAssetPath
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -15,6 +17,7 @@ internal fun mapDialogUiState(
     currentSession: ChatSession?,
     messages: List<Message>,
     characters: List<Character>,
+    officialSkills: List<OfficialSkillDefinition> = emptyList(),
     participantIds: List<String>,
     archivedSessionIds: Set<Long>,
     showArchivedSessions: Boolean,
@@ -23,11 +26,21 @@ internal fun mapDialogUiState(
     thinkingIntensity: String,
     showMessageTimestamps: Boolean = true,
 ): DialogUiState {
-    val roleById = characters.associate { character ->
+    val legacyRoleById = characters.associate { character ->
         character.id to character.toSkillRoleUiModel(character.id in participantIds)
     }
+    val officialRoles = officialSkills.map { skill ->
+        skill.toSkillRoleUiModel(skill.id in participantIds)
+    }
+    val officialRoleById = officialRoles.associateBy(SkillRoleUiModel::id)
+    // OfficialSkillCatalog 是用户侧完整角色事实源；legacy Character 只为历史会话/执行兼容兜底。
+    val roleById = legacyRoleById + officialRoleById
     val activeRoles = participantIds.mapNotNull(roleById::get)
-    val allRoles = characters.map { character -> roleById.getValue(character.id) }
+    val allRoles = if (officialRoles.isNotEmpty()) {
+        officialRoles
+    } else {
+        characters.map { character -> legacyRoleById.getValue(character.id) }
+    }
     val skillSearchQuery = localState.addSkillCatalog.searchQuery.trim()
     val visibleRoles = allRoles.filter { role ->
         skillSearchQuery.isEmpty() ||
@@ -90,6 +103,19 @@ internal fun Character.toSkillRoleUiModel(inCurrentSession: Boolean): SkillRoleU
         shortDescription = tagline,
         avatarUrl = avatar,
         avatarText = name.take(2),
+        tintBg = roleColors(id).background,
+        tintBorder = roleColors(id).border,
+        accentColor = roleColors(id).accent,
+        isInCurrentSession = inCurrentSession,
+    )
+
+internal fun OfficialSkillDefinition.toSkillRoleUiModel(inCurrentSession: Boolean): SkillRoleUiModel =
+    SkillRoleUiModel(
+        id = id,
+        name = nameZh,
+        shortDescription = summary,
+        avatarUrl = officialSkillVisualAssetPath(this),
+        avatarText = nameZh.take(2),
         tintBg = roleColors(id).background,
         tintBorder = roleColors(id).border,
         accentColor = roleColors(id).accent,
