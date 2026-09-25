@@ -55,6 +55,7 @@ import com.elio.jianyu.execution.SearchMode
 import com.elio.jianyu.skill.knowledge.SkillKnowledgeContextFormatter
 import com.elio.jianyu.skill.knowledge.SkillKnowledgeRetrievalResult
 import com.elio.jianyu.skill.knowledge.SkillKnowledgeSelection
+import com.elio.jianyu.skill.knowledge.SKILL_KNOWLEDGE_CONTEXT_BUDGET_CHARACTERS
 import com.elio.jianyu.roundtable.RoundtableDatabaseGateway
 import com.elio.jianyu.roundtable.CharacterAnswerGateway
 import com.elio.jianyu.roundtable.RoundtableBudgetManager
@@ -138,14 +139,20 @@ internal fun conversationBaseContextCharacters(
     targetCharacters: List<Character>,
     responseMode: TranscriptBuilder.ResponseMode,
     skillPromptCharacters: Map<String, Int>,
-): Int = targetCharacters.maxOfOrNull { character ->
-    TranscriptBuilder.build(
-        messages = messages,
-        currentCharacter = character,
-        roundIndex = 0,
-        responseMode = responseMode,
-    ).length + skillPromptCharacters.getOrDefault(character.id, 0)
-}?.coerceAtLeast(0) ?: 0
+    skillKnowledgeReserveCharacters: Int = 0,
+): Int {
+    require(skillKnowledgeReserveCharacters >= 0)
+    return targetCharacters.maxOfOrNull { character ->
+        TranscriptBuilder.build(
+            messages = messages,
+            currentCharacter = character,
+            roundIndex = 0,
+            responseMode = responseMode,
+        ).length +
+            skillPromptCharacters.getOrDefault(character.id, 0) +
+            skillKnowledgeReserveCharacters
+    }?.coerceAtLeast(0) ?: 0
+}
 
 data class RetryableRoundtableState(
     val sessionId: Long,
@@ -1101,6 +1108,12 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                         targetCharacters = targetCharacters,
                         responseMode = responseMode,
                         skillPromptCharacters = skillPromptCharacters,
+                        skillKnowledgeReserveCharacters =
+                            if (skillKnowledgeRetriever != null) {
+                                SKILL_KNOWLEDGE_CONTEXT_BUDGET_CHARACTERS
+                            } else {
+                                0
+                            },
                     ),
                     items = items,
                     confirmed = true,
