@@ -18,6 +18,54 @@ class ContextConfirmationDialogTest {
     val composeRule = createComposeRule()
 
     @Test
+    fun skillKnowledgeIsReadOnlyWithoutPrivacyPermissionControls() {
+        val candidate = ContextCandidateUi(
+            sourceType = ContextSourceType.SKILL_KNOWLEDGE,
+            sourceId = "feynman-research",
+            title = "",
+            sourceKind = "richard_feynman",
+            sourceLocator = "references/research.md",
+            sourcePublishedAt = null,
+            sourceCapturedAt = null,
+            originalContent = "",
+            selectedContent = "",
+            sourceHash = "hash",
+            sourceUpdatedAt = 0L,
+            sensitive = false,
+            selected = true,
+            networkAllowed = false,
+            sensitiveConfirmed = false,
+        )
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                ContextConfirmationDialog(
+                    state = ContextConfirmationUiState(
+                        visible = true,
+                        runId = "run-1",
+                        issueId = "issue-1",
+                        stageId = "stage-1",
+                        currentUserInput = "",
+                        baseContextCharacters = 10,
+                        candidates = listOf(candidate),
+                    ),
+                    onDismiss = {},
+                    onToggleSelected = { _, _ -> },
+                    onNetworkAllowed = { _, _, _ -> },
+                    onSensitiveConfirmed = { _, _, _ -> },
+                    onExcerptChanged = { _, _, _ -> },
+                    onConfirm = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Skill ").assertIsDisplayed()
+        composeRule.onNodeWithText("").assertIsDisplayed()
+        composeRule.onNodeWithText("").assertDoesNotExist()
+        composeRule.onNodeWithText("").assertDoesNotExist()
+        composeRule.onNodeWithTag(ContextConfirmationTestTags.CONFIRM).assertIsDisplayed()
+    }
+
+    @Test
     fun networkPermissionBlocksConfirmationWithoutSilentlyDroppingSource() {
         val candidate = ContextCandidateUi(
             sourceType = ContextSourceType.MATERIAL,
