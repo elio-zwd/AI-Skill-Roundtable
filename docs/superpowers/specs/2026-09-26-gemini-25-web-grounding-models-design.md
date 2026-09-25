@@ -18,6 +18,7 @@
    - 3.8 / 3.7 / 2.5 Flash / 2.5 Flash-Lite 不接收应用统一档位 `minimal`，在 Interactions 请求边界映射为 `low`。
    - 3.6 / 3.5 Flash / 3.5 Flash-Lite / 3.1 Flash-Lite 保留 `minimal`。
 5. **联网资料仍与最终回答解耦。** `WEB_GROUNDING` 先产生独立检索摘要，再作为补充上下文交给最终回答模型；最终回答模型可以继续是 Gemini 或 DeepSeek。本次不扩展新的结果实体或缓存层。
+6. **新增模型必须可访问。** 模型选择 BottomSheet 的模型数量由 5 个增加到 8 个后需要支持纵向滚动，避免小屏设备无法选择位于底部的 2.5 模型。
 
 ## 模型目录
 
