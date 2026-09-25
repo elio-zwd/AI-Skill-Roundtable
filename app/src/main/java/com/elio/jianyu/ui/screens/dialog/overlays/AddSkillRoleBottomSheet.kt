@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import com.elio.jianyu.ui.screens.dialog.DialogIcons
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -124,10 +125,10 @@ fun AddSkillRoleBottomSheet(
                         .fillMaxWidth()
                         .height(40.dp)
                         .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xFFF1F5F9))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                         .border(
                             width = 1.dp,
-                            color = Color(0xFFE2E8F0),
+                            color = MaterialTheme.colorScheme.outlineVariant,
                             shape = RoundedCornerShape(20.dp),
                         )
                         .padding(horizontal = 12.dp),
@@ -140,7 +141,7 @@ fun AddSkillRoleBottomSheet(
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "搜索",
-                            tint = Color(0xFF94A3B8),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp),
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -161,7 +162,7 @@ fun AddSkillRoleBottomSheet(
                                     if (catalog.searchQuery.isEmpty()) {
                                         Text(
                                             text = "搜索 Skill 角色",
-                                            color = Color(0xFF94A3B8),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             fontSize = 13.5.sp,
                                         )
                                     }
@@ -174,7 +175,7 @@ fun AddSkillRoleBottomSheet(
                             Icon(
                                 imageVector = DialogIcons.Close,
                                 contentDescription = "清空",
-                                tint = Color(0xFF94A3B8),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier
                                     .size(16.dp)
                                     .clickable { onEvent(DialogEvent.SearchSkillsToAdd("")) },
@@ -294,10 +295,10 @@ private fun MiniSkillGridCard(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(DialogTokens.RadiusCard))
-            .background(skill.tintBg)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
             .border(
                 width = DialogTokens.BorderThin,
-                color = skill.tintBorder,
+                color = MaterialTheme.colorScheme.outlineVariant,
                 shape = RoundedCornerShape(DialogTokens.RadiusCard),
             )
             .padding(10.dp),

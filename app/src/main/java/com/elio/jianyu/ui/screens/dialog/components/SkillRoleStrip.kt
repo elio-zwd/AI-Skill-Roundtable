@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
@@ -84,9 +85,17 @@ private fun SkillRoleCard(
     val isPlanner = role.id == "planning_coach" || role.id == "planner"
     val isThinker = role.id == "systems_thinker" || role.id == "thinker"
 
-    // 卡片背景与描边
-    val cardBg = if (isPlanner) Color(0xFFF5F4FE) else if (isThinker) Color(0xFFF0F9F5) else role.tintBg
-    val cardBorder = if (isPlanner) Color(0xFFECEAFB) else if (isThinker) Color(0xFFDCF2E7) else role.tintBorder
+    // 角色卡片使用主题容器色，避免深色主题下仍出现大片浅色卡片。
+    val cardBg = when {
+        isPlanner -> MaterialTheme.colorScheme.tertiaryContainer
+        isThinker -> MaterialTheme.colorScheme.secondaryContainer
+        else -> MaterialTheme.colorScheme.surfaceContainer
+    }
+    val cardBorder = when {
+        isPlanner -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.35f)
+        isThinker -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.35f)
+        else -> MaterialTheme.colorScheme.outlineVariant
+    }
     val avatarRes = role.avatarResId ?: if (isPlanner) R.drawable.avatar_planner else if (isThinker) R.drawable.avatar_thinker else null
 
     Box(
@@ -199,10 +208,10 @@ private fun AddSkillRoleEntryCard(
         modifier = modifier
             .height(72.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFFF7F7FA))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
             .border(
                 width = 1.dp,
-                color = Color(0xFFEBEBF0),
+                color = MaterialTheme.colorScheme.outlineVariant,
                 shape = RoundedCornerShape(16.dp),
             )
             .clickable(
@@ -220,7 +229,7 @@ private fun AddSkillRoleEntryCard(
             Icon(
                 imageVector = DialogIcons.Add,
                 contentDescription = "增加",
-                tint = Color(0xFF8B5CF6),
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp),
             )
             Spacer(modifier = Modifier.width(4.dp))

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -74,10 +75,10 @@ fun DialogComposer(
                     spotColor = Color(0x1A64748B),
                 )
                 .clip(RoundedCornerShape(26.dp))
-                .background(Color.White)
+                .background(MaterialTheme.colorScheme.surface)
                 .border(
                     width = 1.dp,
-                    color = Color(0xFFEAEBED),
+                    color = MaterialTheme.colorScheme.outlineVariant,
                     shape = RoundedCornerShape(26.dp),
                 )
                 .padding(horizontal = 6.dp, vertical = 5.dp),
@@ -91,7 +92,7 @@ fun DialogComposer(
                     modifier = Modifier
                         .size(42.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFF3E8FF))
+                        .background(MaterialTheme.colorScheme.tertiaryContainer)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = ripple(bounded = true),
@@ -102,7 +103,7 @@ fun DialogComposer(
                     Icon(
                         imageVector = DialogIcons.Add,
                         contentDescription = "添加功能",
-                        tint = Color(0xFF8B5CF6),
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
                         modifier = Modifier.size(22.dp),
                     )
                 }
@@ -140,10 +141,10 @@ fun DialogComposer(
                             textStyle = androidx.compose.ui.text.TextStyle(
                                 fontSize = 14.5.sp,
                                 lineHeight = 20.sp,
-                                color = Color(0xFF1E293B),
+                                color = MaterialTheme.colorScheme.onSurface,
                             ),
                             maxLines = 4,
-                            cursorBrush = androidx.compose.ui.graphics.SolidColor(Color(0xFF2563EB)),
+                            cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
                             decorationBox = { innerTextField ->
                                 Box(
                                     modifier = Modifier
@@ -154,7 +155,7 @@ fun DialogComposer(
                                     if (composerState.inputText.isEmpty()) {
                                         Text(
                                             text = "输入问题或想法...",
-                                            color = Color(0xFF94A3B8),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             fontSize = 14.5.sp,
                                         )
                                     }
@@ -185,7 +186,7 @@ fun DialogComposer(
                     Icon(
                         imageVector = DialogIcons.AlternateEmail,
                         contentDescription = "选择回复角色",
-                        tint = Color(0xFF64748B),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp),
                     )
                 }
@@ -200,8 +201,8 @@ fun DialogComposer(
                         .testTag(if (composerState.isGenerating) "stop_button" else "send_button")
                         .clip(CircleShape)
                         .background(
-                            if (isSendActive) Color(0xFF2563EB)
-                            else Color(0xFF2563EB).copy(alpha = 0.5f),
+                            if (isSendActive) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                         )
                         .clickable(
                             enabled = isSendActive,
@@ -214,7 +215,7 @@ fun DialogComposer(
                     Icon(
                         imageVector = if (composerState.isGenerating) Icons.Default.Close else DialogIcons.SendPlane,
                         contentDescription = if (composerState.isGenerating) "停止" else "发送",
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(19.dp),
                     )
                 }
@@ -235,7 +236,7 @@ private fun SearchStatusChip(
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
-            .background(Color(0xFFEEF5FF))
+            .background(MaterialTheme.colorScheme.primaryContainer)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = ripple(bounded = true),
@@ -248,12 +249,12 @@ private fun SearchStatusChip(
         Icon(
             imageVector = DialogIcons.Language,
             contentDescription = "联网搜索",
-            tint = Color(0xFF2563EB),
+            tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(14.dp),
         )
         Text(
             text = "联网搜索",
-            color = Color(0xFF2563EB),
+            color = MaterialTheme.colorScheme.primary,
             fontSize = 11.5.sp,
             fontWeight = FontWeight.Medium,
         )
@@ -284,21 +285,21 @@ private fun TargetRoleTag(
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFFEEF5FF))
+            .background(MaterialTheme.colorScheme.primaryContainer)
             .padding(horizontal = 6.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         Text(
             text = "@$roleName",
-            color = Color(0xFF2563EB),
+            color = MaterialTheme.colorScheme.primary,
             fontSize = 12.5.sp,
             fontWeight = FontWeight.Medium,
         )
         Icon(
             imageVector = Icons.Default.Close,
             contentDescription = "取消点名",
-            tint = Color(0xFF2563EB),
+            tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier
                 .size(13.dp)
                 .clickable(onClick = onClear),

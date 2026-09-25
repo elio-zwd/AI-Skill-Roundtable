@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -133,7 +134,7 @@ fun ConversationHistoryDrawer(
                             .fillMaxWidth()
                             .height(48.dp)
                             .clip(RoundedCornerShape(DialogTokens.RadiusButton))
-                            .background(DialogTokens.BrandPurpleLight)
+                            .background(MaterialTheme.colorScheme.primaryContainer)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = ripple(bounded = true),
@@ -172,10 +173,10 @@ fun ConversationHistoryDrawer(
                             .fillMaxWidth()
                             .height(40.dp)
                             .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0xFFF1F5F9))
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                             .border(
                                 width = 1.dp,
-                                color = Color(0xFFE2E8F0),
+                                color = MaterialTheme.colorScheme.outlineVariant,
                                 shape = RoundedCornerShape(20.dp),
                             )
                             .padding(horizontal = 12.dp),
@@ -188,7 +189,7 @@ fun ConversationHistoryDrawer(
                             Icon(
                                 imageVector = DialogIcons.Search,
                                 contentDescription = "搜索",
-                                tint = Color(0xFF94A3B8),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(18.dp),
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -209,7 +210,7 @@ fun ConversationHistoryDrawer(
                                         if (drawerData.searchQuery.isEmpty()) {
                                             Text(
                                                 text = "搜索会话记录",
-                                                color = Color(0xFF94A3B8),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 fontSize = 13.5.sp,
                                             )
                                         }
@@ -222,7 +223,7 @@ fun ConversationHistoryDrawer(
                                 Icon(
                                     imageVector = DialogIcons.Close,
                                     contentDescription = "清空",
-                                    tint = Color(0xFF94A3B8),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier
                                         .size(16.dp)
                                         .clickable { onEvent(DialogEvent.SearchSessions("")) },
@@ -288,7 +289,7 @@ fun ConversationHistoryDrawer(
                             .fillMaxWidth()
                             .height(46.dp)
                             .clip(RoundedCornerShape(DialogTokens.RadiusButton))
-                            .background(DialogTokens.BrandPurpleLight.copy(alpha = 0.5f))
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f))
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = ripple(bounded = true),
@@ -348,7 +349,7 @@ private fun DrawerSessionItem(
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(
-                if (session.isSelected) DialogTokens.BrandPurpleLight
+                if (session.isSelected) MaterialTheme.colorScheme.primaryContainer
                 else Color.Transparent,
             )
             .clickable(
