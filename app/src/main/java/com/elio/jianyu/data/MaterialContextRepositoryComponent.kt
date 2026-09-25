@@ -460,6 +460,31 @@ internal class MaterialContextRepositoryComponent(
                     }
                     verified += item.copy(title = source.title, sensitive = source.sensitive)
                 }
+                ContextSourceType.SKILL_KNOWLEDGE -> {
+                    val normalized = ContextContentHasher.normalize(item.content)
+                    if (
+                        normalized.isBlank() ||
+                        item.sourceKind.isBlank() ||
+                        item.sourceLocator.isNullOrBlank()
+                    ) {
+                        return validationFailure(ContextValidationError.SOURCE_NOT_FOUND)
+                    }
+                    val actualHash = ContextContentHasher.hash(normalized)
+                    if (
+                        item.expectedSourceHash != actualHash ||
+                        item.contentHash != actualHash
+                    ) {
+                        return validationFailure(ContextValidationError.CONTENT_HASH_MISMATCH)
+                    }
+                    verified += item.copy(
+                        content = normalized,
+                        contentHash = actualHash,
+                        expectedSourceHash = actualHash,
+                        networkAllowed = true,
+                        sensitive = false,
+                        sensitiveConfirmed = true,
+                    )
+                }
             }
         }
         return when (
@@ -517,8 +542,22 @@ internal class MaterialContextRepositoryComponent(
                     sensitive = usage.sensitive,
                 )
             }
+            val skillKnowledge = getSkillKnowledgeUsagesForRun(runId).map { usage ->
+                ContextUsageSnapshot(
+                    sourceType = ContextSourceType.SKILL_KNOWLEDGE,
+                    sourceId = usage.documentId,
+                    title = usage.titleSnapshot.takeIf(String::isNotBlank),
+                    content = usage.contentSnapshot,
+                    contentHash = usage.contentHash.takeIf(String::isNotBlank),
+                    contentState = SnapshotContentState.AVAILABLE,
+                    userConfirmedAt = usage.userConfirmedAt,
+                    usedAt = usage.createdAt,
+                    networkAllowed = true,
+                    sensitive = false,
+                )
+            }
             RepositoryResult.Success(
-                (materials + personal).sortedWith(
+                (materials + personal + skillKnowledge).sortedWith(
                     compareBy({ it.userConfirmedAt }, { it.sourceType.storageValue }, { it.sourceId }),
                 ),
             )
@@ -565,6 +604,24 @@ internal class MaterialContextRepositoryComponent(
                     createdAt = preparedAt,
                     networkAllowed = item.networkAllowed,
                     sensitive = item.sensitive,
+                )
+            },
+        skillKnowledge = items
+            .filter { it.sourceType == ContextSourceType.SKILL_KNOWLEDGE }
+            .map { item ->
+                SkillKnowledgeUsageSnapshotEntity(
+                    id = "${draft.runId}:skill-knowledge:${item.sourceId}",
+                    issueId = draft.issueId,
+                    stageId = draft.stageId,
+                    runId = draft.runId,
+                    sourceSkillId = item.sourceKind,
+                    documentId = item.sourceId,
+                    titleSnapshot = item.title,
+                    relativePathSnapshot = requireNotNull(item.sourceLocator),
+                    contentSnapshot = ContextContentHasher.normalize(item.content),
+                    contentHash = ContextContentHasher.hash(item.content),
+                    userConfirmedAt = item.userConfirmedAt,
+                    createdAt = preparedAt,
                 )
             },
         sourceExpectations = items.map { item ->
