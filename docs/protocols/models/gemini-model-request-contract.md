@@ -76,7 +76,7 @@ UI 的“极简 / 均衡 / 深度”先映射为应用统一档位 `minimal / me
 - `store=false` 时不能把该 Interaction 作为后续 `previous_interaction_id` 使用；
 - `store: true` 与 `previous_interaction_id` 在见域中只能用于同一 Skill 角色的链路，不能让角色 A 的链路成为角色 B 默认回答的上下文。
 
-当前客户端仍发送 `Api-Revision: 2026-05-20` 以明确使用 2026 年新版 steps schema；请求和响应解析均按 `steps` / `model_output` 工作。
+当前客户端仍携带 `Api-Revision: 2026-05-20`，请求和响应解析均已按 `steps` / `model_output` 工作。官方迁移窗口结束后服务端已默认新版 schema，因此该 Header 不再是 3.5～3.8 Flash 的模型能力依赖；本次不为新增模型顺手清理传输层 Header。
 
 ### 4.2 GenerateContent API
 
