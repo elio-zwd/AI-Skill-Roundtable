@@ -240,12 +240,9 @@ class RoundtableOrchestrator(
                 return OrchestrationResult(emptyList(), emptyList(), tracker.getUsed(), false)
             }
 
-            for (character in pendingCharacters) {
-                if (!answered.contains(character.id) && answered.size >= budget.maxCharactersPerQuestion) {
-                    isLimitExceeded = true
-                    break
-                }
-                val pendingMessageId = dbGateway.insertMessage(
+            // 先写入本次全部等待页，确保生成较慢的角色也有固定分页位置。
+            val pendingMessageIds = pendingCharacters.associate { character ->
+                character.id to dbGateway.insertMessage(
                     Message(
                         chatId = sessionId,
                         senderId = character.id,
@@ -253,88 +250,107 @@ class RoundtableOrchestrator(
                         avatar = character.avatar,
                         text = "正在思考中...",
                         isPending = true,
-                        roundIndex = currentRound
+                        roundIndex = currentRound,
+                        questionMessageId = questionRunId,
+                        responseMode = responseMode.name,
                     )
                 )
-                var latestPartialText = ""
-
-                try {
-                    val latestMessages = dbGateway.getMessages(sessionId)
-                    val transcript = TranscriptBuilder.build(
-                        messages = latestMessages,
-                        currentCharacter = character,
-                        roundIndex = currentRound,
-                        responseMode = responseMode,
-                    )
-                    val attemptPlan = createAttemptPlan(context, sessionId)
-                    if (attemptPlan.isEmpty()) {
-                        throw IllegalStateException("No available API key plan")
+            }
+            try {
+                for (character in pendingCharacters) {
+                    if (!answered.contains(character.id) && answered.size >= budget.maxCharactersPerQuestion) {
+                        isLimitExceeded = true
+                        break
                     }
+                    val pendingMessageId = pendingMessageIds.getValue(character.id)
+                    var latestPartialText = ""
 
-                    val reply = withTimeoutOrNull(characterTimeoutMs) {
-                        answerGateway.callGeminiApiStreaming(
-                            character = character,
-                            prompt = transcript,
-                            attemptPlan = attemptPlan,
-                            tracker = tracker,
-                            budget = budget,
-                            sessionId = sessionId,
-                            isRequired = true,
-                            reserveForRequired = 0,
-                            onAttemptStarted = {
-                                dbGateway.updatePendingMessageText(
-                                    pendingMessageId,
-                                    "正在思考中..."
-                                )
-                            },
-                            onTextUpdate = { partialText ->
-                                latestPartialText = partialText
-                                dbGateway.updatePendingMessageText(pendingMessageId, partialText)
-                            }
+                    try {
+                        val latestMessages = dbGateway.getMessages(sessionId)
+                        val transcript = TranscriptBuilder.build(
+                            messages = latestMessages,
+                            currentCharacter = character,
+                            roundIndex = currentRound,
+                            responseMode = responseMode,
                         )
-                    }
+                        val attemptPlan = createAttemptPlan(context, sessionId)
+                        if (attemptPlan.isEmpty()) {
+                            throw IllegalStateException("No available API key plan")
+                        }
 
-                    if (reply == null) {
+                        val reply = withTimeoutOrNull(characterTimeoutMs) {
+                            answerGateway.callGeminiApiStreaming(
+                                character = character,
+                                prompt = transcript,
+                                attemptPlan = attemptPlan,
+                                tracker = tracker,
+                                budget = budget,
+                                sessionId = sessionId,
+                                isRequired = true,
+                                reserveForRequired = 0,
+                                onAttemptStarted = {
+                                    dbGateway.updatePendingMessageText(
+                                        pendingMessageId,
+                                        "正在思考中..."
+                                    )
+                                },
+                                onTextUpdate = { partialText ->
+                                    latestPartialText = partialText
+                                    dbGateway.updatePendingMessageText(pendingMessageId, partialText)
+                                }
+                            )
+                        }
+
+                        if (reply == null) {
+                            settleInterruptedPendingMessage(
+                                pendingMessageId = pendingMessageId,
+                                partialText = latestPartialText,
+                                notice = "回答等待超时，以上内容可能不完整。",
+                            )
+                            PrivacySafeLogger.w(
+                                "RoundtableOrchestrator",
+                                "Character answer timed out"
+                            )
+                            failed.add(character.id)
+                            timedOut.add(character.id)
+                        } else {
+                            dbGateway.completePendingMessage(pendingMessageId, reply)
+                            completed.add(character.id)
+                            answered.add(character.id)
+                        }
+                    } catch (error: CancellationException) {
+                        withContext(NonCancellable) {
+                            settleInterruptedPendingMessage(
+                                pendingMessageId = pendingMessageId,
+                                partialText = latestPartialText,
+                                notice = "你已停止生成，以上内容可能不完整。",
+                            )
+                        }
+                        throw error
+                    } catch (error: Exception) {
+                        OrchestratorLogger.e(
+                            "RoundtableOrchestrator",
+                            "Character answer failed",
+                            error
+                        )
                         settleInterruptedPendingMessage(
                             pendingMessageId = pendingMessageId,
                             partialText = latestPartialText,
-                            notice = "回答等待超时，以上内容可能不完整。",
-                        )
-                        PrivacySafeLogger.w(
-                            "RoundtableOrchestrator",
-                            "Character answer timed out"
+                            notice = "回答生成中断，以上内容可能不完整。",
                         )
                         failed.add(character.id)
-                        timedOut.add(character.id)
-                    } else {
-                        dbGateway.completePendingMessage(pendingMessageId, reply)
-                        completed.add(character.id)
-                        answered.add(character.id)
                     }
-                } catch (error: CancellationException) {
-                    withContext(NonCancellable) {
-                        settleInterruptedPendingMessage(
-                            pendingMessageId = pendingMessageId,
-                            partialText = latestPartialText,
-                            notice = "你已停止生成，以上内容可能不完整。",
-                        )
-                    }
-                    throw error
-                } catch (error: Exception) {
-                    OrchestratorLogger.e(
-                        "RoundtableOrchestrator",
-                        "Character answer failed",
-                        error
-                    )
-                    settleInterruptedPendingMessage(
-                        pendingMessageId = pendingMessageId,
-                        partialText = latestPartialText,
-                        notice = "回答生成中断，以上内容可能不完整。",
-                    )
-                    failed.add(character.id)
-                }
 
-                if (minIntervalMs > 0L) delayProvider.delay(minIntervalMs)
+                    if (minIntervalMs > 0L) delayProvider.delay(minIntervalMs)
+                }
+            } finally {
+                // 停止或预算耗尽时，仅移除本次仍在等待的空页；已完成的回答保留。
+                withContext(NonCancellable) {
+                    val createdIds = pendingMessageIds.values.toSet()
+                    dbGateway.getMessages(sessionId)
+                        .filter { it.id in createdIds && it.isPending }
+                        .forEach { dbGateway.deleteMessageById(it.id) }
+                }
             }
 
         } finally {

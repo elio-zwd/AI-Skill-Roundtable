@@ -73,7 +73,9 @@ data class Message(
     val issueId: String? = null,
     val stageId: String? = null,
     val executionRunId: String? = null,
-    val participantSnapshotId: String? = null
+    val participantSnapshotId: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val questionMessageId: Long? = null,
+    @ColumnInfo(defaultValue = "'INDEPENDENT'") val responseMode: String = "INDEPENDENT"
 )
 
 @Dao
@@ -124,10 +126,10 @@ interface ChatDao {
     )
     suspend fun deleteMessagesByChatId(chatId: Long)
 
-    @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp ASC")
+    @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp ASC, id ASC")
     fun getMessagesForChatFlow(chatId: Long): Flow<List<Message>>
 
-    @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp ASC")
+    @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp ASC, id ASC")
     suspend fun getMessagesForChat(chatId: Long): List<Message>
 
     /** 将首页旧聊天消息补齐到对应的正式议题和对话节点。 */

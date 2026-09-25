@@ -35,6 +35,11 @@ sealed interface DialogEvent {
     data class CopyMessage(val messageId: String, val content: String) : DialogEvent
     data class SaveMessageAsArtifact(val messageId: String) : DialogEvent
     data class ClickMessageMore(val messageId: String) : DialogEvent
+    object ToggleRoleStrip : DialogEvent
+    data class SelectAnswer(val questionId: String, val answerId: String) : DialogEvent
+    data class ToggleAnswerExpanded(val answerId: String) : DialogEvent
+    data class SaveAnswerOffset(val answerId: String, val offset: Int) : DialogEvent
+    data class SaveConversationOffset(val itemId: String, val offset: Int) : DialogEvent
 
     // 输入区与发送
     data class InputTextChanged(val text: String) : DialogEvent

@@ -65,6 +65,7 @@ internal fun mapDialogUiState(
         messages = messages.map { message ->
             message.toDialogMessage(roleById, showMessageTimestamps)
         },
+        visibleMessages = buildDialogTimeline(messages, roleById, showMessageTimestamps),
         searchState = DialogSearchState(
             enabled = searchEnabled,
             statusText = if (searchEnabled) "已开" else "已关",
@@ -94,6 +95,36 @@ internal fun mapDialogUiState(
             allSkills = visibleRoles,
         ),
     )
+}
+
+internal fun buildDialogTimeline(
+    messages: List<Message>,
+    roleById: Map<String, SkillRoleUiModel>,
+    showTimestamps: Boolean,
+): List<DialogTimelineItem> {
+    val result = mutableListOf<DialogTimelineItem>()
+    val groups = linkedMapOf<Long, MutableList<DialogMessageItem.SkillMessage>>()
+    val userMessageIds = messages.asSequence().filter { it.senderId == "user" }.map { it.id }.toSet()
+    messages.forEach { message ->
+        val mapped = message.toDialogMessage(roleById, showTimestamps)
+        val questionId = message.questionMessageId
+        if (mapped is DialogMessageItem.SkillMessage && questionId != null &&
+            message.responseMode == "INDEPENDENT" &&
+            questionId in userMessageIds
+        ) {
+            val replies = groups[questionId]
+            if (replies == null) {
+                val newReplies = mutableListOf(mapped)
+                groups[questionId] = newReplies
+                result += DialogTimelineItem.Answers(questionId.toString(), newReplies)
+            } else {
+                replies += mapped
+            }
+        } else {
+            result += DialogTimelineItem.Single(mapped)
+        }
+    }
+    return result
 }
 
 internal fun Character.toSkillRoleUiModel(inCurrentSession: Boolean): SkillRoleUiModel =

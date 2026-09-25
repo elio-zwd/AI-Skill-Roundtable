@@ -15,14 +15,23 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
-import com.elio.jianyu.ui.theme.LocalReducedMotion
 import com.elio.jianyu.ui.screens.dialog.components.DialogComposer
+import com.elio.jianyu.ui.screens.dialog.components.AnswerPager
 import com.elio.jianyu.ui.screens.dialog.components.DialogTopBar
 import com.elio.jianyu.ui.screens.dialog.components.SkillMessageCard
 import com.elio.jianyu.ui.screens.dialog.components.SkillRoleStrip
@@ -38,6 +47,7 @@ import com.elio.jianyu.ui.screens.dialog.overlays.TargetRoleSelectionBottomSheet
  * 见域「对话」Top 1 核心页面主屏 Composable
  * 对应设计规范 docs/product/重构/UI界面/对话/jianyu-dialog-final-ui-spec.md
  */
+@OptIn(kotlinx.coroutines.FlowPreview::class)
 @Composable
 fun DialogScreen(
     uiState: DialogUiState,
@@ -45,16 +55,67 @@ fun DialogScreen(
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
-    val reducedMotion = LocalReducedMotion.current
+    val scope = rememberCoroutineScope()
 
-    LaunchedEffect(uiState.messages.size, reducedMotion) {
-        if (uiState.messages.isNotEmpty()) {
-            if (reducedMotion) {
-                listState.scrollToItem(uiState.messages.lastIndex)
-            } else {
-                listState.animateScrollToItem(uiState.messages.lastIndex)
+    var scrollRestored by remember(uiState.session.id) { mutableStateOf(false) }
+    LaunchedEffect(uiState.session.id, uiState.restoredSessionId, uiState.visibleMessages.map { it.id }) {
+        if (!scrollRestored && uiState.visibleMessages.isNotEmpty() &&
+            uiState.session.id.isNotEmpty() && uiState.restoredSessionId == uiState.session.id
+        ) {
+            val index = uiState.visibleMessages.indexOfFirst { it.id == uiState.conversationScrollKey }
+            if (index >= 0) listState.scrollToItem(index, uiState.conversationScrollOffset)
+            else listState.scrollToItem(uiState.visibleMessages.lastIndex)
+            scrollRestored = true
+        }
+    }
+    var previousItemCount by remember(uiState.session.id) { mutableStateOf(uiState.visibleMessages.size) }
+    LaunchedEffect(uiState.visibleMessages.size, uiState.session.id) {
+        val newCount = uiState.visibleMessages.size
+        if (newCount > previousItemCount && previousItemCount > 0 &&
+            listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index == previousItemCount - 1
+        ) {
+            listState.scrollToItem(newCount - 1)
+        }
+        previousItemCount = newCount
+    }
+    LaunchedEffect(uiState.session.id, uiState.restoredSessionId, uiState.visibleMessages.map { it.id }) {
+        if (uiState.session.id.isNotEmpty() && uiState.restoredSessionId == uiState.session.id) {
+            snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+                .distinctUntilChanged()
+                .debounce(350)
+                .collect { (index, offset) ->
+                    uiState.visibleMessages.getOrNull(index)?.let {
+                        onEvent(DialogEvent.SaveConversationOffset(it.id, offset))
+                    }
+                }
+        }
+    }
+
+    fun selectAnswer(event: DialogEvent.SelectAnswer) {
+        val groupIndex = uiState.visibleMessages.indexOfFirst {
+            it is DialogTimelineItem.Answers && it.questionId == event.questionId
+        }
+        val group = uiState.visibleMessages.getOrNull(groupIndex) as? DialogTimelineItem.Answers
+        if (group != null && groupIndex == listState.firstVisibleItemIndex) {
+            val currentId = uiState.selectedAnswerIds[event.questionId] ?: group.replies.first().id
+            onEvent(DialogEvent.SaveAnswerOffset(currentId, listState.firstVisibleItemScrollOffset))
+        }
+        onEvent(event)
+    }
+    var previousSelection by remember(uiState.session.id, uiState.restoredSessionId) {
+        mutableStateOf(uiState.selectedAnswerIds)
+    }
+    LaunchedEffect(uiState.selectedAnswerIds, uiState.session.id) {
+        uiState.selectedAnswerIds.forEach { (questionId, answerId) ->
+            if (previousSelection[questionId] == answerId) return@forEach
+            val groupIndex = uiState.visibleMessages.indexOfFirst {
+                it is DialogTimelineItem.Answers && it.questionId == questionId
+            }
+            if (groupIndex >= 0 && groupIndex in listState.layoutInfo.visibleItemsInfo.map { it.index }) {
+                listState.scrollToItem(groupIndex, uiState.answerScrollOffsets[answerId] ?: 0)
             }
         }
+        previousSelection = uiState.selectedAnswerIds
     }
 
     Box(
@@ -74,6 +135,7 @@ fun DialogScreen(
                         DialogTopBar(
                             session = uiState.session,
                             onEvent = onEvent,
+                            roleStripExpanded = uiState.roleStripExpanded,
                         )
                         SessionMoreMenuPopover(
                             expanded = uiState.isMoreMenuOpen,
@@ -84,7 +146,7 @@ fun DialogScreen(
                     }
 
                     // 2. Skill 角色条
-                    SkillRoleStrip(
+                    if (uiState.roleStripExpanded) SkillRoleStrip(
                         activeRoles = uiState.activeRoles,
                         onEvent = onEvent,
                     )
@@ -110,16 +172,31 @@ fun DialogScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                items(uiState.messages, key = { it.id }) { message ->
-                    when (message) {
-                        is DialogMessageItem.UserMessage -> {
-                            UserMessageBubble(message = message)
-                        }
-                        is DialogMessageItem.SkillMessage -> {
-                            SkillMessageCard(
-                                message = message,
-                                onEvent = onEvent,
-                            )
+                items(uiState.visibleMessages, key = { it.id }) { item ->
+                    when (item) {
+                        is DialogTimelineItem.Answers -> AnswerPager(
+                            group = item,
+                            selectedAnswerId = uiState.selectedAnswerIds[item.questionId],
+                            expandedAnswerIds = uiState.expandedAnswerIds,
+                            readAnswerIds = uiState.readAnswerIds,
+                            onEvent = { event ->
+                                when (event) {
+                                    is DialogEvent.SelectAnswer -> selectAnswer(event)
+                                    is DialogEvent.ToggleAnswerExpanded -> {
+                                        if (event.answerId in uiState.expandedAnswerIds) {
+                                            scope.launch { listState.scrollToItem(
+                                                uiState.visibleMessages.indexOf(item).coerceAtLeast(0),
+                                            ) }
+                                        }
+                                        onEvent(event)
+                                    }
+                                    else -> onEvent(event)
+                                }
+                            },
+                        )
+                        is DialogTimelineItem.Single -> when (val message = item.message) {
+                            is DialogMessageItem.UserMessage -> UserMessageBubble(message = message)
+                            is DialogMessageItem.SkillMessage -> SkillMessageCard(message = message, onEvent = onEvent)
                         }
                     }
                 }

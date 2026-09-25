@@ -79,6 +79,9 @@ fun DialogRoute(
     var showReferenceDialog by remember { mutableStateOf(false) }
     var messageActionId by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    val readingPrefs = remember(context.applicationContext) {
+        context.applicationContext.getSharedPreferences("dialog_reading_state", android.content.Context.MODE_PRIVATE)
+    }
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     val avatarRepository = remember(context.applicationContext) {
@@ -104,6 +107,26 @@ fun DialogRoute(
 
     LaunchedEffect(Unit) {
         viewModel.ensureConversationReady()
+    }
+    LaunchedEffect(currentSession?.id) {
+        val sessionId = currentSession?.id ?: return@LaunchedEffect
+        val prefix = "session_$sessionId"
+        val selected = readingPrefs.all.keys
+            .filter { it.startsWith("${prefix}_page_") }
+            .associate { key -> key.removePrefix("${prefix}_page_") to readingPrefs.getString(key, "").orEmpty() }
+        val offsets = readingPrefs.all.keys
+            .filter { it.startsWith("${prefix}_offset_") }
+            .associate { key -> key.removePrefix("${prefix}_offset_") to readingPrefs.getInt(key, 0) }
+        localState = localState.copy(
+            roleStripExpanded = readingPrefs.getBoolean("${prefix}_roles", true),
+            selectedAnswerIds = selected,
+            expandedAnswerIds = readingPrefs.getStringSet("${prefix}_expanded", emptySet()).orEmpty().toSet(),
+            readAnswerIds = readingPrefs.getStringSet("${prefix}_read", emptySet()).orEmpty().toSet(),
+            answerScrollOffsets = offsets,
+            conversationScrollKey = readingPrefs.getString("${prefix}_scroll_key", null),
+            conversationScrollOffset = readingPrefs.getInt("${prefix}_scroll_offset", 0),
+            restoredSessionId = sessionId.toString(),
+        )
     }
     LaunchedEffect(errorMessage) {
         errorMessage?.let { message ->
@@ -237,6 +260,56 @@ fun DialogRoute(
                         }
                     }
                     is DialogEvent.ClickMessageMore -> messageActionId = event.messageId
+                    DialogEvent.ToggleRoleStrip -> {
+                        val expanded = !localState.roleStripExpanded
+                        localState = localState.copy(roleStripExpanded = expanded)
+                        currentSession?.id?.let { readingPrefs.edit().putBoolean("session_${it}_roles", expanded).apply() }
+                    }
+                    is DialogEvent.SelectAnswer -> {
+                        val read = localState.readAnswerIds + event.answerId
+                        localState = localState.copy(
+                            selectedAnswerIds = localState.selectedAnswerIds + (event.questionId to event.answerId),
+                            readAnswerIds = read,
+                        )
+                        currentSession?.id?.let {
+                            readingPrefs.edit()
+                                .putString("session_${it}_page_${event.questionId}", event.answerId)
+                                .putStringSet("session_${it}_read", read)
+                                .apply()
+                        }
+                    }
+                    is DialogEvent.ToggleAnswerExpanded -> {
+                        val expanded = if (event.answerId in localState.expandedAnswerIds) {
+                            localState.expandedAnswerIds - event.answerId
+                        } else {
+                            localState.expandedAnswerIds + event.answerId
+                        }
+                        localState = localState.copy(expandedAnswerIds = expanded)
+                        if (event.answerId !in expanded) {
+                            localState = localState.copy(answerScrollOffsets = localState.answerScrollOffsets + (event.answerId to 0))
+                        }
+                        currentSession?.id?.let {
+                            readingPrefs.edit()
+                                .putStringSet("session_${it}_expanded", expanded)
+                                .apply {
+                                    if (event.answerId !in expanded) putInt("session_${it}_offset_${event.answerId}", 0)
+                                }
+                                .apply()
+                        }
+                    }
+                    is DialogEvent.SaveAnswerOffset -> {
+                        localState = localState.copy(answerScrollOffsets = localState.answerScrollOffsets + (event.answerId to event.offset))
+                        currentSession?.id?.let { readingPrefs.edit().putInt("session_${it}_offset_${event.answerId}", event.offset).apply() }
+                    }
+                    is DialogEvent.SaveConversationOffset -> {
+                        localState = localState.copy(conversationScrollKey = event.itemId, conversationScrollOffset = event.offset)
+                        currentSession?.id?.let {
+                            readingPrefs.edit()
+                                .putString("session_${it}_scroll_key", event.itemId)
+                                .putInt("session_${it}_scroll_offset", event.offset)
+                                .apply()
+                        }
+                    }
                     is DialogEvent.RenameSession -> {
                         if (resolveSessionId(event.sessionId) != null) {
                             renameTitle = currentSession?.title.orEmpty()
@@ -250,7 +323,13 @@ fun DialogRoute(
                         localState = uiState.copy(isMoreMenuOpen = false)
                     }
                     is DialogEvent.DeleteSession -> {
-                        resolveSessionId(event.sessionId)?.let(viewModel::deleteSession)
+                        resolveSessionId(event.sessionId)?.let { sessionId ->
+                            viewModel.deleteSession(sessionId)
+                            val prefix = "session_${sessionId}_"
+                            readingPrefs.edit().apply {
+                                readingPrefs.all.keys.filter { it.startsWith(prefix) }.forEach(::remove)
+                            }.apply()
+                        }
                         localState = uiState.copy(isMoreMenuOpen = false)
                     }
                     DialogEvent.OpenArchivedSessions -> {

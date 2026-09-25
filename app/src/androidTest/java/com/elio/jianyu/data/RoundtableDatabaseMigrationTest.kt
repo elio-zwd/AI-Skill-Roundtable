@@ -38,6 +38,25 @@ class RoundtableDatabaseMigrationTest {
     }
 
     @Test
+    fun migration14To15_addsAnswerAssociationWithoutClearingMessages() {
+        migrationHelper.createDatabase(TEST_DATABASE, 14).apply {
+            execSQL("INSERT INTO chat_sessions (id, title, createdAt) VALUES (1, '旧会话', 1)")
+            execSQL("INSERT INTO messages (id, chatId, senderId, senderName, avatar, text, timestamp, isPending, roundIndex, audioSizeBytes) VALUES (1, 1, 'user', '我', '', '旧消息', 1, 0, 0, 0)")
+            close()
+        }
+        val migrated = migrationHelper.runMigrationsAndValidate(
+            TEST_DATABASE, 15, true, RoundtableDatabase.MIGRATION_14_15,
+        )
+        migrated.query("SELECT text, questionMessageId, responseMode FROM messages WHERE id = 1").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("旧消息", cursor.getString(0))
+            assertTrue(cursor.isNull(1))
+            assertEquals("INDEPENDENT", cursor.getString(2))
+        }
+        migrated.close()
+    }
+
+    @Test
     fun migration1To6_matchesCurrentSchemaAndPreservesData() {
         val migrated = migrateLegacyDatabase(
             version = 1,
