@@ -591,6 +591,8 @@
 - 用户明确授权合入 Router。由于 #74 已先进入 main，先将 `main@545fa29cbcf69f1749e24d75dff8e2c2711f776a` 普通 merge 到 Router 分支，生成两父 commit `403807611a6f317478d29980e708353205cc4607`；non-force 更新，且 5 个 Router 文件 blob SHA 与已离线验证的 `6310db0...` 完全一致。
 - #73 同步后 base 为最新 main、behind_by=0、diff 仍仅 5 个 `tools/ai-router/*` 文件、mergeable=true；随后 Ready 并使用普通 merge commit 合入 main。
 - Router merge 后新 main：`b9aa4711cc82503bbf445150802655ab95f59a45`。
+- 用户随后明确要求 Router **当前不使用**。已创建并合入 PR #75，在 `tools/ai-router/README.md` 与 `router.py` 模块说明中标注：仅保留历史实验参考，不属于当前正式开发/验收流程；未经新的设计、评审和启用授权，不运行 Router、不配置真实 Drive/OAuth、不开启浏览器发送。
+- PR #75 merge commit：`d9a263039d5c15330b27c14b83a0f56efd7063d0`；仅文档/模块注释变化，不改变 Router 运行逻辑。
 
 ---
 
@@ -701,6 +703,7 @@
 #### Final Phase 当前快照
 
 - **Router 合入后的最终 main：`b9aa4711cc82503bbf445150802655ab95f59a45`。** Router 只新增 `tools/ai-router/*`，未修改 Android `app/` 生产/测试树；Android 最终本地全量证据来自 tree-identical #74/main Android 树，Router 另有 7/7 离线测试 + doctor PASS。
+- **Router 状态备注后的最新 main：`d9a263039d5c15330b27c14b83a0f56efd7063d0`。** PR #75 仅给 Router 增加“当前不使用”说明；Android `app/` 与 Router 功能逻辑均未改变。
 
 - **最新最终 main（#74 合并后）：`545fa29cbcf69f1749e24d75dff8e2c2711f776a`。** 该 merge commit 与已完成全量设备验收的 #74 Head 具有相同 Git tree。
 
