@@ -2,6 +2,8 @@ package com.elio.jianyu.skill.knowledge
 
 import kotlinx.serialization.Serializable
 
+const val SKILL_KNOWLEDGE_CONTEXT_BUDGET_CHARACTERS = 9_000
+
 @Serializable
 enum class SkillKnowledgeDocumentType {
     CORE,
