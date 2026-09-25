@@ -704,6 +704,7 @@
 
 - **Router 合入后的最终 main：`b9aa4711cc82503bbf445150802655ab95f59a45`。** Router 只新增 `tools/ai-router/*`，未修改 Android `app/` 生产/测试树；Android 最终本地全量证据来自 tree-identical #74/main Android 树，Router 另有 7/7 离线测试 + doctor PASS。
 - **Router 状态备注后的最新 main：`d9a263039d5c15330b27c14b83a0f56efd7063d0`。** PR #75 仅给 Router 增加“当前不使用”说明；Android `app/` 与 Router 功能逻辑均未改变。
+- 最终 CI 证据：`main@d9a263...` Secret scan Run `36157537422` PASS、Android CI Run `36157537494` PASS。最后一个包含 Android 代码变更的 `main@545fa29...` Android UI Test Compile Run `36156205525` PASS；从 `545fa29...` 到 `d9a263...` 的全部净变更仅为 5 个 `tools/ai-router/*` 文件，因此 Android UI Test Compile 证据对最终 Android app tree 仍有效。中间 Android CI run 因后续 push 被取消，不视为产品失败。
 
 - **最新最终 main（#74 合并后）：`545fa29cbcf69f1749e24d75dff8e2c2711f776a`。** 该 merge commit 与已完成全量设备验收的 #74 Head 具有相同 Git tree。
 
@@ -731,7 +732,7 @@
   .\gradlew.bat :app:assembleDebugAndroidTest
   ```
 - [x] **Step 3: 检查 Room committed schema current、release/R8、APK artifacts。**
-- [ ] **Step 4: GitHub main 的 Secret scan、Android UI Test Compile、Android CI 全部成功。**
+- [x] **Step 4: GitHub main 的 Secret scan、Android UI Test Compile、Android CI 全部成功。**
 
 ---
 
