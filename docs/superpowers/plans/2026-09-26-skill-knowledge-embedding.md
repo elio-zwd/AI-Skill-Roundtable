@@ -114,7 +114,7 @@
   - `fun formatSkillKnowledgeQuery(text: String): String`
   - `suspend fun GeminiEmbeddingTransport.embedQuery(context, sessionId, query, onAttemptStarted): FloatArray`
 
-- [ ] **Step 1: 写 RED 测试，固定 query 格式与 768 维解析**
+- [x] **Step 1: 写 RED 测试，固定 query 格式与 768 维解析**
 
 ```kotlin
 @Test
@@ -145,7 +145,7 @@ Run:
 
 Expected: FAIL，因为 transport / formatter 尚不存在。
 
-- [ ] **Step 3: 实现最小 REST Transport**
+- [x] **Step 3: 实现最小 REST Transport**
 
 请求体必须等价于：
 
@@ -225,7 +225,7 @@ git commit -m "feat: 增加 Gemini Embedding 查询边界"
   - `endCharacter`
   - `vectorOffsetBytes`
 
-- [ ] **Step 1: 先写 Python RED 测试**
+- [x] **Step 1: 先写 Python RED 测试**
 
 覆盖：
 - `SKILL.md -> CORE / retrievalEligible=false`
@@ -246,7 +246,7 @@ python -m unittest tools.skill_knowledge.test_generate_index
 
 Expected: FAIL。
 
-- [ ] **Step 2: 实现 Markdown 扫描和 heading-aware chunker**
+- [x] **Step 2: 实现 Markdown 扫描和 heading-aware chunker**
 
 核心纯函数签名：
 
@@ -259,7 +259,7 @@ def format_document_for_embedding(title: str, heading_path: str, chunk_text: str
 
 Catalog `assetPath` 是 Skill 根事实源；不得靠硬编码 20 个 legacy folder。
 
-- [ ] **Step 3: 让生成器支持 `--validate-only` 和真实生成**
+- [x] **Step 3: 让生成器支持 `--validate-only` 和真实生成**
 
 CLI：
 
@@ -296,7 +296,7 @@ Expected:
 - index 二进制长度与 manifest offset 完全吻合；
 - 所有 contentHash 与当前 Markdown 一致。
 
-- [ ] **Step 6: 增加 Android asset contract test**
+- [x] **Step 6: 增加 Android asset contract test**
 
 测试直接读取 APK assets，至少验证：
 - Catalog 中所有 executable Skill 都有 manifest entry；
@@ -381,14 +381,14 @@ sealed interface SkillKnowledgeRetrievalResult {
 }
 ```
 
-- [ ] **Step 1: RED：Repository 只能按 Skill 暴露自己的文档**
+- [x] **Step 1: RED：Repository 只能按 Skill 暴露自己的文档**
 
 构造 fixture manifest，断言：
 - `listDocuments("richard_feynman")` 不出现 `charlie_munger`；
 - `loadDocumentContent()` hash 不匹配时失败；
 - vector 长度不是 768 时失败。
 
-- [ ] **Step 2: RED：Retriever 固定 Top-K 和角色隔离**
+- [x] **Step 2: RED：Retriever 固定 Top-K 和角色隔离**
 
 用 fake embedder + 小向量 fixture 断言：
 - 只搜索 ownerSkillId；
@@ -399,7 +399,7 @@ sealed interface SkillKnowledgeRetrievalResult {
 - score 顺序稳定；
 - embedding exception 返回 `Unavailable`，不抛到回答层。
 
-- [ ] **Step 3: RED：Formatter 的 Context Pack 结构**
+- [x] **Step 3: RED：Formatter 的 Context Pack 结构**
 
 Expected:
 
@@ -414,7 +414,7 @@ Expected:
 
 不得把 SUPPORTING 正文放进 retrieved section。
 
-- [ ] **Step 4: 实现 Repository + cosine**
+- [x] **Step 4: 实现 Repository + cosine**
 
 Cosine 必须在已校验维度上运行：
 
@@ -446,7 +446,7 @@ Run:
 
 Expected: PASS。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add app/src/main/java/com/elio/jianyu/skill/knowledge app/src/test/java/com/elio/jianyu/skill/knowledge
@@ -489,7 +489,7 @@ val skillKnowledge: ExecutionSkillKnowledgeContext? = null
 private val skillKnowledgeRetriever: SkillKnowledgeRetriever
 ```
 
-- [ ] **Step 1: RED：ContextBuilder 顺序与门禁**
+- [x] **Step 1: RED：ContextBuilder 顺序与门禁**
 
 测试必须证明：
 - `systemInstruction` 仍先包含 participant.systemPrompt；
@@ -498,7 +498,7 @@ private val skillKnowledgeRetriever: SkillKnowledgeRetriever
 - Knowledge 加入后整体超 24k 继续触发“执行上下文超过稳定边界”；
 - Knowledge 缺失不改变旧输出。
 
-- [ ] **Step 2: RED：Coordinator 每个参与者只检索自己的 sourceId**
+- [x] **Step 2: RED：Coordinator 每个参与者只检索自己的 sourceId**
 
 Fake Retriever 记录 ownerSkillId，双角色运行断言调用顺序：
 
@@ -509,7 +509,7 @@ charlie_munger
 
 不得把所有 participant ids 合成一个全局 query。
 
-- [ ] **Step 3: 在 `executeParticipant` build 前执行 retrieval**
+- [x] **Step 3: 在 `executeParticipant` build 前执行 retrieval**
 
 sessionId 必须复用正式执行已有稳定 ID：
 
@@ -552,7 +552,7 @@ Run:
 
 Expected: PASS。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add app/src/main/java/com/elio/jianyu/execution app/src/main/java/com/elio/jianyu/JianyuAppRuntime.kt app/src/test/java/com/elio/jianyu/execution
@@ -595,7 +595,7 @@ OFF：
 - 不联网；
 - local knowledge 仍可检索。
 
-- [ ] **Step 3: 修改 `RoundtableViewModel`**
+- [x] **Step 3: 修改 `RoundtableViewModel`**
 
 删除：
 - `skillsSummaries`
@@ -623,7 +623,7 @@ mainSkillPrompt
 
 组成。
 
-- [ ] **Step 4: 删除无调用方 `SkillLoader.loadSelectedFiles`**
+- [x] **Step 4: 删除无调用方 `SkillLoader.loadSelectedFiles`**
 
 保留 `loadSkill` 和仍有真实调用方的 asset helper。
 
@@ -637,7 +637,7 @@ Run:
 
 Expected: PASS。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add app/src/main/java/com/elio/jianyu/viewmodel/RoundtableViewModel.kt app/src/main/java/com/elio/jianyu/skill/SkillLoader.kt app/src/main/java/com/elio/jianyu/network/AiProvider.kt app/src/test/java/com/elio/jianyu/viewmodel
@@ -701,7 +701,7 @@ data class SkillKnowledgeUsageSnapshotEntity(
 val skillKnowledge: List<SkillKnowledgeUsageSnapshotEntity> = emptyList()
 ```
 
-- [ ] **Step 1: RED：Context validator 接受显式 Skill Knowledge，不要求隐私确认**
+- [x] **Step 1: RED：Context validator 接受显式 Skill Knowledge，不要求隐私确认**
 
 构造：
 - sourceType = SKILL_KNOWLEDGE
@@ -711,7 +711,7 @@ val skillKnowledge: List<SkillKnowledgeUsageSnapshotEntity> = emptyList()
 
 Expected: 不产生 `SENSITIVE_CONFIRMATION_REQUIRED`。
 
-- [ ] **Step 2: RED：Repository 写入、重放和冲突**
+- [x] **Step 2: RED：Repository 写入、重放和冲突**
 
 验证：
 - 同一 run/sourceSkillId/documentId 只允许一个 snapshot；
@@ -719,7 +719,7 @@ Expected: 不产生 `SENSITIVE_CONFIRMATION_REQUIRED`。
 - `listRunContextUsage` 返回 SKILL_KNOWLEDGE；
 - 旧 Material / Personal Context 行为不变。
 
-- [ ] **Step 3: 实现 v14→v15 Migration**
+- [x] **Step 3: 实现 v14→v15 Migration**
 
 `SkillKnowledgeContextMigration.MIGRATION_14_15` 只创建新表和索引，不改写旧数据。
 
@@ -728,7 +728,7 @@ Expected: 不产生 `SENSITIVE_CONFIRMATION_REQUIRED`。
 - entities 加 `SkillKnowledgeUsageSnapshotEntity`；
 - `ALL_MIGRATIONS` 加 14→15。
 
-- [ ] **Step 4: 更新 DAO / Repository**
+- [x] **Step 4: 更新 DAO / Repository**
 
 对于 `ConfirmedContextItem.sourceType == SKILL_KNOWLEDGE`：
 - 不查 `MaterialReferenceEntity`；
@@ -811,7 +811,7 @@ skill_knowledge_detail
 skill_knowledge_use_in_conversation
 ```
 
-- [ ] **Step 1: RED：UiState 搜索与分组**
+- [x] **Step 1: RED：UiState 搜索与分组**
 
 搜索命中：
 - Skill 名称；
@@ -823,11 +823,11 @@ skill_knowledge_use_in_conversation
 - 参考知识；
 - 说明文档。
 
-- [ ] **Step 2: RED：Overview 出现独立 Skill 资料入口**
+- [x] **Step 2: RED：Overview 出现独立 Skill 资料入口**
 
 保留现有两个主 summary card；在其下新增独立 Skill 资料入口，不把它伪装成第三种用户 Material 生命周期对象。
 
-- [ ] **Step 3: 实现只读列表/详情**
+- [x] **Step 3: 实现只读列表/详情**
 
 详情不得出现：
 - 编辑；
@@ -842,7 +842,7 @@ skill_knowledge_use_in_conversation
 - relativePath；
 - Markdown 正文。
 
-- [ ] **Step 4: Route 接入**
+- [x] **Step 4: Route 接入**
 
 沿用 `ResourcesRoute` 的页面内状态，不新增全局一级导航。
 
@@ -861,7 +861,7 @@ Run:
 
 Expected: PASS。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add app/src/main/java/com/elio/jianyu/ui/screens/resources app/src/test/java/com/elio/jianyu/ui/screens/resources app/src/androidTest/java/com/elio/jianyu/ui/screens/resources
@@ -902,7 +902,7 @@ git commit -m "feat: 在资料页增加 Skill 资料区域"
 - 用户显式“带入当前会话”：Context list 出现 Munger document；
 - Feynman 自己的 auto retrieval 仍保持 Feynman-only。
 
-- [ ] **Step 2: RED：不出现隐私提示**
+- [x] **Step 2: RED：不出现隐私提示**
 
 SKILL_KNOWLEDGE item 不得出现：
 - 敏感资料确认；
@@ -911,7 +911,7 @@ SKILL_KNOWLEDGE item 不得出现：
 
 只保留正常“本次将带入哪些资料”的用户可见确认语义。
 
-- [ ] **Step 3: 实现 UI action 到 ContextSelectionDraft**
+- [x] **Step 3: 实现 UI action 到 ContextSelectionDraft**
 
 不要创建 `MaterialReferenceEntity` 副本。
 
@@ -932,7 +932,7 @@ Run:
 
 Expected: PASS。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add app/src/main/java/com/elio/jianyu/ui/screens/resources app/src/main/java/com/elio/jianyu/ui/screens/dialog app/src/main/java/com/elio/jianyu/ui/screens/context app/src/test/java/com/elio/jianyu/ui/screens/context app/src/androidTest/java/com/elio/jianyu/ui/screens/context
@@ -951,7 +951,7 @@ git commit -m "feat: 支持显式带入其他 Skill 资料"
 - Modify: `docs/architecture/broker-precision-decision-with-summaries.md`
 - Modify tests/docs that assert old summary mechanism.
 
-- [ ] **Step 1: 确认无生产调用方**
+- [x] **Step 1: 确认无生产调用方**
 
 Run:
 
@@ -961,11 +961,11 @@ git grep -n "skills_summaries\|loadSkillsSummariesOnce\|selectedFiles" -- app/sr
 
 Expected: 无旧本地资料选择调用方。
 
-- [ ] **Step 2: 删除旧 asset/helper**
+- [x] **Step 2: 删除旧 asset/helper**
 
 不得保留“Embedding 失败 → summary Broker”的隐藏兼容分支。
 
-- [ ] **Step 3: 更新架构文档**
+- [x] **Step 3: 更新架构文档**
 
 把旧 Broker 文档明确标记为历史，并链接：
 - `docs/superpowers/specs/2026-09-26-skill-knowledge-embedding-design.md`
@@ -983,7 +983,7 @@ git grep -n "skills_summaries" -- app/src/main
 
 Expected: 无生产命中。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add -A
@@ -1106,7 +1106,7 @@ Expected:
 
 Push 后检查当前 Head CI；失败只读取失败步骤和关键日志，不重复拉取完整正常日志。
 
-- [ ] **Step 11: 创建 Draft PR**
+- [x] **Step 11: 创建 Draft PR**
 
 Base 应按该功能集成策略指向 `codex/gemini-37-38-flash`，除非执行时该父分支已经完成合并且用户另有指示。
 
