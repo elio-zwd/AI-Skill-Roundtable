@@ -451,43 +451,11 @@
 
 - Exact PR Head：`25bd7bed54c333616a9872a307ce85ebdb616dd7`；PR #68 OPEN / Draft / base=`main`。
 - GitHub 远端门禁已全绿：Secret scan `36097136192`、Android UI Test Compile `36097136204`、Android CI `36097136181`。
-- PR 描述与原 #68 Plan 均未记录任何本地 AI / 真机验收结果；因此 Task 10 Step 2/3 仍是真实未完成项。
-- 当前唯一阻塞是 exact-Head 设备行为：Photo Picker、无广泛相册权限、512×512 私有文件、Mine/Dialog 同步、进程重启持久化、恢复默认、取消 picker、非法图片保护与备份边界。
-- 在 Step 2/3 PASS 前不将 #68 Ready/merge；不提前进入 #69。
-
-**Must verify on exact PR Head:**
-- Photo Picker 单图选择；
-- 不弹广泛相册权限；
-- 输出 512×512 JPEG；
-- Mine 头像即时刷新；
-- Dialog 用户消息头像同步；
-- 杀进程/重启后仍存在；
-- 恢复默认后 Mine/Dialog 同时回退；
-- 取消 picker 无状态变化；
-- 非法图片不破坏已有头像；
-- 不进入 Room、当前备份协议不扩大。
-
-- [x] **Step 1: Gradle/静态：**
-  ```powershell
-  pwsh -NoProfile -File tools/check-app-identity.ps1
-  pwsh -NoProfile -File tools/check-secrets.ps1 -IncludeHistory
-  .\gradlew.bat :app:compileDebugKotlin
-  .\gradlew.bat :app:testDebugUnitTest
-  .\gradlew.bat :app:lintDebug
-  .\gradlew.bat :app:assembleDebug
-  .\gradlew.bat :app:assembleRelease
-  .\gradlew.bat :app:assembleDebugAndroidTest
-  ```
-- [ ] **Step 2: 本地 AI 只读运行 Repository/Mine/Dialog 聚焦 Instrumentation。**
-- [ ] **Step 3: 本地 AI 真机/模拟器执行上述 Photo Picker 功能矩阵。**
-- [x] **Step 4: GitHub 三项 Actions 全绿。**
-- [ ] **Step 5: 更新 #68 Plan checkbox 与 PR 描述。**
-- [ ] **Step 6: 用户授权后使用普通 merge commit 合入 main。**
-- [x] **Step 7: 新 main CI 全绿。**
-
----
-
-# Phase E：在最新 main 上重新接入 AI 管理 UI #69
+- 本地 AI 设备/UI 行为大部分 PASS：系统 Photo Picker、无广泛相册权限、512×512 JPEG、Mine 即时刷新、进程重启持久化、替换、取消、恢复默认、文件删除与数据边界均通过；Dialog 用户消息头像因当前无可观察用户消息记为 NOT OBSERVABLE。
+- 本地 AI 聚焦 Instrumentation 出现真实测试初始化失败：`UserAvatarRepositoryAndroidTest` 的 `@Before setUp()` / `@After tearDown()` 使用表达式体 `= runBlocking { ... }`，JUnit4 判定返回类型非 void，4 个 Repository tests 未执行；`MineScreenTest` 4 tests PASS。
+- GPT 仅修改测试生命周期签名为显式 block body + 内部 `runBlocking`，不修改生产代码、不降低任何断言。
+- 修复 commit / 当前 #68 Head：`93ac71710361414ae0441ffa813c99488642e7a2`（`test: 修复用户头像 AndroidTest 生命周期签名`）。
+- 当前等待 exact new Head 的 GitHub Actions；远端 PASS 后只需本地 AI 重跑聚焦 Instrumentation，重点确认此前未执行的非法图片保护测试。
 
 ### Task 11：恢复 #69，并先解决“旧基线”而不是改业务
 
