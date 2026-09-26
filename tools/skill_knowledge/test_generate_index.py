@@ -2,8 +2,12 @@ import json
 import io
 import tempfile
 import unittest
+import threading
+import time
 from unittest.mock import patch
 from pathlib import Path
+
+import tools.skill_knowledge.generate_index as generator
 
 from tools.skill_knowledge.generate_index import (
     Chunk,
@@ -294,6 +298,93 @@ class SkillKnowledgeIndexGeneratorTest(unittest.TestCase):
                 _embed_batch("test-key", ["input"], "gemini-embedding-2", 768)
 
         self.assertEqual(8, urlopen.call_count)
+
+    def test_load_api_key_lanes_keeps_two_accounts_separate(self):
+        self.assertTrue(
+            hasattr(generator, "_load_api_key_lanes_from_environment"),
+            "two-account lane loader is missing",
+        )
+        env = {
+            "GEMINI_API_KEY_A_10": "account-a-key-10",
+            "GEMINI_API_KEY_A_2": "account-a-key-2",
+            "GEMINI_API_KEY_A_1": "account-a-key-1",
+            "GEMINI_API_KEY_B_2": "account-b-key-2",
+            "GEMINI_API_KEY_B_1": "account-b-key-1",
+            "GEMINI_API_KEY_1": "legacy-key-ignored-when-lanes-exist",
+        }
+
+        self.assertEqual(
+            [
+                ["account-a-key-1", "account-a-key-2", "account-a-key-10"],
+                ["account-b-key-1", "account-b-key-2"],
+            ],
+            generator._load_api_key_lanes_from_environment(env),
+        )
+
+    def test_two_lane_scheduler_runs_at_most_two_batches_concurrently(self):
+        self.assertTrue(
+            hasattr(generator, "GeminiApiLaneScheduler"),
+            "two-lane scheduler is missing",
+        )
+        active = 0
+        max_active = 0
+        lock = threading.Lock()
+
+        class FakePool:
+            def __init__(self, marker):
+                self.marker = marker
+
+            def embed_batch(self, texts, model, dimension):
+                nonlocal active, max_active
+                with lock:
+                    active += 1
+                    max_active = max(max_active, active)
+                try:
+                    time.sleep(0.05)
+                    return [[self.marker] * dimension for _ in texts]
+                finally:
+                    with lock:
+                        active -= 1
+
+        scheduler = generator.GeminiApiLaneScheduler(
+            pools=[FakePool(0.25), FakePool(0.5)]
+        )
+        results = scheduler.embed_batches(
+            batches=[["a"], ["b"]],
+            model="gemini-embedding-2",
+            dimension=768,
+        )
+
+        self.assertEqual(2, max_active)
+        self.assertEqual([0.25, 0.5], [vectors[0][0] for vectors in results])
+
+    def test_two_lane_scheduler_checkpoints_successful_lane_when_other_lane_fails(self):
+        self.assertTrue(
+            hasattr(generator, "GeminiApiLaneScheduler"),
+            "two-lane scheduler is missing",
+        )
+
+        class SuccessPool:
+            def embed_batch(self, texts, model, dimension):
+                return [[0.25] * dimension for _ in texts]
+
+        class FailurePool:
+            def embed_batch(self, texts, model, dimension):
+                raise RuntimeError("lane failed")
+
+        scheduler = generator.GeminiApiLaneScheduler(
+            pools=[SuccessPool(), FailurePool()]
+        )
+        outcomes = scheduler.embed_batches_with_errors(
+            batches=[["a"], ["b"]],
+            model="gemini-embedding-2",
+            dimension=768,
+        )
+
+        self.assertEqual(768, len(outcomes[0][0][0]))
+        self.assertIsNone(outcomes[0][1])
+        self.assertIsNone(outcomes[1][0])
+        self.assertIsInstance(outcomes[1][1], RuntimeError)
 
     def test_load_api_keys_supports_numbered_projects_and_deduplicates(self):
         env = {
