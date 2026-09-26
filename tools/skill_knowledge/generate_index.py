@@ -521,6 +521,9 @@ def _load_api_key_lanes_from_environment(
             grouped_lanes.append(keys)
 
     if grouped_lanes:
+        flattened = [key for lane in grouped_lanes for key in lane]
+        if len(flattened) != len(set(flattened)):
+            raise ValueError("The same Gemini API key cannot be reused across multiple Gemini lanes")
         return grouped_lanes
 
     legacy_keys = _load_api_keys_from_environment(env)
