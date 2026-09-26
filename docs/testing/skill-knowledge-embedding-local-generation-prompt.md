@@ -71,6 +71,7 @@ python -c "import os; from tools.skill_knowledge.generate_index import _embed_te
 
 - `EMBEDDING_SMOKE_DIMENSION=768`；
 -  400/401/403/404， GPT  **HTTP + status +**；；
+- ，：`request=<n>/<total>, skillId=..., assetPath=..., chunkId=..., chars=..., utf8Bytes=..., inputSha256=...`；。
 - ，；
 - smoke ，。
 
@@ -147,7 +148,7 @@ HEAD: <sha>
 REMOTE_HEAD_MATCH: PASS | FAIL
 MAIN_ANCESTOR: PASS | FAIL
 WORKTREE_BEFORE: CLEAN | DIRTY
-PYTHON_GENERATOR_TEST: PASS | FAIL (<passed>/<total>, expected 7/7)
+PYTHON_GENERATOR_TEST: PASS | FAIL (<passed>/<total>, expected 8/8)
 GEMINI_KEY_STATE: SET | MISSING
 EMBEDDING_SMOKE: PASS | FAIL
 EMBEDDING_SMOKE_DIMENSION: <n | NOT RUN>
