@@ -499,7 +499,7 @@ private fun RoleFeaturedHero(
                             )
                         }
                     }
-                    RoleFavoriteButton(role, onToggleFavorite)
+                    RoleFavoriteButton(role, onToggleFavorite, testTagPrefix = "featured_")
                 }
                 Text(
                     text = role.summary,
@@ -537,6 +537,7 @@ private fun RoleFeaturedSecondaryRow(
                         role = role,
                         onOpenDetail = { onOpenDetail(role.skillId) },
                         onToggleFavorite = { onToggleFavorite(role.skillId) },
+                        favoriteTestTagPrefix = "featured_",
                     )
                 }
             }
@@ -548,6 +549,7 @@ private fun RoleFeaturedSecondaryRow(
                         onOpenDetail = { onOpenDetail(role.skillId) },
                         onToggleFavorite = { onToggleFavorite(role.skillId) },
                         modifier = Modifier.weight(1f),
+                        favoriteTestTagPrefix = "featured_",
                     )
                 }
                 if (roles.size == 1) Spacer(Modifier.weight(1f))
@@ -562,6 +564,7 @@ private fun RoleFeatureMiniCard(
     onOpenDetail: () -> Unit,
     onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier,
+    favoriteTestTagPrefix: String = "",
 ) {
     Card(
         modifier = modifier
@@ -611,7 +614,11 @@ private fun RoleFeatureMiniCard(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
-                    RoleFavoriteButton(role, onToggleFavorite, size = 36.dp)
+                    RoleFavoriteButton(
+                        role, onToggleFavorite,
+                        size = 36.dp,
+                        testTagPrefix = favoriteTestTagPrefix,
+                    )
                 }
                 Text(
                     text = role.summary,
@@ -634,7 +641,7 @@ private fun RoleRecentCards(
         val singleColumn = maxWidth < 360.dp || LocalDensity.current.fontScale > 1.15f
         if (singleColumn || roles.size == 1) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                roles.forEach { role -> RoleListRow(role, onEvent) }
+                roles.forEach { role -> RoleListRow(role, onEvent, favoriteTestTagPrefix = "recent_") }
             }
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -644,6 +651,7 @@ private fun RoleRecentCards(
                         onOpenDetail = { onEvent(OfficialSkillCatalogEvent.OpenDetail(role.skillId)) },
                         onToggleFavorite = { onEvent(OfficialSkillCatalogEvent.ToggleFavorite(role.skillId)) },
                         modifier = Modifier.weight(1f),
+                        favoriteTestTagPrefix = "recent_",
                     )
                 }
             }
@@ -800,6 +808,7 @@ private fun RoleGridCard(
 private fun RoleListRow(
     role: SkillRoleCardUi,
     onEvent: (OfficialSkillCatalogEvent) -> Unit,
+    favoriteTestTagPrefix: String = "",
 ) {
     Surface(
         modifier = Modifier
@@ -859,6 +868,7 @@ private fun RoleListRow(
                 onToggleFavorite = {
                     onEvent(OfficialSkillCatalogEvent.ToggleFavorite(role.skillId))
                 },
+                testTagPrefix = favoriteTestTagPrefix,
             )
             Text(
                 text = "›",
@@ -907,12 +917,14 @@ private fun RoleFavoriteButton(
     onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier,
     size: androidx.compose.ui.unit.Dp = 44.dp,
+    /** 同一角色在推荐区和全部列表同时出现时，用前缀区分 testTag，避免重复节点。 */
+    testTagPrefix: String = "",
 ) {
     IconButton(
         onClick = onToggleFavorite,
         modifier = modifier
             .size(size)
-            .testTag(OfficialSkillCatalogTestTags.favorite(role.skillId)),
+            .testTag(testTagPrefix + OfficialSkillCatalogTestTags.favorite(role.skillId)),
     ) {
         Icon(
             imageVector = if (role.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,

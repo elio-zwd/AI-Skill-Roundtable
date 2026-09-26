@@ -11,6 +11,17 @@ data class DialogUiState(
     val session: DialogSessionInfo = DialogSessionInfo(),
     val activeRoles: List<SkillRoleUiModel> = emptyList(),
     val messages: List<DialogMessageItem> = emptyList(),
+    val visibleMessages: List<DialogTimelineItem> = emptyList(),
+    val roleStripExpanded: Boolean = true,
+    val selectedRoleIds: Map<String, String> = emptyMap(),
+    val expandedAnswerIds: Set<String> = emptySet(),
+    val readAnswerIds: Set<String> = emptySet(),
+    val answerScrollOffsets: Map<String, Int> = emptyMap(),
+    val answerScrollProgress: Map<String, Float> = emptyMap(),
+    val conversationScrollKey: String? = null,
+    val conversationScrollOffset: Int = 0,
+    val conversationScrollProgress: Float? = null,
+    val restoredSessionId: String? = null,
     val searchState: DialogSearchState = DialogSearchState(),
     val thinkingIntensity: String = "标准",
     val composerState: DialogComposerState = DialogComposerState(),
@@ -136,6 +147,10 @@ data class DialogUiState(
                 ),
                 activeRoles = listOf(planningCoach, systemsThinker),
                 messages = listOf(userMsg, coachMsg, thinkerMsg),
+                visibleMessages = listOf(
+                    DialogTimelineItem.Single(userMsg),
+                    DialogTimelineItem.Answers(userMsg.id, listOf(coachMsg, thinkerMsg)),
+                ),
                 searchState = DialogSearchState(
                     enabled = true,
                     statusText = "已开",
@@ -293,7 +308,28 @@ sealed interface DialogMessageItem {
         val text: String,
         override val timestamp: String,
         val isStreaming: Boolean = false,
+        val questionId: String? = null,
+        val answerStatus: DialogAnswerStatus = DialogAnswerStatus.COMPLETED,
     ) : DialogMessageItem
+}
+
+enum class DialogAnswerStatus { WAITING, GENERATING, COMPLETED, STOPPED, FAILED }
+
+sealed interface DialogTimelineItem {
+    val id: String
+
+    @Immutable
+    data class Single(val message: DialogMessageItem) : DialogTimelineItem {
+        override val id: String = message.id
+    }
+
+    @Immutable
+    data class Answers(
+        val questionId: String,
+        val replies: List<DialogMessageItem.SkillMessage>,
+    ) : DialogTimelineItem {
+        override val id: String = "answers_$questionId"
+    }
 }
 
 /**

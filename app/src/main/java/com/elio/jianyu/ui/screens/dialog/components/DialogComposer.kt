@@ -58,15 +58,8 @@ fun DialogComposer(
             .fillMaxWidth()
             .padding(horizontal = 14.dp, vertical = 6.dp),
     ) {
-        // 1. 联网搜索状态 Chip（置于输入框左上方）
-        SearchStatusChip(
-            searchState = searchState,
-            onClick = { onEvent(DialogEvent.ToggleSearchMode) },
-            modifier = Modifier.padding(bottom = 6.dp, start = 4.dp),
-        )
-
-        // 2. 对话编辑器容器（纯白、大圆角 24dp、极淡阴影）
-        Box(
+        // 联网开启时在输入容器内显示状态；关闭时入口仍在工具面板。
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .shadow(
@@ -83,6 +76,11 @@ fun DialogComposer(
                 )
                 .padding(horizontal = 6.dp, vertical = 5.dp),
         ) {
+            if (searchState.enabled) SearchStatusChip(
+                searchState = searchState,
+                onClick = { onEvent(DialogEvent.ToggleSearchMode) },
+                modifier = Modifier.padding(start = 4.dp, bottom = 2.dp),
+            )
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
