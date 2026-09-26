@@ -93,6 +93,7 @@ class SkillKnowledgeRetrieverTest {
             SkillKnowledgeDocument(
                 documentId = documentId,
                 skillId = skillId,
+                assetPath = "skills/$skillId/references/$documentId.md",
                 relativePath = "references/$documentId.md",
                 title = "$documentId title",
                 type = SkillKnowledgeDocumentType.KNOWLEDGE,
