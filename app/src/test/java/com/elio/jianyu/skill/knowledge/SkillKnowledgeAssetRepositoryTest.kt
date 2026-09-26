@@ -97,6 +97,7 @@ class SkillKnowledgeAssetRepositoryTest {
                 {
                   "documentId": "feynman-doc",
                   "skillId": "richard_feynman",
+                  "assetPath": "skills/feynman-skill-main/references/research.md",
                   "relativePath": "references/research.md",
                   "title": "费曼研究",
                   "type": "KNOWLEDGE",
@@ -125,6 +126,7 @@ class SkillKnowledgeAssetRepositoryTest {
                 {
                   "documentId": "munger-doc",
                   "skillId": "charlie_munger",
+                  "assetPath": "skills/munger-skill-main/references/research.md",
                   "relativePath": "references/research.md",
                   "title": "芒格研究",
                   "type": "KNOWLEDGE",
@@ -153,6 +155,7 @@ class SkillKnowledgeAssetRepositoryTest {
                 {
                   "documentId": "doc",
                   "skillId": "richard_feynman",
+                  "assetPath": "skills/feynman-skill-main/references/research.md",
                   "relativePath": "references/research.md",
                   "title": "研究",
                   "type": "KNOWLEDGE",
