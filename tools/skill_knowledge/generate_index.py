@@ -196,32 +196,88 @@ def format_document_for_embedding(title: str, heading_path: str, chunk_text: str
     return f"title: {title.strip()} | text: {heading}\n{chunk_text.strip()}"
 
 
-def _load_catalog(repo_root: Path) -> dict:
-    path = repo_root / "app/src/main/assets/official_skill_catalog_v1.json"
+def _load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _load_catalog(repo_root: Path) -> dict:
+    return _load_json(
+        repo_root / "app/src/main/assets/official_skill_catalog_v1.json"
+    )
+
+
+def _load_execution_manifest(repo_root: Path) -> dict:
+    return _load_json(
+        repo_root / "app/src/main/assets/official_skill_execution_manifest_v2.json"
+    )
+
+
+def _skill_sources(repo_root: Path) -> list[dict]:
+    catalog = _load_catalog(repo_root)
+    publication = _load_execution_manifest(repo_root)
+    base_skills = catalog.get("skills", [])
+    published_skills = publication.get("skills", [])
+    base_ids = [skill["id"] for skill in base_skills]
+    published_ids = [skill["id"] for skill in published_skills]
+
+    if (
+        len(published_ids) != len(base_ids)
+        or len(set(published_ids)) != len(published_ids)
+        or set(published_ids) != set(base_ids)
+    ):
+        raise ValueError(
+            "Execution manifest does not match official catalog: "
+            f"catalog={len(base_ids)}, publication={len(published_ids)}"
+        )
+
+    published_by_id = {item["id"]: item for item in published_skills}
+    sources: list[dict] = []
+    for skill in base_skills:
+        published = published_by_id[skill["id"]]
+        core_asset_path = str(published.get("assetPath") or "").strip()
+        if not core_asset_path:
+            raise ValueError(f"Published Skill assetPath missing: {skill['id']}")
+
+        availability = skill.get("availability") or {}
+        historical_asset_path = (
+            str(skill["assetPath"])
+            if availability.get("hasAsset") and skill.get("assetPath")
+            else None
+        )
+        sources.append(
+            {
+                "skillId": skill["id"],
+                "skillName": skill.get("nameZh") or skill["id"],
+                "coreAssetPath": core_asset_path,
+                "historicalAssetPath": historical_asset_path,
+            }
+        )
+    return sources
 
 
 def _collect_documents(repo_root: Path) -> list[dict]:
     assets_root = repo_root / "app/src/main/assets"
-    catalog = _load_catalog(repo_root)
     skills: list[dict] = []
 
-    for skill in catalog.get("skills", []):
-        availability = skill.get("availability") or {}
-        asset_path = skill.get("assetPath")
-        if not availability.get("hasAsset") or not asset_path:
-            continue
-
-        core_file = assets_root / asset_path
+    for source in _skill_sources(repo_root):
+        skill_id = source["skillId"]
+        core_asset_path = source["coreAssetPath"]
+        core_file = assets_root / core_asset_path
         if not core_file.is_file():
-            raise FileNotFoundError(f"Skill asset missing: {asset_path}")
-        root_dir = core_file.parent
+            raise FileNotFoundError(f"Published Skill asset missing: {core_asset_path}")
+
+        official_root = core_file.parent
         documents: list[dict] = []
-        for file_path in sorted(root_dir.rglob("*.md"), key=lambda p: p.as_posix().lower()):
-            relative_path = file_path.relative_to(root_dir).as_posix()
+        seen_relative_paths: set[str] = set()
+
+        def append_document(file_path: Path, relative_path: str) -> None:
+            normalized_relative_path = relative_path.replace("\\", "/")
+            key = normalized_relative_path.lower()
+            if key in seen_relative_paths:
+                return
             content = normalize_text(file_path.read_text(encoding="utf-8"))
-            document_type = classify_markdown(relative_path)
-            document_id = build_document_id(skill["id"], relative_path)
+            document_type = classify_markdown(normalized_relative_path)
+            document_id = build_document_id(skill_id, normalized_relative_path)
             chunks = (
                 chunk_markdown(document_id, content)
                 if document_type == "KNOWLEDGE"
@@ -230,9 +286,10 @@ def _collect_documents(repo_root: Path) -> list[dict]:
             documents.append(
                 {
                     "documentId": document_id,
-                    "skillId": skill["id"],
-                    "relativePath": relative_path,
-                    "title": markdown_title(content, relative_path),
+                    "skillId": skill_id,
+                    "assetPath": file_path.relative_to(assets_root).as_posix(),
+                    "relativePath": normalized_relative_path,
+                    "title": markdown_title(content, normalized_relative_path),
                     "type": document_type,
                     "contentHash": sha256_text(content),
                     "retrievalEligible": document_type == "KNOWLEDGE",
@@ -240,12 +297,40 @@ def _collect_documents(repo_root: Path) -> list[dict]:
                     "_chunks": chunks,
                 }
             )
+            seen_relative_paths.add(key)
+
+        append_document(core_file, "SKILL.md")
+
+        for file_path in sorted(
+            official_root.rglob("*.md"),
+            key=lambda p: p.as_posix().lower(),
+        ):
+            relative_path = file_path.relative_to(official_root).as_posix()
+            if relative_path.lower() != "skill.md":
+                append_document(file_path, relative_path)
+
+        historical_asset_path = source["historicalAssetPath"]
+        if historical_asset_path:
+            historical_root = (assets_root / historical_asset_path).parent
+            if historical_root != official_root:
+                if not historical_root.is_dir():
+                    raise FileNotFoundError(
+                        "Historical Skill knowledge root missing: "
+                        f"{historical_root.relative_to(assets_root).as_posix()}"
+                    )
+                for file_path in sorted(
+                    historical_root.rglob("*.md"),
+                    key=lambda p: p.as_posix().lower(),
+                ):
+                    relative_path = file_path.relative_to(historical_root).as_posix()
+                    if relative_path.lower() != "skill.md":
+                        append_document(file_path, relative_path)
 
         skills.append(
             {
-                "skillId": skill["id"],
-                "skillName": skill.get("nameZh") or skill["id"],
-                "assetRoot": root_dir.relative_to(assets_root).as_posix(),
+                "skillId": skill_id,
+                "skillName": source["skillName"],
+                "assetRoot": official_root.relative_to(assets_root).as_posix(),
                 "documents": documents,
             }
         )
@@ -382,9 +467,8 @@ def _validate(repo_root: Path, manifest_path: Path, index_path: Path) -> None:
     expected_vector_bytes = dimension * 4
 
     for skill in manifest.get("skills", []):
-        root = assets_root / skill["assetRoot"]
         for document in skill.get("documents", []):
-            source = root / document["relativePath"]
+            source = assets_root / document["assetPath"]
             if not source.is_file():
                 raise FileNotFoundError(
                     f"Manifest document missing: {skill['skillId']}/{document['relativePath']}"
