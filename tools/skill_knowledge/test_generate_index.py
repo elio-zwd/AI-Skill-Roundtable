@@ -321,6 +321,15 @@ class SkillKnowledgeIndexGeneratorTest(unittest.TestCase):
             generator._load_api_key_lanes_from_environment(env),
         )
 
+    def test_load_api_key_lanes_rejects_key_reused_across_accounts(self):
+        env = {
+            "GEMINI_API_KEY_A_1": "same-project-key",
+            "GEMINI_API_KEY_B_1": "same-project-key",
+        }
+
+        with self.assertRaisesRegex(ValueError, "multiple Gemini lanes"):
+            generator._load_api_key_lanes_from_environment(env)
+
     def test_two_lane_scheduler_runs_at_most_two_batches_concurrently(self):
         self.assertTrue(
             hasattr(generator, "GeminiApiLaneScheduler"),
