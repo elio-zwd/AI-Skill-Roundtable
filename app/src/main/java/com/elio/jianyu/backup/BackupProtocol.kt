@@ -67,6 +67,7 @@ object BackupProtocol {
         "stage_summary_draft_revision", "confirmed_artifact", "artifact_message_source",
         "artifact_run_source", "artifact_draft_source", "artifact_material_source",
         "material_reference", "material_usage", "personal_context_entry", "personal_context_usage",
+        "skill_knowledge_usage",
         "stage_advancement", "stage_advancement_measure", "stage_advancement_skill_member",
         "stage_advancement_material", "stage_advancement_artifact", "archive_event", "resume_event",
         "issue_relation", "audio_asset", "official_skill_combination",

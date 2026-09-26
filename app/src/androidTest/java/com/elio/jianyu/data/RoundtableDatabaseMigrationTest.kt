@@ -102,6 +102,47 @@ class RoundtableDatabaseMigrationTest {
     }
 
     @Test
+    fun migration14To15_addsSkillKnowledgeUsageSnapshotsWithoutChangingExistingRows() {
+        val legacy = migrationHelper.createDatabase(TEST_DATABASE, 14)
+        legacy.close()
+
+        val migrated = migrationHelper.runMigrationsAndValidate(
+            TEST_DATABASE,
+            15,
+            true,
+            RoundtableDatabase.MIGRATION_14_15,
+        )
+
+        migrated.query(
+            "PRAGMA table_info(skill_knowledge_usage_snapshots)",
+        ).use { cursor ->
+            val names = buildList {
+                val nameIndex = cursor.getColumnIndexOrThrow("name")
+                while (cursor.moveToNext()) add(cursor.getString(nameIndex))
+            }
+            assertTrue(names.containsAll(
+                listOf(
+                    "id",
+                    "issueId",
+                    "stageId",
+                    "runId",
+                    "sourceSkillId",
+                    "documentId",
+                    "titleSnapshot",
+                    "relativePathSnapshot",
+                    "contentSnapshot",
+                    "contentHash",
+                    "userConfirmedAt",
+                    "createdAt",
+                ),
+            ))
+        }
+        assertEquals(0, queryCount(migrated, "skill_knowledge_usage_snapshots"))
+        assertNoForeignKeyViolations(migrated)
+        migrated.close()
+    }
+
+    @Test
     fun migration5To6_usesCommittedSchemaAndBackfillsDomainRelations() {
         val legacy = migrationHelper.createDatabase(TEST_DATABASE, 5)
         insertVersion5Data(legacy)

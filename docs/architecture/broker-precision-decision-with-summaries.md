@@ -1,86 +1,48 @@
-# 架构说明 — 基于 150 字 AI 摘要附件的 Broker 精准推荐机制 (v2.3)
+# 架构说明 — 基于 Skill Summary 的 Broker 资料选择（历史方案）
 
-在多角色圆桌脑暴交锋中，系统需要根据当前的脑暴上下文，从智囊席位的多篇本地资料中挑选出最相关的参考文件进行拼接。
+> **状态：已废弃 / Historical**
+>
+> 本文只保留为历史背景，不再描述当前生产架构。
+> 当前实现以 `docs/superpowers/specs/2026-09-26-skill-knowledge-embedding-design.md`
+> 为权威设计。
 
----
+## 历史背景
 
-## 1. 痛点：文件名盲选 vs 全文超载
+早期多角色对话为了避免把完整 Markdown 发送给资料决策 Broker，曾预生成
+`skills_summaries.json`，再由文本模型根据摘要选择若干本地 Markdown 文件，最终把整篇文件拼接进角色 Prompt。
 
-在之前的版本中，系统面临着两个极端的难题：
-1. **文件名盲选**：如果仅向决策路由器 (`gemini-3.1-flash-lite`) 提供文件名列表（例如 `01-writings.md`、`research.md`），模型光凭文件名很难感知具体内容，导致推荐的精准度较差。
-2. **全文超载与延迟灾难**：如果将资料全文直接读取并打包发给 3.1 Lite，由于 20 个角色的文档累计多达几十万字，不仅会撑爆 API 的上下文上限、触发 429 频控熔断，还会导致首发响应延迟（TTFT）从 1 秒飙升到十几秒以上，失去即时流畅的交锋感。
+这套机制解决了“只看文件名难以判断内容”的问题，但仍存在几个结构性缺陷：
 
----
+- 本地知识选择依赖额外文本 Broker；
+- 选择粒度是整篇文件，不是与当前问题相关的 chunk；
+- Top 1 对话与正式 Execution 的知识加载语义不一致；
+- Summary、原 Markdown 和 Broker 选择形成了第二套本地知识事实源；
+- Embedding/检索失败时容易诱导实现回退到旧双轨。
 
-## 2. 解决方案：AI 智能体离线摘要 + Base64 JSON 附件
+## 当前替代方案
 
-为了折中**高精准度**与**极低延迟**，我们设计了**基于摘要附件的双重检索机制**：
+自 Skill Knowledge + Gemini Embedding 2 架构起：
 
-```
-                              [本地资料库 (.md)]
-                                      │
-                                      ▼ (AI 智能体离线预处理)
-                            [skills_summaries.json]
-                                      │
-                 ┌────────────────────┴────────────────────┐
-                 ▼ (作为 Base64 附件)                      ▼ (做成摘要提示)
-  GenerateContentRequest (inlineData)           Prompt 候选资料列表
-                 │                                         │
-                 └────────────────────┬────────────────────┘
-                                      ▼
-                        [gemini-3.1-flash-lite API]
-                                      │ (理解 150字 主旨)
-                                      ▼
-                           [输出精准选中的文件名列表]
-```
+- `SKILL.md` 永远作为 Role Core 直接加载；
+- `references/**`、`research/**`、`examples/**` 中的 Knowledge Markdown 在开发期分块；
+- 文档向量固定使用 `gemini-embedding-2`、768 维并预生成进 APK assets；
+- 运行时只为当前用户问题生成 query embedding；
+- Android 本地只在当前 Skill 范围内做 cosine retrieval；
+- 最多取 12 个候选、8 个最终 chunk、同一 document 最多 2 个；
+- Skill Knowledge 默认最多占 9,000 字符，并继续受整体 24,000 字符门禁约束；
+- Top 1 `RoundtableViewModel` 与正式 `ExecutionRunCoordinator` 共用同一 Retriever 语义；
+- `AiUseCase.MATERIAL_BROKER` 仅保留为联网检索决策，不再选择本地文件；
+- 用户只有通过“带入当前会话”显式选择时，其他 Skill 的文档才可进入当前上下文；
+- 不提供“Embedding 失败 → Summary Broker”的兼容回退。
 
-### 2.1 智能体预处理生成真正的摘要
-我们启动了专门的 `True Summary Generator` 智能体（Subagent）。该智能体离线读取 20 位智囊的 46 篇本地 `.md` 文件，利用大模型（`gemini-2.5-flash`）的深度理解和总结能力，将每篇长文档提炼成一段 **120-150 字** 左右的中文主旨摘要（剥离免责声明、排版噪点等废话，聚焦于文档包含的心智模型、受众及使用用途），最终统一输出至 `app/src/main/assets/skills_summaries.json` 总表中。
+## 已删除的旧生产构件
 
-### 2.2 决策 Prompt 中文件列表描述挂载
-在 `RoundtableViewModel.kt` 构造 `brokerPrompt` 时，在候选本地资料列表中动态读取该摘要：
-```
-【候选本地资料文件列表】
-- 01-writings.md (摘要描述: 收集了纳瓦尔在 Twitter 中关于幸福与传统冥想的核心心得)
-- research.md (摘要描述: 纳瓦尔关于如何不靠运气致富的特定知识与判断力法则)
-```
+以下构件不再属于生产架构：
 
-### 2.3 摘要 JSON 附件直接上传
-在向 3.1 Lite 发送 `brokerRequest` 请求体时，我们会将该智囊角色底下的所有文件摘要子集（JSON 字符串）转化为 Base64 格式，以 `application/json` 附件的形式随 API 发送：
-```json
-{
-  "contents": [
-    {
-      "parts": [
-        { "text": "Broker Prompt 内容" },
-        {
-          "inlineData": {
-            "mimeType": "application/json",
-            "data": "ey..." // Base64 后的该智囊摘要映射
-          }
-        }
-      ]
-    }
-  ]
-}
-```
-**优势**：通过该附件，`gemini-3.1-flash-lite` 能够完全理解每个文件背后的核心大纲和知识范畴，从而在极低的 Token 消耗与毫秒级延迟下，做出 100% 精准的推荐决策。
+- `app/src/main/assets/skills_summaries.json`
+- `workspace/tools/generate_summaries.py`
+- `workspace/tools/generate_summaries_ai.py`
+- Broker 输出中的 `selectedFiles`
+- `SkillLoader.loadSelectedFiles`
 
----
-
-## 3. 数据交互格式示例
-
-`skills_summaries.json` 中的结构如下：
-```json
-{
-  "elon-musk-skill-main": {
-    "examples": {
-      "demo-conversation.md": "马斯克视角对话实录..."
-    },
-    "references": {
-      "Elon-Musk-思想体系调研-20260404.md": "马斯克核心思想体系调研，涵盖第一性原理、五步工作法与极限工程学实践...",
-      "马斯克决策模式与行为分析-20260404.md": "分析马斯克在SpaceX与特斯拉的核心决策模型、风险偏好与硬核管理风格..."
-    }
-  }
-}
-```
+历史提交仍可用于追溯旧方案，不应据本文恢复旧双轨。

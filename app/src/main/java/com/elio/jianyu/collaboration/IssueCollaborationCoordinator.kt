@@ -750,6 +750,15 @@ class IssueCollaborationCoordinator(
                 createdAt = createdAt,
             )
         },
+        skillKnowledge = source.skillKnowledge.mapIndexed { index, usage ->
+            usage.copy(
+                id = "$runId-skill-knowledge-usage-$index",
+                issueId = issueId,
+                stageId = stageId,
+                runId = runId,
+                createdAt = createdAt,
+            )
+        },
         sourceExpectations = source.sourceExpectations,
     )
 

@@ -1,4 +1,7 @@
-# Gemini 1M 上下文缓存与三模型级联经纪人（Broker）路由架构 (gemini-1m-context-broker.md)
+# Gemini 1M 上下文缓存与三模型级联经纪人（Broker）路由架构（历史方案）
+
+> **状态：已废弃 / Historical**  
+> 本文记录旧的“文本 Broker 同时选择本地文件 + 联网决策”方案。当前本地知识选择已由 `gemini-embedding-2` + Android 本地 Skill-scoped retrieval 取代；Broker 仅保留联网决策职责。当前权威设计见 `docs/superpowers/specs/2026-09-26-skill-knowledge-embedding-design.md`。
 
 本文件详述了 **AI 智囊圆桌** 中，利用 Gemini 1M 超长上下文与三模型级联经纪人机制进行本地知识选择性加载与实时联网接地搜索的协同架构。该方案通过 3.1lite 模型完成本地文件检索及联网决策，通过 2.5flash 模型（免费层）配合 google_search 开启多路联网接地，最终通过主力 3.5flash 完成深度思考与圆桌整合回答。
 

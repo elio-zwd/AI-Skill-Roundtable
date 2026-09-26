@@ -17,6 +17,8 @@ import com.elio.jianyu.data.StageEntity
 import com.elio.jianyu.data.TransitionExecutionParticipantCommand
 import com.elio.jianyu.data.TransitionRunCommand
 import com.elio.jianyu.data.UpdatePendingDomainMessageCommand
+import com.elio.jianyu.skill.knowledge.SkillKnowledgeRetrievalGateway
+import com.elio.jianyu.skill.knowledge.SkillKnowledgeRetrievalResult
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -32,6 +34,10 @@ class ExecutionRunCoordinator(
     private val persistence: ExecutionPersistenceGateway,
     private val skillResolver: ExecutionSkillResolver,
     private val networkGateway: ExecutionNetworkGateway,
+    private val skillKnowledgeRetriever: SkillKnowledgeRetrievalGateway =
+        SkillKnowledgeRetrievalGateway { _, _, _, _ ->
+            SkillKnowledgeRetrievalResult.Unavailable("not_configured")
+        },
     private val contextBuilder: ExecutionContextBuilder = ExecutionContextBuilder(),
     private val clock: ExecutionClock = SystemExecutionClock,
     private val modelIdResolver: (String) -> String = { requestedModel -> requestedModel },
@@ -425,6 +431,29 @@ class ExecutionRunCoordinator(
         var pendingMessageId: Long? = null
         var latestText = ""
         return try {
+            val sessionId = StableExecutionIds.sessionId(run.issueId)
+            val skillKnowledge = when (
+                val retrieval = skillKnowledgeRetriever.retrieve(
+                    ownerSkillId = participant.sourceId,
+                    sessionId = sessionId,
+                    currentUserInput = currentUserInput,
+                    onAttemptStarted = {
+                        persistence.recordApiCall(
+                            RecordExecutionApiCallCommand(
+                                rootRunId = runtime.budget.rootRunId,
+                                count = 1,
+                                updatedAt = clock.nowMillis(),
+                            ),
+                        )
+                    },
+                )
+            ) {
+                is SkillKnowledgeRetrievalResult.Available -> ExecutionSkillKnowledgeContext(
+                    knowledgeMap = retrieval.knowledgeMap,
+                    hits = retrieval.hits,
+                )
+                is SkillKnowledgeRetrievalResult.Unavailable -> null
+            }
             val modelRequest = contextBuilder.build(
                 ExecutionContextInput(
                     issue = issueRecovery.core.issue,
@@ -436,6 +465,7 @@ class ExecutionRunCoordinator(
                     history = history,
                     historyScope = run.historyScope,
                     contributions = contributions,
+                    skillKnowledge = skillKnowledge,
                     promptMode = if (run.runKind == ExecutionRunKind.CROSS_DISCUSSION_SYNTHESIS) {
                         ExecutionPromptMode.CROSS_DISCUSSION_SYNTHESIS
                     } else {
@@ -445,7 +475,7 @@ class ExecutionRunCoordinator(
             )
             val preparedCall = networkGateway.prepare(
                 ExecutionNetworkRequest(
-                    sessionId = StableExecutionIds.sessionId(run.issueId),
+                    sessionId = sessionId,
                     participant = participant,
                     modelRequest = modelRequest,
                     model = run.actualModelId ?: model,

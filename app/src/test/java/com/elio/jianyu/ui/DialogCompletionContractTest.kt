@@ -70,16 +70,20 @@ class DialogCompletionContractTest {
 
 
     @Test
-    fun sensitiveContextAlwaysRequiresPerRequestConfirmation() {
+    fun sensitiveMaterialAndPersonalContextRequirePerRequestConfirmationWhileSkillKnowledgeIsExcluded() {
         val root = findAppRoot()
         val route = root.resolve("src/main/java/com/elio/jianyu/ui/screens/dialog/DialogRoute.kt").readText()
 
         assertFalse(route.contains("|| !appPreferences.confirmSensitiveContext"))
         assertFalse(route.contains("candidate.sensitiveConfirmed || !requireSensitiveConfirmation"))
-        assertFalse(route.contains("已按设置跳过再次确认"))
-        assertTrue(route.contains("it.sensitive && !it.sensitiveConfirmed"))
-        assertTrue(route.contains("我已查看并确认发送敏感内容"))
-        assertTrue(route.contains("敏感内容已隐藏；选中后查看并确认。"))
+        assertTrue(route.contains("candidate.sourceType != ContextSourceType.SKILL_KNOWLEDGE"))
+        assertTrue(route.contains("candidate.sensitive && !candidate.sensitiveConfirmed"))
+        assertTrue(route.contains("if (candidate.sensitive)"))
+        assertTrue(route.contains("checked = candidate.sensitiveConfirmed"))
+        assertTrue(route.contains("onChange(candidate.copy(sensitiveConfirmed = it))"))
+        assertTrue(route.contains("sensitive = false"))
+        assertTrue(route.contains("sensitiveConfirmed = false"))
+        assertFalse(route.contains("sensitiveConfirmed = true"))
     }
 
     private fun findAppRoot(): File {

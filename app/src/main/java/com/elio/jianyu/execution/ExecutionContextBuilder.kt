@@ -4,6 +4,8 @@ import com.elio.jianyu.data.ExecutionHistoryScope
 import com.elio.jianyu.data.ExecutionParticipantSnapshotEntity
 import com.elio.jianyu.data.IssueEntity
 import com.elio.jianyu.data.StageEntity
+import com.elio.jianyu.skill.knowledge.SkillKnowledgeContextFormatter
+import com.elio.jianyu.skill.knowledge.SkillKnowledgeRetrievalResult
 
 data class ExecutionHistoryEntry(
     val sourceMessageId: Long,
@@ -36,6 +38,7 @@ data class ExecutionContextInput(
     val history: List<ExecutionHistoryEntry>,
     val historyScope: ExecutionHistoryScope = ExecutionHistoryScope.FULL_STAGE,
     val contributions: List<ExecutionContextContribution> = emptyList(),
+    val skillKnowledge: ExecutionSkillKnowledgeContext? = null,
     val promptMode: ExecutionPromptMode = ExecutionPromptMode.INDEPENDENT_RESPONSE,
     val maxContextCharacters: Int = 24_000,
 ) {
@@ -93,11 +96,13 @@ class ExecutionContextBuilder {
             when (input.promptMode) {
                 ExecutionPromptMode.INDEPENDENT_RESPONSE -> {
                     addHistory(eligibleHistory, "阶段既有记录：")
+                    addSkillKnowledge(input.skillKnowledge)
                     addContributions(input.contributions)
                     add("用户当前问题：${input.currentUserInput.trim()}")
                 }
                 ExecutionPromptMode.CROSS_DISCUSSION_SYNTHESIS -> {
                     add("本次交叉讨论焦点：${input.currentUserInput.trim()}")
+                    addSkillKnowledge(input.skillKnowledge)
                     addContributions(input.contributions)
                     addHistory(
                         eligibleHistory,
@@ -128,6 +133,19 @@ class ExecutionContextBuilder {
                 "${entry.senderName}: ${entry.content}"
             },
         )
+    }
+
+    private fun MutableList<String>.addSkillKnowledge(
+        context: ExecutionSkillKnowledgeContext?,
+    ) {
+        if (context == null) return
+        val formatted = SkillKnowledgeContextFormatter.format(
+            SkillKnowledgeRetrievalResult.Available(
+                knowledgeMap = context.knowledgeMap,
+                hits = context.hits,
+            ),
+        )
+        if (formatted.isNotBlank()) add(formatted)
     }
 
     private fun MutableList<String>.addContributions(

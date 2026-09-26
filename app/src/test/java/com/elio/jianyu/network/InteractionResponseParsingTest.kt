@@ -61,7 +61,7 @@ class InteractionResponseParsingTest {
     }
 
     @Test
-    fun decodesEmptyThoughtSummaryUsedByBrokerResponses() {
+    fun decodesEmptyThoughtSummaryUsedByStructuredResponses() {
         val payload = """
             {
               "id": "interaction-test-2",
@@ -77,7 +77,7 @@ class InteractionResponseParsingTest {
                   "content": [
                     {
                       "type": "text",
-                      "text": "{\"selectedFiles\":[],\"needSearch\":false,\"searchQueries\":[]}"
+                      "text": "{\"needSearch\":false,\"searchQueries\":[]}"
                     }
                   ]
                 }
@@ -89,7 +89,7 @@ class InteractionResponseParsingTest {
 
         assertTrue(interaction.steps.first().summary.isEmpty())
         assertEquals(
-            """{"selectedFiles":[],"needSearch":false,"searchQueries":[]}""",
+            """{"needSearch":false,"searchQueries":[]}""",
             interaction.outputText
         )
     }

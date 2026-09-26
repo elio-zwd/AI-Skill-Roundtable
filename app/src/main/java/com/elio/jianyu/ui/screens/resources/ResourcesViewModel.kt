@@ -244,6 +244,12 @@ class ResourcesViewModel internal constructor(
                         ),
                     )
                 }
+                ContextSourceType.SKILL_KNOWLEDGE -> RepositoryResult.Failure(
+                    RepositoryError.InvalidState(
+                        "save_resource_editor",
+                        "skill_knowledge_read_only",
+                    ),
+                )
             }
         }
     }
@@ -358,6 +364,12 @@ class ResourcesViewModel internal constructor(
                         now,
                     ),
                 )
+                ContextSourceType.SKILL_KNOWLEDGE -> RepositoryResult.Failure(
+                    RepositoryError.InvalidState(
+                        "cancel_purge",
+                        "skill_knowledge_read_only",
+                    ),
+                )
             }
         }
     }
@@ -375,6 +387,12 @@ class ResourcesViewModel internal constructor(
                         confirmation.sourceId,
                         confirmation.expectedUpdatedAt,
                         now,
+                    ),
+                )
+                ContextSourceType.SKILL_KNOWLEDGE -> RepositoryResult.Failure(
+                    RepositoryError.InvalidState(
+                        "confirm_purge",
+                        "skill_knowledge_read_only",
                     ),
                 )
             }

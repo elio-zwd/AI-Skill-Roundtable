@@ -1,6 +1,7 @@
 package com.elio.jianyu.ui.screens.context
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -16,6 +17,56 @@ import org.junit.runner.RunWith
 class ContextConfirmationDialogTest {
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    fun skillKnowledgeIsReadOnlyWithoutPrivacyPermissionControls() {
+        val candidate = ContextCandidateUi(
+            sourceType = ContextSourceType.SKILL_KNOWLEDGE,
+            sourceId = "feynman-research",
+            title = "Feynman research",
+            sourceKind = "richard_feynman",
+            sourceLocator = "references/research.md",
+            sourcePublishedAt = null,
+            sourceCapturedAt = null,
+            originalContent = "Explain with concrete examples first.",
+            selectedContent = "Explain with concrete examples first.",
+            sourceHash = "hash",
+            sourceUpdatedAt = 0L,
+            sensitive = false,
+            selected = true,
+            networkAllowed = false,
+            sensitiveConfirmed = false,
+        )
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                ContextConfirmationDialog(
+                    state = ContextConfirmationUiState(
+                        visible = true,
+                        runId = "run-1",
+                        issueId = "issue-1",
+                        stageId = "stage-1",
+                        currentUserInput = "Explain this",
+                        baseContextCharacters = 10,
+                        candidates = listOf(candidate),
+                    ),
+                    onDismiss = {},
+                    onToggleSelected = { _, _ -> },
+                    onNetworkAllowed = { _, _, _ -> },
+                    onSensitiveConfirmed = { _, _, _ -> },
+                    onExcerptChanged = { _, _, _ -> },
+                    onConfirm = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Feynman research").assertIsDisplayed()
+        composeRule.onNodeWithText("richard_feynman").assertIsDisplayed()
+        composeRule.onNodeWithText("references/research.md").assertIsDisplayed()
+        composeRule.onNodeWithText("Explain with concrete examples first.").assertIsDisplayed()
+        composeRule.onNodeWithTag(ContextConfirmationTestTags.CONFIRM)
+            .assertIsDisplayed()
+            .assertIsEnabled()
+    }
 
     @Test
     fun networkPermissionBlocksConfirmationWithoutSilentlyDroppingSource() {

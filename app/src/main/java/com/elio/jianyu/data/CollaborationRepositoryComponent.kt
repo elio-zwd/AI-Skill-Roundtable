@@ -583,6 +583,9 @@ internal class CollaborationRepositoryComponent(
         if (sortedUsage.personalContexts.isNotEmpty()) {
             core.insertPersonalContextUsages(sortedUsage.personalContexts)
         }
+        if (sortedUsage.skillKnowledge.isNotEmpty()) {
+            core.insertSkillKnowledgeUsages(sortedUsage.skillKnowledge)
+        }
         if (messageUsage.isNotEmpty()) collaboration.insertMessageUsageSnapshots(messageUsage)
         return loadRuntime(run, budgetRootRunId)
     }
@@ -616,7 +619,8 @@ internal class CollaborationRepositoryComponent(
     ): Boolean {
         val sorted = requested.sorted()
         return core.getMaterialUsagesForRun(runId) == sorted.materials &&
-            core.getPersonalContextUsagesForRun(runId) == sorted.personalContexts
+            core.getPersonalContextUsagesForRun(runId) == sorted.personalContexts &&
+            core.getSkillKnowledgeUsagesForRun(runId) == sorted.skillKnowledge
     }
 
     private fun validateContextUsage(
@@ -641,7 +645,19 @@ internal class CollaborationRepositoryComponent(
                 item.networkAllowed &&
                 item.userConfirmedAt > 0L
         }
-        return if (materialValid && personalValid) null else {
+        val skillKnowledgeValid = usage.skillKnowledge.all { item ->
+            item.runId == run.id &&
+                item.issueId == run.issueId &&
+                item.stageId == run.stageId &&
+                item.sourceSkillId.isNotBlank() &&
+                item.documentId.isNotBlank() &&
+                item.titleSnapshot.isNotBlank() &&
+                item.relativePathSnapshot.isNotBlank() &&
+                item.contentSnapshot.isNotBlank() &&
+                item.contentHash == ContextContentHasher.hash(item.contentSnapshot) &&
+                item.userConfirmedAt > 0L
+        }
+        return if (materialValid && personalValid && skillKnowledgeValid) null else {
             RepositoryError.ConstraintViolation(
                 "create_collaboration_runtime",
                 "context_usage_invalid",
