@@ -13,8 +13,8 @@ class SkillKnowledgeAssetContractTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
 
     @Test
-    fun packagedManifestMatchesCatalogMarkdownAndBinaryIndex() {
-        val catalog = JSONObject(readAsset("official_skill_catalog_v1.json"))
+    fun packagedManifestMatchesPublishedCoreAndRepositoryKnowledge() {
+        val publication = JSONObject(readAsset("official_skill_execution_manifest_v2.json"))
         val manifest = JSONObject(readAsset("skill_knowledge/manifest.json"))
         val indexBytes = context.assets.open("skill_knowledge/index-v1.bin").use { it.readBytes() }
 
@@ -31,13 +31,13 @@ class SkillKnowledgeAssetContractTest {
             }
         }
 
-        val catalogSkills = catalog.getJSONArray("skills")
-        repeat(catalogSkills.length()) { index ->
-            val skill = catalogSkills.getJSONObject(index)
-            val availability = skill.getJSONObject("availability")
-            if (!availability.getBoolean("hasAsset")) return@repeat
+        val publishedSkills = publication.getJSONArray("skills")
+        assertEquals(44, publishedSkills.length())
+        assertEquals(publishedSkills.length(), manifestSkills.length())
 
-            val skillId = skill.getString("id")
+        repeat(publishedSkills.length()) { index ->
+            val published = publishedSkills.getJSONObject(index)
+            val skillId = published.getString("id")
             val packaged = bySkillId[skillId]
                 ?: error("Missing Skill Knowledge manifest entry for $skillId")
             val documents = packaged.getJSONArray("documents")
@@ -47,7 +47,7 @@ class SkillKnowledgeAssetContractTest {
             repeat(documents.length()) { documentIndex ->
                 val document = documents.getJSONObject(documentIndex)
                 val relativePath = document.getString("relativePath")
-                val assetPath = packaged.getString("assetRoot") + "/" + relativePath
+                val assetPath = document.getString("assetPath")
                 val content = readAsset(assetPath).normalizeNewlines()
                 assertEquals(sha256(content), document.getString("contentHash"))
 
@@ -55,6 +55,7 @@ class SkillKnowledgeAssetContractTest {
                     foundCore = true
                     assertEquals("CORE", document.getString("type"))
                     assertFalse(document.getBoolean("retrievalEligible"))
+                    assertEquals(published.getString("assetPath"), assetPath)
                 }
 
                 val chunks = document.getJSONArray("chunks")
@@ -66,8 +67,11 @@ class SkillKnowledgeAssetContractTest {
                     assertTrue(offset + 768 * 4 <= indexBytes.size)
                 }
             }
-            assertTrue("Skill $skillId must contain CORE SKILL.md", foundCore)
+            assertTrue("Skill $skillId must contain current published CORE SKILL.md", foundCore)
         }
+
+        assertTrue(hasKnowledge(bySkillId.getValue("richard_feynman")))
+        assertTrue(hasKnowledge(bySkillId.getValue("zhang_xuefeng")))
 
         val maxEnd = bySkillId.values
             .flatMap { skill ->
@@ -84,6 +88,16 @@ class SkillKnowledgeAssetContractTest {
             }
             .maxOrNull() ?: 0
         assertEquals(maxEnd, indexBytes.size)
+    }
+
+    private fun hasKnowledge(skill: JSONObject): Boolean {
+        val documents = skill.getJSONArray("documents")
+        repeat(documents.length()) { index ->
+            if (documents.getJSONObject(index).getString("type") == "KNOWLEDGE") {
+                return true
+            }
+        }
+        return false
     }
 
     private fun readAsset(path: String): String =
