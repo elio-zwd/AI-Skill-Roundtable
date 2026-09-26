@@ -657,17 +657,80 @@ class GeminiApiKeyPool:
         ) from last_rate_limit
 
 
+def _partition_api_key_lanes(
+    account_lanes: list[list[str]],
+    concurrency: int,
+) -> list[list[str]]:
+    if concurrency not in {1, 2, 4}:
+        raise ValueError("Embedding concurrency must be 1, 2, or 4")
+    normalized = [list(lane) for lane in account_lanes if lane]
+    if not normalized:
+        return []
+
+    if concurrency == 1:
+        merged: list[str] = []
+        for lane in normalized:
+            for key in lane:
+                if key not in merged:
+                    merged.append(key)
+        return [merged]
+
+    if concurrency == 2:
+        return normalized[:2]
+
+    if len(normalized) != 2:
+        raise ValueError(
+            "Four-lane mode requires exactly two configured account groups"
+        )
+
+    partitioned: list[list[str]] = []
+    for lane in normalized:
+        if len(lane) < 2:
+            raise ValueError(
+                "Each account group must contain at least two Project keys "
+                "for four-lane mode"
+            )
+        midpoint = (len(lane) + 1) // 2
+        partitioned.extend([lane[:midpoint], lane[midpoint:]])
+
+    if any(not lane for lane in partitioned):
+        raise ValueError("Four-lane mode produced an empty Gemini lane")
+    flattened = [key for lane in partitioned for key in lane]
+    if len(flattened) != len(set(flattened)):
+        raise ValueError("Gemini Project keys must be unique across all lanes")
+    return partitioned
+
+
 class GeminiApiLaneScheduler:
-    def __init__(self, pools: list[GeminiApiKeyPool]):
+    def __init__(
+        self,
+        pools: list[GeminiApiKeyPool],
+        lane_stagger_seconds: float = 0.25,
+    ):
         if not pools:
             raise ValueError("At least one Gemini API lane is required")
-        if len(pools) > 2:
-            raise ValueError("This generator supports at most two concurrent Gemini lanes")
+        if len(pools) > 4:
+            raise ValueError("This generator supports at most four concurrent Gemini lanes")
+        if lane_stagger_seconds < 0:
+            raise ValueError("Lane stagger must be non-negative")
         self._pools = pools
+        self.lane_stagger_seconds = lane_stagger_seconds
 
     @property
     def lane_count(self) -> int:
         return len(self._pools)
+
+    def _embed_on_lane(
+        self,
+        lane_index: int,
+        texts: list[str],
+        model: str,
+        dimension: int,
+    ) -> list[list[float]]:
+        delay = lane_index * self.lane_stagger_seconds
+        if delay > 0:
+            time.sleep(delay)
+        return self._pools[lane_index].embed_batch(texts, model, dimension)
 
     def embed_batches_with_errors(
         self,
@@ -683,7 +746,8 @@ class GeminiApiLaneScheduler:
         with ThreadPoolExecutor(max_workers=len(batches)) as executor:
             futures = [
                 executor.submit(
-                    self._pools[lane_index].embed_batch,
+                    self._embed_on_lane,
+                    lane_index,
                     texts,
                     model,
                     dimension,
@@ -802,6 +866,7 @@ def _build_manifest_and_index(
     cache_root: Path | None = None,
     api_keys: list[str] | None = None,
     api_key_lanes: list[list[str]] | None = None,
+    concurrency: int = 2,
     batch_size: int = 8,
     max_rpm: int = 24,
     max_tpm: int = 800,
@@ -811,10 +876,11 @@ def _build_manifest_and_index(
         raise ValueError("Batch size must be positive")
     cache = EmbeddingCache(cache_root or repo_root / "build/tmp/skill_knowledge/embeddings")
     if api_key_lanes is not None:
-        resolved_lanes = [list(lane) for lane in api_key_lanes if lane]
+        account_lanes = [list(lane) for lane in api_key_lanes if lane]
     else:
         resolved_api_keys = list(api_keys or ([] if api_key is None else [api_key]))
-        resolved_lanes = [resolved_api_keys] if resolved_api_keys else []
+        account_lanes = [resolved_api_keys] if resolved_api_keys else []
+    resolved_lanes = _partition_api_key_lanes(account_lanes, concurrency=concurrency)
     scheduler = GeminiApiLaneScheduler(
         [
             GeminiApiKeyPool(lane, max_rpm=max_rpm, max_tpm=max_tpm)
@@ -1083,6 +1149,7 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
     parser.add_argument("--dimension", type=int, default=DIMENSION)
     parser.add_argument("--validate-only", action="store_true")
     parser.add_argument("--batch-size", type=int, default=8)
+    parser.add_argument("--concurrency", type=int, choices=(1, 2, 4), default=2)
     parser.add_argument("--max-rpm", type=int, default=24)
     parser.add_argument("--max-tpm", type=int, default=800)
     return parser.parse_args(list(argv))
@@ -1116,6 +1183,7 @@ def main(argv: Iterable[str] = ()) -> int:
         model=args.model,
         dimension=args.dimension,
         api_key_lanes=api_key_lanes,
+        concurrency=args.concurrency,
         batch_size=args.batch_size,
         max_rpm=args.max_rpm,
         max_tpm=args.max_tpm,
