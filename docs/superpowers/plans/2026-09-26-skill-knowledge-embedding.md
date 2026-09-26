@@ -22,6 +22,7 @@
 - 升级安装基线已在共享模拟器准备：使用相同本地调试签名安装旧版 APK，Room 为 v14；建立 1 条议题、1 条用户消息及 Naval/Feynman 两条完成回复。App 重启后议题和 3 条消息仍存在。用户已手动配置 Key；尚未覆盖安装新版 APK，因此升级验收未勾选。
 - 独立只读验收在 `59cce9c2` 核对分支、工作区、Python 16/16、JVM 与 CI；正式资产缺失，因此真实召回、资产契约、UI、升级安装均报告未执行。随后完整生成在第 162 个 chunk 遇连续 TLS 握手 EOF，缓存保留 161 个成功向量。新增 RED 测试后将网络异常的有界重试提高至 8 次，退避封顶 60 秒；Python 18/18 PASS，已从 171 个缓存向量续跑。
 - 用户确认继续使用在线 `gemini-embedding-2`，并提供 10 个来自不同 Project 的 API Key。生成器在 `92d22eaa` / `f42bef31` 增加单进程多 Project Key 轮转与独立 RPM/TPM limiter；429 自动切换下一个 Project，Key 仅从 `GEMINI_API_KEY` / `GEMINI_API_KEY_<n>` 环境变量读取且日志不回显。缺失向量按 `TASK_ASSISTANT → PROFESSIONAL_ADVISOR → PERSON_PERSPECTIVE → WORKFLOW_CAPABILITY` 排序生成，已有 checkpoint 保持可复用，最终 manifest/index 顺序不变。远端已完成静态回读；新增 Python 测试尚待本地执行，正式资产仍未生成。
+- 用户随后扩展为 20 个 Project：账号 A 10 个、账号 B 10 个，并明确要求全局同时运行 2 个请求。生成器在 `cd60ac2b` 后改为单进程双 lane：`GEMINI_API_KEY_A_<n>` 与 `GEMINI_API_KEY_B_<n>` 各自独立轮转 10 个 Project，每条 lane 最多 1 个在途请求，全局最多 2 个；checkpoint 仍由主进程统一写入。`c16b26bd` 进一步禁止同一 Key 跨两条 lane 复用。Google 官方当前文档仍说明常规 RPM/TPM/RPD 以 Project 为限额单位；账号分组只作为本地调度隔离，不改变各 Project 的配额契约。新增双 lane Python 测试尚待本地执行；正式资产仍未生成。
 
 ## Global Constraints
 
