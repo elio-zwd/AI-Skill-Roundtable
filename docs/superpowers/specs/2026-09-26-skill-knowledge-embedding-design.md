@@ -115,29 +115,37 @@ UI 上二者都位于【资料】一级域，但底层不混成同一种实体�
 
 用户显式选择其他 Skill 的资料时，才允许跨角色带入，并作为“用户明确选择的 Skill 资料”而不是当前角色自己的知识呈现。
 
-## 4. Skill Markdown 分类
+## 4. Skill Markdown 
 
-以官方 Catalog 的 `assetPath` 解析 Skill 根目录。根目录下所有 Markdown 均进入 Skill Knowledge Manifest，但分为：
+Skill Knowledge ** Role Core ** ** Skill Markdown **：
+
+- Role Core  `official_skill_execution_manifest_v2.json` `assetPath`， App ；
+- `official_skill_catalog_v1.json`  20  Skill ，`assetPath` Knowledge / Supporting ；
+-  source `SKILL.md` ， CORE；
+- Manifest  document  `assetPath`， CORE  Knowledge ；
+-  source ， source ；。
+
+：
 
 1. `CORE`
-   - `SKILL.md`
-   - UI 可查看；
-   - 每次作为 Core Prompt 使用；
-   - 不进入向量召回，避免同一内容重复注入。
+   - v2  `SKILL.md`
+   - UI ；
+   - Core Prompt ；
+   - ，。
 
 2. `KNOWLEDGE`
    - `references/**/*.md`
    - `research/**/*.md`
    - `examples/**/*.md`
-   - 进入分块和向量索引；
-   - 自动召回。
+   - ；
+   - 。
 
 3. `SUPPORTING`
-   - `README.md`、`README_EN.md` 等说明型 Markdown；
-   - UI 可查看；
-   - 默认不进入自动召回，避免安装说明、仓库介绍污染角色回答。
+   - `README.md`、`README_EN.md` Markdown；
+   - UI ；
+   - ，、。
 
-非 Markdown 工具脚本、图片、音频和许可证不属于本期 Skill Knowledge 文本索引。
+ Markdown、、 Skill Knowledge 。
 
 ## 5. 开发期索引产物
 
@@ -147,6 +155,7 @@ UI 上二者都位于【资料】一级域，但底层不混成同一种实体�
 - 保留 `skillId`；
 - `documentId`；
 - `relativePath`；
+- `assetPath`（ APK assets ）；
 - `title`；
 - `documentType`；
 - `contentHash`；
