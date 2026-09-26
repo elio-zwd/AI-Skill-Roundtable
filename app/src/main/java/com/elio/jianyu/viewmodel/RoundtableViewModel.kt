@@ -560,9 +560,9 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             }
 
             val catalogRuntime = runCatching {
-                JianyuAppRuntimeProvider.get(application).officialSkillCatalogRuntimeResult
+                JianyuAppRuntimeProvider.get(context).officialSkillCatalogRuntimeResult
             }.getOrNull() as? OfficialSkillCatalogRuntimeResult.Success
-            val officialAdapter = OfficialSkillConversationRoleAdapter(application, charRepo)
+            val officialAdapter = OfficialSkillConversationRoleAdapter(context, charRepo)
 
             for (config in skillConfigs) {
                 val vectorStr = config.descriptionVector.joinToString(",")
