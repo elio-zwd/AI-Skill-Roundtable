@@ -77,8 +77,7 @@ class SkillKnowledgeAssetRepository(
             ?: error("未知 Skill Knowledge owner: $skillId")
         val document = skill.documents.firstOrNull { it.documentId == documentId }
             ?: error("未知 Skill Knowledge document: $documentId")
-        val path = "${skill.assetRoot}/${document.relativePath}"
-        val content = assetReader.readBytes(path)
+        val content = assetReader.readBytes(document.assetPath)
             .toString(Charsets.UTF_8)
             .normalizeNewlines()
         check(sha256(content) == document.contentHash) {
