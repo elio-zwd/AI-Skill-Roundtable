@@ -57,7 +57,24 @@ if ([string]::IsNullOrWhiteSpace($env:GEMINI_API_KEY)) { "GEMINI_API_KEY=MISSING
 
  MISSING： FAIL；； Key； Key。
 
-## 4. 
+## 4. Gemini Embedding API 
+
+， `GEMINI_API_KEY` ** Key**，； `.env`  `GEMINI_API_KEYS` ，， `GEMINI_API_KEY`。，、 Key 。
+
+：
+
+```powershell
+python -c "import os; from tools.skill_knowledge.generate_index import _embed_text; v=_embed_text(os.environ['GEMINI_API_KEY'], 'skill knowledge smoke test', 'gemini-embedding-2', 768); print('EMBEDDING_SMOKE_DIMENSION=' + str(len(v)))"
+```
+
+：
+
+- `EMBEDDING_SMOKE_DIMENSION=768`；
+-  400/401/403/404， GPT  **HTTP + status +**；；
+- ，；
+- smoke ，。
+
+## 5. 
 
 ：
 python tools/skill_knowledge/generate_index.py --repo-root . --model gemini-embedding-2 --dimension 768
@@ -87,7 +104,7 @@ git diff --exit-code -- app/schemas/com.elio.jianyu.data.RoundtableDatabase/15.j
 - 15.json ；
 -  15.json diff， FAIL，。
 
-## 6. 
+## 8. 
 
 ：git status --short
 ： 2 ；/。
@@ -113,7 +130,7 @@ $files | ForEach-Object {
 - document / KNOWLEDGE document / chunk / index ；
 - index 。
 
-## 8. ZIP
+## 9. ZIP
 
 ：
 $zip = Join-Path $env:TEMP "skill-knowledge-generated-artifacts.zip"
@@ -130,8 +147,10 @@ HEAD: <sha>
 REMOTE_HEAD_MATCH: PASS | FAIL
 MAIN_ANCESTOR: PASS | FAIL
 WORKTREE_BEFORE: CLEAN | DIRTY
-PYTHON_GENERATOR_TEST: PASS | FAIL (<passed>/<total>)
+PYTHON_GENERATOR_TEST: PASS | FAIL (<passed>/<total>, expected 6/6)
 GEMINI_KEY_STATE: SET | MISSING
+EMBEDDING_SMOKE: PASS | FAIL
+EMBEDDING_SMOKE_DIMENSION: <n | NOT RUN>
 INDEX_GENERATION: PASS | FAIL
 VALIDATE_ONLY: PASS | FAIL
 COMPILE_DEBUG_KOTLIN: PASS | FAIL
