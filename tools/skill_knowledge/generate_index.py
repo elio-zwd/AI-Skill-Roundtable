@@ -15,6 +15,7 @@ import struct
 import sys
 import time
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -498,6 +499,34 @@ def _load_api_keys_from_environment(env: dict[str, str] | os._Environ[str] = os.
     return keys
 
 
+def _load_api_key_lanes_from_environment(
+    env: dict[str, str] | os._Environ[str] = os.environ,
+) -> list[list[str]]:
+    grouped_lanes: list[list[str]] = []
+    for account in ("A", "B"):
+        names = sorted(
+            (
+                name
+                for name in env
+                if re.fullmatch(rf"GEMINI_API_KEY_{account}_[0-9]+", name)
+            ),
+            key=lambda name: int(name.rsplit("_", 1)[1]),
+        )
+        keys: list[str] = []
+        for name in names:
+            value = str(env.get(name, "")).strip()
+            if value and value not in keys:
+                keys.append(value)
+        if keys:
+            grouped_lanes.append(keys)
+
+    if grouped_lanes:
+        return grouped_lanes
+
+    legacy_keys = _load_api_keys_from_environment(env)
+    return [legacy_keys] if legacy_keys else []
+
+
 def _embed_batch(
     api_key: str,
     texts: list[str],
@@ -625,6 +654,90 @@ class GeminiApiKeyPool:
         ) from last_rate_limit
 
 
+class GeminiApiLaneScheduler:
+    def __init__(self, pools: list[GeminiApiKeyPool]):
+        if not pools:
+            raise ValueError("At least one Gemini API lane is required")
+        if len(pools) > 2:
+            raise ValueError("This generator supports at most two concurrent Gemini lanes")
+        self._pools = pools
+
+    @property
+    def lane_count(self) -> int:
+        return len(self._pools)
+
+    def embed_batches_with_errors(
+        self,
+        batches: list[list[str]],
+        model: str,
+        dimension: int,
+    ) -> list[tuple[list[list[float]] | None, Exception | None]]:
+        if not batches:
+            return []
+        if len(batches) > self.lane_count:
+            raise ValueError("More embedding batches than configured Gemini lanes")
+
+        with ThreadPoolExecutor(max_workers=len(batches)) as executor:
+            futures = [
+                executor.submit(
+                    self._pools[lane_index].embed_batch,
+                    texts,
+                    model,
+                    dimension,
+                )
+                for lane_index, texts in enumerate(batches)
+            ]
+            outcomes: list[
+                tuple[list[list[float]] | None, Exception | None]
+            ] = []
+            for future in futures:
+                try:
+                    outcomes.append((future.result(), None))
+                except Exception as error:
+                    outcomes.append((None, error))
+            return outcomes
+
+    def embed_batches(
+        self,
+        batches: list[list[str]],
+        model: str,
+        dimension: int,
+    ) -> list[list[list[float]]]:
+        outcomes = self.embed_batches_with_errors(batches, model, dimension)
+        results: list[list[list[float]]] = []
+        for vectors, error in outcomes:
+            if error is not None:
+                raise error
+            if vectors is None:
+                raise AssertionError("Embedding lane completed without vectors or error")
+            results.append(vectors)
+        return results
+
+
+def _take_embedding_batch(
+    work: list[tuple[dict, dict, Chunk, str]],
+    cursor: int,
+    batch_size: int,
+    max_tpm: int,
+) -> tuple[list[tuple[dict, dict, Chunk, str]], int]:
+    batch: list[tuple[dict, dict, Chunk, str]] = []
+    estimated_tokens = 0
+    while cursor < len(work) and len(batch) < batch_size:
+        item = work[cursor]
+        item_tokens = _estimated_input_tokens(item[3])
+        if item_tokens > max_tpm:
+            raise ValueError(
+                f"Embedding input exceeds configured TPM budget at "
+                f"{item[0]['skillId']}/{item[2].chunk_id}: {item_tokens}"
+            )
+        if batch and estimated_tokens + item_tokens > max_tpm:
+            break
+        batch.append(item)
+        estimated_tokens += item_tokens
+        cursor += 1
+    return batch, cursor
+
+
 def _embed_text(api_key: str, text: str, model: str, dimension: int) -> list[float]:
     payload = json.dumps(
         {
@@ -685,6 +798,7 @@ def _build_manifest_and_index(
     api_key: str | None = None,
     cache_root: Path | None = None,
     api_keys: list[str] | None = None,
+    api_key_lanes: list[list[str]] | None = None,
     batch_size: int = 8,
     max_rpm: int = 24,
     max_tpm: int = 800,
@@ -693,8 +807,17 @@ def _build_manifest_and_index(
     if batch_size < 1:
         raise ValueError("Batch size must be positive")
     cache = EmbeddingCache(cache_root or repo_root / "build/tmp/skill_knowledge/embeddings")
-    resolved_api_keys = list(api_keys or ([] if api_key is None else [api_key]))
-    api_pool = GeminiApiKeyPool(resolved_api_keys, max_rpm=max_rpm, max_tpm=max_tpm)
+    if api_key_lanes is not None:
+        resolved_lanes = [list(lane) for lane in api_key_lanes if lane]
+    else:
+        resolved_api_keys = list(api_keys or ([] if api_key is None else [api_key]))
+        resolved_lanes = [resolved_api_keys] if resolved_api_keys else []
+    scheduler = GeminiApiLaneScheduler(
+        [
+            GeminiApiKeyPool(lane, max_rpm=max_rpm, max_tpm=max_tpm)
+            for lane in resolved_lanes
+        ]
+    )
     work: list[tuple[dict, dict, Chunk, str]] = []
     vectors_by_chunk: dict[str, list[float]] = {}
     for skill in skills:
@@ -719,50 +842,82 @@ def _build_manifest_and_index(
         for primary_type in GENERATION_PRIMARY_TYPE_PRIORITY
     )
     print(f"Embedding cache: {len(vectors_by_chunk)} hits, {len(work)} pending", flush=True)
+    lane_sizes = [
+        pool.project_count
+        for pool in scheduler._pools
+    ]
     print(
-        f"Gemini project key pool: {api_pool.project_count}; "
+        f"Gemini project lanes: {scheduler.lane_count}; "
+        f"projects per lane: {','.join(str(size) for size in lane_sizes)}; "
         f"generation priority: {priority_summary}",
         flush=True,
     )
     cursor = 0
+    completed = 0
+    last_reported_bucket = -1
     while cursor < len(work):
-        batch: list[tuple[dict, dict, Chunk, str]] = []
-        estimated_tokens = 0
-        while cursor < len(work) and len(batch) < batch_size:
-            item = work[cursor]
-            item_tokens = _estimated_input_tokens(item[3])
-            if item_tokens > max_tpm:
-                raise ValueError(
-                    f"Embedding input exceeds configured TPM budget at "
-                    f"{item[0]['skillId']}/{item[2].chunk_id}: {item_tokens}"
-                )
-            if batch and estimated_tokens + item_tokens > max_tpm:
+        round_batches: list[list[tuple[dict, dict, Chunk, str]]] = []
+        round_starts: list[int] = []
+        for _ in range(scheduler.lane_count):
+            if cursor >= len(work):
                 break
-            batch.append(item)
-            estimated_tokens += item_tokens
-            cursor += 1
-        try:
-            vectors = api_pool.embed_batch(
-                texts=[item[3] for item in batch],
-                model=model,
-                dimension=dimension,
+            batch_start = cursor
+            batch, cursor = _take_embedding_batch(
+                work=work,
+                cursor=cursor,
+                batch_size=batch_size,
+                max_tpm=max_tpm,
             )
-        except Exception as error:
-            first = batch[0]
-            context = embedding_failure_context(
-                request_index=cursor - len(batch) + 1,
-                request_total=len(work),
-                skill_id=first[0]["skillId"],
-                asset_path=first[1]["assetPath"],
-                chunk_id=first[2].chunk_id,
-                embedding_text=first[3],
+            round_batches.append(batch)
+            round_starts.append(batch_start)
+
+        outcomes = scheduler.embed_batches_with_errors(
+            batches=[[item[3] for item in batch] for batch in round_batches],
+            model=model,
+            dimension=dimension,
+        )
+        first_failure: RuntimeError | None = None
+        for batch, batch_start, outcome in zip(
+            round_batches,
+            round_starts,
+            outcomes,
+            strict=True,
+        ):
+            vectors, error = outcome
+            if error is not None:
+                first = batch[0]
+                context = embedding_failure_context(
+                    request_index=batch_start + 1,
+                    request_total=len(work),
+                    skill_id=first[0]["skillId"],
+                    asset_path=first[1]["assetPath"],
+                    chunk_id=first[2].chunk_id,
+                    embedding_text=first[3],
+                )
+                if first_failure is None:
+                    first_failure = RuntimeError(
+                        f"Gemini embedding failed at {context}: {error}"
+                    )
+                continue
+            if vectors is None:
+                raise AssertionError("Embedding lane completed without vectors or error")
+            for item, vector in zip(batch, vectors, strict=True):
+                cache.put(model, dimension, item[3], vector)
+                vectors_by_chunk[item[2].chunk_id] = vector
+            completed += len(batch)
+
+        progress_bucket = completed // 50
+        if (
+            progress_bucket > last_reported_bucket
+            or completed == len(work)
+        ):
+            print(
+                f"Embedding progress: {completed}/{len(work)} pending chunks complete",
+                flush=True,
             )
-            raise RuntimeError(f"Gemini embedding failed at {context}: {error}") from error
-        for item, vector in zip(batch, vectors, strict=True):
-            cache.put(model, dimension, item[3], vector)
-            vectors_by_chunk[item[2].chunk_id] = vector
-        if cursor % 50 < len(batch) or cursor == len(work):
-            print(f"Embedding progress: {cursor}/{len(work)} pending chunks complete", flush=True)
+            last_reported_bucket = progress_bucket
+        if first_failure is not None:
+            raise first_failure
 
     index_bytes = bytearray()
     public_skills: list[dict] = []
@@ -946,18 +1101,18 @@ def main(argv: Iterable[str] = ()) -> int:
         raise ValueError(
             f"This repository contract requires {MODEL} with {DIMENSION} dimensions"
         )
-    api_keys = _load_api_keys_from_environment()
-    if not api_keys:
+    api_key_lanes = _load_api_key_lanes_from_environment()
+    if not api_key_lanes:
         raise RuntimeError(
-            "GEMINI_API_KEY or numbered GEMINI_API_KEY_<n> variables are required "
-            "to generate embeddings"
+            "Gemini API keys are required. Use GEMINI_API_KEY[_<n>] for one lane "
+            "or GEMINI_API_KEY_A_<n> / GEMINI_API_KEY_B_<n> for two lanes."
         )
 
     manifest, index_bytes = _build_manifest_and_index(
         repo_root=repo_root,
         model=args.model,
         dimension=args.dimension,
-        api_keys=api_keys,
+        api_key_lanes=api_key_lanes,
         batch_size=args.batch_size,
         max_rpm=args.max_rpm,
         max_tpm=args.max_tpm,
