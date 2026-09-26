@@ -105,7 +105,13 @@ $files | ForEach-Object {
   Get-FileHash $_ -Algorithm SHA256 | Select-Object Path, Hash
 }
 
- manifest ：skill 、document 、KNOWLEDGE document 、chunk 、index 。
+ manifest ：
+- skills = 44；
+-  44  Skill  1 CORE；
+- `richard_feynman`  KNOWLEDGE；
+- `zhang_xuefeng`  KNOWLEDGE；
+- document / KNOWLEDGE document / chunk / index ；
+- index 。
 
 ## 8. ZIP
 
@@ -124,7 +130,7 @@ HEAD: <sha>
 REMOTE_HEAD_MATCH: PASS | FAIL
 MAIN_ANCESTOR: PASS | FAIL
 WORKTREE_BEFORE: CLEAN | DIRTY
-PYTHON_GENERATOR_TEST: PASS | FAIL
+PYTHON_GENERATOR_TEST: PASS | FAIL (<passed>/<total>)
 GEMINI_KEY_STATE: SET | MISSING
 INDEX_GENERATION: PASS | FAIL
 VALIDATE_ONLY: PASS | FAIL
@@ -138,7 +144,7 @@ GENERATED:
 - 15.json: COMMITTED_UNCHANGED | CHANGED
 
 MANIFEST:
-- skills=<n>
+- skills=<n> (expected 44)
 - documents=<n>
 - knowledgeDocuments=<n>
 - chunks=<n>
