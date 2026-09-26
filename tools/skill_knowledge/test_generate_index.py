@@ -12,6 +12,7 @@ from tools.skill_knowledge.generate_index import (
     format_document_for_embedding,
     _collect_documents,
     _embed_text,
+    embedding_failure_context,
     safe_gemini_error_detail,
 )
 
@@ -147,6 +148,25 @@ class SkillKnowledgeIndexGeneratorTest(unittest.TestCase):
         self.assertEqual(768, len(values))
         self.assertEqual(2, urlopen.call_count)
         sleep.assert_called_once_with(1)
+
+    def test_embedding_failure_context_has_metadata_without_text(self):
+        detail = embedding_failure_context(
+            request_index=7,
+            request_total=42,
+            skill_id="richard_feynman",
+            asset_path="skills/feynman-skill-main/references/research.md",
+            chunk_id="chunk-7",
+            embedding_text="secret body",
+        )
+
+        self.assertIn("request=7/42", detail)
+        self.assertIn("skillId=richard_feynman", detail)
+        self.assertIn("assetPath=skills/feynman-skill-main/references/research.md", detail)
+        self.assertIn("chunkId=chunk-7", detail)
+        self.assertIn("chars=11", detail)
+        self.assertIn("utf8Bytes=11", detail)
+        self.assertIn("inputSha256=", detail)
+        self.assertNotIn("secret body", detail)
 
     def test_document_embedding_format_is_stable(self):
         self.assertEqual(
