@@ -12,6 +12,15 @@
 
 ## 
 
+> 2026-09-26 ： `ad79ff...`  `Skill asset missing: skills/zhangxuefeng-skill-main/SKILL.md`。：
+> -  Catalog ， v2  Manifest；
+> -  v2  `skills/official/<id>/SKILL.md`， CORE ；
+> - 20  repository  Knowledge/Supporting ；
+> - document  `assetPath` ；
+> -  8  Markdown  assets， `SKILL.md`。
+>  44 CORE / 136 KNOWLEDGE / 22 SUPPORTING / 202 documents，， Gemini 。
+
+
 > 2026-09-26 GPT ：、/、main 、/purge/backup ； ./Gradle/Room Schema 15  Gemini 。
 >
 > ：`app/src/main/assets/skill_knowledge/manifest.json`、`index-v1.bin`、`app/schemas/com.elio.jianyu.data.RoundtableDatabase/15.json`； Gradle / JVM / AndroidTest / / API / UI 。
