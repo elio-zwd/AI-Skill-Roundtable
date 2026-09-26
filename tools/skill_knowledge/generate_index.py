@@ -337,6 +337,27 @@ def _collect_documents(repo_root: Path) -> list[dict]:
     return skills
 
 
+def safe_gemini_error_detail(raw_body: bytes, api_key: str) -> str:
+    try:
+        payload = json.loads(raw_body.decode("utf-8", errors="replace"))
+        error = payload.get("error") or {}
+        status = str(error.get("status") or "").strip()
+        message = str(error.get("message") or "").strip()
+    except (json.JSONDecodeError, UnicodeDecodeError, AttributeError, TypeError):
+        status = ""
+        message = ""
+
+    detail = ": ".join(part for part in (status, message) if part)
+    if not detail:
+        detail = "No structured Gemini error detail"
+
+    if api_key:
+        detail = detail.replace(api_key, "<redacted>")
+    detail = re.sub(r"AIza[0-9A-Za-z_-]{16,}", "<redacted>", detail)
+    detail = re.sub(r"\s+", " ", detail).strip()
+    return detail[:500]
+
+
 def _embed_text(api_key: str, text: str, model: str, dimension: int) -> list[float]:
     payload = json.dumps(
         {
@@ -372,9 +393,11 @@ def _embed_text(api_key: str, text: str, model: str, dimension: int) -> list[flo
             return [float(value) for value in values]
         except urllib.error.HTTPError as error:
             last_error = error
+            raw_error = error.read()
+            detail = safe_gemini_error_detail(raw_error, api_key)
             if error.code not in {429, 500, 502, 503, 504} or attempt == 3:
                 raise RuntimeError(
-                    f"Gemini embedding request failed with HTTP {error.code}"
+                    f"Gemini embedding request failed with HTTP {error.code}: {detail}"
                 ) from error
         except (urllib.error.URLError, TimeoutError) as error:
             last_error = error
