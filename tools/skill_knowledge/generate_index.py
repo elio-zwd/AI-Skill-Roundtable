@@ -26,6 +26,13 @@ SCHEMA_VERSION = 1
 MAX_CHARS = 900
 OVERLAP_CHARS = 200
 
+GENERATION_PRIMARY_TYPE_PRIORITY = {
+    "TASK_ASSISTANT": 0,
+    "PROFESSIONAL_ADVISOR": 1,
+    "PERSON_PERSPECTIVE": 2,
+    "WORKFLOW_CAPABILITY": 3,
+}
+
 
 @dataclasses.dataclass(frozen=True)
 class Chunk:
@@ -251,6 +258,7 @@ def _skill_sources(repo_root: Path) -> list[dict]:
             {
                 "skillId": skill["id"],
                 "skillName": skill.get("nameZh") or skill["id"],
+                "primaryType": str(skill.get("primaryType") or ""),
                 "coreAssetPath": core_asset_path,
                 "historicalAssetPath": historical_asset_path,
             }
@@ -333,6 +341,7 @@ def _collect_documents(repo_root: Path) -> list[dict]:
             {
                 "skillId": skill_id,
                 "skillName": source["skillName"],
+                "_primaryType": source["primaryType"],
                 "assetRoot": official_root.relative_to(assets_root).as_posix(),
                 "documents": documents,
             }
@@ -464,12 +473,38 @@ def _estimated_input_tokens(text: str) -> int:
     return max(1, math.ceil(len(text.encode("utf-8")) / 3))
 
 
+def _generation_priority(primary_type: str) -> int:
+    return GENERATION_PRIMARY_TYPE_PRIORITY.get(primary_type, 99)
+
+
+class GeminiRateLimitError(RuntimeError):
+    pass
+
+
+def _load_api_keys_from_environment(env: dict[str, str] | os._Environ[str] = os.environ) -> list[str]:
+    numbered_names = sorted(
+        (
+            name
+            for name in env
+            if re.fullmatch(r"GEMINI_API_KEY_[0-9]+", name)
+        ),
+        key=lambda name: int(name.rsplit("_", 1)[1]),
+    )
+    keys: list[str] = []
+    for name in ["GEMINI_API_KEY", *numbered_names]:
+        value = str(env.get(name, "")).strip()
+        if value and value not in keys:
+            keys.append(value)
+    return keys
+
+
 def _embed_batch(
     api_key: str,
     texts: list[str],
     model: str,
     dimension: int,
     limiter: SlidingWindowRateLimiter | None = None,
+    retry_rate_limits: bool = True,
 ) -> list[list[float]]:
     if not texts:
         raise ValueError("Embedding batch must not be empty")
@@ -500,9 +535,15 @@ def _embed_batch(
         except urllib.error.HTTPError as error:
             raw = error.read()
             retryable = error.code in {429, 500, 502, 503, 504} or (error.code == 400 and not raw.strip())
-            last_attempt = 11 if error.code == 429 else 3
+            last_attempt = 11 if error.code == 429 and retry_rate_limits else 3
+            if error.code == 429 and not retry_rate_limits:
+                raise GeminiRateLimitError(
+                    f"Gemini batch embedding failed with HTTP {error.code}: "
+                    f"{safe_gemini_error_detail(raw, api_key)}"
+                ) from error
             if not retryable or attempt >= last_attempt:
-                raise RuntimeError(
+                error_type = GeminiRateLimitError if error.code == 429 else RuntimeError
+                raise error_type(
                     f"Gemini batch embedding failed with HTTP {error.code}: "
                     f"{safe_gemini_error_detail(raw, api_key)}"
                 ) from error
@@ -524,6 +565,64 @@ def _embed_batch(
             delay = 0.0
         time.sleep(max(delay, min(60, 2 ** attempt) + random.uniform(0, 0.5)))
     raise AssertionError("Unreachable embedding retry state")
+
+
+class GeminiApiKeyPool:
+    def __init__(
+        self,
+        api_keys: list[str],
+        max_rpm: int,
+        max_tpm: int,
+    ):
+        unique_keys: list[str] = []
+        for api_key in api_keys:
+            normalized = api_key.strip()
+            if normalized and normalized not in unique_keys:
+                unique_keys.append(normalized)
+        if not unique_keys:
+            raise ValueError("At least one Gemini API key is required")
+        self._slots = [
+            (
+                api_key,
+                SlidingWindowRateLimiter(
+                    max_requests_per_minute=max_rpm,
+                    max_input_tokens_per_minute=max_tpm,
+                ),
+            )
+            for api_key in unique_keys
+        ]
+        self._cursor = 0
+
+    @property
+    def project_count(self) -> int:
+        return len(self._slots)
+
+    def embed_batch(
+        self,
+        texts: list[str],
+        model: str,
+        dimension: int,
+    ) -> list[list[float]]:
+        last_rate_limit: GeminiRateLimitError | None = None
+        for _ in range(len(self._slots)):
+            slot_index = self._cursor
+            self._cursor = (self._cursor + 1) % len(self._slots)
+            api_key, limiter = self._slots[slot_index]
+            try:
+                return _embed_batch(
+                    api_key=api_key,
+                    texts=texts,
+                    model=model,
+                    dimension=dimension,
+                    limiter=limiter,
+                    retry_rate_limits=False,
+                )
+            except GeminiRateLimitError as error:
+                last_rate_limit = error
+        raise GeminiRateLimitError(
+            f"All {len(self._slots)} Gemini project keys are rate-limited; "
+            "successful checkpoints are preserved"
+        ) from last_rate_limit
 
 
 def _embed_text(api_key: str, text: str, model: str, dimension: int) -> list[float]:
@@ -583,8 +682,9 @@ def _build_manifest_and_index(
     repo_root: Path,
     model: str,
     dimension: int,
-    api_key: str,
+    api_key: str | None = None,
     cache_root: Path | None = None,
+    api_keys: list[str] | None = None,
     batch_size: int = 8,
     max_rpm: int = 24,
     max_tpm: int = 800,
@@ -593,7 +693,8 @@ def _build_manifest_and_index(
     if batch_size < 1:
         raise ValueError("Batch size must be positive")
     cache = EmbeddingCache(cache_root or repo_root / "build/tmp/skill_knowledge/embeddings")
-    limiter = SlidingWindowRateLimiter(max_rpm, max_tpm)
+    resolved_api_keys = list(api_keys or ([] if api_key is None else [api_key]))
+    api_pool = GeminiApiKeyPool(resolved_api_keys, max_rpm=max_rpm, max_tpm=max_tpm)
     work: list[tuple[dict, dict, Chunk, str]] = []
     vectors_by_chunk: dict[str, list[float]] = {}
     for skill in skills:
@@ -608,7 +709,21 @@ def _build_manifest_and_index(
                 else:
                     vectors_by_chunk[chunk.chunk_id] = cached
 
+    work.sort(key=lambda item: _generation_priority(item[0].get("_primaryType", "")))
+    pending_by_type: dict[str, int] = {}
+    for skill, _, _, _ in work:
+        primary_type = skill.get("_primaryType", "") or "UNKNOWN"
+        pending_by_type[primary_type] = pending_by_type.get(primary_type, 0) + 1
+    priority_summary = ", ".join(
+        f"{primary_type}={pending_by_type.get(primary_type, 0)}"
+        for primary_type in GENERATION_PRIMARY_TYPE_PRIORITY
+    )
     print(f"Embedding cache: {len(vectors_by_chunk)} hits, {len(work)} pending", flush=True)
+    print(
+        f"Gemini project key pool: {api_pool.project_count}; "
+        f"generation priority: {priority_summary}",
+        flush=True,
+    )
     cursor = 0
     while cursor < len(work):
         batch: list[tuple[dict, dict, Chunk, str]] = []
@@ -627,8 +742,10 @@ def _build_manifest_and_index(
             estimated_tokens += item_tokens
             cursor += 1
         try:
-            vectors = _embed_batch(
-                api_key, [item[3] for item in batch], model, dimension, limiter
+            vectors = api_pool.embed_batch(
+                texts=[item[3] for item in batch],
+                model=model,
+                dimension=dimension,
             )
         except Exception as error:
             first = batch[0]
@@ -829,15 +946,18 @@ def main(argv: Iterable[str] = ()) -> int:
         raise ValueError(
             f"This repository contract requires {MODEL} with {DIMENSION} dimensions"
         )
-    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-    if not api_key:
-        raise RuntimeError("GEMINI_API_KEY is required to generate embeddings")
+    api_keys = _load_api_keys_from_environment()
+    if not api_keys:
+        raise RuntimeError(
+            "GEMINI_API_KEY or numbered GEMINI_API_KEY_<n> variables are required "
+            "to generate embeddings"
+        )
 
     manifest, index_bytes = _build_manifest_and_index(
         repo_root=repo_root,
         model=args.model,
         dimension=args.dimension,
-        api_key=api_key,
+        api_keys=api_keys,
         batch_size=args.batch_size,
         max_rpm=args.max_rpm,
         max_tpm=args.max_tpm,
