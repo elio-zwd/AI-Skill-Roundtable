@@ -399,10 +399,13 @@ def _embed_text(api_key: str, text: str, model: str, dimension: int) -> list[flo
                 raise RuntimeError(
                     f"Gemini embedding request failed with HTTP {error.code}: {detail}"
                 ) from error
-        except (urllib.error.URLError, TimeoutError) as error:
+        except (urllib.error.URLError, OSError) as error:
             last_error = error
             if attempt == 3:
-                raise RuntimeError("Gemini embedding request failed") from error
+                raise RuntimeError(
+                    "Gemini embedding request failed after transient network retries: "
+                    f"{type(error).__name__}"
+                ) from error
         time.sleep(2 ** attempt)
 
     raise RuntimeError("Gemini embedding request failed") from last_error
