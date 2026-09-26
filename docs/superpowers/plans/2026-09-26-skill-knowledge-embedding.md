@@ -12,6 +12,8 @@
 
 ## 
 
+> 2026-09-26 ： API smoke  768 ， model / key / endpoint / payload 。 WinError 10054 `ConnectionResetError`， `URLError/TimeoutError` ，； Python  `json` import。 `OSError`  4 ， ConnectionReset ； HTTP 400 。
+
 > 2026-09-26 ： `ad79ff...`  `Skill asset missing: skills/zhangxuefeng-skill-main/SKILL.md`。：
 > -  Catalog ， v2  Manifest；
 > -  v2  `skills/official/<id>/SKILL.md`， CORE ；
