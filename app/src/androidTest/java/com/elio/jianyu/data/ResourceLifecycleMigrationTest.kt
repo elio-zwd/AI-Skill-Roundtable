@@ -58,6 +58,7 @@ class ResourceLifecycleMigrationTest {
                 12 to 13,
                 13 to 14,
                 14 to 15,
+                15 to 16,
             ),
             migrationPairs
         )

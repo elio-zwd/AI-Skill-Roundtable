@@ -50,7 +50,7 @@ import kotlinx.coroutines.CoroutineScope
         StageAdvancementMaterialEntity::class,
         StageAdvancementArtifactEntity::class,
     ],
-    version = 15,
+    version = 16,
     exportSchema = true,
 )
 @TypeConverters(
@@ -178,6 +178,12 @@ abstract class RoundtableDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_15_16: Migration = object : Migration(15, 16) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE `messages` ADD COLUMN `answerStatus` TEXT NOT NULL DEFAULT 'COMPLETED'")
+            }
+        }
+
         val ALL_MIGRATIONS: Array<Migration> = arrayOf(
             MIGRATION_1_2,
             MIGRATION_2_3,
@@ -193,6 +199,7 @@ abstract class RoundtableDatabase : RoomDatabase() {
             MIGRATION_12_13,
             MIGRATION_13_14,
             MIGRATION_14_15,
+            MIGRATION_15_16,
         )
 
         fun getDatabase(context: Context, scope: CoroutineScope): RoundtableDatabase {

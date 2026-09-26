@@ -57,6 +57,24 @@ class RoundtableDatabaseMigrationTest {
     }
 
     @Test
+    fun migration15To16_addsAnswerStatusWithoutClearingMessages() {
+        migrationHelper.createDatabase(TEST_DATABASE, 15).apply {
+            execSQL("INSERT INTO chat_sessions (id, title, createdAt) VALUES (1, '旧会话', 1)")
+            execSQL("INSERT INTO messages (id, chatId, senderId, senderName, avatar, text, timestamp, isPending, roundIndex, audioSizeBytes) VALUES (1, 1, 'user', '我', '', '旧消息', 1, 0, 0, 0)")
+            close()
+        }
+        val migrated = migrationHelper.runMigrationsAndValidate(
+            TEST_DATABASE, 16, true, RoundtableDatabase.MIGRATION_15_16,
+        )
+        migrated.query("SELECT text, answerStatus FROM messages WHERE id = 1").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("旧消息", cursor.getString(0))
+            assertEquals(MessageAnswerStatus.COMPLETED, cursor.getString(1))
+        }
+        migrated.close()
+    }
+
+    @Test
     fun migration1To6_matchesCurrentSchemaAndPreservesData() {
         val migrated = migrateLegacyDatabase(
             version = 1,

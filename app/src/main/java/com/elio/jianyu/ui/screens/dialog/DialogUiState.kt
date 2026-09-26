@@ -13,12 +13,14 @@ data class DialogUiState(
     val messages: List<DialogMessageItem> = emptyList(),
     val visibleMessages: List<DialogTimelineItem> = emptyList(),
     val roleStripExpanded: Boolean = true,
-    val selectedAnswerIds: Map<String, String> = emptyMap(),
+    val selectedRoleIds: Map<String, String> = emptyMap(),
     val expandedAnswerIds: Set<String> = emptySet(),
     val readAnswerIds: Set<String> = emptySet(),
     val answerScrollOffsets: Map<String, Int> = emptyMap(),
+    val answerScrollProgress: Map<String, Float> = emptyMap(),
     val conversationScrollKey: String? = null,
     val conversationScrollOffset: Int = 0,
+    val conversationScrollProgress: Float? = null,
     val restoredSessionId: String? = null,
     val searchState: DialogSearchState = DialogSearchState(),
     val thinkingIntensity: String = "标准",
@@ -306,8 +308,12 @@ sealed interface DialogMessageItem {
         val text: String,
         override val timestamp: String,
         val isStreaming: Boolean = false,
+        val questionId: String? = null,
+        val answerStatus: DialogAnswerStatus = DialogAnswerStatus.COMPLETED,
     ) : DialogMessageItem
 }
+
+enum class DialogAnswerStatus { WAITING, GENERATING, COMPLETED, STOPPED, FAILED }
 
 sealed interface DialogTimelineItem {
     val id: String

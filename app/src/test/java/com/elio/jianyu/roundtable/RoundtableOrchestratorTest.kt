@@ -3,6 +3,7 @@ package com.elio.jianyu.roundtable
 import android.content.Context
 import com.elio.jianyu.data.Character
 import com.elio.jianyu.data.Message
+import com.elio.jianyu.data.MessageAnswerStatus
 import com.elio.jianyu.network.ApiKeySource
 import com.elio.jianyu.network.AiProvider
 import com.elio.jianyu.network.keys.ApiKeyLease
@@ -58,15 +59,19 @@ class RoundtableOrchestratorTest {
         override suspend fun updatePendingMessageText(id: Long, text: String) {
             val index = messages.indexOfFirst { it.id == id && it.isPending }
             if (index >= 0) {
-                messages[index] = messages[index].copy(text = text)
+                messages[index] = messages[index].copy(text = text, answerStatus = MessageAnswerStatus.GENERATING)
             }
             pendingTextUpdates += text
         }
 
-        override suspend fun completePendingMessage(id: Long, text: String) {
+        override suspend fun completePendingMessage(id: Long, text: String, answerStatus: String) {
             val index = messages.indexOfFirst { it.id == id && it.isPending }
             if (index >= 0) {
-                messages[index] = messages[index].copy(text = text, isPending = false)
+                messages[index] = messages[index].copy(
+                    text = text,
+                    isPending = false,
+                    answerStatus = answerStatus,
+                )
             }
         }
 
@@ -250,7 +255,7 @@ class RoundtableOrchestratorTest {
         )
         val result = orchestrator.runRoundtableSequence(1L, 1001L, false)
 
-        assertEquals(listOf("正在思考中...", "第一段", "第一段第二段"), dbGateway.pendingTextUpdates)
+        assertEquals(listOf("正在生成...", "第一段", "第一段第二段"), dbGateway.pendingTextUpdates)
         assertEquals(listOf("char_stream"), result.completedCharacters)
         assertTrue(messagesList.none { it.isPending })
         assertEquals("第一段第二段", messagesList.last().text)
@@ -335,6 +340,7 @@ class RoundtableOrchestratorTest {
         assertFalse(preserved.isPending)
         assertTrue(preserved.text.contains("用户已经看到的回复正文"))
         assertTrue(preserved.text.contains("可能不完整"))
+        assertEquals(MessageAnswerStatus.FAILED, preserved.answerStatus)
         assertTrue(dbGateway.deletedMessageIds.isEmpty())
     }
 
@@ -399,7 +405,7 @@ class RoundtableOrchestratorTest {
     }
 
     @Test
-    fun testCharacterFailureCleansPendingAndContinues() = runBlocking {
+    fun testCharacterFailureKeepsFailedPageAndContinues() = runBlocking {
         val context = mock(Context::class.java)
         val charA = Character(id = "char_a", name = "智囊A", avatar = "A", tagline = "A", systemPrompt = "SetA", order = 1)
         val charB = Character(id = "char_b", name = "智囊B", avatar = "B", tagline = "B", systemPrompt = "SetB", order = 2)
@@ -455,7 +461,10 @@ class RoundtableOrchestratorTest {
         assertTrue(result.completedCharacters.contains("char_b"))
         assertEquals("A 应该失败", 1, result.failedCharacters.size)
         assertTrue(result.failedCharacters.contains("char_a"))
-        assertTrue("A的Pending消息被清理", dbGateway.deletedMessageIds.isNotEmpty())
+        val failedA = dbGateway.messages.single { it.senderId == "char_a" }
+        assertFalse(failedA.isPending)
+        assertEquals(MessageAnswerStatus.FAILED, failedA.answerStatus)
+        assertTrue(dbGateway.deletedMessageIds.isEmpty())
     }
 
     @Test
@@ -1126,6 +1135,85 @@ class RoundtableOrchestratorTest {
     }
 
     @Test
+    fun retryPartialFailureRunsThatRoleAgainWithoutChangingCompletedRole() = runBlocking {
+        val context = mock(Context::class.java)
+        val charA = Character(id = "char_a", name = "A", avatar = "A", tagline = "", systemPrompt = "", order = 1)
+        val charB = Character(id = "char_b", name = "B", avatar = "B", tagline = "", systemPrompt = "", order = 2)
+        val messages = mutableListOf(
+            Message(id = 1001L, chatId = 1L, senderId = "user", senderName = "User", avatar = "U", text = "请回答"),
+            Message(
+                id = 1002L, chatId = 1L, senderId = "char_a", senderName = "A", avatar = "A",
+                text = "A 已完成", roundIndex = 1, questionMessageId = 1001L,
+            ),
+            Message(
+                id = 1003L, chatId = 1L, senderId = "char_b", senderName = "B", avatar = "B",
+                text = "B 的部分内容", roundIndex = 1, questionMessageId = 1001L,
+                answerStatus = MessageAnswerStatus.FAILED,
+            ),
+        )
+        val dbGateway = FakeRoundtableDatabaseGateway(messages, mutableListOf(charA, charB))
+        val called = mutableListOf<String>()
+        val answerGateway = FakeCharacterAnswerGateway(
+            replyText = "B 已重试完成",
+            onCallApi = { character, _ -> called += character.id },
+        )
+        val orchestrator = RoundtableOrchestrator(
+            context = context,
+            dbGateway = dbGateway,
+            answerGateway = answerGateway,
+            budgetManager = RoundtableBudgetManager(RoundtableBudget()),
+            delayProvider = ZeroDelayProvider,
+            minIntervalMs = 0L,
+            createAttemptPlan = testAttemptPlan,
+        )
+
+        val result = orchestrator.runRoundtableSequence(
+            sessionId = 1L,
+            questionRunId = 1001L,
+            isSemanticRoutingEnabled = false,
+            targetCharacterIds = listOf("char_b"),
+        )
+
+        assertEquals(listOf("char_b"), called)
+        assertEquals(listOf("char_b"), result.completedCharacters)
+        assertEquals("A 已完成", messages.single { it.senderId == "char_a" }.text)
+        assertEquals(MessageAnswerStatus.COMPLETED, messages.last().answerStatus)
+        assertEquals("B 已重试完成", messages.last().text)
+    }
+
+    @Test
+    fun retryOlderQuestionUsesItsOriginalUserRequest() = runBlocking {
+        val context = mock(Context::class.java)
+        val character = Character(id = "char_b", name = "B", avatar = "B", tagline = "", systemPrompt = "", order = 1)
+        val messages = mutableListOf(
+            Message(id = 1001L, chatId = 1L, senderId = "user", senderName = "User", avatar = "U", text = "旧问题"),
+            Message(
+                id = 1002L, chatId = 1L, senderId = "char_b", senderName = "B", avatar = "B",
+                text = "旧问题的失败回答", questionMessageId = 1001L, roundIndex = 1,
+                answerStatus = MessageAnswerStatus.FAILED,
+            ),
+            Message(id = 1003L, chatId = 1L, senderId = "user", senderName = "User", avatar = "U", text = "新问题"),
+        )
+        var prompt = ""
+        val orchestrator = RoundtableOrchestrator(
+            context = context,
+            dbGateway = FakeRoundtableDatabaseGateway(messages, mutableListOf(character)),
+            answerGateway = FakeCharacterAnswerGateway(
+                onCallApi = { _, receivedPrompt -> prompt = receivedPrompt },
+            ),
+            budgetManager = RoundtableBudgetManager(RoundtableBudget()),
+            delayProvider = ZeroDelayProvider,
+            minIntervalMs = 0L,
+            createAttemptPlan = testAttemptPlan,
+        )
+
+        orchestrator.runRoundtableSequence(1L, 1001L, false, listOf(character.id))
+
+        assertTrue(prompt.contains("用户当前请求：旧问题"))
+        assertFalse(prompt.contains("用户当前请求：新问题"))
+    }
+
+    @Test
     fun explicitSessionRoster_executesCharacterRegardlessOfLegacyActiveFlag() = runBlocking {
         val context = mock(Context::class.java)
         val sessionRole = Character(
@@ -1415,7 +1503,7 @@ class RoundtableOrchestratorTest {
     }
 
     @Test
-    fun retryTargetCharacters_cancellationDeletesPendingAndPreservesCompleted() = runBlocking<Unit> {
+    fun retryTargetCharacters_cancellationKeepsStoppedPageAndPreservesCompleted() = runBlocking<Unit> {
         val context: Context = mock(Context::class.java)
         val charA = Character(id = "char_a", name = "A", avatar = "A", tagline = "", systemPrompt = "", order = 1)
         val charB = Character(id = "char_b", name = "B", avatar = "B", tagline = "", systemPrompt = "", order = 2)
@@ -1480,9 +1568,9 @@ class RoundtableOrchestratorTest {
         assertFalse(msgA!!.isPending)
         assertEquals("A完成回答", msgA.text)
 
-        // char_b 的 pending 消息被清理，没有保留 pending
-        val pendingB = dbGateway.messages.find { it.senderId == "char_b" && it.isPending }
-        assertNull(pendingB)
+        val stoppedB = dbGateway.messages.single { it.senderId == "char_b" }
+        assertFalse(stoppedB.isPending)
+        assertEquals(MessageAnswerStatus.STOPPED, stoppedB.answerStatus)
     }
 
     @Test

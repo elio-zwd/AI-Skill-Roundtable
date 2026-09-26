@@ -117,14 +117,21 @@ fun DialogRoute(
         val offsets = readingPrefs.all.keys
             .filter { it.startsWith("${prefix}_offset_") }
             .associate { key -> key.removePrefix("${prefix}_offset_") to readingPrefs.getInt(key, 0) }
+        val progress = readingPrefs.all.keys
+            .filter { it.startsWith("${prefix}_progress_") }
+            .associate { key -> key.removePrefix("${prefix}_progress_") to readingPrefs.getFloat(key, 0f) }
         localState = localState.copy(
             roleStripExpanded = readingPrefs.getBoolean("${prefix}_roles", true),
-            selectedAnswerIds = selected,
+            selectedRoleIds = selected,
             expandedAnswerIds = readingPrefs.getStringSet("${prefix}_expanded", emptySet()).orEmpty().toSet(),
             readAnswerIds = readingPrefs.getStringSet("${prefix}_read", emptySet()).orEmpty().toSet(),
             answerScrollOffsets = offsets,
+            answerScrollProgress = progress,
             conversationScrollKey = readingPrefs.getString("${prefix}_scroll_key", null),
             conversationScrollOffset = readingPrefs.getInt("${prefix}_scroll_offset", 0),
+            conversationScrollProgress = if (readingPrefs.contains("${prefix}_scroll_progress")) {
+                readingPrefs.getFloat("${prefix}_scroll_progress", 0f)
+            } else null,
             restoredSessionId = sessionId.toString(),
         )
     }
@@ -266,16 +273,28 @@ fun DialogRoute(
                         currentSession?.id?.let { readingPrefs.edit().putBoolean("session_${it}_roles", expanded).apply() }
                     }
                     is DialogEvent.SelectAnswer -> {
-                        val read = localState.readAnswerIds + event.answerId
+                        val group = uiState.visibleMessages
+                            .filterIsInstance<DialogTimelineItem.Answers>()
+                            .firstOrNull { it.questionId == event.questionId }
+                        val currentRoleId = localState.selectedRoleIds[event.questionId]
+                        val currentAnswerId = group?.replies?.firstOrNull { it.role.id == currentRoleId }?.id
+                            ?: group?.replies?.firstOrNull()?.id
+                        val targetAnswerId = group?.replies?.firstOrNull { it.role.id == event.roleId }?.id
+                        val read = localState.readAnswerIds + listOfNotNull(currentAnswerId, targetAnswerId)
                         localState = localState.copy(
-                            selectedAnswerIds = localState.selectedAnswerIds + (event.questionId to event.answerId),
+                            selectedRoleIds = localState.selectedRoleIds + (event.questionId to event.roleId),
                             readAnswerIds = read,
                         )
                         currentSession?.id?.let {
                             readingPrefs.edit()
-                                .putString("session_${it}_page_${event.questionId}", event.answerId)
+                                .putString("session_${it}_page_${event.questionId}", event.roleId)
                                 .putStringSet("session_${it}_read", read)
                                 .apply()
+                        }
+                    }
+                    is DialogEvent.RetryAnswer -> {
+                        event.questionId.toLongOrNull()?.let { questionId ->
+                            viewModel.retryCharacterAnswer(questionId, event.roleId)
                         }
                     }
                     is DialogEvent.ToggleAnswerExpanded -> {
@@ -286,27 +305,46 @@ fun DialogRoute(
                         }
                         localState = localState.copy(expandedAnswerIds = expanded)
                         if (event.answerId !in expanded) {
-                            localState = localState.copy(answerScrollOffsets = localState.answerScrollOffsets + (event.answerId to 0))
+                            localState = localState.copy(
+                                answerScrollOffsets = localState.answerScrollOffsets + (event.answerId to 0),
+                                answerScrollProgress = localState.answerScrollProgress + (event.answerId to 0f),
+                            )
                         }
                         currentSession?.id?.let {
                             readingPrefs.edit()
                                 .putStringSet("session_${it}_expanded", expanded)
                                 .apply {
-                                    if (event.answerId !in expanded) putInt("session_${it}_offset_${event.answerId}", 0)
+                                    if (event.answerId !in expanded) {
+                                        putInt("session_${it}_offset_${event.answerId}", 0)
+                                        putFloat("session_${it}_progress_${event.answerId}", 0f)
+                                    }
                                 }
                                 .apply()
                         }
                     }
                     is DialogEvent.SaveAnswerOffset -> {
-                        localState = localState.copy(answerScrollOffsets = localState.answerScrollOffsets + (event.answerId to event.offset))
-                        currentSession?.id?.let { readingPrefs.edit().putInt("session_${it}_offset_${event.answerId}", event.offset).apply() }
+                        localState = localState.copy(
+                            answerScrollOffsets = localState.answerScrollOffsets + (event.answerId to event.offset),
+                            answerScrollProgress = localState.answerScrollProgress + (event.answerId to event.progress),
+                        )
+                        currentSession?.id?.let {
+                            readingPrefs.edit()
+                                .putInt("session_${it}_offset_${event.answerId}", event.offset)
+                                .putFloat("session_${it}_progress_${event.answerId}", event.progress)
+                                .apply()
+                        }
                     }
                     is DialogEvent.SaveConversationOffset -> {
-                        localState = localState.copy(conversationScrollKey = event.itemId, conversationScrollOffset = event.offset)
+                        localState = localState.copy(
+                            conversationScrollKey = event.itemId,
+                            conversationScrollOffset = event.offset,
+                            conversationScrollProgress = event.progress,
+                        )
                         currentSession?.id?.let {
                             readingPrefs.edit()
                                 .putString("session_${it}_scroll_key", event.itemId)
                                 .putInt("session_${it}_scroll_offset", event.offset)
+                                .putFloat("session_${it}_scroll_progress", event.progress)
                                 .apply()
                         }
                     }

@@ -3,6 +3,7 @@ package com.elio.jianyu.ui.screens.dialog
 import com.elio.jianyu.data.Character
 import com.elio.jianyu.data.ChatSession
 import com.elio.jianyu.data.Message
+import com.elio.jianyu.data.MessageAnswerStatus
 import com.elio.jianyu.skill.catalog.OfficialSkillDefinition
 import com.elio.jianyu.skill.role.officialSkillVisualAssetPath
 import java.text.SimpleDateFormat
@@ -118,7 +119,9 @@ internal fun buildDialogTimeline(
                 groups[questionId] = newReplies
                 result += DialogTimelineItem.Answers(questionId.toString(), newReplies)
             } else {
-                replies += mapped
+                // 同一角色重试产生新消息时仍占原分页位置，最新版本从预览和开头阅读。
+                val existingIndex = replies.indexOfFirst { it.role.id == mapped.role.id }
+                if (existingIndex >= 0) replies[existingIndex] = mapped else replies += mapped
             }
         } else {
             result += DialogTimelineItem.Single(mapped)
@@ -176,9 +179,18 @@ private fun Message.toDialogMessage(
     DialogMessageItem.SkillMessage(
         id = id.toString(),
         role = role,
-        text = if (isPending && text == "正在思考中...") "正在思考…" else text,
+        text = if (isPending && text == "正在思考中...") "正在思考…"
+            else if (isPending && text == "正在生成...") "正在生成…" else text,
         timestamp = if (showTimestamp) formatMessageTime(timestamp) else "",
         isStreaming = isPending,
+        questionId = questionMessageId?.takeIf { responseMode == "INDEPENDENT" }?.toString(),
+        answerStatus = when (answerStatus) {
+            MessageAnswerStatus.WAITING -> DialogAnswerStatus.WAITING
+            MessageAnswerStatus.GENERATING -> DialogAnswerStatus.GENERATING
+            MessageAnswerStatus.STOPPED -> DialogAnswerStatus.STOPPED
+            MessageAnswerStatus.FAILED -> DialogAnswerStatus.FAILED
+            else -> DialogAnswerStatus.COMPLETED
+        },
     )
 }
 

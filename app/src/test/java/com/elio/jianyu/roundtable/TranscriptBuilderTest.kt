@@ -2,6 +2,7 @@ package com.elio.jianyu.roundtable
 
 import com.elio.jianyu.data.Character
 import com.elio.jianyu.data.Message
+import com.elio.jianyu.data.MessageAnswerStatus
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -59,6 +60,11 @@ class TranscriptBuilderTest {
         val messages = listOf(
             Message(id = 1, chatId = 100, senderId = "user", senderName = "User", avatar = "U", text = "你好"),
             Message(id = 2, chatId = 100, senderId = "char_b", senderName = "角色B", avatar = "B", text = "观点B", roundIndex = 1),
+            Message(
+                id = 3, chatId = 100, senderId = "char_c", senderName = "角色C", avatar = "C",
+                text = "失败的部分内容", roundIndex = 1,
+                answerStatus = MessageAnswerStatus.FAILED,
+            ),
         )
         val character = Character(
             id = "char_a",
@@ -79,5 +85,6 @@ class TranscriptBuilderTest {
         assertTrue(result.contains("用户已显式发起交叉讨论"))
         assertTrue(result.contains("Skill 角色「角色B」的观点"))
         assertTrue(result.contains("观点B"))
+        assertFalse(result.contains("失败的部分内容"))
     }
 }

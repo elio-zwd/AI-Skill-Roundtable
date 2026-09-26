@@ -2,6 +2,7 @@ package com.elio.jianyu.roundtable
 
 import com.elio.jianyu.data.Character
 import com.elio.jianyu.data.Message
+import com.elio.jianyu.data.MessageAnswerStatus
 
 object TranscriptBuilder {
     enum class ResponseMode {
@@ -48,6 +49,7 @@ object TranscriptBuilder {
                     .subList(lastUserIndex + 1, messages.size)
                     .filterNot { message ->
                         message.isPending ||
+                            message.answerStatus != MessageAnswerStatus.COMPLETED ||
                             (message.senderId == currentCharacter.id && message.roundIndex == roundIndex)
                     }
                 if (roleMessages.isNotEmpty()) {

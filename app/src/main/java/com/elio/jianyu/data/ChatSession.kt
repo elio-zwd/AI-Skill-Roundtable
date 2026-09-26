@@ -20,6 +20,14 @@ data class ChatSession(
     val createdAt: Long = System.currentTimeMillis()
 )
 
+object MessageAnswerStatus {
+    const val WAITING = "WAITING"
+    const val GENERATING = "GENERATING"
+    const val COMPLETED = "COMPLETED"
+    const val STOPPED = "STOPPED"
+    const val FAILED = "FAILED"
+}
+
 @Entity(
     tableName = "messages",
     foreignKeys = [
@@ -75,7 +83,8 @@ data class Message(
     val executionRunId: String? = null,
     val participantSnapshotId: String? = null,
     @ColumnInfo(defaultValue = "NULL") val questionMessageId: Long? = null,
-    @ColumnInfo(defaultValue = "'INDEPENDENT'") val responseMode: String = "INDEPENDENT"
+    @ColumnInfo(defaultValue = "'INDEPENDENT'") val responseMode: String = "INDEPENDENT",
+    @ColumnInfo(defaultValue = "'COMPLETED'") val answerStatus: String = MessageAnswerStatus.COMPLETED,
 )
 
 @Dao
@@ -143,7 +152,7 @@ interface ChatDao {
     suspend fun insertMessage(message: Message): Long
 
     @Query(
-        "UPDATE messages SET text = :text WHERE id = :id AND isPending = 1 " +
+        "UPDATE messages SET text = :text, answerStatus = 'GENERATING' WHERE id = :id AND isPending = 1 " +
             "AND NOT EXISTS (SELECT 1 FROM issues " +
             "WHERE legacyChatSessionId = messages.chatId " +
             "AND issues.id NOT LIKE 'legacy-chat-%' " +
@@ -152,13 +161,14 @@ interface ChatDao {
     suspend fun updatePendingMessageText(id: Long, text: String)
 
     @Query(
-        "UPDATE messages SET text = :text, isPending = 0 WHERE id = :id AND isPending = 1 " +
+        "UPDATE messages SET text = :text, isPending = 0, answerStatus = :answerStatus " +
+            "WHERE id = :id AND isPending = 1 " +
             "AND NOT EXISTS (SELECT 1 FROM issues " +
             "WHERE legacyChatSessionId = messages.chatId " +
             "AND issues.id NOT LIKE 'legacy-chat-%' " +
             "AND issues.id NOT LIKE 'dialog-session-%')"
     )
-    suspend fun completePendingMessage(id: Long, text: String)
+    suspend fun completePendingMessage(id: Long, text: String, answerStatus: String)
 
     @Query(
         "DELETE FROM messages WHERE id = :id AND NOT EXISTS (" +
@@ -255,8 +265,12 @@ class ChatRepository(private val chatDao: ChatDao) {
         chatDao.updatePendingMessageText(id, text)
     }
 
-    suspend fun completePendingMessage(id: Long, text: String) {
-        chatDao.completePendingMessage(id, text)
+    suspend fun completePendingMessage(
+        id: Long,
+        text: String,
+        answerStatus: String = MessageAnswerStatus.COMPLETED,
+    ) {
+        chatDao.completePendingMessage(id, text, answerStatus)
     }
 
     suspend fun deleteMessageById(id: Long) = chatDao.deleteMessageById(id)
