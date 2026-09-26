@@ -20,6 +20,10 @@ from tools.skill_knowledge.generate_index import (
     SlidingWindowRateLimiter,
     _embed_batch,
     _build_manifest_and_index,
+    _generation_priority,
+    _load_api_keys_from_environment,
+    GeminiApiKeyPool,
+    GeminiRateLimitError,
     _validate,
 )
 
@@ -290,6 +294,82 @@ class SkillKnowledgeIndexGeneratorTest(unittest.TestCase):
                 _embed_batch("test-key", ["input"], "gemini-embedding-2", 768)
 
         self.assertEqual(8, urlopen.call_count)
+
+    def test_load_api_keys_supports_numbered_projects_and_deduplicates(self):
+        env = {
+            "GEMINI_API_KEY": "legacy-key",
+            "GEMINI_API_KEY_10": "key-10",
+            "GEMINI_API_KEY_2": "key-2",
+            "GEMINI_API_KEY_1": "legacy-key",
+            "IGNORED": "not-a-key",
+        }
+
+        self.assertEqual(
+            ["legacy-key", "key-2", "key-10"],
+            _load_api_keys_from_environment(env),
+        )
+
+    def test_api_key_pool_rotates_projects_without_exposing_keys(self):
+        pool = GeminiApiKeyPool(
+            ["project-key-a", "project-key-b"],
+            max_rpm=24,
+            max_tpm=800,
+        )
+        vector = [[0.25] * 768]
+
+        with patch(
+            "tools.skill_knowledge.generate_index._embed_batch",
+            return_value=vector,
+        ) as embed:
+            pool.embed_batch(["first"], "gemini-embedding-2", 768)
+            pool.embed_batch(["second"], "gemini-embedding-2", 768)
+            pool.embed_batch(["third"], "gemini-embedding-2", 768)
+
+        self.assertEqual(
+            ["project-key-a", "project-key-b", "project-key-a"],
+            [call.kwargs["api_key"] for call in embed.call_args_list],
+        )
+        self.assertTrue(
+            all(call.kwargs["retry_rate_limits"] is False for call in embed.call_args_list)
+        )
+
+    def test_api_key_pool_moves_to_next_project_on_rate_limit(self):
+        pool = GeminiApiKeyPool(
+            ["project-key-a", "project-key-b"],
+            max_rpm=24,
+            max_tpm=800,
+        )
+        vector = [[0.5] * 768]
+
+        with patch(
+            "tools.skill_knowledge.generate_index._embed_batch",
+            side_effect=[GeminiRateLimitError("limited"), vector],
+        ) as embed:
+            result = pool.embed_batch(["input"], "gemini-embedding-2", 768)
+
+        self.assertEqual(768, len(result[0]))
+        self.assertEqual(
+            ["project-key-a", "project-key-b"],
+            [call.kwargs["api_key"] for call in embed.call_args_list],
+        )
+
+    def test_generation_priority_prefers_task_roles_and_defers_workflow_tools(self):
+        primary_types = [
+            "WORKFLOW_CAPABILITY",
+            "PERSON_PERSPECTIVE",
+            "PROFESSIONAL_ADVISOR",
+            "TASK_ASSISTANT",
+        ]
+
+        self.assertEqual(
+            [
+                "TASK_ASSISTANT",
+                "PROFESSIONAL_ADVISOR",
+                "PERSON_PERSPECTIVE",
+                "WORKFLOW_CAPABILITY",
+            ],
+            sorted(primary_types, key=_generation_priority),
+        )
 
     def test_generation_resumes_from_checkpoint_without_partial_assets(self):
         with tempfile.TemporaryDirectory() as temp_dir:
