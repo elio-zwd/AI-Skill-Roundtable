@@ -34,6 +34,33 @@ class SkillKnowledgeAssetContractTest {
         val publishedSkills = publication.getJSONArray("skills")
         assertEquals(44, publishedSkills.length())
         assertEquals(publishedSkills.length(), manifestSkills.length())
+        assertEquals(manifestSkills.length(), bySkillId.size)
+
+        val documentIds = mutableSetOf<String>()
+        val chunkIds = mutableSetOf<String>()
+        var nextOffset = 0
+        repeat(manifestSkills.length()) { skillIndex ->
+            val skill = manifestSkills.getJSONObject(skillIndex)
+            val documents = skill.getJSONArray("documents")
+            repeat(documents.length()) { documentIndex ->
+                val document = documents.getJSONObject(documentIndex)
+                assertEquals(skill.getString("skillId"), document.getString("skillId"))
+                assertTrue(documentIds.add(document.getString("documentId")))
+                val chunks = document.getJSONArray("chunks")
+                if (document.getString("type") == "KNOWLEDGE") {
+                    assertTrue(chunks.length() > 0)
+                }
+                repeat(chunks.length()) { chunkIndex ->
+                    val chunk = chunks.getJSONObject(chunkIndex)
+                    assertTrue(chunkIds.add(chunk.getString("chunkId")))
+                    assertEquals(document.getString("documentId"), chunk.getString("documentId"))
+                    assertEquals(nextOffset, chunk.getInt("vectorOffsetBytes"))
+                    assertEquals(768, chunk.getInt("vectorLength"))
+                    nextOffset += 768 * 4
+                }
+            }
+        }
+        assertEquals(nextOffset, indexBytes.size)
 
         repeat(publishedSkills.length()) { index ->
             val published = publishedSkills.getJSONObject(index)
@@ -43,7 +70,7 @@ class SkillKnowledgeAssetContractTest {
             val documents = packaged.getJSONArray("documents")
             assertTrue(documents.length() > 0)
 
-            var foundCore = false
+            var coreCount = 0
             repeat(documents.length()) { documentIndex ->
                 val document = documents.getJSONObject(documentIndex)
                 val relativePath = document.getString("relativePath")
@@ -52,7 +79,7 @@ class SkillKnowledgeAssetContractTest {
                 assertEquals(sha256(content), document.getString("contentHash"))
 
                 if (relativePath.equals("SKILL.md", ignoreCase = true)) {
-                    foundCore = true
+                    coreCount++
                     assertEquals("CORE", document.getString("type"))
                     assertFalse(document.getBoolean("retrievalEligible"))
                     assertEquals(published.getString("assetPath"), assetPath)
@@ -67,10 +94,11 @@ class SkillKnowledgeAssetContractTest {
                     assertTrue(offset + 768 * 4 <= indexBytes.size)
                 }
             }
-            assertTrue("Skill $skillId must contain current published CORE SKILL.md", foundCore)
+            assertEquals("Skill $skillId must contain one current CORE SKILL.md", 1, coreCount)
         }
 
         assertTrue(hasKnowledge(bySkillId.getValue("richard_feynman")))
+        assertTrue(hasKnowledge(bySkillId.getValue("charlie_munger")))
         assertTrue(hasKnowledge(bySkillId.getValue("zhang_xuefeng")))
 
         val maxEnd = bySkillId.values

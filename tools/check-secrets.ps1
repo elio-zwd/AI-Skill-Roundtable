@@ -36,7 +36,8 @@ foreach ($match in $forbiddenArchitecture) {
 }
 
 $stagedPatch = git diff --cached --unified=0 --no-color
-foreach ($match in ($stagedPatch | Select-String -Pattern $combinedPattern)) {
+$stagedAddedLines = $stagedPatch | Where-Object { $_ -match '^\+' -and $_ -notmatch '^\+\+\+' }
+foreach ($match in ($stagedAddedLines | Select-String -Pattern $combinedPattern)) {
     $violations.Add("暂存区疑似密钥: 第 $($match.LineNumber) 行")
 }
 
@@ -57,7 +58,18 @@ if ($IncludeHistory) {
         ':(exclude).github/pr09-ui.patch.gz.b64.part-*'
     )
     $historyMatches = & git $gitLogArgs | Select-String -Pattern $combinedPattern
+    # 早期生成器单测曾提交一个明确的示例字符串。仅跳过该历史 diff 行的精确哈希，
+    # 仍扫描同文件其他历史行及当前工作树，避免把测试目录整体排除。
+    $knownFixtureLineHashes = @(
+        'd7d29c4ab8882f8a966cdc45756654ce18c510ce67105a8e353824e5e4f8af5d',
+        'c9fa7bec547044b9be0855553829c6a309381875ff69df70ea9a307a9e256dd7'
+    )
     foreach ($match in $historyMatches) {
+        $lineBytes = [System.Text.Encoding]::UTF8.GetBytes($match.Line)
+        $lineHash = [Convert]::ToHexString(
+            [System.Security.Cryptography.SHA256]::HashData($lineBytes)
+        ).ToLowerInvariant()
+        if ($lineHash -in $knownFixtureLineHashes) { continue }
         $violations.Add("HEAD 可达历史疑似密钥: 第 $($match.LineNumber) 行")
     }
 }

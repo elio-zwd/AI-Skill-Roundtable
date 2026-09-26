@@ -7,11 +7,14 @@ import argparse
 import dataclasses
 import hashlib
 import json
+import math
 import os
+import random
 import re
 import struct
 import sys
 import time
+from collections import deque
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -20,7 +23,7 @@ from typing import Iterable
 MODEL = "gemini-embedding-2"
 DIMENSION = 768
 SCHEMA_VERSION = 1
-MAX_CHARS = 1800
+MAX_CHARS = 900
 OVERLAP_CHARS = 200
 
 
@@ -378,6 +381,150 @@ def safe_gemini_error_detail(raw_body: bytes, api_key: str) -> str:
     return detail[:500]
 
 
+def _parse_batch_embeddings(raw_body: bytes, expected_count: int, dimension: int) -> list[list[float]]:
+    embeddings = json.loads(raw_body)["embeddings"]
+    if len(embeddings) != expected_count:
+        raise ValueError(f"Embedding count mismatch: expected {expected_count}, got {len(embeddings)}")
+    vectors = []
+    for embedding in embeddings:
+        values = embedding["values"]
+        if len(values) != dimension:
+            raise ValueError(f"Embedding dimension mismatch: expected {dimension}, got {len(values)}")
+        vector = [float(value) for value in values]
+        if not all(math.isfinite(value) for value in vector):
+            raise ValueError("Embedding contains a non-finite value")
+        vectors.append(vector)
+    return vectors
+
+
+class EmbeddingCache:
+    """Only successful vectors are checkpointed; input text and API keys are never stored."""
+
+    def __init__(self, root: Path):
+        self.root = root
+
+    def _path(self, model: str, dimension: int, text: str) -> Path:
+        identity = f"{model}\n{dimension}\n{sha256_text(text)}"
+        return self.root / (hashlib.sha256(identity.encode("utf-8")).hexdigest() + ".bin")
+
+    def get(self, model: str, dimension: int, text: str) -> list[float] | None:
+        path = self._path(model, dimension, text)
+        if not path.is_file():
+            return None
+        raw = path.read_bytes()
+        if len(raw) != dimension * 4:
+            raise ValueError(f"Corrupt embedding checkpoint: {path.name}")
+        values = list(struct.unpack(f"<{dimension}f", raw))
+        if not all(math.isfinite(value) for value in values):
+            raise ValueError(f"Invalid embedding checkpoint: {path.name}")
+        return values
+
+    def put(self, model: str, dimension: int, text: str, vector: list[float]) -> None:
+        if len(vector) != dimension or not all(math.isfinite(value) for value in vector):
+            raise ValueError("Cannot checkpoint invalid embedding")
+        path = self._path(model, dimension, text)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        pending = path.with_suffix(".tmp")
+        pending.write_bytes(struct.pack(f"<{dimension}f", *vector))
+        pending.replace(path)
+
+
+class SlidingWindowRateLimiter:
+    def __init__(
+        self,
+        max_requests_per_minute: int,
+        max_input_tokens_per_minute: int,
+        clock=time.monotonic,
+        sleep=time.sleep,
+    ):
+        if max_requests_per_minute < 1 or max_input_tokens_per_minute < 1:
+            raise ValueError("Rate limits must be positive")
+        self.max_requests = max_requests_per_minute
+        self.max_tokens = max_input_tokens_per_minute
+        self.clock = clock
+        self.sleep = sleep
+        self.events: deque[tuple[float, int]] = deque()
+
+    def acquire(self, estimated_tokens: int) -> None:
+        if estimated_tokens > self.max_tokens:
+            raise ValueError("A batch exceeds the configured input TPM budget")
+        while True:
+            now = self.clock()
+            while self.events and now - self.events[0][0] >= 60:
+                self.events.popleft()
+            used_tokens = sum(tokens for _, tokens in self.events)
+            if len(self.events) < self.max_requests and used_tokens + estimated_tokens <= self.max_tokens:
+                self.events.append((now, estimated_tokens))
+                return
+            self.sleep(max(0.01, 60 - (now - self.events[0][0])))
+
+
+def _estimated_input_tokens(text: str) -> int:
+    # Chinese characters can approach one token each; use a conservative byte estimate.
+    return max(1, math.ceil(len(text.encode("utf-8")) / 3))
+
+
+def _embed_batch(
+    api_key: str,
+    texts: list[str],
+    model: str,
+    dimension: int,
+    limiter: SlidingWindowRateLimiter | None = None,
+) -> list[list[float]]:
+    if not texts:
+        raise ValueError("Embedding batch must not be empty")
+    payload = json.dumps(
+        {"requests": [
+            {
+                "model": f"models/{model}",
+                "content": {"parts": [{"text": value}]},
+                "output_dimensionality": dimension,
+            }
+            for value in texts
+        ]},
+        ensure_ascii=False,
+    ).encode("utf-8")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:batchEmbedContents"
+    for attempt in range(12):
+        if limiter is not None:
+            limiter.acquire(sum(_estimated_input_tokens(value) for value in texts))
+        request = urllib.request.Request(
+            url=url,
+            data=payload,
+            method="POST",
+            headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=90) as response:
+                return _parse_batch_embeddings(response.read(), len(texts), dimension)
+        except urllib.error.HTTPError as error:
+            raw = error.read()
+            retryable = error.code in {429, 500, 502, 503, 504} or (error.code == 400 and not raw.strip())
+            last_attempt = 11 if error.code == 429 else 3
+            if not retryable or attempt >= last_attempt:
+                raise RuntimeError(
+                    f"Gemini batch embedding failed with HTTP {error.code}: "
+                    f"{safe_gemini_error_detail(raw, api_key)}"
+                ) from error
+            retry_after = error.headers.get("Retry-After") if error.headers else None
+            delay = float(retry_after) if retry_after and retry_after.isdecimal() else 0.0
+            if error.code == 429:
+                match = re.search(rb"Please retry in\s+([0-9]+(?:\.[0-9]+)?)s", raw)
+                if match:
+                    delay = max(delay, min(float(match.group(1)), 300.0))
+                else:
+                    delay = max(delay, 30.0)
+        except (urllib.error.URLError, OSError) as error:
+            if attempt >= 3:
+                raise RuntimeError(
+                    "Gemini batch embedding failed after transient network retries: "
+                    f"{type(error).__name__}"
+                ) from error
+            delay = 0.0
+        time.sleep(max(delay, 2 ** attempt + random.uniform(0, 0.5)))
+    raise AssertionError("Unreachable embedding retry state")
+
+
 def _embed_text(api_key: str, text: str, model: str, dimension: int) -> list[float]:
     payload = json.dumps(
         {
@@ -436,8 +583,69 @@ def _build_manifest_and_index(
     model: str,
     dimension: int,
     api_key: str,
+    cache_root: Path | None = None,
+    batch_size: int = 8,
+    max_rpm: int = 24,
+    max_tpm: int = 800,
 ) -> tuple[dict, bytes]:
     skills = _collect_documents(repo_root)
+    if batch_size < 1:
+        raise ValueError("Batch size must be positive")
+    cache = EmbeddingCache(cache_root or repo_root / "build/tmp/skill_knowledge/embeddings")
+    limiter = SlidingWindowRateLimiter(max_rpm, max_tpm)
+    work: list[tuple[dict, dict, Chunk, str]] = []
+    vectors_by_chunk: dict[str, list[float]] = {}
+    for skill in skills:
+        for document in skill["documents"]:
+            for chunk in document["_chunks"]:
+                embedding_text = format_document_for_embedding(
+                    document["title"], chunk.heading_path, chunk.text
+                )
+                cached = cache.get(model, dimension, embedding_text)
+                if cached is None:
+                    work.append((skill, document, chunk, embedding_text))
+                else:
+                    vectors_by_chunk[chunk.chunk_id] = cached
+
+    print(f"Embedding cache: {len(vectors_by_chunk)} hits, {len(work)} pending", flush=True)
+    cursor = 0
+    while cursor < len(work):
+        batch: list[tuple[dict, dict, Chunk, str]] = []
+        estimated_tokens = 0
+        while cursor < len(work) and len(batch) < batch_size:
+            item = work[cursor]
+            item_tokens = _estimated_input_tokens(item[3])
+            if item_tokens > max_tpm:
+                raise ValueError(
+                    f"Embedding input exceeds configured TPM budget at "
+                    f"{item[0]['skillId']}/{item[2].chunk_id}: {item_tokens}"
+                )
+            if batch and estimated_tokens + item_tokens > max_tpm:
+                break
+            batch.append(item)
+            estimated_tokens += item_tokens
+            cursor += 1
+        try:
+            vectors = _embed_batch(
+                api_key, [item[3] for item in batch], model, dimension, limiter
+            )
+        except Exception as error:
+            first = batch[0]
+            context = embedding_failure_context(
+                request_index=cursor - len(batch) + 1,
+                request_total=len(work),
+                skill_id=first[0]["skillId"],
+                asset_path=first[1]["assetPath"],
+                chunk_id=first[2].chunk_id,
+                embedding_text=first[3],
+            )
+            raise RuntimeError(f"Gemini embedding failed at {context}: {error}") from error
+        for item, vector in zip(batch, vectors, strict=True):
+            cache.put(model, dimension, item[3], vector)
+            vectors_by_chunk[item[2].chunk_id] = vector
+        if cursor % 50 < len(batch) or cursor == len(work):
+            print(f"Embedding progress: {cursor}/{len(work)} pending chunks complete", flush=True)
+
     index_bytes = bytearray()
     public_skills: list[dict] = []
     request_total = sum(
@@ -458,20 +666,7 @@ def _build_manifest_and_index(
                     chunk_text=chunk.text,
                 )
                 request_index += 1
-                try:
-                    values = _embed_text(api_key, embedding_text, model, dimension)
-                except Exception as error:
-                    context = embedding_failure_context(
-                        request_index=request_index,
-                        request_total=request_total,
-                        skill_id=skill["skillId"],
-                        asset_path=document["assetPath"],
-                        chunk_id=chunk.chunk_id,
-                        embedding_text=embedding_text,
-                    )
-                    raise RuntimeError(
-                        f"Gemini embedding failed at {context}: {error}"
-                    ) from error
+                values = vectors_by_chunk[chunk.chunk_id]
                 vector_offset = len(index_bytes)
                 index_bytes.extend(struct.pack(f"<{dimension}f", *values))
                 public_chunks.append(
@@ -528,41 +723,63 @@ def _validate(repo_root: Path, manifest_path: Path, index_path: Path) -> None:
     if dimension != DIMENSION:
         raise ValueError("Unexpected embedding dimension")
 
-    assets_root = repo_root / "app/src/main/assets"
+    if manifest.get("vectorEncoding") != "float32-le":
+        raise ValueError("Unexpected vector encoding")
+    expected_skills = _collect_documents(repo_root)
+    actual_skills = manifest.get("skills", [])
+    if len(actual_skills) != len(expected_skills):
+        raise ValueError("Manifest Skill count mismatch")
     index_size = index_path.stat().st_size
     expected_vector_bytes = dimension * 4
-
-    for skill in manifest.get("skills", []):
-        for document in skill.get("documents", []):
-            source = assets_root / document["assetPath"]
-            if not source.is_file():
-                raise FileNotFoundError(
-                    f"Manifest document missing: {skill['skillId']}/{document['relativePath']}"
-                )
-            content = normalize_text(source.read_text(encoding="utf-8"))
-            if sha256_text(content) != document["contentHash"]:
-                raise ValueError(
-                    f"Content hash mismatch: {skill['skillId']}/{document['relativePath']}"
-                )
-            for chunk in document.get("chunks", []):
-                offset = int(chunk["vectorOffsetBytes"])
-                length = int(chunk["vectorLength"])
-                if length != dimension:
+    next_offset = 0
+    document_ids: set[str] = set()
+    chunk_ids: set[str] = set()
+    for skill, expected_skill in zip(actual_skills, expected_skills, strict=True):
+        if skill["skillId"] != expected_skill["skillId"]:
+            raise ValueError("Manifest Skill ownership mismatch")
+        expected_documents = expected_skill["documents"]
+        documents = skill.get("documents", [])
+        if len(documents) != len(expected_documents):
+            raise ValueError(f"Manifest document count mismatch: {skill['skillId']}")
+        for document, expected_document in zip(documents, expected_documents, strict=True):
+            for field in (
+                "documentId", "skillId", "assetPath", "relativePath", "title",
+                "type", "contentHash", "retrievalEligible",
+            ):
+                if document.get(field) != expected_document[field]:
+                    raise ValueError(f"Manifest document {field} mismatch: {skill['skillId']}")
+            document_id = document["documentId"]
+            if document_id in document_ids:
+                raise ValueError("Duplicate documentId")
+            document_ids.add(document_id)
+            expected_chunks = expected_document["_chunks"]
+            chunks = document.get("chunks", [])
+            if len(chunks) != len(expected_chunks):
+                raise ValueError(f"Manifest chunk count mismatch: {document_id}")
+            for chunk, expected_chunk in zip(chunks, expected_chunks, strict=True):
+                if chunk["chunkId"] in chunk_ids:
+                    raise ValueError("Duplicate chunkId")
+                chunk_ids.add(chunk["chunkId"])
+                for field, expected_value in (
+                    ("chunkId", expected_chunk.chunk_id),
+                    ("documentId", document_id),
+                    ("headingPath", expected_chunk.heading_path),
+                    ("startCharacter", expected_chunk.start_character),
+                    ("endCharacter", expected_chunk.end_character),
+                    ("embeddingTextHash", sha256_text(format_document_for_embedding(
+                        document["title"], expected_chunk.heading_path, expected_chunk.text,
+                    ))),
+                ):
+                    if chunk.get(field) != expected_value:
+                        raise ValueError(f"Manifest chunk {field} mismatch: {document_id}")
+                if chunk["vectorLength"] != dimension:
                     raise ValueError("Chunk vector length mismatch")
-                if offset < 0 or offset + expected_vector_bytes > index_size:
-                    raise ValueError("Chunk vector offset is outside index-v1.bin")
-
-    max_end = 0
-    for skill in manifest.get("skills", []):
-        for document in skill.get("documents", []):
-            for chunk in document.get("chunks", []):
-                max_end = max(
-                    max_end,
-                    int(chunk["vectorOffsetBytes"]) + expected_vector_bytes,
-                )
-    if max_end != index_size:
+                if chunk["vectorOffsetBytes"] != next_offset:
+                    raise ValueError("Chunk vector offset is not contiguous")
+                next_offset += expected_vector_bytes
+    if next_offset != index_size:
         raise ValueError(
-            f"Index size mismatch: manifest uses {max_end} bytes, file has {index_size}"
+            f"Index size mismatch: manifest uses {next_offset} bytes, file has {index_size}"
         )
 
 
@@ -571,11 +788,16 @@ def _write_generated_assets(repo_root: Path, manifest: dict, index_bytes: bytes)
     output_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = output_dir / "manifest.json"
     index_path = output_dir / "index-v1.bin"
-    manifest_path.write_text(
+    pending_manifest = manifest_path.with_suffix(".json.tmp")
+    pending_index = index_path.with_suffix(".bin.tmp")
+    pending_manifest.write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-    index_path.write_bytes(index_bytes)
+    pending_index.write_bytes(index_bytes)
+    _validate(repo_root, pending_manifest, pending_index)
+    pending_index.replace(index_path)
+    pending_manifest.replace(manifest_path)
 
 
 def parse_args(argv: Iterable[str]) -> argparse.Namespace:
@@ -584,6 +806,9 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
     parser.add_argument("--model", default=MODEL)
     parser.add_argument("--dimension", type=int, default=DIMENSION)
     parser.add_argument("--validate-only", action="store_true")
+    parser.add_argument("--batch-size", type=int, default=8)
+    parser.add_argument("--max-rpm", type=int, default=24)
+    parser.add_argument("--max-tpm", type=int, default=800)
     return parser.parse_args(list(argv))
 
 
@@ -612,6 +837,9 @@ def main(argv: Iterable[str] = ()) -> int:
         model=args.model,
         dimension=args.dimension,
         api_key=api_key,
+        batch_size=args.batch_size,
+        max_rpm=args.max_rpm,
+        max_tpm=args.max_tpm,
     )
     _write_generated_assets(repo_root, manifest, index_bytes)
     _validate(repo_root, manifest_path, index_path)

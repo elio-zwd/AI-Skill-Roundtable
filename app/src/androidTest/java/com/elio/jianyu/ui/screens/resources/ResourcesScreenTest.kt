@@ -161,9 +161,14 @@ class ResourcesScreenTest {
         }
 
         composeRule.onNodeWithTag(SkillKnowledgeTestTags.DETAIL).assertIsDisplayed()
-        composeRule.onNodeWithText("Richard Feynman", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("Skill 角色：Richard Feynman").assertIsDisplayed()
         composeRule.onNodeWithText("references/research.md", substring = true).assertIsDisplayed()
         composeRule.onNodeWithText("Explain with concrete examples first.").assertIsDisplayed()
+        composeRule.onNodeWithText("编辑").assertDoesNotExist()
+        composeRule.onNodeWithText("删除").assertDoesNotExist()
+        composeRule.onNodeWithText("归档").assertDoesNotExist()
+        composeRule.onNodeWithText("允许网络发送").assertDoesNotExist()
+        composeRule.onNodeWithText("敏感资料确认").assertDoesNotExist()
         composeRule.onNodeWithTag(SkillKnowledgeTestTags.USE_IN_CONVERSATION)
             .assertIsDisplayed()
             .performClick()

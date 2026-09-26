@@ -26,7 +26,7 @@ class SkillKnowledgeRetrieverTest {
             candidateLimit = 12,
             hitLimit = 8,
             maxPerDocument = 2,
-            maxContextCharacters = 140,
+            maxContextCharacters = 250,
         )
 
         val result = retriever.retrieve(
@@ -42,7 +42,7 @@ class SkillKnowledgeRetrieverTest {
         assertTrue(
             result.hits.groupingBy { it.documentId }.eachCount().values.all { it <= 2 },
         )
-        assertTrue(result.hits.sumOf { it.content.length } <= 140)
+        assertTrue(SkillKnowledgeContextFormatter.format(result).length <= 250)
         assertTrue(result.hits.size <= 8)
         assertEquals(
             result.hits.map { it.score }.sortedDescending(),

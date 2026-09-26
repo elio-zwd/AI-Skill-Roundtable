@@ -1,4 +1,5 @@
 import json
+import io
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -14,6 +15,12 @@ from tools.skill_knowledge.generate_index import (
     _embed_text,
     embedding_failure_context,
     safe_gemini_error_detail,
+    _parse_batch_embeddings,
+    EmbeddingCache,
+    SlidingWindowRateLimiter,
+    _embed_batch,
+    _build_manifest_and_index,
+    _validate,
 )
 
 
@@ -43,6 +50,10 @@ class SkillKnowledgeIndexGeneratorTest(unittest.TestCase):
         self.assertEqual("第一章", chunks[0].heading_path)
         self.assertTrue(any("第二节" in chunk.heading_path for chunk in chunks))
         self.assertTrue(all(chunk.start_character < chunk.end_character for chunk in chunks))
+
+    def test_default_chunk_budget_stays_below_free_tier_input_window(self):
+        chunks = chunk_markdown("doc", "# 标题\n\n" + "中文内容" * 1000)
+        self.assertTrue(all(len(chunk.text) <= 900 for chunk in chunks))
 
     def test_ids_and_chunk_order_are_deterministic(self):
         document_id = build_document_id("richard_feynman", "references/research.md")
@@ -101,7 +112,7 @@ class SkillKnowledgeIndexGeneratorTest(unittest.TestCase):
             )
 
     def test_safe_gemini_error_detail_keeps_status_and_redacts_key(self):
-        key = "AIzaSyExampleSecretKey1234567890"
+        key = "example-secret-key-for-test"
         body = json.dumps(
             {
                 "error": {
@@ -177,6 +188,115 @@ class SkillKnowledgeIndexGeneratorTest(unittest.TestCase):
                 chunk_text="用生活语言解释复杂概念",
             ),
         )
+
+    def test_batch_response_requires_count_order_and_dimension(self):
+        payload = json.dumps({"embeddings": [{"values": [0.1] * 768}, {"values": [0.2] * 768}]}).encode()
+        vectors = _parse_batch_embeddings(payload, expected_count=2, dimension=768)
+        self.assertEqual([0.1, 0.2], [vector[0] for vector in vectors])
+        with self.assertRaises(ValueError):
+            _parse_batch_embeddings(payload, expected_count=3, dimension=768)
+        with self.assertRaises(ValueError):
+            _parse_batch_embeddings(json.dumps({"embeddings": [{"values": [0.1] * 767}]}).encode(), 1, 768)
+
+    def test_checkpoint_reuses_matching_input_and_invalidates_changed_contract(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cache = EmbeddingCache(Path(temp_dir))
+            vector = [0.25] * 768
+            cache.put("gemini-embedding-2", 768, "input A", vector)
+            self.assertEqual(vector, cache.get("gemini-embedding-2", 768, "input A"))
+            self.assertIsNone(cache.get("gemini-embedding-2", 768, "input B"))
+            self.assertIsNone(cache.get("other-model", 768, "input A"))
+            self.assertIsNone(cache.get("gemini-embedding-2", 512, "input A"))
+
+    def test_limiter_obeys_request_and_estimated_token_windows(self):
+        now = [0.0]
+        sleeps = []
+        def sleep(seconds):
+            sleeps.append(seconds)
+            now[0] += seconds
+        limiter = SlidingWindowRateLimiter(max_requests_per_minute=2, max_input_tokens_per_minute=10, clock=lambda: now[0], sleep=sleep)
+        limiter.acquire(4)
+        limiter.acquire(4)
+        limiter.acquire(4)
+        self.assertEqual([60.0], sleeps)
+
+    def test_batch_retries_only_empty_body_400_and_transient_errors(self):
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, exc_type, exc, tb): return False
+            def read(self): return json.dumps({"embeddings": [{"values": [0.25] * 768}]}).encode()
+        error = __import__("urllib.error", fromlist=["HTTPError"]).HTTPError("url", 400, "bad request", {}, __import__("io").BytesIO(b""))
+        with patch("tools.skill_knowledge.generate_index.urllib.request.urlopen", side_effect=[error, Response()]) as urlopen, patch("tools.skill_knowledge.generate_index.time.sleep") as sleep:
+            values = _embed_batch("test-key", ["input"], "gemini-embedding-2", 768)
+        self.assertEqual(768, len(values[0]))
+        self.assertEqual(2, urlopen.call_count)
+        sleep.assert_called_once()
+        error.close()
+
+    def test_batch_honors_structured_429_retry_delay(self):
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, exc_type, exc, tb): return False
+            def read(self): return json.dumps({"embeddings": [{"values": [0.25] * 768}]}).encode()
+        from urllib.error import HTTPError
+        error_body = json.dumps({"error": {"status": "RESOURCE_EXHAUSTED", "message": "Please retry in 30.5s."}}).encode()
+        error = HTTPError("url", 429, "quota", {}, io.BytesIO(error_body))
+        with patch("tools.skill_knowledge.generate_index.urllib.request.urlopen", side_effect=[error, Response()]), patch("tools.skill_knowledge.generate_index.time.sleep") as sleep:
+            _embed_batch("test-key", ["input"], "gemini-embedding-2", 768)
+        self.assertGreaterEqual(sleep.call_args.args[0], 30.5)
+        error.close()
+
+    def test_batch_can_recover_after_four_rate_limit_responses(self):
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, exc_type, exc, tb): return False
+            def read(self): return json.dumps({"embeddings": [{"values": [0.25] * 768}]}).encode()
+        from urllib.error import HTTPError
+        errors = [HTTPError("url", 429, "quota", {}, io.BytesIO(b'{"error":{"status":"RESOURCE_EXHAUSTED","message":"Please retry in 1s."}}')) for _ in range(4)]
+        with patch("tools.skill_knowledge.generate_index.urllib.request.urlopen", side_effect=[*errors, Response()]) as urlopen, patch("tools.skill_knowledge.generate_index.time.sleep"):
+            vectors = _embed_batch("test-key", ["input"], "gemini-embedding-2", 768)
+        self.assertEqual(5, urlopen.call_count)
+        self.assertEqual(768, len(vectors[0]))
+        for error in errors: error.close()
+
+    def test_generation_resumes_from_checkpoint_without_partial_assets(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            assets = root / "app/src/main/assets"
+            (assets / "skills/official/example/references").mkdir(parents=True)
+            (assets / "official_skill_catalog_v1.json").write_text(
+                '{"skills":[{"id":"example","assetPath":"skills/official/example/SKILL.md","availability":{"hasAsset":true}}]}',
+                encoding="utf-8",
+            )
+            (assets / "official_skill_execution_manifest_v2.json").write_text(
+                '{"skills":[{"id":"example","assetPath":"skills/official/example/SKILL.md"}]}',
+                encoding="utf-8",
+            )
+            (assets / "skills/official/example/SKILL.md").write_text("# Current Core", encoding="utf-8")
+            knowledge = assets / "skills/official/example/references/a.md"
+            knowledge.write_text("# A\n\nFirst version\n\n## B\n\nSecond section", encoding="utf-8")
+            with patch("tools.skill_knowledge.generate_index._embed_batch", return_value=[[0.25] * 768, [0.5] * 768]) as embed:
+                first, first_bytes = _build_manifest_and_index(root, "gemini-embedding-2", 768, "test-key")
+                second, second_bytes = _build_manifest_and_index(root, "gemini-embedding-2", 768, "test-key")
+            self.assertEqual(1, embed.call_count)
+            self.assertEqual(first, second)
+            self.assertEqual(first_bytes, second_bytes)
+            self.assertFalse((assets / "skill_knowledge/manifest.json").exists())
+            output = assets / "skill_knowledge"
+            output.mkdir()
+            manifest_path = output / "manifest.json"
+            index_path = output / "index-v1.bin"
+            manifest_path.write_text(json.dumps(first), encoding="utf-8")
+            index_path.write_bytes(first_bytes)
+            _validate(root, manifest_path, index_path)
+            first["skills"][0]["documents"][1]["chunks"][0]["vectorOffsetBytes"] = 4
+            manifest_path.write_text(json.dumps(first), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "offset"):
+                _validate(root, manifest_path, index_path)
+            knowledge.write_text("# A\n\nChanged version", encoding="utf-8")
+            with patch("tools.skill_knowledge.generate_index._embed_batch", return_value=[[0.5] * 768]) as changed_embed:
+                _build_manifest_and_index(root, "gemini-embedding-2", 768, "test-key")
+            self.assertEqual(1, changed_embed.call_count)
 
 
 if __name__ == "__main__":

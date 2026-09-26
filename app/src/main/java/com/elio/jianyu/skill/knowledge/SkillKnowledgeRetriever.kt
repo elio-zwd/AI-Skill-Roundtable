@@ -82,7 +82,6 @@ class SkillKnowledgeRetriever(
 
             val countsByDocument = mutableMapOf<String, Int>()
             val hits = mutableListOf<SkillKnowledgeHit>()
-            var usedCharacters = 0
             for (rankedChunk in ranked) {
                 if (hits.size >= hitLimit) break
                 val document = rankedChunk.document
@@ -95,9 +94,7 @@ class SkillKnowledgeRetriever(
                     rankedChunk.chunk,
                 ).trim()
                 if (content.isBlank()) continue
-                if (usedCharacters + content.length > maxContextCharacters) continue
-
-                hits += SkillKnowledgeHit(
+                val hit = SkillKnowledgeHit(
                     skillId = ownerSkillId,
                     documentId = document.documentId,
                     relativePath = document.relativePath,
@@ -107,8 +104,15 @@ class SkillKnowledgeRetriever(
                     score = rankedChunk.score,
                     retrievalOrder = hits.size,
                 )
+                val formatted = SkillKnowledgeContextFormatter.format(
+                    SkillKnowledgeRetrievalResult.Available(
+                        knowledgeMap = knowledgeMap,
+                        hits = hits + hit,
+                    ),
+                )
+                if (formatted.length > maxContextCharacters) continue
+                hits += hit
                 countsByDocument[document.documentId] = usedFromDocument + 1
-                usedCharacters += content.length
             }
 
             SkillKnowledgeRetrievalResult.Available(

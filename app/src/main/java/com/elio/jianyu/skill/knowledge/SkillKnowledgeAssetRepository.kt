@@ -94,13 +94,17 @@ class SkillKnowledgeAssetRepository(
         require(document.skillId == skillId) { "不得跨 Skill 读取 Knowledge chunk" }
         require(chunk.documentId == document.documentId) { "Knowledge chunk 不属于该文档" }
         val content = loadDocumentContent(skillId, document.documentId)
-        check(chunk.startCharacter in 0 until content.length) {
+        // 生成器的字符位置按 Unicode code point 计数；Kotlin substring 使用 UTF-16 下标。
+        val codePointCount = content.codePointCount(0, content.length)
+        check(chunk.startCharacter in 0 until codePointCount) {
             "Knowledge chunk 起点越界"
         }
-        check(chunk.endCharacter in (chunk.startCharacter + 1)..content.length) {
+        check(chunk.endCharacter in (chunk.startCharacter + 1)..codePointCount) {
             "Knowledge chunk 终点越界"
         }
-        return content.substring(chunk.startCharacter, chunk.endCharacter)
+        val startOffset = content.offsetByCodePoints(0, chunk.startCharacter)
+        val endOffset = content.offsetByCodePoints(0, chunk.endCharacter)
+        return content.substring(startOffset, endOffset)
     }
 
     override fun loadVector(chunk: SkillKnowledgeChunk): FloatArray {

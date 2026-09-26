@@ -82,6 +82,28 @@ class SkillKnowledgeAssetRepositoryTest {
         }
     }
 
+    @Test
+    fun repositoryUsesUnicodeCodePointOffsetsAfterEmoji() {
+        val content = "😀甲乙丙"
+        val manifest = manifestForSingleDocument(
+            contentHash = sha256(content),
+            vectorLength = 768,
+            startCharacter = 1,
+            endCharacter = 3,
+        )
+        val reader = FakeSkillKnowledgeAssetReader(
+            mapOf(
+                "skill_knowledge/manifest.json" to manifest.toByteArray(),
+                "skill_knowledge/index-v1.bin" to ByteArray(768 * 4),
+                "skills/feynman-skill-main/references/research.md" to content.toByteArray(),
+            ),
+        )
+        val repository = SkillKnowledgeAssetRepository(reader)
+        val document = repository.listDocuments("richard_feynman").single()
+
+        assertEquals("甲乙", repository.loadChunkContent("richard_feynman", document, document.chunks.single()))
+    }
+
     private fun manifestForTwoSkills(feynmanHash: String, mungerHash: String): String = """
         {
           "schemaVersion": 1,
@@ -140,7 +162,12 @@ class SkillKnowledgeAssetRepositoryTest {
         }
     """.trimIndent()
 
-    private fun manifestForSingleDocument(contentHash: String, vectorLength: Int): String = """
+    private fun manifestForSingleDocument(
+        contentHash: String,
+        vectorLength: Int,
+        startCharacter: Int = 0,
+        endCharacter: Int = 2,
+    ): String = """
         {
           "schemaVersion": 1,
           "model": "gemini-embedding-2",
@@ -166,8 +193,8 @@ class SkillKnowledgeAssetRepositoryTest {
                       "chunkId": "chunk",
                       "documentId": "doc",
                       "headingPath": "主题",
-                      "startCharacter": 0,
-                      "endCharacter": 2,
+                      "startCharacter": $startCharacter,
+                      "endCharacter": $endCharacter,
                       "vectorOffsetBytes": 0,
                       "vectorLength": $vectorLength,
                       "embeddingTextHash": "hash"
