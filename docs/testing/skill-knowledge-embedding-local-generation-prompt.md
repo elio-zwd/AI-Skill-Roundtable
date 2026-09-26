@@ -93,7 +93,7 @@ python tools/skill_knowledge/generate_index.py --repo-root . --validate-only
 
 、 API response、 Key。
 
-## 5. Room v15 Schema 
+## 6. Room v15 Schema 
 
 ：
 .\gradlew.bat compileDebugKotlin
@@ -104,13 +104,13 @@ git diff --exit-code -- app/schemas/com.elio.jianyu.data.RoundtableDatabase/15.j
 - 15.json ；
 -  15.json diff， FAIL，。
 
-## 8. 
+## 7. 
 
 ：git status --short
 ： 2 ；/。
 ：FAIL；，； 2 。
 
-## 7. 
+## 8. 
 
  PowerShell ：
 $files = @(
