@@ -31,6 +31,10 @@ internal object OfficialSkillCatalogTestTags {
     fun skill(skillId: String) = "official_skill_$skillId"
     fun skillStatus(skillId: String) = "official_skill_status_$skillId"
     fun favorite(skillId: String) = "official_skill_favorite_$skillId"
+    /** 推荐区中同一角色的收藏按钮，与全部列表区分。 */
+    fun featuredFavorite(skillId: String) = "featured_${favorite(skillId)}"
+    /** 最近使用区中同一角色的收藏按钮，与全部列表区分。 */
+    fun recentFavorite(skillId: String) = "recent_${favorite(skillId)}"
     fun combination(combinationId: String) = "official_skill_combination_$combinationId"
 }
 

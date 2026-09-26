@@ -1,6 +1,7 @@
 package com.elio.jianyu.roundtable
 
 import com.elio.jianyu.data.Message
+import com.elio.jianyu.data.MessageAnswerStatus
 import com.elio.jianyu.viewmodel.RoundActionState
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -49,6 +50,22 @@ class RoundActionStateResolverTest {
             messagesSinceRun = messages,
         )
         assertEquals("6人限制不限制其开启下一轮，完成仍应返回 START_NEXT_ROUND", RoundActionState.START_NEXT_ROUND, state)
+    }
+
+    @Test
+    fun failedAnswerStillNeedsRetryBeforeRoundIsComplete() {
+        val messages = listOf(
+            Message(id = 2, chatId = 1, senderId = "char_a", senderName = "A", avatar = "A", text = "完成", roundIndex = 1),
+            Message(
+                id = 3, chatId = 1, senderId = "char_b", senderName = "B", avatar = "B",
+                text = "部分回答", roundIndex = 1, answerStatus = MessageAnswerStatus.FAILED,
+            ),
+        )
+
+        assertEquals(
+            RoundActionState.CONTINUE_ROUND,
+            RoundActionStateResolver.resolve(listOf("char_a", "char_b"), messages),
+        )
     }
 
 }

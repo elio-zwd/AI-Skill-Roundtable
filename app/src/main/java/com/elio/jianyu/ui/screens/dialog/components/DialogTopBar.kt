@@ -44,6 +44,7 @@ fun DialogTopBar(
     session: DialogSessionInfo,
     onEvent: (DialogEvent) -> Unit,
     modifier: Modifier = Modifier,
+    roleStripExpanded: Boolean = true,
 ) {
     Column(
         modifier = modifier
@@ -82,7 +83,7 @@ fun DialogTopBar(
 
             // 2. 中间标题与副标题
             Column(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).clickable { onEvent(DialogEvent.ToggleRoleStrip) },
                 verticalArrangement = Arrangement.Center,
             ) {
                 Text(
@@ -94,12 +95,22 @@ fun DialogTopBar(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Spacer(modifier = Modifier.height(1.dp))
-                Text(
-                    text = "当前会话 · ${session.roleCount} 个 Skill 角色",
-                    color = DialogTokens.TextSecondary,
-                    fontSize = 11.5.sp,
-                    maxLines = 1,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "当前会话 · ${session.roleCount} 个 Skill 角色",
+                        modifier = Modifier.weight(1f),
+                        color = DialogTokens.TextSecondary,
+                        fontSize = 11.5.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = if (roleStripExpanded) "收缩 ▲" else "展开 ▼",
+                        color = DialogTokens.BrandPurple,
+                        fontSize = 11.5.sp,
+                        maxLines = 1,
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(6.dp))

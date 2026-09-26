@@ -11,7 +11,7 @@ $CurrentPackage = 'com.elio.jianyu'
 $LegacyPackage = 'com.elio.skillroundtable'
 $LegacySchema = 'app/schemas/com.elio.skillroundtable.data.RoundtableDatabase/5.json'
 $CurrentIdentitySchema = 'app/schemas/com.elio.jianyu.data.RoundtableDatabase/5.json'
-$PreviousExecutionSchema = 'app/schemas/com.elio.jianyu.data.RoundtableDatabase/14.json'
+$PreviousExecutionSchema = 'app/schemas/com.elio.jianyu.data.RoundtableDatabase/15.json'
 $MoveManifest = 'docs/testing/pr-09-01-package-move-manifest.txt'
 
 function Pass {
@@ -244,7 +244,8 @@ try {
         'MIGRATION_11_12',
         'MIGRATION_12_13',
         'MIGRATION_13_14',
-        'MIGRATION_14_15'
+        'MIGRATION_14_15',
+        'MIGRATION_15_16'
     )
     $missingMigrations = @($requiredMigrations | Where-Object { $databaseSource -notmatch [regex]::Escape($_) })
     $materialContextMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/MaterialContextMigration.kt' -Raw
@@ -252,7 +253,7 @@ try {
     $stageAdvancementMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/StageAdvancementMigration.kt' -Raw
     $issueLifecycleMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/IssueLifecycleV12Migration.kt' -Raw
     $skillKnowledgeMigration = Get-Content 'app/src/main/java/com/elio/jianyu/data/SkillKnowledgeContextMigration.kt' -Raw
-    if ($databaseSource -match 'version\s*=\s*15' -and
+    if ($databaseSource -match 'version\s*=\s*16' -and
         $missingMigrations.Count -eq 0 -and
         $databaseSource -match '"roundtable_database"' -and
         (Test-Path $PreviousExecutionSchema -PathType Leaf) -and
@@ -261,9 +262,9 @@ try {
         $stageAdvancementMigration -match 'Migration\(10,\s*11\)' -and
         $issueLifecycleMigration -match 'Migration\(11,\s*12\)' -and
         $skillKnowledgeMigration -match 'Migration\(14,\s*15\)') {
-        Pass 'Room Runtime Contract' 'Room v14 Schema、数据库名和 v1→v14 Migration 链保持完整'
+        Pass 'Room Runtime Contract' 'Room v16 Schema、数据库名和 v1→v16 Migration 链保持完整'
     } else {
-        Fail 'Room Runtime Contract' "Room v14 Schema、数据库名或 Migration 链异常；缺失迁移=$($missingMigrations -join ', ')"
+        Fail 'Room Runtime Contract' "Room v16 Schema、数据库名或 Migration 链异常；缺失迁移=$($missingMigrations -join ', ')"
     }
 
     $keyStoreSource = Get-Content 'app/src/main/java/com/elio/jianyu/network/EncryptedApiKeyStore.kt' -Raw

@@ -20,6 +20,7 @@ import com.elio.jianyu.data.CreateMaterialCommand
 import com.elio.jianyu.data.ConversationSessionPreferences
 import com.elio.jianyu.data.JianyuRepository
 import com.elio.jianyu.data.Message
+import com.elio.jianyu.data.MessageAnswerStatus
 import com.elio.jianyu.data.Material
 import com.elio.jianyu.data.MaterialFilter
 import com.elio.jianyu.data.PersonalContextFilter
@@ -370,8 +371,8 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         override suspend fun updatePendingMessageText(id: Long, text: String) {
             chatRepo.updatePendingMessageText(id, text)
         }
-        override suspend fun completePendingMessage(id: Long, text: String) {
-            chatRepo.completePendingMessage(id, text)
+        override suspend fun completePendingMessage(id: Long, text: String, answerStatus: String) {
+            chatRepo.completePendingMessage(id, text, answerStatus)
         }
         override suspend fun removePendingMessages(sessionId: Long) = chatRepo.removePendingMessages(sessionId)
         override suspend fun getCharacters(): List<Character> = charRepo.allCharacters.first()
@@ -558,10 +559,32 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 return@launch
             }
 
+            val catalogRuntime = runCatching {
+                JianyuAppRuntimeProvider.get(context).officialSkillCatalogRuntimeResult
+            }.getOrNull() as? OfficialSkillCatalogRuntimeResult.Success
+            val officialAdapter = OfficialSkillConversationRoleAdapter(context, charRepo)
+
             for (config in skillConfigs) {
+                val vectorStr = config.descriptionVector.joinToString(",")
+                val officialDefinition = catalogRuntime?.runtime?.catalog?.findById(config.id)
+                    ?.takeIf { it.availability.executable }
+                if (officialDefinition != null) {
+                    val compatible = officialAdapter.ensureCompatibleCharacter(officialDefinition)
+                    if (compatible != null) {
+                        if (
+                            compatible.skillDescriptionVector.isBlank() &&
+                            vectorStr.isNotBlank()
+                        ) {
+                            charRepo.insert(
+                                compatible.copy(skillDescriptionVector = vectorStr),
+                            )
+                        }
+                        continue
+                    }
+                }
+
                 val existing = charRepo.getCharacterById(config.id)
                 val prompt = com.elio.jianyu.skill.SkillLoader.loadSkill(context, config.skillAssetPath)
-                val vectorStr = config.descriptionVector.joinToString(",")
                 val character = Character(
                     id = config.id,
                     name = config.name,
@@ -774,10 +797,11 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         val adapter = OfficialSkillConversationRoleAdapter(application, charRepo)
 
         participantIds.distinct().forEach { skillId ->
-            if (charRepo.getCharacterById(skillId) != null) return@forEach
             val definition = catalogRuntime.runtime.catalog.findById(skillId)
                 ?.takeIf { it.availability.executable }
                 ?: return@forEach
+            // 覆盖安装后的 legacy Character 也必须刷新正式 Role Core 路径；
+            // 不能仅因为行已存在就继续沿用历史 assets 路径。
             adapter.ensureCompatibleCharacter(definition)
         }
     }
@@ -1450,7 +1474,10 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             val hasRoleViewpoint = messages
                 .dropWhile { it.id != lastUserMessage.id }
                 .drop(1)
-                .any { it.senderId != "user" && !it.isPending }
+                .any {
+                    it.senderId != "user" && !it.isPending &&
+                        it.answerStatus == MessageAnswerStatus.COMPLETED
+                }
             if (!hasRoleViewpoint) {
                 _errorMessage.value = "当前还没有可供交叉讨论的角色观点。"
                 return@launchRoundtableJob
@@ -1494,6 +1521,23 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
 
         launchRoundtableJob {
             runRetryRoundtableSequence(sessionId, state.questionRunId, state.characterIds)
+        }
+    }
+
+    fun retryCharacterAnswer(questionRunId: Long, characterId: String) {
+        val sessionId = _currentSessionId.value ?: return
+        launchRoundtableJob {
+            val canRetry = chatRepo.getMessages(sessionId).any { message ->
+                message.questionMessageId == questionRunId &&
+                    message.senderId == characterId &&
+                    message.responseMode == TranscriptBuilder.ResponseMode.INDEPENDENT.name &&
+                    message.answerStatus in setOf(MessageAnswerStatus.FAILED, MessageAnswerStatus.STOPPED)
+            }
+            if (!canRetry) {
+                _errorMessage.value = "这条角色回复当前无需重试。"
+                return@launchRoundtableJob
+            }
+            runRetryRoundtableSequence(sessionId, questionRunId, listOf(characterId))
         }
     }
 
@@ -1548,7 +1592,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                     sessionId = sessionId,
                     questionRunId = questionRunId,
                     isSemanticRoutingEnabled = _isSemanticRoutingEnabled.value,
-                    targetCharacterIds = targetCharacterIds
+                    targetCharacterIds = executableTargetIds
                 )
             }
 
@@ -1582,7 +1626,7 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
             val answeredInRun = if (qIndex != -1) {
                 latestMsgs.subList(qIndex + 1, latestMsgs.size)
                     .takeWhile { it.senderId != "user" }
-                    .filterNot { it.isPending }
+                    .filter { !it.isPending && it.answerStatus == MessageAnswerStatus.COMPLETED }
                     .map { it.senderId }
                     .toSet()
             } else emptySet()

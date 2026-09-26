@@ -5,7 +5,7 @@
     "avatar": "avatars/portraits/zhang_xuefeng.jpg",
     "tagline": "升学志愿与职业规划导师，刺破理想幻泡的实用主义者",
     "systemPrompt": "",
-    "skillAssetPath": "skills/zhangxuefeng-skill-main/SKILL.md",
+    "skillAssetPath": "skills/official/zhang_xuefeng/SKILL.md",
     "order": 1,
     "isActive": true,
     "skillName": "zhangxuefeng-perspective",

@@ -36,6 +36,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.data.ContextSourceType
+import com.elio.jianyu.data.ConversationReadingStateRepository
 import com.elio.jianyu.data.UserAvatarRepository
 import com.elio.jianyu.data.UserAvatarSnapshot
 import com.elio.jianyu.execution.SearchMode
@@ -79,6 +80,9 @@ fun DialogRoute(
     var showReferenceDialog by remember { mutableStateOf(false) }
     var messageActionId by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    val readingRepository = remember(context.applicationContext) {
+        ConversationReadingStateRepository(context.applicationContext)
+    }
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     val avatarRepository = remember(context.applicationContext) {
@@ -104,6 +108,22 @@ fun DialogRoute(
 
     LaunchedEffect(Unit) {
         viewModel.ensureConversationReady()
+    }
+    LaunchedEffect(currentSession?.id) {
+        val sessionId = currentSession?.id ?: return@LaunchedEffect
+        val readingState = readingRepository.load(sessionId)
+        localState = localState.copy(
+            roleStripExpanded = readingState.roleStripExpanded,
+            selectedRoleIds = readingState.selectedRoleIds,
+            expandedAnswerIds = readingState.expandedAnswerIds,
+            readAnswerIds = readingState.readAnswerIds,
+            answerScrollOffsets = readingState.answerScrollOffsets,
+            answerScrollProgress = readingState.answerScrollProgress,
+            conversationScrollKey = readingState.conversationScrollKey,
+            conversationScrollOffset = readingState.conversationScrollOffset,
+            conversationScrollProgress = readingState.conversationScrollProgress,
+            restoredSessionId = sessionId.toString(),
+        )
     }
     LaunchedEffect(errorMessage) {
         errorMessage?.let { message ->
@@ -237,6 +257,73 @@ fun DialogRoute(
                         }
                     }
                     is DialogEvent.ClickMessageMore -> messageActionId = event.messageId
+                    DialogEvent.ToggleRoleStrip -> {
+                        val expanded = !localState.roleStripExpanded
+                        localState = localState.copy(roleStripExpanded = expanded)
+                        currentSession?.id?.let { readingRepository.saveRoleStripExpanded(it, expanded) }
+                    }
+                    is DialogEvent.SelectAnswer -> {
+                        val group = uiState.visibleMessages
+                            .filterIsInstance<DialogTimelineItem.Answers>()
+                            .firstOrNull { it.questionId == event.questionId }
+                        val currentRoleId = localState.selectedRoleIds[event.questionId]
+                        val currentAnswerId = group?.replies?.firstOrNull { it.role.id == currentRoleId }?.id
+                            ?: group?.replies?.firstOrNull()?.id
+                        val targetAnswerId = group?.replies?.firstOrNull { it.role.id == event.roleId }?.id
+                        val read = localState.readAnswerIds + listOfNotNull(currentAnswerId, targetAnswerId)
+                        localState = localState.copy(
+                            selectedRoleIds = localState.selectedRoleIds + (event.questionId to event.roleId),
+                            readAnswerIds = read,
+                        )
+                        currentSession?.id?.let {
+                            readingRepository.saveSelectedRole(it, event.questionId, event.roleId, read)
+                        }
+                    }
+                    is DialogEvent.RetryAnswer -> {
+                        event.questionId.toLongOrNull()?.let { questionId ->
+                            viewModel.retryCharacterAnswer(questionId, event.roleId)
+                        }
+                    }
+                    is DialogEvent.ToggleAnswerExpanded -> {
+                        val expanded = if (event.answerId in localState.expandedAnswerIds) {
+                            localState.expandedAnswerIds - event.answerId
+                        } else {
+                            localState.expandedAnswerIds + event.answerId
+                        }
+                        localState = localState.copy(expandedAnswerIds = expanded)
+                        if (event.answerId !in expanded) {
+                            localState = localState.copy(
+                                answerScrollOffsets = localState.answerScrollOffsets + (event.answerId to 0),
+                                answerScrollProgress = localState.answerScrollProgress + (event.answerId to 0f),
+                            )
+                        }
+                        currentSession?.id?.let {
+                            readingRepository.saveExpandedAnswers(
+                                it,
+                                expanded,
+                                event.answerId.takeIf { answerId -> answerId !in expanded },
+                            )
+                        }
+                    }
+                    is DialogEvent.SaveAnswerOffset -> {
+                        localState = localState.copy(
+                            answerScrollOffsets = localState.answerScrollOffsets + (event.answerId to event.offset),
+                            answerScrollProgress = localState.answerScrollProgress + (event.answerId to event.progress),
+                        )
+                        currentSession?.id?.let {
+                            readingRepository.saveAnswerOffset(it, event.answerId, event.offset, event.progress)
+                        }
+                    }
+                    is DialogEvent.SaveConversationOffset -> {
+                        localState = localState.copy(
+                            conversationScrollKey = event.itemId,
+                            conversationScrollOffset = event.offset,
+                            conversationScrollProgress = event.progress,
+                        )
+                        currentSession?.id?.let {
+                            readingRepository.saveConversationOffset(it, event.itemId, event.offset, event.progress)
+                        }
+                    }
                     is DialogEvent.RenameSession -> {
                         if (resolveSessionId(event.sessionId) != null) {
                             renameTitle = currentSession?.title.orEmpty()
@@ -250,7 +337,10 @@ fun DialogRoute(
                         localState = uiState.copy(isMoreMenuOpen = false)
                     }
                     is DialogEvent.DeleteSession -> {
-                        resolveSessionId(event.sessionId)?.let(viewModel::deleteSession)
+                        resolveSessionId(event.sessionId)?.let { sessionId ->
+                            viewModel.deleteSession(sessionId)
+                            readingRepository.deleteSession(sessionId)
+                        }
                         localState = uiState.copy(isMoreMenuOpen = false)
                     }
                     DialogEvent.OpenArchivedSessions -> {

@@ -143,6 +143,39 @@ class RoundtableDatabaseMigrationTest {
     }
 
     @Test
+    fun migration15To16_addsDialogReadingFieldsWithoutClearingSkillKnowledgeSchema() {
+        migrationHelper.createDatabase(TEST_DATABASE, 15).apply {
+            execSQL("INSERT INTO chat_sessions (id, title, createdAt) VALUES (1, '旧会话', 1)")
+            execSQL(
+                "INSERT INTO messages " +
+                    "(id, chatId, senderId, senderName, avatar, text, timestamp, isPending, roundIndex, audioSizeBytes) " +
+                    "VALUES (1, 1, 'user', '我', '', '旧消息', 1, 0, 0, 0)",
+            )
+            close()
+        }
+
+        val migrated = migrationHelper.runMigrationsAndValidate(
+            TEST_DATABASE,
+            16,
+            true,
+            RoundtableDatabase.MIGRATION_15_16,
+        )
+
+        migrated.query(
+            "SELECT text, questionMessageId, responseMode, answerStatus FROM messages WHERE id = 1",
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("旧消息", cursor.getString(0))
+            assertTrue(cursor.isNull(1))
+            assertEquals("INDEPENDENT", cursor.getString(2))
+            assertEquals(MessageAnswerStatus.COMPLETED, cursor.getString(3))
+        }
+        assertEquals(0, queryCount(migrated, "skill_knowledge_usage_snapshots"))
+        assertNoForeignKeyViolations(migrated)
+        migrated.close()
+    }
+
+    @Test
     fun migration5To6_usesCommittedSchemaAndBackfillsDomainRelations() {
         val legacy = migrationHelper.createDatabase(TEST_DATABASE, 5)
         insertVersion5Data(legacy)

@@ -1,6 +1,7 @@
 package com.elio.jianyu.roundtable
 
 import com.elio.jianyu.data.Message
+import com.elio.jianyu.data.MessageAnswerStatus
 import com.elio.jianyu.viewmodel.RoundActionState
 
 object RoundActionStateResolver {
@@ -12,9 +13,14 @@ object RoundActionStateResolver {
             return RoundActionState.CONTINUE_ROUND
         }
 
-        val maxRound = messagesSinceRun.filterNot { it.isPending }.maxOfOrNull { it.roundIndex } ?: 1
+        val maxRound = messagesSinceRun
+            .filter { !it.isPending && it.answerStatus == MessageAnswerStatus.COMPLETED }
+            .maxOfOrNull { it.roundIndex } ?: 1
         val answeredInMaxRound = messagesSinceRun
-            .filter { it.roundIndex == maxRound && !it.isPending }
+            .filter {
+                it.roundIndex == maxRound && !it.isPending &&
+                    it.answerStatus == MessageAnswerStatus.COMPLETED
+            }
             .map { it.senderId }
             .toSet()
 

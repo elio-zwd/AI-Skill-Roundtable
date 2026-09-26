@@ -20,6 +20,24 @@ class DialogRoleUpgradeArchitectureTest {
         assertFalse(viewModel.contains("fun addSkillRoleToCurrentSession(skillId: String)"))
         assertTrue(viewModel.contains("ensureOfficialParticipantCharacters(stored)"))
         assertTrue(viewModel.contains("OfficialSkillConversationRoleAdapter(application, charRepo)"))
+        assertTrue(viewModel.contains("officialAdapter.ensureCompatibleCharacter(officialDefinition)"))
+        assertFalse(
+            viewModel.contains(
+                "if (charRepo.getCharacterById(skillId) != null) return@forEach",
+            ),
+        )
+
+        val legacyConfig = repositoryFile("app/src/main/assets/skills_config.json").readText()
+        assertTrue(
+            legacyConfig.contains(
+                "\"skillAssetPath\": \"skills/official/zhang_xuefeng/SKILL.md\"",
+            ),
+        )
+        assertFalse(
+            legacyConfig.contains(
+                "\"skillAssetPath\": \"skills/zhangxuefeng-skill-main/SKILL.md\"",
+            ),
+        )
     }
 
     private fun repositoryFile(path: String): File = listOf(
