@@ -8,6 +8,7 @@ from tools.skill_knowledge.generate_index import (
     chunk_markdown,
     classify_markdown,
     format_document_for_embedding,
+    _collect_documents,
 )
 
 
@@ -47,6 +48,52 @@ class SkillKnowledgeIndexGeneratorTest(unittest.TestCase):
             [(c.chunk_id, c.start_character, c.end_character) for c in first],
             [(c.chunk_id, c.start_character, c.end_character) for c in second],
         )
+
+    def test_collects_published_core_and_historical_repository_knowledge(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            assets = root / "app/src/main/assets"
+            (assets / "skills/official/example").mkdir(parents=True)
+            (assets / "skills/legacy-example/references").mkdir(parents=True)
+            (assets / "official_skill_catalog_v1.json").write_text(
+                '{"skills":[{"id":"example","nameZh":"","assetPath":"skills/legacy-example/SKILL.md","availability":{"hasAsset":true}}]}',
+                encoding="utf-8",
+            )
+            (assets / "official_skill_execution_manifest_v2.json").write_text(
+                '{"skills":[{"id":"example","assetPath":"skills/official/example/SKILL.md"}]}',
+                encoding="utf-8",
+            )
+            (assets / "skills/official/example/SKILL.md").write_text(
+                "# Current Core\n\ncurrent",
+                encoding="utf-8",
+            )
+            (assets / "skills/legacy-example/SKILL.md").write_text(
+                "# Historical Core\n\nhistorical",
+                encoding="utf-8",
+            )
+            (assets / "skills/legacy-example/references/research.md").write_text(
+                "# Research\n\nknowledge",
+                encoding="utf-8",
+            )
+
+            skill = _collect_documents(root)[0]
+            core = next(item for item in skill["documents"] if item["type"] == "CORE")
+            knowledge = next(
+                item for item in skill["documents"] if item["type"] == "KNOWLEDGE"
+            )
+
+            self.assertEqual("skills/official/example", skill["assetRoot"])
+            self.assertEqual("skills/official/example/SKILL.md", core["assetPath"])
+            self.assertEqual("# Current Core\n\ncurrent", core["_content"])
+            self.assertEqual(
+                "skills/legacy-example/references/research.md",
+                knowledge["assetPath"],
+            )
+            self.assertEqual("references/research.md", knowledge["relativePath"])
+            self.assertNotIn(
+                "# Historical Core\n\nhistorical",
+                [item["_content"] for item in skill["documents"]],
+            )
 
     def test_document_embedding_format_is_stable(self):
         self.assertEqual(
