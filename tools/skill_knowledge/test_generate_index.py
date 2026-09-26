@@ -26,6 +26,7 @@ from tools.skill_knowledge.generate_index import (
     _build_manifest_and_index,
     _generation_priority,
     _load_api_keys_from_environment,
+    _partition_api_key_lanes,
     GeminiApiKeyPool,
     GeminiRateLimitError,
     _validate,
@@ -330,11 +331,29 @@ class SkillKnowledgeIndexGeneratorTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "multiple Gemini lanes"):
             generator._load_api_key_lanes_from_environment(env)
 
-    def test_two_lane_scheduler_runs_at_most_two_batches_concurrently(self):
-        self.assertTrue(
-            hasattr(generator, "GeminiApiLaneScheduler"),
-            "two-lane scheduler is missing",
+    def test_partitions_two_accounts_into_four_disjoint_lanes(self):
+        account_a = [f"a-{index}" for index in range(1, 11)]
+        account_b = [f"b-{index}" for index in range(1, 11)]
+
+        lanes = _partition_api_key_lanes(
+            [account_a, account_b],
+            concurrency=4,
         )
+
+        self.assertEqual(
+            [
+                account_a[:5],
+                account_a[5:],
+                account_b[:5],
+                account_b[5:],
+            ],
+            lanes,
+        )
+        flattened = [key for lane in lanes for key in lane]
+        self.assertEqual(20, len(flattened))
+        self.assertEqual(20, len(set(flattened)))
+
+    def test_four_lane_scheduler_runs_at_most_four_batches_concurrently(self):
         active = 0
         max_active = 0
         lock = threading.Lock()
@@ -356,16 +375,33 @@ class SkillKnowledgeIndexGeneratorTest(unittest.TestCase):
                         active -= 1
 
         scheduler = generator.GeminiApiLaneScheduler(
-            pools=[FakePool(0.25), FakePool(0.5)]
+            pools=[
+                FakePool(0.1),
+                FakePool(0.2),
+                FakePool(0.3),
+                FakePool(0.4),
+            ],
+            lane_stagger_seconds=0.0,
         )
         results = scheduler.embed_batches(
-            batches=[["a"], ["b"]],
+            batches=[["a"], ["b"], ["c"], ["d"]],
             model="gemini-embedding-2",
             dimension=768,
         )
 
-        self.assertEqual(2, max_active)
-        self.assertEqual([0.25, 0.5], [vectors[0][0] for vectors in results])
+        self.assertEqual(4, max_active)
+        self.assertEqual(
+            [0.1, 0.2, 0.3, 0.4],
+            [vectors[0][0] for vectors in results],
+        )
+
+    def test_four_lane_scheduler_defaults_to_staggered_starts(self):
+        scheduler = generator.GeminiApiLaneScheduler(
+            pools=[object(), object(), object(), object()]
+        )
+
+        self.assertGreater(scheduler.lane_stagger_seconds, 0.0)
+        self.assertLessEqual(scheduler.lane_stagger_seconds, 0.5)
 
     def test_two_lane_scheduler_checkpoints_successful_lane_when_other_lane_fails(self):
         self.assertTrue(
