@@ -559,10 +559,32 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
                 return@launch
             }
 
+            val catalogRuntime = runCatching {
+                JianyuAppRuntimeProvider.get(application).officialSkillCatalogRuntimeResult
+            }.getOrNull() as? OfficialSkillCatalogRuntimeResult.Success
+            val officialAdapter = OfficialSkillConversationRoleAdapter(application, charRepo)
+
             for (config in skillConfigs) {
+                val vectorStr = config.descriptionVector.joinToString(",")
+                val officialDefinition = catalogRuntime?.runtime?.catalog?.findById(config.id)
+                    ?.takeIf { it.availability.executable }
+                if (officialDefinition != null) {
+                    val compatible = officialAdapter.ensureCompatibleCharacter(officialDefinition)
+                    if (compatible != null) {
+                        if (
+                            compatible.skillDescriptionVector.isBlank() &&
+                            vectorStr.isNotBlank()
+                        ) {
+                            charRepo.insert(
+                                compatible.copy(skillDescriptionVector = vectorStr),
+                            )
+                        }
+                        continue
+                    }
+                }
+
                 val existing = charRepo.getCharacterById(config.id)
                 val prompt = com.elio.jianyu.skill.SkillLoader.loadSkill(context, config.skillAssetPath)
-                val vectorStr = config.descriptionVector.joinToString(",")
                 val character = Character(
                     id = config.id,
                     name = config.name,
@@ -775,10 +797,11 @@ class RoundtableViewModel(application: Application) : AndroidViewModel(applicati
         val adapter = OfficialSkillConversationRoleAdapter(application, charRepo)
 
         participantIds.distinct().forEach { skillId ->
-            if (charRepo.getCharacterById(skillId) != null) return@forEach
             val definition = catalogRuntime.runtime.catalog.findById(skillId)
                 ?.takeIf { it.availability.executable }
                 ?: return@forEach
+            // 覆盖安装后的 legacy Character 也必须刷新正式 Role Core 路径；
+            // 不能仅因为行已存在就继续沿用历史 assets 路径。
             adapter.ensureCompatibleCharacter(definition)
         }
     }
