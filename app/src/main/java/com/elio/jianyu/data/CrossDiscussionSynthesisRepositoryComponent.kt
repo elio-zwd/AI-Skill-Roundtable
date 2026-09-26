@@ -124,6 +124,9 @@ internal class CrossDiscussionSynthesisRepositoryComponent(
         if (sortedUsage.personalContexts.isNotEmpty()) {
             core.insertPersonalContextUsages(sortedUsage.personalContexts)
         }
+        if (sortedUsage.skillKnowledge.isNotEmpty()) {
+            core.insertSkillKnowledgeUsages(sortedUsage.skillKnowledge)
+        }
         if (expectedMessageUsage.isNotEmpty()) {
             collaboration.insertMessageUsageSnapshots(expectedMessageUsage)
         }
@@ -252,7 +255,8 @@ internal class CrossDiscussionSynthesisRepositoryComponent(
     ): Boolean {
         val sorted = requested.sorted()
         return core.getMaterialUsagesForRun(runId) == sorted.materials &&
-            core.getPersonalContextUsagesForRun(runId) == sorted.personalContexts
+            core.getPersonalContextUsagesForRun(runId) == sorted.personalContexts &&
+            core.getSkillKnowledgeUsagesForRun(runId) == sorted.skillKnowledge
     }
 
     private suspend fun CollaborationTransactionScope.validateContextUsage(
@@ -279,16 +283,30 @@ internal class CrossDiscussionSynthesisRepositoryComponent(
                 item.networkAllowed &&
                 item.userConfirmedAt > 0L
         }
+        val skillKnowledgeValid = usage.skillKnowledge.all { item ->
+            item.runId == run.id &&
+                item.issueId == run.issueId &&
+                item.stageId == run.stageId &&
+                item.sourceSkillId.isNotBlank() &&
+                item.documentId.isNotBlank() &&
+                item.contentSnapshot.isNotBlank() &&
+                item.contentHash == ContextContentHasher.hash(item.contentSnapshot) &&
+                item.userConfirmedAt > 0L
+        }
         val materialIds = usage.materials.map { it.materialReferenceId }
         val personalIds = usage.personalContexts.map { it.personalContextEntryId }
+        val skillKnowledgeIds = usage.skillKnowledge.map { it.documentId }
         val expectationKeys = usage.sourceExpectations.map { it.sourceType to it.sourceId }
         if (
             !materialValid ||
             !personalValid ||
+            !skillKnowledgeValid ||
             materialIds.distinct().size != materialIds.size ||
             personalIds.distinct().size != personalIds.size ||
+            skillKnowledgeIds.distinct().size != skillKnowledgeIds.size ||
             expectationKeys.distinct().size != expectationKeys.size ||
-            usage.sourceExpectations.size != usage.materials.size + usage.personalContexts.size
+            usage.sourceExpectations.size !=
+                usage.materials.size + usage.personalContexts.size + usage.skillKnowledge.size
         ) {
             return RepositoryError.ConstraintViolation(
                 "create_cross_discussion_synthesis",
@@ -309,6 +327,11 @@ internal class CrossDiscussionSynthesisRepositoryComponent(
                             source.updatedAt == expectation.expectedUpdatedAt &&
                             source.contentHash == expectation.expectedContentHash
                     } ?: false
+                ContextSourceType.SKILL_KNOWLEDGE ->
+                    usage.skillKnowledge.any { snapshot ->
+                        snapshot.documentId == expectation.sourceId &&
+                            snapshot.contentHash == expectation.expectedContentHash
+                    }
             }
         }
         return if (sourcesCurrent) null else {

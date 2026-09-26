@@ -198,7 +198,8 @@ data class IssueRecoveryResources(
     val artifacts: List<ConfirmedArtifactEntity>,
     val materialUsages: List<MaterialUsageSnapshotEntity>,
     val personalContextUsages: List<PersonalContextUsageSnapshotEntity>,
-    val audioAssets: List<AudioAssetEntity>
+    val audioAssets: List<AudioAssetEntity>,
+    val skillKnowledgeUsages: List<SkillKnowledgeUsageSnapshotEntity> = emptyList(),
 )
 
 data class IssueRecoverySnapshot(

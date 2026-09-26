@@ -8,6 +8,7 @@ import com.elio.jianyu.data.ExecutionThinkingSource
 import com.elio.jianyu.data.ExecutionRuntimeBudgetConfig
 import com.elio.jianyu.data.IssueThinkingPolicy
 import com.elio.jianyu.data.ExecutionRuntimeSnapshot
+import com.elio.jianyu.skill.knowledge.SkillKnowledgeHit
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 
@@ -150,6 +151,11 @@ fun ExecutionRuntimeSnapshot.toExecutionRecoverySnapshot(): ExecutionRecoverySna
             ExecutionRunStatus.STOPPED,
         ),
     )
+
+data class ExecutionSkillKnowledgeContext(
+    val knowledgeMap: String,
+    val hits: List<SkillKnowledgeHit>,
+)
 
 data class ExecutionContextContribution(
     val sourceId: String,

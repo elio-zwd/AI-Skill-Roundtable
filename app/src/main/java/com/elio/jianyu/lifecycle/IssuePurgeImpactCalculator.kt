@@ -53,6 +53,7 @@ class IssuePurgeImpactCalculator(
                 "material_references" to dao.countMaterialReferences(issueId),
                 "material_usage_snapshots" to dao.countMaterialUsages(issueId),
                 "personal_context_usage_snapshots" to dao.countPersonalContextUsages(issueId),
+                "skill_knowledge_usage_snapshots" to dao.countSkillKnowledgeUsages(issueId),
                 "stage_summary_drafts" to dao.countDrafts(issueId),
                 "stage_summary_draft_revisions" to dao.countDraftRevisions(issueId),
                 "confirmed_artifacts" to dao.countArtifacts(issueId),

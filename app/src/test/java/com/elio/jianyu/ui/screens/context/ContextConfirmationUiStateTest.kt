@@ -8,6 +8,41 @@ import org.junit.Test
 
 class ContextConfirmationUiStateTest {
     @Test
+    fun skillKnowledgeDoesNotRequireNetworkOrSensitiveConfirmationControls() {
+        val state = ContextConfirmationUiState(
+            visible = true,
+            runId = "run",
+            issueId = "issue",
+            stageId = "stage",
+            currentUserInput = "问题",
+            baseContextCharacters = 100,
+            candidates = listOf(
+                ContextCandidateUi(
+                    sourceType = ContextSourceType.SKILL_KNOWLEDGE,
+                    sourceId = "doc",
+                    title = "Skill 资料",
+                    sourceKind = "richard_feynman",
+                    sourceLocator = "references/research.md",
+                    sourcePublishedAt = null,
+                    sourceCapturedAt = null,
+                    originalContent = "正文",
+                    selectedContent = "正文",
+                    sourceHash = "hash",
+                    sourceUpdatedAt = 0L,
+                    sensitive = false,
+                    selected = true,
+                    networkAllowed = false,
+                    sensitiveConfirmed = false,
+                ),
+            ),
+        )
+
+        assertFalse(state.networkPermissionMissing)
+        assertFalse(state.sensitiveConfirmationMissing)
+    }
+
+
+    @Test
     fun personalBackgroundCandidatesRemainUnselectedAndUnauthorizedByDefault() {
         val candidate = candidate(ContextSourceType.PERSONAL_CONTEXT)
         val state = state(candidate)

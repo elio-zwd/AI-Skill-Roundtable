@@ -426,6 +426,32 @@ internal interface JianyuRepositoryDao {
     )
     suspend fun purgePersonalContextUsageSnapshots(sourceId: String): Int
 
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertSkillKnowledgeUsage(entity: SkillKnowledgeUsageSnapshotEntity)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertSkillKnowledgeUsages(entities: List<SkillKnowledgeUsageSnapshotEntity>)
+
+    @Query("SELECT * FROM skill_knowledge_usage_snapshots WHERE id = :id LIMIT 1")
+    suspend fun getSkillKnowledgeUsage(id: String): SkillKnowledgeUsageSnapshotEntity?
+
+    @Query(
+        "SELECT * FROM skill_knowledge_usage_snapshots WHERE runId = :runId " +
+            "ORDER BY userConfirmedAt ASC, sourceSkillId ASC, documentId ASC, id ASC"
+    )
+    suspend fun getSkillKnowledgeUsagesForRun(
+        runId: String,
+    ): List<SkillKnowledgeUsageSnapshotEntity>
+
+    @Query(
+        "SELECT * FROM skill_knowledge_usage_snapshots WHERE issueId = :issueId " +
+            "ORDER BY createdAt ASC, id ASC"
+    )
+    suspend fun getSkillKnowledgeUsagesForIssue(
+        issueId: String,
+    ): List<SkillKnowledgeUsageSnapshotEntity>
+
     @Query(
         "SELECT * FROM audio_assets WHERE issueId = :issueId " +
             "ORDER BY createdAt ASC, id ASC"

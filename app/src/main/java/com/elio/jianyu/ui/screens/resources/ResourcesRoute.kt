@@ -17,18 +17,25 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elio.jianyu.data.JianyuRepository
+import com.elio.jianyu.skill.knowledge.SkillKnowledgeRepository
+import com.elio.jianyu.skill.knowledge.SkillKnowledgeSelection
 import com.elio.jianyu.ui.navigation.ResourceTab
 import kotlinx.coroutines.launch
 
 @Composable
 fun ResourcesRoute(
     repository: JianyuRepository,
+    skillKnowledgeRepository: SkillKnowledgeRepository,
     initialTab: ResourceTab,
     onOpenSettings: () -> Unit,
     onOpenIssue: (String, String) -> Unit = { _, _ -> },
+    onUseSkillKnowledgeInConversation: (SkillKnowledgeSelection) -> Boolean = { false },
     viewModel: ResourcesViewModel = viewModel(factory = ResourcesViewModel.factory(repository)),
     artifactViewModel: ArtifactLibraryViewModel = viewModel(
         factory = ArtifactLibraryViewModel.factory(repository),
+    ),
+    skillKnowledgeViewModel: SkillKnowledgeViewModel = viewModel(
+        factory = SkillKnowledgeViewModel.factory(skillKnowledgeRepository),
     ),
 ) {
     var selectedRouteValue by rememberSaveable(initialTab.routeValue) {
@@ -39,8 +46,10 @@ fun ResourcesRoute(
     }
     var addMaterialSheetVisible by rememberSaveable { mutableStateOf(false) }
     var focusMaterialSearch by rememberSaveable { mutableStateOf(false) }
+    var showSkillKnowledge by rememberSaveable { mutableStateOf(false) }
     val state by viewModel.state.collectAsState()
     val artifactState by artifactViewModel.state.collectAsState()
+    val skillKnowledgeState by skillKnowledgeViewModel.state.collectAsState()
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
@@ -54,9 +63,23 @@ fun ResourcesRoute(
             }
         }
     }
-    BackHandler(enabled = !showOverview) { showOverview = true }
+    val selectedSkillKnowledgeDocument =
+        (skillKnowledgeState as? SkillKnowledgeUiState.Content)?.selectedDocument != null
+    BackHandler(enabled = showSkillKnowledge || !showOverview) {
+        when {
+            showSkillKnowledge && selectedSkillKnowledgeDocument ->
+                skillKnowledgeViewModel.dismissDocument()
+            showSkillKnowledge -> {
+                showSkillKnowledge = false
+                showOverview = true
+            }
+            else -> showOverview = true
+        }
+    }
     ResourcesScreen(
         showOverview = showOverview,
+        showSkillKnowledge = showSkillKnowledge,
+        skillKnowledgeState = skillKnowledgeState,
         addMaterialSheetVisible = addMaterialSheetVisible,
         requestMaterialSearchFocus = focusMaterialSearch,
         selectedTab = ResourceTab.fromRouteValue(selectedRouteValue),
@@ -66,7 +89,10 @@ fun ResourcesRoute(
             selectedRouteValue = tab.routeValue
             showOverview = false
         },
-        onBackToOverview = { showOverview = true },
+        onBackToOverview = {
+            showSkillKnowledge = false
+            showOverview = true
+        },
         onShowMaterials = {
             focusMaterialSearch = false
             selectedRouteValue = ResourceTab.MATERIALS.routeValue
@@ -76,7 +102,21 @@ fun ResourcesRoute(
         onShowArtifacts = {
             focusMaterialSearch = false
             selectedRouteValue = ResourceTab.ARTIFACTS.routeValue
+            showSkillKnowledge = false
             showOverview = false
+        },
+        onShowSkillKnowledge = {
+            focusMaterialSearch = false
+            showSkillKnowledge = true
+            showOverview = false
+        },
+        onSkillKnowledgeRetry = skillKnowledgeViewModel::refresh,
+        onSkillKnowledgeQueryChange = skillKnowledgeViewModel::updateQuery,
+        onOpenSkillKnowledgeDocument = skillKnowledgeViewModel::openDocument,
+        onDismissSkillKnowledgeDocument = skillKnowledgeViewModel::dismissDocument,
+        onUseSkillKnowledgeInConversation = { selection ->
+            val success = onUseSkillKnowledgeInConversation(selection)
+            skillKnowledgeViewModel.reportUseResult(success)
         },
         onSearchMaterials = {
             focusMaterialSearch = true

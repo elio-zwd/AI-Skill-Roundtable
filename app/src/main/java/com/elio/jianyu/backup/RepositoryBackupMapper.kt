@@ -166,6 +166,26 @@ object RepositoryBackupMapper {
                     usage.networkAllowed, usage.sensitive,
                 ))
             }
+            snapshot.resources.skillKnowledgeUsages.forEach { usage ->
+                entities += record(
+                    "skill-knowledge-usage-${usage.id}",
+                    "skill_knowledge_usage",
+                    fields(
+                        usage.id,
+                        usage.issueId,
+                        usage.stageId,
+                        usage.runId,
+                        usage.sourceSkillId,
+                        usage.documentId,
+                        usage.titleSnapshot,
+                        usage.relativePathSnapshot,
+                        usage.contentSnapshot,
+                        usage.contentHash,
+                        usage.userConfirmedAt,
+                        usage.createdAt,
+                    ),
+                )
+            }
             snapshot.resources.audioAssets.forEach { audio ->
                 when (audio.fileState) {
                     AudioFileState.PENDING -> throw BackupException(BackupErrorCode.ACTIVE_WORK_IN_PROGRESS)

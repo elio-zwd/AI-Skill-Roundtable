@@ -7,6 +7,7 @@ import java.security.MessageDigest
 enum class ContextSourceType(val storageValue: String) {
     MATERIAL("material"),
     PERSONAL_CONTEXT("personal_context"),
+    SKILL_KNOWLEDGE("skill_knowledge"),
 }
 
 data class Material(
@@ -207,15 +208,19 @@ data class ContextSourceExpectation(
 data class ContextUsageWriteSet(
     val materials: List<MaterialUsageSnapshotEntity> = emptyList(),
     val personalContexts: List<PersonalContextUsageSnapshotEntity> = emptyList(),
+    val skillKnowledge: List<SkillKnowledgeUsageSnapshotEntity> = emptyList(),
     val sourceExpectations: List<ContextSourceExpectation> = emptyList(),
 ) {
     val isEmpty: Boolean
-        get() = materials.isEmpty() && personalContexts.isEmpty()
+        get() = materials.isEmpty() && personalContexts.isEmpty() && skillKnowledge.isEmpty()
 
     fun sorted(): ContextUsageWriteSet = copy(
         materials = materials.sortedWith(compareBy({ it.userConfirmedAt }, { it.materialReferenceId }, { it.id })),
         personalContexts = personalContexts.sortedWith(
             compareBy({ it.userConfirmedAt }, { it.personalContextEntryId }, { it.id }),
+        ),
+        skillKnowledge = skillKnowledge.sortedWith(
+            compareBy({ it.userConfirmedAt }, { it.sourceSkillId }, { it.documentId }, { it.id }),
         ),
         sourceExpectations = sourceExpectations.sortedWith(
             compareBy({ it.sourceType.storageValue }, { it.sourceId }),
@@ -232,6 +237,8 @@ data class ContextUsageSnapshot(
     val sourceType: ContextSourceType,
     val sourceId: String?,
     val title: String?,
+    val sourceKind: String? = null,
+    val sourceLocator: String? = null,
     val content: String?,
     val contentHash: String?,
     val contentState: SnapshotContentState,

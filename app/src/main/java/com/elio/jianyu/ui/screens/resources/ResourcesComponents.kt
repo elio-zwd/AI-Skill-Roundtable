@@ -592,4 +592,5 @@ internal fun ContextSourceLifecycle.label(): String = when (this) {
 private fun ContextSourceType.label(): String = when (this) {
     ContextSourceType.MATERIAL -> "资料"
     ContextSourceType.PERSONAL_CONTEXT -> "个人背景"
+    ContextSourceType.SKILL_KNOWLEDGE -> "Skill 资料"
 }

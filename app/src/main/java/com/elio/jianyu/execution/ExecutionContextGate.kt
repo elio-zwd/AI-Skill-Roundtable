@@ -38,6 +38,9 @@ object ExecutionContextGate {
                     put(ContextSourceType.PERSONAL_CONTEXT.storageValue to sourceId, snapshot)
                 }
             }
+            usage.skillKnowledge.forEach { snapshot ->
+                put(ContextSourceType.SKILL_KNOWLEDGE.storageValue to snapshot.documentId, snapshot)
+            }
         }
         if (usageByKey.size != contributions.size) return conflict()
         val exact = contributions.all { contribution ->
@@ -54,6 +57,12 @@ object ExecutionContextGate {
                         snapshot.userConfirmedAt == contribution.userConfirmedAt &&
                         snapshot.networkAllowed == contribution.networkAllowed &&
                         snapshot.sensitive == contribution.sensitive
+                is com.elio.jianyu.data.SkillKnowledgeUsageSnapshotEntity ->
+                    snapshot.contentSnapshot == contribution.content &&
+                        snapshot.contentHash == contribution.contentHash &&
+                        snapshot.userConfirmedAt == contribution.userConfirmedAt &&
+                        contribution.networkAllowed &&
+                        !contribution.sensitive
                 else -> false
             }
         }

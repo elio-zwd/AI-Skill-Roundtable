@@ -123,6 +123,9 @@ internal class ExecutionRuntimeRepositoryComponent(
             if (command.contextUsage.personalContexts.isNotEmpty()) {
                 insertPersonalContextUsages(command.contextUsage.personalContexts.sortedBy { it.id })
             }
+            if (command.contextUsage.skillKnowledge.isNotEmpty()) {
+                insertSkillKnowledgeUsages(command.contextUsage.skillKnowledge.sortedBy { it.id })
+            }
 
             loadRuntimeSnapshot(command.run)
         }
@@ -387,7 +390,8 @@ internal class ExecutionRuntimeRepositoryComponent(
     ): Boolean {
         val sorted = requested.sorted()
         return getMaterialUsagesForRun(runId) == sorted.materials &&
-            getPersonalContextUsagesForRun(runId) == sorted.personalContexts
+            getPersonalContextUsagesForRun(runId) == sorted.personalContexts &&
+            getSkillKnowledgeUsagesForRun(runId) == sorted.skillKnowledge
     }
 
     private suspend fun JianyuRepositoryDao.validateContextUsage(
@@ -413,16 +417,32 @@ internal class ExecutionRuntimeRepositoryComponent(
                 usage.networkAllowed &&
                 usage.userConfirmedAt > 0L
         }
+        val allSkillKnowledgeValid = command.contextUsage.skillKnowledge.all { usage ->
+            usage.runId == command.run.id &&
+                usage.issueId == command.run.issueId &&
+                usage.stageId == command.run.stageId &&
+                usage.sourceSkillId.isNotBlank() &&
+                usage.documentId.isNotBlank() &&
+                usage.titleSnapshot.isNotBlank() &&
+                usage.relativePathSnapshot.isNotBlank() &&
+                usage.contentSnapshot.isNotBlank() &&
+                usage.contentHash == ContextContentHasher.hash(usage.contentSnapshot) &&
+                usage.userConfirmedAt > 0L
+        }
         val materialKeys = command.contextUsage.materials.map { it.materialReferenceId }
         val personalKeys = command.contextUsage.personalContexts.map { it.personalContextEntryId }
+        val skillKnowledgeKeys = command.contextUsage.skillKnowledge.map { it.documentId }
         val expectedKeys = command.contextUsage.sourceExpectations.map { it.sourceType to it.sourceId }
         val expectedUnique = expectedKeys.distinct().size == expectedKeys.size
         val expectedCountMatches = command.contextUsage.sourceExpectations.size ==
-            command.contextUsage.materials.size + command.contextUsage.personalContexts.size
+            command.contextUsage.materials.size +
+                command.contextUsage.personalContexts.size +
+                command.contextUsage.skillKnowledge.size
         val snapshotPayloadValid =
-            allMaterialValid && allPersonalValid &&
+            allMaterialValid && allPersonalValid && allSkillKnowledgeValid &&
                 materialKeys.distinct().size == materialKeys.size &&
                 personalKeys.distinct().size == personalKeys.size &&
+                skillKnowledgeKeys.distinct().size == skillKnowledgeKeys.size &&
                 expectedUnique && expectedCountMatches
         if (!snapshotPayloadValid) {
             return RepositoryError.ConstraintViolation(
@@ -444,6 +464,11 @@ internal class ExecutionRuntimeRepositoryComponent(
                             source.updatedAt == expectation.expectedUpdatedAt &&
                             source.contentHash == expectation.expectedContentHash
                     } ?: false
+                ContextSourceType.SKILL_KNOWLEDGE ->
+                    command.contextUsage.skillKnowledge.any { snapshot ->
+                        snapshot.documentId == expectation.sourceId &&
+                            snapshot.contentHash == expectation.expectedContentHash
+                    }
             }
         }
         return if (currentSourcesMatch) {

@@ -18,6 +18,7 @@ import com.elio.jianyu.execution.JianyuExecutionPersistenceGateway
 import com.elio.jianyu.execution.OfficialCatalogExecutionSkillResolver
 import com.elio.jianyu.network.AiManager
 import com.elio.jianyu.network.AiUseCase
+import com.elio.jianyu.network.GeminiEmbeddingTransport
 import com.elio.jianyu.lifecycle.JianyuLifecycleRuntime
 import com.elio.jianyu.lifecycle.createJianyuLifecycleRuntime
 import com.elio.jianyu.result.StageResultService
@@ -29,6 +30,11 @@ import com.elio.jianyu.runtime.JianyuRuntimeUnavailableException
 import com.elio.jianyu.runtime.RuntimeLeaseRegistry
 import com.elio.jianyu.skill.catalog.OfficialSkillCatalogRuntimeResult
 import com.elio.jianyu.skill.catalog.createOfficialSkillCatalogRuntime
+import com.elio.jianyu.skill.knowledge.SkillKnowledgeAssetRepository
+import com.elio.jianyu.skill.knowledge.SkillKnowledgeQueryEmbedder
+import com.elio.jianyu.skill.knowledge.SkillKnowledgeRepository
+import com.elio.jianyu.skill.knowledge.SkillKnowledgeRetrievalGateway
+import com.elio.jianyu.skill.knowledge.SkillKnowledgeRetriever
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -50,6 +56,8 @@ data class JianyuAppRuntime(
     val officialSkillCatalogRuntimeResult: OfficialSkillCatalogRuntimeResult,
     val executionCoordinator: ExecutionRunCoordinator?,
     val collaborationCoordinator: IssueCollaborationCoordinator?,
+    val skillKnowledgeRepository: SkillKnowledgeRepository,
+    val skillKnowledgeRetriever: SkillKnowledgeRetrievalGateway,
     val stageResultService: StageResultService,
     val audioRuntime: JianyuAudioRuntime,
     val lifecycleRuntime: JianyuLifecycleRuntime,
@@ -497,6 +505,22 @@ object JianyuAppRuntimeProvider {
                     database = database,
                 )
             }
+            val skillKnowledgeRepository = SkillKnowledgeAssetRepository(context)
+            val skillKnowledgeRetriever = SkillKnowledgeRetriever(
+                repository = skillKnowledgeRepository,
+                embedder = SkillKnowledgeQueryEmbedder {
+                        sessionId,
+                        currentUserInput,
+                        onAttemptStarted,
+                    ->
+                    GeminiEmbeddingTransport.embedQuery(
+                        context = context,
+                        sessionId = sessionId,
+                        query = currentUserInput,
+                        onAttemptStarted = onAttemptStarted,
+                    )
+                },
+            )
             var collaborationCoordinator: IssueCollaborationCoordinator? = null
             val executionCoordinator = when (catalogRuntimeResult) {
                 is OfficialSkillCatalogRuntimeResult.Success -> {
@@ -509,6 +533,7 @@ object JianyuAppRuntimeProvider {
                         persistence = JianyuExecutionPersistenceGateway(repository),
                         skillResolver = skillResolver,
                         networkGateway = AiExecutionNetworkGateway(context),
+                        skillKnowledgeRetriever = skillKnowledgeRetriever,
                         contextBuilder = ExecutionContextBuilder(),
                         modelIdResolver = {
                             AiManager.configuration(context).configuration.value
@@ -560,6 +585,8 @@ object JianyuAppRuntimeProvider {
                 officialSkillCatalogRuntimeResult = catalogRuntimeResult,
                 executionCoordinator = executionCoordinator,
                 collaborationCoordinator = collaborationCoordinator,
+                skillKnowledgeRepository = skillKnowledgeRepository,
+                skillKnowledgeRetriever = skillKnowledgeRetriever,
                 stageResultService = StageResultService(repository),
                 audioRuntime = audioRuntime,
                 lifecycleRuntime = lifecycleRuntime,

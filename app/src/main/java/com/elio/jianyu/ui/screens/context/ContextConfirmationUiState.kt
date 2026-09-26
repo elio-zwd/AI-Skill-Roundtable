@@ -54,8 +54,14 @@ data class ContextConfirmationUiState(
         get() = totalCharacters > MAX_EXECUTION_CONTEXT_CHARACTERS
 
     val networkPermissionMissing: Boolean
-        get() = selectedItems.any { !it.networkAllowed }
+        get() = selectedItems.any {
+            it.sourceType != ContextSourceType.SKILL_KNOWLEDGE && !it.networkAllowed
+        }
 
     val sensitiveConfirmationMissing: Boolean
-        get() = selectedItems.any { it.sensitive && !it.sensitiveConfirmed }
+        get() = selectedItems.any {
+            it.sourceType != ContextSourceType.SKILL_KNOWLEDGE &&
+                it.sensitive &&
+                !it.sensitiveConfirmed
+        }
 }

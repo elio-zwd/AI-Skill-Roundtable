@@ -134,6 +134,12 @@ internal suspend fun JianyuRepositoryDao.recordPreparedConversationContextUsage(
                 runId = null,
             )
         },
+        skillKnowledge = prepared.usage.skillKnowledge.map { usage ->
+            usage.copy(
+                id = usageScopeId + ":skill-knowledge:" + usage.documentId,
+                runId = null,
+            )
+        },
     ).sorted()
 
     val missingMaterials = mutableListOf<MaterialUsageSnapshotEntity>()
@@ -164,11 +170,28 @@ internal suspend fun JianyuRepositoryDao.recordPreparedConversationContextUsage(
         }
     }
 
+    val missingSkillKnowledge = mutableListOf<SkillKnowledgeUsageSnapshotEntity>()
+    for (usage in detached.skillKnowledge) {
+        val existing = getSkillKnowledgeUsage(usage.id)
+        when {
+            existing == null -> missingSkillKnowledge += usage
+            existing != usage -> return RepositoryResult.Failure(
+                RepositoryError.IdempotencyConflict(
+                    "record_conversation_context_usage",
+                    usage.id,
+                ),
+            )
+        }
+    }
+
     if (missingMaterials.isNotEmpty()) insertMaterialUsages(missingMaterials)
     if (missingPersonal.isNotEmpty()) insertPersonalContextUsages(missingPersonal)
+    if (missingSkillKnowledge.isNotEmpty()) insertSkillKnowledgeUsages(missingSkillKnowledge)
 
     return RepositoryResult.Success(
         value = detached,
-        idempotent = missingMaterials.isEmpty() && missingPersonal.isEmpty(),
+        idempotent = missingMaterials.isEmpty() &&
+            missingPersonal.isEmpty() &&
+            missingSkillKnowledge.isEmpty(),
     )
 }
