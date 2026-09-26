@@ -9,6 +9,7 @@ from tools.skill_knowledge.generate_index import (
     classify_markdown,
     format_document_for_embedding,
     _collect_documents,
+    safe_gemini_error_detail,
 )
 
 
@@ -94,6 +95,25 @@ class SkillKnowledgeIndexGeneratorTest(unittest.TestCase):
                 "# Historical Core\n\nhistorical",
                 [item["_content"] for item in skill["documents"]],
             )
+
+    def test_safe_gemini_error_detail_keeps_status_and_redacts_key(self):
+        key = "AIzaSyExampleSecretKey1234567890"
+        body = json.dumps(
+            {
+                "error": {
+                    "code": 400,
+                    "status": "INVALID_ARGUMENT",
+                    "message": f"API key {key} is invalid",
+                }
+            }
+        ).encode("utf-8")
+
+        detail = safe_gemini_error_detail(body, key)
+
+        self.assertIn("INVALID_ARGUMENT", detail)
+        self.assertIn("API key", detail)
+        self.assertNotIn(key, detail)
+        self.assertIn("<redacted>", detail)
 
     def test_document_embedding_format_is_stable(self):
         self.assertEqual(
