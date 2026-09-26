@@ -337,6 +337,26 @@ def _collect_documents(repo_root: Path) -> list[dict]:
     return skills
 
 
+def embedding_failure_context(
+    request_index: int,
+    request_total: int,
+    skill_id: str,
+    asset_path: str,
+    chunk_id: str,
+    embedding_text: str,
+) -> str:
+    payload = embedding_text.encode("utf-8")
+    return (
+        f"request={request_index}/{request_total}, "
+        f"skillId={skill_id}, "
+        f"assetPath={asset_path}, "
+        f"chunkId={chunk_id}, "
+        f"chars={len(embedding_text)}, "
+        f"utf8Bytes={len(payload)}, "
+        f"inputSha256={hashlib.sha256(payload).hexdigest()}"
+    )
+
+
 def safe_gemini_error_detail(raw_body: bytes, api_key: str) -> str:
     try:
         payload = json.loads(raw_body.decode("utf-8", errors="replace"))
@@ -420,6 +440,12 @@ def _build_manifest_and_index(
     skills = _collect_documents(repo_root)
     index_bytes = bytearray()
     public_skills: list[dict] = []
+    request_total = sum(
+        len(document["_chunks"])
+        for skill in skills
+        for document in skill["documents"]
+    )
+    request_index = 0
 
     for skill in skills:
         public_documents: list[dict] = []
@@ -431,7 +457,21 @@ def _build_manifest_and_index(
                     heading_path=chunk.heading_path,
                     chunk_text=chunk.text,
                 )
-                values = _embed_text(api_key, embedding_text, model, dimension)
+                request_index += 1
+                try:
+                    values = _embed_text(api_key, embedding_text, model, dimension)
+                except Exception as error:
+                    context = embedding_failure_context(
+                        request_index=request_index,
+                        request_total=request_total,
+                        skill_id=skill["skillId"],
+                        asset_path=document["assetPath"],
+                        chunk_id=chunk.chunk_id,
+                        embedding_text=embedding_text,
+                    )
+                    raise RuntimeError(
+                        f"Gemini embedding failed at {context}: {error}"
+                    ) from error
                 vector_offset = len(index_bytes)
                 index_bytes.extend(struct.pack(f"<{dimension}f", *values))
                 public_chunks.append(
