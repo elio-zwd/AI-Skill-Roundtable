@@ -16,10 +16,11 @@
 - 用户此前完成真实单条 API smoke：`gemini-embedding-2` 返回 768 维。本轮从生成器复原失败 chunk，元数据与原记录一致；同一输入单条请求 3 次中 2 次成功、1 次空 body HTTP 400。因此没有改动知识正文或回退模型。
 - 官方 [Embedding API](https://ai.google.dev/api/embeddings) 规定 `batchEmbedContents` 返回顺序与输入一致；本轮 2 条真实输入批量请求成功返回两个 768 维向量。官方 [价格页](https://ai.google.dev/gemini-api/docs/pricing) 标明免费层不提供异步 Batch API，当前使用有界同步批量生成。
 - 生成器已增加按请求数和估算输入量的节流、针对 429 与空 body 400 的有界重试、`build/tmp/skill_knowledge/embeddings` 中按模型/维度/输入哈希键控的向量缓存，以及正式资产的暂存校验。真实 429 曾使首批失败；单条和两条批量复测随后成功。完整生成仍在进行，正式 `manifest.json` 与 `index-v1.bin` 尚未生成。
-- 发现 Python code point offset 与 Android UTF-16 `substring` 不一致，修复后聚焦测试通过；检索预算改为计算含来源及 Knowledge Map 的完整格式化文本。修复提交 `203bb942` 和补充测试/记录提交 `e9d275a5` 均已推送；当前远端 Head 为 `e9d275a5bdbcefb2228d7f3d92824ff7d17f0183`。PR #77 的当前 Head CI 全绿、无冲突，仍保持 Draft。
-- 当前本地证据：Python 16/16；JVM 625/625；`compileDebugKotlin`、`lintDebug`、`assembleDebug`、`assembleDebugAndroidTest` PASS；Room/Repository/Context 设备测试 PASS，Resources 13/13 聚焦复测 PASS；Secret scan 与 diff check PASS。Android 真实 BYOK query embedding 设备测试 1/1 PASS（断言 768 维及 HTTP 尝试，Key 未写入仓库）。上述构建发生在正式索引生成前，资产契约、检索质量、升级安装与最终 PR 状态仍待验证。
+- 发现 Python code point offset 与 Android UTF-16 `substring` 不一致，修复后聚焦测试通过；检索预算改为计算含来源及 Knowledge Map 的完整格式化文本。修复提交 `203bb942` 和补充测试/记录提交 `e9d275a5` 均已推送。PR #77 保持 Draft。
+- 当前本地证据：Python 18/18；JVM 625/625；`compileDebugKotlin`、`lintDebug`、`assembleDebug`、`assembleDebugAndroidTest` PASS；Room/Repository/Context 设备测试 PASS，Resources 13/13 聚焦复测 PASS；Secret scan 与 diff check PASS。Android 真实 BYOK query embedding 设备测试 1/1 PASS（断言 768 维及 HTTP 尝试，Key 未写入仓库）。上述构建发生在正式索引生成前，资产契约、检索质量、升级安装与最终 PR 状态仍待验证。
 - Room v15 Schema 已提交，本轮编译后 `git diff --exit-code -- app/schemas/com.elio.jianyu.data.RoundtableDatabase/15.json` PASS。
 - 升级安装基线已在共享模拟器准备：使用相同本地调试签名安装旧版 APK，Room 为 v14；建立 1 条议题、1 条用户消息及 Naval/Feynman 两条完成回复。App 重启后议题和 3 条消息仍存在。用户已手动配置 Key；尚未覆盖安装新版 APK，因此升级验收未勾选。
+- 独立只读验收在 `59cce9c2` 核对分支、工作区、Python 16/16、JVM 与 CI；正式资产缺失，因此真实召回、资产契约、UI、升级安装均报告未执行。随后完整生成在第 162 个 chunk 遇连续 TLS 握手 EOF，缓存保留 161 个成功向量。新增 RED 测试后将网络异常的有界重试提高至 8 次，退避封顶 60 秒；Python 18/18 PASS，已从 171 个缓存向量续跑。
 
 ## Global Constraints
 

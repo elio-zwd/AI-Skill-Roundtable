@@ -515,13 +515,14 @@ def _embed_batch(
                 else:
                     delay = max(delay, 30.0)
         except (urllib.error.URLError, OSError) as error:
-            if attempt >= 3:
+            # 长时间离线生成中，短暂的 TLS 握手故障可能连续出现数次。
+            if attempt >= 7:
                 raise RuntimeError(
                     "Gemini batch embedding failed after transient network retries: "
                     f"{type(error).__name__}"
                 ) from error
             delay = 0.0
-        time.sleep(max(delay, 2 ** attempt + random.uniform(0, 0.5)))
+        time.sleep(max(delay, min(60, 2 ** attempt) + random.uniform(0, 0.5)))
     raise AssertionError("Unreachable embedding retry state")
 
 

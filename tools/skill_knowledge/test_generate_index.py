@@ -259,6 +259,38 @@ class SkillKnowledgeIndexGeneratorTest(unittest.TestCase):
         self.assertEqual(768, len(vectors[0]))
         for error in errors: error.close()
 
+    def test_batch_recovers_after_four_consecutive_tls_eofs(self):
+        from urllib.error import URLError
+
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, exc_type, exc, tb): return False
+            def read(self): return json.dumps({"embeddings": [{"values": [0.25] * 768}]}).encode()
+
+        errors = [URLError(OSError("TLS handshake EOF")) for _ in range(4)]
+        with patch(
+            "tools.skill_knowledge.generate_index.urllib.request.urlopen",
+            side_effect=[*errors, Response()],
+        ) as urlopen, patch("tools.skill_knowledge.generate_index.time.sleep") as sleep:
+            vectors = _embed_batch("test-key", ["input"], "gemini-embedding-2", 768)
+
+        self.assertEqual(5, urlopen.call_count)
+        self.assertEqual(4, sleep.call_count)
+        self.assertEqual(768, len(vectors[0]))
+
+    def test_batch_tls_eof_retries_remain_bounded(self):
+        from urllib.error import URLError
+
+        errors = [URLError(OSError("TLS handshake EOF")) for _ in range(8)]
+        with patch(
+            "tools.skill_knowledge.generate_index.urllib.request.urlopen",
+            side_effect=errors,
+        ) as urlopen, patch("tools.skill_knowledge.generate_index.time.sleep"):
+            with self.assertRaisesRegex(RuntimeError, "transient network retries"):
+                _embed_batch("test-key", ["input"], "gemini-embedding-2", 768)
+
+        self.assertEqual(8, urlopen.call_count)
+
     def test_generation_resumes_from_checkpoint_without_partial_assets(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
