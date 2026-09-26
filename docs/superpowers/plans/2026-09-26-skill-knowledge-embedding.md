@@ -10,24 +10,15 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-26-skill-knowledge-embedding-design.md`
 
-## 
+## 执行记录（2026-09-26）
 
-> 2026-09-26 ： API smoke  768 ， model / key / endpoint / payload 。 WinError 10054 `ConnectionResetError`， `URLError/TimeoutError` ，； Python  `json` import。 `OSError`  4 ， ConnectionReset ； HTTP 400 。
-
-> 2026-09-26 ： `ad79ff...`  `Skill asset missing: skills/zhangxuefeng-skill-main/SKILL.md`。：
-> -  Catalog ， v2  Manifest；
-> -  v2  `skills/official/<id>/SKILL.md`， CORE ；
-> - 20  repository  Knowledge/Supporting ；
-> - document  `assetPath` ；
-> -  8  Markdown  assets， `SKILL.md`。
->  44 CORE / 136 KNOWLEDGE / 22 SUPPORTING / 202 documents，， Gemini 。
-
-
-> 2026-09-26 GPT ：、/、main 、/purge/backup ； ./Gradle/Room Schema 15  Gemini 。
->
-> ：`app/src/main/assets/skill_knowledge/manifest.json`、`index-v1.bin`、`app/schemas/com.elio.jianyu.data.RoundtableDatabase/15.json`； Gradle / JVM / AndroidTest / / API / UI 。
->
-> ：`codex/skill-knowledge-embedding`  `main@d56850bf3f77d95a40048137898cdac5cff81ca3` ， Draft PR `main`。
+- 已确认的起点：`codex/skill-knowledge-embedding@374a8dc3` 与远端一致，起始工作树干净；PR #77 指向 `main`，仍为 Draft。`origin/main@d56850bf` 是已核实的本地远端引用。
+- 用户此前完成真实单条 API smoke：`gemini-embedding-2` 返回 768 维。本轮从生成器复原失败 chunk，元数据与原记录一致；同一输入单条请求 3 次中 2 次成功、1 次空 body HTTP 400。因此没有改动知识正文或回退模型。
+- 官方 [Embedding API](https://ai.google.dev/api/embeddings) 规定 `batchEmbedContents` 返回顺序与输入一致；本轮 2 条真实输入批量请求成功返回两个 768 维向量。官方 [价格页](https://ai.google.dev/gemini-api/docs/pricing) 标明免费层不提供异步 Batch API，当前使用有界同步批量生成。
+- 生成器已增加按请求数和估算输入量的节流、针对 429 与空 body 400 的有界重试、`build/tmp/skill_knowledge/embeddings` 中按模型/维度/输入哈希键控的向量缓存，以及正式资产的暂存校验。真实 429 曾使首批失败；单条和两条批量复测随后成功。完整生成仍在进行，正式 `manifest.json` 与 `index-v1.bin` 尚未生成。
+- 发现 Python code point offset 与 Android UTF-16 `substring` 不一致，修复后聚焦测试通过；检索预算改为计算含来源及 Knowledge Map 的完整格式化文本。修复提交：`203bb942`，推送待完成（一次 `git fetch origin` 遇 TLS unexpected EOF）。
+- 当前本地证据：Python 16/16；JVM 625/625；`compileDebugKotlin`、`lintDebug`、`assembleDebug`、`assembleDebugAndroidTest` PASS；Room/Repository/Context 设备测试 PASS，Resources 13/13 聚焦复测 PASS；Secret scan 与 diff check PASS。Android 真实 BYOK query embedding 设备测试 1/1 PASS（断言 768 维及 HTTP 尝试，Key 未写入仓库）。上述构建发生在正式索引生成前，资产契约、检索质量、升级安装与最终 PR 状态仍待验证。
+- Room v15 Schema 已提交，本轮编译后 `git diff --exit-code -- app/schemas/com.elio.jianyu.data.RoundtableDatabase/15.json` PASS。
 
 ## Global Constraints
 
@@ -187,7 +178,7 @@ AiManager.keys(appContext, AiProvider.GEMINI).createAttemptPlan(sessionId)
 
 每次真实 HTTP 尝试前调用 `onAttemptStarted()`；不得把 Key 写入日志。
 
-- [ ] **Step 4: 跑聚焦测试**
+- [x] **Step 4: 跑聚焦测试**
 
 Run:
 
@@ -281,7 +272,7 @@ python tools/skill_knowledge/generate_index.py --repo-root . --model gemini-embe
 
 真实生成只从环境变量读取 `GEMINI_API_KEY`。缺失时必须明确失败，不创建半成品 index。
 
-- [ ] **Step 4: 运行 Python 单测**
+- [x] **Step 4: 运行 Python 单测**
 
 Run:
 
@@ -317,7 +308,7 @@ Expected:
 - 每个 vector 768 Float32；
 - manifest contentHash 与实际 Markdown 一致。
 
-- [ ] **Step 7: 跑资产契约测试可编译**
+- [x] **Step 7: 跑资产契约测试可编译**
 
 Run:
 
@@ -447,7 +438,7 @@ internal fun cosineSimilarity(a: FloatArray, b: FloatArray): Float {
 
 禁止为向量检索引入新 native/ANN 依赖。
 
-- [ ] **Step 5: 跑三组 JVM 测试**
+- [x] **Step 5: 跑三组 JVM 测试**
 
 Run:
 
@@ -553,7 +544,7 @@ Embedding 失败返回 null knowledge context，继续最终回答。
 
 同一个 retriever 注入 `ExecutionRunCoordinator`。
 
-- [ ] **Step 5: 跑聚焦测试**
+- [x] **Step 5: 跑聚焦测试**
 
 Run:
 
@@ -638,7 +629,7 @@ mainSkillPrompt
 
 保留 `loadSkill` 和仍有真实调用方的 asset helper。
 
-- [ ] **Step 5: 跑聚焦 JVM 测试**
+- [x] **Step 5: 跑聚焦 JVM 测试**
 
 Run:
 
@@ -751,7 +742,7 @@ Expected: 不产生 `SENSITIVE_CONFIRMATION_REQUIRED`。
 
 不得把它创建成用户 Material。
 
-- [ ] **Step 5: 运行 migration + repository AndroidTest**
+- [x] **Step 5: 运行 migration + repository AndroidTest**
 
 Run:
 
@@ -861,7 +852,7 @@ BackHandler：
 - Skill 文档详情 → Skill 资料列表；
 - Skill 资料列表 → 资料总览。
 
-- [ ] **Step 5: 跑 JVM + Compose AndroidTest**
+- [x] **Step 5: 跑 JVM + Compose AndroidTest**
 
 Run:
 
@@ -932,7 +923,7 @@ SKILL_KNOWLEDGE item 不得出现：
 - `skill_knowledge_usage_snapshots` 有一条完整快照；
 - title/path/content/hash 与用户确认时一致。
 
-- [ ] **Step 5: 跑聚焦测试**
+- [x] **Step 5: 跑聚焦测试**
 
 Run:
 
@@ -983,7 +974,7 @@ Expected: 无旧本地资料选择调用方。
 
 若旧生成脚本无其他调用方，删除；如果仍被历史/开发任务真实使用，则移动到明确 historical 路径而不是继续作为生产生成器。
 
-- [ ] **Step 4: 静态检查**
+- [x] **Step 4: 静态检查**
 
 Run:
 
@@ -1049,7 +1040,7 @@ Expected: PASS。
 - 带入当前会话；
 - 无新增隐私提示。
 
-- [ ] **Step 5: 真实 Gemini API query embedding**
+- [x] **Step 5: 真实 Gemini API query embedding**
 
 只读验收环境提供测试 Key 后，执行一个真实 query：
 - model = `gemini-embedding-2`
