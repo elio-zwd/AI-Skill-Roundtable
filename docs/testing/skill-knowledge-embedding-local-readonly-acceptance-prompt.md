@@ -28,11 +28,14 @@
 - `git checkout codex/skill-knowledge-embedding`
 - `git pull --ff-only origin codex/skill-knowledge-embedding`
 - `git status --short`
-- `git rev-parse HEAD`
+- `$head = git rev-parse HEAD`
+- `$remote = git rev-parse origin/codex/skill-knowledge-embedding`
+- `if ($head -ne $remote) { throw " HEAD  origin/codex/skill-knowledge-embedding " }`
 - `git merge-base --is-ancestor origin/main HEAD`
 
 ：
 - worktree CLEAN
+- HEAD == origin/codex/skill-knowledge-embedding
 - main ancestor PASS
 - PR #77 Head 
 
@@ -226,6 +229,8 @@ PASS ：
 
 RESULT: PASS | FAIL
 HEAD: <sha>
+REMOTE_HEAD: <sha>
+REMOTE_HEAD_MATCH: PASS | FAIL
 MAIN_ANCESTOR: PASS | FAIL
 WORKTREE: CLEAN | DIRTY
 GENERATED_ASSETS: PASS | FAIL

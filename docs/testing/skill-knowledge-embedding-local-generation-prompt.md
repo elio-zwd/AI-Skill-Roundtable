@@ -31,10 +31,19 @@ git fetch origin
 git checkout codex/skill-knowledge-embedding
 git pull --ff-only origin codex/skill-knowledge-embedding
 git status --short
-git rev-parse HEAD
-git merge-base --is-ancestor 18e1fa1a7ea7638ee99efb985745e5e2b2be6402 HEAD
+$head = git rev-parse HEAD
+$remote = git rev-parse origin/codex/skill-knowledge-embedding
+Write-Output "HEAD=$head"
+Write-Output "REMOTE_HEAD=$remote"
+if ($head -ne $remote) { throw " HEAD  origin/codex/skill-knowledge-embedding " }
+git merge-base --is-ancestor origin/main HEAD
+if ($LASTEXITCODE -ne 0) { throw "origin/main  HEAD " }
 
-：worktree ；ancestor  0。，。
+：
+- worktree ；
+- HEAD == origin/codex/skill-knowledge-embedding；
+- origin/main ancestor PASS；
+- ，，。
 
 ## 2. Python 
 
@@ -112,7 +121,8 @@ Write-Output $zip
 
 RESULT: PASS | FAIL
 HEAD: <sha>
-ANCESTOR_18e1fa1: PASS | FAIL
+REMOTE_HEAD_MATCH: PASS | FAIL
+MAIN_ANCESTOR: PASS | FAIL
 WORKTREE_BEFORE: CLEAN | DIRTY
 PYTHON_GENERATOR_TEST: PASS | FAIL
 GEMINI_KEY_STATE: SET | MISSING
