@@ -27,6 +27,7 @@ data class SkillKnowledgeChunk(
 data class SkillKnowledgeDocument(
     val documentId: String,
     val skillId: String,
+    val assetPath: String,
     val relativePath: String,
     val title: String,
     val type: SkillKnowledgeDocumentType,
