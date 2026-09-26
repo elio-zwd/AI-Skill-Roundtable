@@ -36,6 +36,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.data.ContextSourceType
+import com.elio.jianyu.data.ConversationReadingStateRepository
 import com.elio.jianyu.data.UserAvatarRepository
 import com.elio.jianyu.data.UserAvatarSnapshot
 import com.elio.jianyu.execution.SearchMode
@@ -79,8 +80,8 @@ fun DialogRoute(
     var showReferenceDialog by remember { mutableStateOf(false) }
     var messageActionId by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
-    val readingPrefs = remember(context.applicationContext) {
-        context.applicationContext.getSharedPreferences("dialog_reading_state", android.content.Context.MODE_PRIVATE)
+    val readingRepository = remember(context.applicationContext) {
+        ConversationReadingStateRepository(context.applicationContext)
     }
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
@@ -110,28 +111,17 @@ fun DialogRoute(
     }
     LaunchedEffect(currentSession?.id) {
         val sessionId = currentSession?.id ?: return@LaunchedEffect
-        val prefix = "session_$sessionId"
-        val selected = readingPrefs.all.keys
-            .filter { it.startsWith("${prefix}_page_") }
-            .associate { key -> key.removePrefix("${prefix}_page_") to readingPrefs.getString(key, "").orEmpty() }
-        val offsets = readingPrefs.all.keys
-            .filter { it.startsWith("${prefix}_offset_") }
-            .associate { key -> key.removePrefix("${prefix}_offset_") to readingPrefs.getInt(key, 0) }
-        val progress = readingPrefs.all.keys
-            .filter { it.startsWith("${prefix}_progress_") }
-            .associate { key -> key.removePrefix("${prefix}_progress_") to readingPrefs.getFloat(key, 0f) }
+        val readingState = readingRepository.load(sessionId)
         localState = localState.copy(
-            roleStripExpanded = readingPrefs.getBoolean("${prefix}_roles", true),
-            selectedRoleIds = selected,
-            expandedAnswerIds = readingPrefs.getStringSet("${prefix}_expanded", emptySet()).orEmpty().toSet(),
-            readAnswerIds = readingPrefs.getStringSet("${prefix}_read", emptySet()).orEmpty().toSet(),
-            answerScrollOffsets = offsets,
-            answerScrollProgress = progress,
-            conversationScrollKey = readingPrefs.getString("${prefix}_scroll_key", null),
-            conversationScrollOffset = readingPrefs.getInt("${prefix}_scroll_offset", 0),
-            conversationScrollProgress = if (readingPrefs.contains("${prefix}_scroll_progress")) {
-                readingPrefs.getFloat("${prefix}_scroll_progress", 0f)
-            } else null,
+            roleStripExpanded = readingState.roleStripExpanded,
+            selectedRoleIds = readingState.selectedRoleIds,
+            expandedAnswerIds = readingState.expandedAnswerIds,
+            readAnswerIds = readingState.readAnswerIds,
+            answerScrollOffsets = readingState.answerScrollOffsets,
+            answerScrollProgress = readingState.answerScrollProgress,
+            conversationScrollKey = readingState.conversationScrollKey,
+            conversationScrollOffset = readingState.conversationScrollOffset,
+            conversationScrollProgress = readingState.conversationScrollProgress,
             restoredSessionId = sessionId.toString(),
         )
     }
@@ -270,7 +260,7 @@ fun DialogRoute(
                     DialogEvent.ToggleRoleStrip -> {
                         val expanded = !localState.roleStripExpanded
                         localState = localState.copy(roleStripExpanded = expanded)
-                        currentSession?.id?.let { readingPrefs.edit().putBoolean("session_${it}_roles", expanded).apply() }
+                        currentSession?.id?.let { readingRepository.saveRoleStripExpanded(it, expanded) }
                     }
                     is DialogEvent.SelectAnswer -> {
                         val group = uiState.visibleMessages
@@ -286,10 +276,7 @@ fun DialogRoute(
                             readAnswerIds = read,
                         )
                         currentSession?.id?.let {
-                            readingPrefs.edit()
-                                .putString("session_${it}_page_${event.questionId}", event.roleId)
-                                .putStringSet("session_${it}_read", read)
-                                .apply()
+                            readingRepository.saveSelectedRole(it, event.questionId, event.roleId, read)
                         }
                     }
                     is DialogEvent.RetryAnswer -> {
@@ -311,15 +298,11 @@ fun DialogRoute(
                             )
                         }
                         currentSession?.id?.let {
-                            readingPrefs.edit()
-                                .putStringSet("session_${it}_expanded", expanded)
-                                .apply {
-                                    if (event.answerId !in expanded) {
-                                        putInt("session_${it}_offset_${event.answerId}", 0)
-                                        putFloat("session_${it}_progress_${event.answerId}", 0f)
-                                    }
-                                }
-                                .apply()
+                            readingRepository.saveExpandedAnswers(
+                                it,
+                                expanded,
+                                event.answerId.takeIf { answerId -> answerId !in expanded },
+                            )
                         }
                     }
                     is DialogEvent.SaveAnswerOffset -> {
@@ -328,10 +311,7 @@ fun DialogRoute(
                             answerScrollProgress = localState.answerScrollProgress + (event.answerId to event.progress),
                         )
                         currentSession?.id?.let {
-                            readingPrefs.edit()
-                                .putInt("session_${it}_offset_${event.answerId}", event.offset)
-                                .putFloat("session_${it}_progress_${event.answerId}", event.progress)
-                                .apply()
+                            readingRepository.saveAnswerOffset(it, event.answerId, event.offset, event.progress)
                         }
                     }
                     is DialogEvent.SaveConversationOffset -> {
@@ -341,11 +321,7 @@ fun DialogRoute(
                             conversationScrollProgress = event.progress,
                         )
                         currentSession?.id?.let {
-                            readingPrefs.edit()
-                                .putString("session_${it}_scroll_key", event.itemId)
-                                .putInt("session_${it}_scroll_offset", event.offset)
-                                .putFloat("session_${it}_scroll_progress", event.progress)
-                                .apply()
+                            readingRepository.saveConversationOffset(it, event.itemId, event.offset, event.progress)
                         }
                     }
                     is DialogEvent.RenameSession -> {
@@ -363,10 +339,7 @@ fun DialogRoute(
                     is DialogEvent.DeleteSession -> {
                         resolveSessionId(event.sessionId)?.let { sessionId ->
                             viewModel.deleteSession(sessionId)
-                            val prefix = "session_${sessionId}_"
-                            readingPrefs.edit().apply {
-                                readingPrefs.all.keys.filter { it.startsWith(prefix) }.forEach(::remove)
-                            }.apply()
+                            readingRepository.deleteSession(sessionId)
                         }
                         localState = uiState.copy(isMoreMenuOpen = false)
                     }
