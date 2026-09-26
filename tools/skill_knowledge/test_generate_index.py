@@ -1,5 +1,7 @@
+import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from tools.skill_knowledge.generate_index import (
@@ -9,6 +11,7 @@ from tools.skill_knowledge.generate_index import (
     classify_markdown,
     format_document_for_embedding,
     _collect_documents,
+    _embed_text,
     safe_gemini_error_detail,
 )
 
@@ -114,6 +117,36 @@ class SkillKnowledgeIndexGeneratorTest(unittest.TestCase):
         self.assertIn("API key", detail)
         self.assertNotIn(key, detail)
         self.assertIn("<redacted>", detail)
+
+    def test_embedding_retries_connection_reset(self):
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def read(self):
+                return json.dumps(
+                    {"embedding": {"values": [0.25] * 768}}
+                ).encode("utf-8")
+
+        with patch(
+            "tools.skill_knowledge.generate_index.urllib.request.urlopen",
+            side_effect=[ConnectionResetError(10054, "connection reset"), Response()],
+        ) as urlopen, patch(
+            "tools.skill_knowledge.generate_index.time.sleep"
+        ) as sleep:
+            values = _embed_text(
+                api_key="test-key",
+                text="smoke",
+                model="gemini-embedding-2",
+                dimension=768,
+            )
+
+        self.assertEqual(768, len(values))
+        self.assertEqual(2, urlopen.call_count)
+        sleep.assert_called_once_with(1)
 
     def test_document_embedding_format_is_stable(self):
         self.assertEqual(
