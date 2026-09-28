@@ -14,10 +14,12 @@ class TelemetryInterceptor : Interceptor {
         if (initialLevel == TelemetryLevel.OFF) return chain.proceed(request)
 
         val startedAt = System.currentTimeMillis()
-        val endpoint = "${request.method} ${request.url.encodedPath}"
+        val sseSuffix = if (request.url.queryParameter("alt") == "sse") "?alt=sse" else ""
+        val endpoint = "${request.method} ${request.url.encodedPath}$sseSuffix"
         val model = Regex("models/([^:/]+)").find(request.url.encodedPath)?.groupValues?.getOrNull(1)
         val apiKey = request.url.queryParameter("key")
             ?: request.header("Authorization")?.removePrefix("Bearer ")
+            ?: request.header("x-goog-api-key")
         val keyId = apiKey?.takeIf(String::isNotBlank)?.let(AiManager::findKeyIdOrNull)
         val contentDebugAtStart = initialLevel == TelemetryLevel.CONTENT_DEBUG && BuildConfig.DEBUG
         val requestPreview = if (contentDebugAtStart) TelemetryPreviewExtractor.requestPreview(request) else null
@@ -43,6 +45,12 @@ class TelemetryInterceptor : Interceptor {
         } finally {
             runCatching {
                 val completedAt = System.currentTimeMillis()
+                val errorMessage = failure?.let { err ->
+                    val msg = err.message?.takeIf(String::isNotBlank)
+                    if (msg != null) "${err.javaClass.simpleName}: $msg" else err.javaClass.simpleName
+                } ?: response?.takeIf { !it.isSuccessful }?.let { resp ->
+                    "HTTP ${resp.code}: ${resp.message.ifBlank { "Request failed" }}"
+                }
                 val event = TelemetryEventFactory.create(
                     level = initialLevel,
                     id = UUID.randomUUID().toString(),
@@ -53,6 +61,7 @@ class TelemetryInterceptor : Interceptor {
                     keyId = keyId,
                     statusCode = response?.code,
                     failureType = classifyFailure(failure, response?.code),
+                    errorMessage = errorMessage,
                     requestPreview = requestPreview,
                     responsePreview = responsePreview,
                     hasThoughtStep = hasThoughtStep,
@@ -60,7 +69,7 @@ class TelemetryInterceptor : Interceptor {
                         TelemetryRepository.contentDebugExpiresAtOrNull()
                     } else {
                         null
-                    }
+                    },
                 )
                 if (event != null) TelemetryRepository.record(event)
             }

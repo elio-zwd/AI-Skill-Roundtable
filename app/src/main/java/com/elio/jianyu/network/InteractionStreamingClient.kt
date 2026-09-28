@@ -12,6 +12,7 @@ import com.elio.jianyu.telemetry.InteractionChainStore
 import com.elio.jianyu.telemetry.PrivacySafeLogger
 import com.elio.jianyu.telemetry.TelemetryRepository
 import java.io.IOException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -105,11 +106,49 @@ object GeminiInteractionsTransport {
             reserveForRequired = reserveForRequired,
             onAttemptStarted = onAttemptStarted
         ) { secret ->
-            streamSingleAttempt(
-                apiKey = secret,
-                request = streamingRequest,
-                onTextUpdate = onTextUpdate
-            )
+            try {
+                streamSingleAttempt(
+                    apiKey = secret,
+                    request = streamingRequest,
+                    onTextUpdate = onTextUpdate,
+                )
+            } catch (streamError: CancellationException) {
+                throw streamError
+            } catch (streamError: Exception) {
+                // 致命业务状态码（400 参数错、401/403 密钥无效、429 配额耗尽）属于凭证/配额问题，不应降级，抛给上层换 Key 或停止
+                val isFatalHttp = streamError is StreamingHttpException &&
+                    (streamError.code == 400 || streamError.code == 401 || streamError.code == 403 || streamError.code == 429)
+                if (isFatalHttp) throw streamError
+
+                // 梯子/代理中断 SSE（如 closed before completion、SocketTimeout、Connection reset、Serialization 等）时，
+                // 自动无缝降级为非流式普通 REST 请求，确保能在当前 Key 立即一次性拉回完整回答，避免连环重试和 429。
+                PrivacySafeLogger.w(
+                    TAG,
+                    "SSE 流式传输异常断开 (${streamError.javaClass.simpleName})，自动无缝降级为非流式 REST 请求保底",
+                )
+                try {
+                    val nonStreamingRequest = streamingRequest.copy(stream = false)
+                    val restResponse = GeminiRestTransport.service.createInteraction(
+                        apiKey = secret,
+                        request = nonStreamingRequest,
+                    )
+                    val outputText = restResponse.outputText.trim()
+                    if (outputText.isBlank()) {
+                        throw IllegalStateException("非流式降级请求返回空模型文本")
+                    }
+                    onTextUpdate(outputText)
+                    StreamedInteraction(
+                        id = restResponse.id,
+                        outputText = outputText,
+                        model = restResponse.model,
+                    )
+                } catch (fallbackError: CancellationException) {
+                    throw fallbackError
+                } catch (fallbackError: Exception) {
+                    PrivacySafeLogger.e(TAG, "非流式降级请求亦失败", fallbackError)
+                    throw fallbackError
+                }
+            }
         }
 
         if (
@@ -159,6 +198,9 @@ object GeminiInteractionsTransport {
             .header("x-goog-api-key", apiKey)
             .header("Api-Revision", API_REVISION)
             .header("Accept", "text/event-stream")
+            .header("Cache-Control", "no-cache")
+            .header("X-Accel-Buffering", "no")
+            .header("Connection", "keep-alive")
             .post(body)
             .build()
 

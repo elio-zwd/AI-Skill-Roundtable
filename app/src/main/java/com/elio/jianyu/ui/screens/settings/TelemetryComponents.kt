@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -160,17 +161,29 @@ internal fun TelemetryEventCard(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     "[${event.keyId ?: "none"}] ${event.model ?: event.endpoint}",
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
+                    modifier = Modifier.weight(1f, fill = false),
                 )
-                Text(
-                    presentation.statusText,
-                    fontSize = 10.sp,
-                    color = TextSecondary,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        presentation.statusText,
+                        fontSize = 10.sp,
+                        color = TextSecondary,
+                    )
+                    Text(
+                        if (expanded) "▲" else "▼",
+                        fontSize = 10.sp,
+                        color = TextSecondary,
+                    )
+                }
             }
             Text(event.endpoint, fontSize = 10.sp, color = TextSecondary)
             event.failureType?.let { failureType ->
@@ -183,21 +196,55 @@ internal fun TelemetryEventCard(
                     color = GoldAccent,
                 )
             }
-            if (event.containsContentPreview) {
-                Text("含脱敏截断预览，点击展开", fontSize = 10.sp, color = GoldAccent)
-            }
+            Text(
+                if (expanded) {
+                    "点击收起详情 ▲"
+                } else if (event.containsContentPreview) {
+                    "含脱敏截断预览，点击展开 ▼"
+                } else {
+                    "点击展开诊断详情 ▼"
+                },
+                fontSize = 10.sp,
+                color = if (event.containsContentPreview) GoldAccent else TextSecondary,
+            )
             if (expanded) {
+                Divider(
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    color = borderColor,
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("请求时间：${formatTelemetryTimestamp(event.timestamp)}", fontSize = 10.sp, color = TextSecondary)
+                    Text("请求耗时：${event.durationMs} ms", fontSize = 10.sp, color = TextSecondary)
+                    event.statusCode?.let { code ->
+                        val codeColor = if (code in 200..299) Color(0xFF10B981) else Color.Red
+                        Text("状态码：HTTP $code", fontSize = 10.sp, color = codeColor)
+                    }
+                    event.errorMessage?.let { error ->
+                        Text("异常详情：$error", fontSize = 10.sp, color = Color.Red, fontWeight = FontWeight.Medium)
+                    }
+                    if (!event.containsContentPreview) {
+                        Text("元数据诊断信息（未开启临时正文调试）", fontSize = 10.sp, color = TextSecondary.copy(alpha = 0.7f))
+                    }
+                }
                 event.requestPreview?.let { preview ->
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text("请求预览", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = GoldAccent)
                     Text(preview, fontSize = 10.sp, color = TextSecondary)
                 }
                 event.responsePreview?.let { preview ->
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text("响应预览", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = GoldAccent)
                     Text(preview, fontSize = 10.sp, color = TextSecondary)
                 }
             }
         }
     }
+}
+
+private fun formatTelemetryTimestamp(timestamp: Long): String {
+    val date = java.util.Date(timestamp)
+    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", java.util.Locale.getDefault())
+    return sdf.format(date)
 }
 
 @Composable

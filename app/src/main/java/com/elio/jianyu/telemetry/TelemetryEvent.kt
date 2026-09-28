@@ -18,7 +18,8 @@ data class TelemetryEvent(
     val hasThoughtStep: Boolean = false,
     val requestPreview: String? = null,
     val responsePreview: String? = null,
-    val expiresAt: Long? = null
+    val expiresAt: Long? = null,
+    val errorMessage: String? = null,
 ) {
     val containsContentPreview: Boolean
         get() = requestPreview != null || responsePreview != null
@@ -35,10 +36,11 @@ object TelemetryEventFactory {
         keyId: String?,
         statusCode: Int?,
         failureType: String?,
-        requestPreview: String?,
-        responsePreview: String?,
-        hasThoughtStep: Boolean,
-        contentExpiresAt: Long?
+        errorMessage: String? = null,
+        requestPreview: String? = null,
+        responsePreview: String? = null,
+        hasThoughtStep: Boolean = false,
+        contentExpiresAt: Long? = null
     ): TelemetryEvent? {
         if (level == TelemetryLevel.OFF) return null
         val contentEnabled = level == TelemetryLevel.CONTENT_DEBUG
@@ -51,6 +53,7 @@ object TelemetryEventFactory {
             keyId = keyId,
             statusCode = statusCode,
             failureType = failureType,
+            errorMessage = errorMessage,
             hasThoughtStep = hasThoughtStep,
             requestPreview = requestPreview.takeIf { contentEnabled },
             responsePreview = responsePreview.takeIf { contentEnabled },
