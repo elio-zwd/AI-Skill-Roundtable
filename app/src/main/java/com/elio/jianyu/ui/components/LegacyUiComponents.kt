@@ -54,6 +54,7 @@ import com.elio.jianyu.ui.PrimaryAccent
 import com.elio.jianyu.ui.SecondaryAccent
 import com.elio.jianyu.ui.TextPrimary
 import com.elio.jianyu.ui.theme.LocalReducedMotion
+import dev.jeziellago.compose.markdowntext.MarkdownText
 
 fun Modifier.bounceClick(): Modifier = composed {
     val reducedMotion = LocalReducedMotion.current
@@ -186,52 +187,12 @@ fun CharacterAvatar(
 }
 
 @Composable
-fun MarkdownRender(text: String) {
-    val lines = text.lines()
-    Column(
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        lines.forEach { line ->
-            val trimmed = line.trim()
-            if (trimmed.startsWith("#")) {
-                val level = trimmed.takeWhile { it == '#' }.length
-                val content = trimmed.drop(level).trim()
-                val fontSize = when (level) {
-                    1 -> 22.sp
-                    2 -> 19.sp
-                    3 -> 17.sp
-                    else -> 15.sp
-                }
-                Text(
-                    text = content,
-                    fontSize = fontSize,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                )
-            } else if (trimmed.startsWith("-") || trimmed.startsWith("*")) {
-                val content = trimmed.drop(1).trim()
-                Row(
-                    modifier = Modifier.padding(start = 8.dp),
-                    horizontalArrangement = Arrangement.Start
-                ) {
-                    Text("• ", color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Text(
-                        text = content,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 14.sp,
-                        lineHeight = 20.sp
-                    )
-                }
-            } else if (trimmed.isNotEmpty()) {
-                Text(
-                    text = trimmed,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 14.sp,
-                    lineHeight = 22.sp
-                )
-            }
-        }
-    }
+fun MarkdownRender(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    MarkdownText(
+        markdown = text,
+        modifier = modifier.fillMaxWidth(),
+    )
 }
