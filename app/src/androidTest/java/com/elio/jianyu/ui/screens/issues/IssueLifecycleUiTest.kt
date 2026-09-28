@@ -43,6 +43,7 @@ class IssueLifecycleUiTest {
                             ),
                             onRetry = {},
                             onOpenIssue = { _, _ -> },
+                            onBack = {},
                             onOpenSettings = {},
                         )
                     }
@@ -76,6 +77,7 @@ class IssueLifecycleUiTest {
                             ),
                             onRetry = {},
                             onOpenIssue = { _, _ -> },
+                            onBack = {},
                             onOpenSettings = {},
                         )
                     }

@@ -9,12 +9,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import androidx.core.view.WindowCompat
 import com.elio.jianyu.ui.MainAppContent
 import com.elio.jianyu.ui.theme.SkillRoundtableTheme
 import com.elio.jianyu.ui.settings.AppPreferences
@@ -35,6 +37,12 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.SYSTEM -> systemDark
                 ThemeMode.LIGHT -> false
                 ThemeMode.DARK -> true
+            }
+            SideEffect {
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = !darkTheme
+                    isAppearanceLightNavigationBars = !darkTheme
+                }
             }
             val baseDensity = LocalDensity.current
             val fontScaleMultiplier = when (preferences.fontSizeMode) {

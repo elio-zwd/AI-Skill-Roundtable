@@ -27,6 +27,8 @@ import com.elio.jianyu.data.IssueThinkingPolicy
 import com.elio.jianyu.execution.SearchMode
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.components.JianyuPageShell
+import com.elio.jianyu.ui.components.JianyuSettingsAction
+import com.elio.jianyu.ui.components.JianyuTopBarLevel
 import com.elio.jianyu.ui.components.JianyuStateCard
 
 @Composable
@@ -59,8 +61,9 @@ fun HomeScreen(
     val workflow = uiState.workflow
     JianyuPageShell(
         title = "见域",
+        level = JianyuTopBarLevel.PRIMARY,
         subtitle = "从问题开始，再决定需要哪些视角与能力",
-        onOpenSettings = onOpenSettings,
+        actions = { JianyuSettingsAction(onOpenSettings) },
         contentScrollable = true,
         modifier = modifier.testTag(HomeTestTags.SCREEN),
     ) {

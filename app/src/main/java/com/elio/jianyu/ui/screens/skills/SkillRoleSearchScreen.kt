@@ -15,14 +15,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -36,8 +34,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -55,6 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.skill.catalog.OfficialSkillPrimaryType
 import com.elio.jianyu.ui.components.JianyuRoleAvatar
+import com.elio.jianyu.ui.components.JianyuSearchTopBar
 
 @Composable
 internal fun SkillRoleSearchScreen(
@@ -81,85 +78,36 @@ internal fun SkillRoleSearchScreen(
     Surface(
         modifier = modifier
             .fillMaxSize()
-            .statusBarsPadding()
             .testTag("skill_role_search_screen"),
         color = MaterialTheme.colorScheme.background,
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Top Bar: Back button + Search input + Filter button
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                IconButton(
-                    onClick = onBack,
-                    modifier = Modifier.testTag("search_screen_back"),
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "返回",
-                    )
-                }
-
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = onQueryChange,
-                    modifier = Modifier
-                        .weight(1f)
-                        .focusRequester(focusRequester)
-                        .testTag("search_screen_input"),
-                    placeholder = {
-                        Text(
-                            text = "搜索角色、能力或问题",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                        )
-                    },
-                    trailingIcon = {
-                        if (query.isNotEmpty()) {
-                            IconButton(
-                                onClick = { onQueryChange("") },
-                                modifier = Modifier.testTag("search_screen_clear_query"),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "清除搜索",
-                                )
+            JianyuSearchTopBar(
+                query = query,
+                onQueryChange = onQueryChange,
+                onBack = onBack,
+                placeholder = "搜索角色、能力或问题",
+                clearButtonTestTag = "search_screen_clear_query",
+                inputModifier = Modifier
+                    .focusRequester(focusRequester)
+                    .testTag("search_screen_input"),
+                actions = {
+                    BadgedBox(
+                        badge = {
+                            if (activeFilterCount > 0) {
+                                Badge { Text(activeFilterCount.toString()) }
                             }
-                        }
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(24.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                    ),
-                )
-
-                // 筛选按钮
-                BadgedBox(
-                    badge = {
-                        if (activeFilterCount > 0) {
-                            Badge { Text(activeFilterCount.toString()) }
-                        }
-                    },
-                ) {
-                    FilterChip(
-                        selected = activeFilterCount > 0,
-                        onClick = onOpenFilters,
-                        label = { Text("筛选") },
-                        modifier = Modifier.testTag("search_screen_filter_button"),
-                    )
-                }
-            }
+                        },
+                    ) {
+                        FilterChip(
+                            selected = activeFilterCount > 0,
+                            onClick = onOpenFilters,
+                            label = { Text("筛选") },
+                            modifier = Modifier.testTag("search_screen_filter_button"),
+                        )
+                    }
+                },
+            )
 
             // Active Filters Chips (if any)
             if (activeFilterCount > 0) {

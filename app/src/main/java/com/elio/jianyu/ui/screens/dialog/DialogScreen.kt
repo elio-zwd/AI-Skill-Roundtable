@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -177,6 +178,7 @@ fun DialogScreen(
         // 主内容纵向布局
         Scaffold(
             containerColor = DialogTokens.PageBackground,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 Column(modifier = Modifier.background(DialogTokens.SurfaceWhite)) {
                     // 1. 顶部导航栏

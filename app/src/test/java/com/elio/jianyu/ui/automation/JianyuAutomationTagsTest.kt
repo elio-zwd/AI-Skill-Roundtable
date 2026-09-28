@@ -76,6 +76,14 @@ class JianyuAutomationTagsTest {
             JianyuAutomationTags.Shell.GLOBAL_SETTINGS_BUTTON,
             JianyuShellTestTags.GLOBAL_SETTINGS_BUTTON,
         )
+        assertEquals(
+            JianyuAutomationTags.Shell.TOP_BAR,
+            JianyuShellTestTags.TOP_BAR,
+        )
+        assertEquals(
+            JianyuAutomationTags.Shell.PAGE_TITLE,
+            JianyuShellTestTags.PAGE_TITLE,
+        )
         assertEquals(JianyuAutomationTags.Screen.ISSUES, IssuesTestTags.SCREEN)
         assertEquals(
             JianyuAutomationTags.Issues.issue("issue-42"),

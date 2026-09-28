@@ -15,14 +15,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.Button
@@ -48,7 +46,8 @@ import androidx.compose.ui.unit.sp
 import com.elio.jianyu.skill.catalog.OfficialSkillPrimaryType
 import com.elio.jianyu.skill.role.SkillRoleDiscoveryCategory
 import com.elio.jianyu.ui.components.JianyuRoleAvatar
-import com.elio.jianyu.ui.components.JianyuShellTestTags
+import com.elio.jianyu.ui.components.JianyuTopBar
+import com.elio.jianyu.ui.components.JianyuTopBarLevel
 
 @Composable
 internal fun SkillRoleDetailScreen(
@@ -67,9 +66,7 @@ internal fun SkillRoleDetailScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
-            .padding(horizontal = 16.dp),
+            .background(MaterialTheme.colorScheme.background),
     ) {
         RoleDetailHeader(
             isFavorite = isFavorite,
@@ -82,7 +79,7 @@ internal fun SkillRoleDetailScreen(
                 .weight(1f)
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(top = 10.dp, bottom = 18.dp),
+        .padding(start = 16.dp, top = 10.dp, end = 16.dp, bottom = 18.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             RoleDetailHero(role)
@@ -143,42 +140,23 @@ private fun RoleDetailHeader(
     onBack: () -> Unit,
     onToggleFavorite: () -> Unit,
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(58.dp),
-    ) {
-        IconButton(
-            onClick = onBack,
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .size(48.dp)
-                .testTag(JianyuShellTestTags.PAGE_BACK_BUTTON),
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "返回",
-            )
-        }
-        Text(
-            text = "Skill 角色详情",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.align(Alignment.Center),
-        )
-        IconButton(
-            onClick = onToggleFavorite,
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .size(48.dp),
-        ) {
-            Icon(
-                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                contentDescription = if (isFavorite) "取消收藏" else "收藏",
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        }
-    }
+    JianyuTopBar(
+        title = "Skill 角色详情",
+        level = JianyuTopBarLevel.SECONDARY,
+        onBack = onBack,
+        actions = {
+            IconButton(
+                onClick = onToggleFavorite,
+                modifier = Modifier.size(48.dp),
+            ) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = if (isFavorite) "取消收藏" else "收藏",
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        },
+    )
 }
 
 @Composable
@@ -393,7 +371,7 @@ private fun RoleDetailActions(
         color = MaterialTheme.colorScheme.background,
     ) {
         Column(
-            modifier = Modifier.padding(top = 10.dp, bottom = 10.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp),
         ) {
             Row(

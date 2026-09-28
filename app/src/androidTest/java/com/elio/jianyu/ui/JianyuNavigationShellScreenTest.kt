@@ -86,6 +86,7 @@ class JianyuNavigationShellScreenTest {
     @Test
     fun issues_contentShowsLifecycleSectionsAndUsesStableIds() {
         var openedIssue: Pair<String, String?>? = null
+        var backCount = 0
         val item = IssueNavigationUiItem(
             issueId = "issue-42",
             title = "验证导航",
@@ -107,6 +108,7 @@ class JianyuNavigationShellScreenTest {
                     onOpenIssue = { issueId, stageId ->
                         openedIssue = issueId to stageId
                     },
+                    onBack = { backCount++ },
                     onOpenSettings = {},
                 )
             }
@@ -119,8 +121,10 @@ class JianyuNavigationShellScreenTest {
         composeRule.onNodeWithTag(IssuesTestTags.TRASHED_SECTION).assertExists()
         composeRule.onNodeWithText("已归档").performClick()
         composeRule.onNodeWithTag(IssuesTestTags.issue("issue-42")).performClick()
+        composeRule.onNodeWithTag(JianyuShellTestTags.PAGE_BACK_BUTTON).performClick()
         composeRule.runOnIdle {
             assertEquals("issue-42" to "stage-3", openedIssue)
+            assertEquals(1, backCount)
         }
     }
 

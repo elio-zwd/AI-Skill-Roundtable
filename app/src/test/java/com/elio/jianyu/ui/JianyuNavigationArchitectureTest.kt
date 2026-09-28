@@ -151,7 +151,8 @@ class JianyuNavigationArchitectureTest {
         assertTrue(shellSource.contains("global_settings_button"))
         assertTrue(automationTagsSource.contains("GLOBAL_SETTINGS_BUTTON"))
         assertTrue(skillNavigationSource.contains("SkillRoleCatalogRoute"))
-        assertTrue(skillDetailSource.contains("PAGE_BACK_BUTTON"))
+        assertTrue(shellSource.contains("PAGE_BACK_BUTTON"))
+        assertTrue(skillDetailSource.contains("JianyuTopBarLevel.SECONDARY"))
         assertTrue(resourcesSource.contains("resources_tab_materials"))
         assertTrue(resourcesSource.contains("resources_tab_artifacts"))
     }

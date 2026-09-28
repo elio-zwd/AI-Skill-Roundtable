@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Surface
@@ -39,7 +38,7 @@ fun TelemetryScreen(
             .testTag(SettingsTestTags.TELEMETRY_ROOT),
         color = SlateBg,
     ) {
-        Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+        Column(modifier = Modifier.fillMaxSize()) {
             SettingsTopBar(
                 title = "隐私、遥测与 API 诊断",
                 onBack = onBack,

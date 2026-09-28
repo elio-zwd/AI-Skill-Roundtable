@@ -44,6 +44,7 @@ import com.elio.jianyu.data.UpdatePersonalContextCommand
 import com.elio.jianyu.ui.components.JianyuBadge
 import com.elio.jianyu.ui.components.JianyuMetadataRow
 import com.elio.jianyu.ui.components.JianyuPageShell
+import com.elio.jianyu.ui.components.JianyuTopBarLevel
 import com.elio.jianyu.ui.components.JianyuStateCard
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -388,6 +389,7 @@ private fun PersonalContextScreen(
 ) {
     JianyuPageShell(
         title = "个人背景",
+        level = JianyuTopBarLevel.SECONDARY,
         subtitle = "由你决定何时使用",
         onBack = onBack,
         contentScrollable = true,

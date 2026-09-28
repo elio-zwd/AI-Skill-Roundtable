@@ -20,6 +20,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.skill.knowledge.SkillKnowledgeSelection
 import com.elio.jianyu.ui.components.JianyuPageShell
+import com.elio.jianyu.ui.components.JianyuSettingsAction
+import com.elio.jianyu.ui.components.JianyuTopBarLevel
 import com.elio.jianyu.ui.components.JianyuStateCard
 
 object SkillKnowledgeTestTags {
@@ -49,9 +51,10 @@ fun SkillKnowledgeScreen(
     if (selected != null) {
         JianyuPageShell(
             title = selected.title,
+            level = JianyuTopBarLevel.SECONDARY,
             subtitle = selected.skillName,
             onBack = onDismissDocument,
-            onOpenSettings = onOpenSettings,
+            actions = { JianyuSettingsAction(onOpenSettings) },
             contentScrollable = true,
             modifier = Modifier.testTag(SkillKnowledgeTestTags.DETAIL),
         ) {
@@ -95,9 +98,10 @@ fun SkillKnowledgeScreen(
 
     JianyuPageShell(
         title = "Skill 资料",
+        level = JianyuTopBarLevel.SECONDARY,
         subtitle = "Skill 角色自带的知识与参考来源",
         onBack = onBack,
-        onOpenSettings = onOpenSettings,
+        actions = { JianyuSettingsAction(onOpenSettings) },
         contentScrollable = true,
         modifier = Modifier.testTag(SkillKnowledgeTestTags.SCREEN),
     ) {

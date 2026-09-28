@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.result.ArtifactLibraryItem
 import com.elio.jianyu.ui.components.JianyuPageShell
+import com.elio.jianyu.ui.components.JianyuTopBarLevel
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -66,15 +67,9 @@ fun ResourcesOverviewScreen(
 ) {
     JianyuPageShell(
         title = "资料",
+        level = JianyuTopBarLevel.PRIMARY,
         subtitle = "你的依据与沉淀",
-        onOpenSettings = onOpenSettings,
-        contentScrollable = true,
-        modifier = modifier.testTag(ResourcesOverviewTestTags.SCREEN),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-        ) {
+        actions = {
             IconButton(
                 onClick = onSearchMaterials,
                 modifier = Modifier.testTag(ResourcesOverviewTestTags.SEARCH),
@@ -87,8 +82,10 @@ fun ResourcesOverviewScreen(
             ) {
                 Icon(Icons.Default.Add, contentDescription = "新增资料")
             }
-        }
-
+        },
+        contentScrollable = true,
+        modifier = modifier.testTag(ResourcesOverviewTestTags.SCREEN),
+    ) {
         overview.message?.let { message ->
             Surface(
                 modifier = Modifier.fillMaxWidth(),
