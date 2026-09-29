@@ -10,6 +10,7 @@ import com.elio.jianyu.network.CreateInteractionRequest
 import com.elio.jianyu.network.DeepSeekTransport
 import com.elio.jianyu.network.GeminiRestTransport
 import com.elio.jianyu.network.InteractionGenerationConfig
+import com.elio.jianyu.network.ProviderKeyAttemptPlanner
 import com.elio.jianyu.network.GeminiInteractionsTransport
 import com.elio.jianyu.network.Tool
 import com.elio.jianyu.network.keys.ApiKeyLease
@@ -75,7 +76,16 @@ class AiExecutionNetworkGateway(
     override suspend fun prepare(request: ExecutionNetworkRequest): PreparedExecutionNetworkCall {
         val model = AiModel.entries.firstOrNull { it.modelId == request.model }
             ?: throw IllegalArgumentException("未配置可执行的 AI 模型")
-        val attemptPlan = AiManager.keys(appContext, model.provider).createAttemptPlan(request.sessionId)
+        val keyRepository = AiManager.keys(appContext, model.provider)
+        val baseAttemptPlan = keyRepository.createAttemptPlan(request.sessionId)
+        val preferredKeyId = ProviderKeyAttemptPlanner.preferredKeyIdForPosition(
+            basePlan = baseAttemptPlan,
+            participantPosition = request.participant.position,
+        )
+        val attemptPlan = keyRepository.createAttemptPlan(
+            sessionId = request.sessionId,
+            preferredKeyId = preferredKeyId,
+        )
         if (attemptPlan.isEmpty()) throw NoExecutionApiKeyException()
         val webModel = if (request.searchMode == SearchMode.OFF) {
             null
@@ -84,7 +94,16 @@ class AiExecutionNetworkGateway(
                 .modelFor(AiUseCase.WEB_GROUNDING)
         }
         val webAttemptPlan = webModel?.let { selectedModel ->
-            AiManager.keys(appContext, selectedModel.provider).createAttemptPlan(request.sessionId)
+            val webKeyRepository = AiManager.keys(appContext, selectedModel.provider)
+            val baseWebPlan = webKeyRepository.createAttemptPlan(request.sessionId)
+            val preferredWebKeyId = ProviderKeyAttemptPlanner.preferredKeyIdForPosition(
+                basePlan = baseWebPlan,
+                participantPosition = request.participant.position,
+            )
+            webKeyRepository.createAttemptPlan(
+                sessionId = request.sessionId,
+                preferredKeyId = preferredWebKeyId,
+            )
         }.orEmpty()
         if (request.searchMode == SearchMode.ON && webAttemptPlan.isEmpty()) {
             throw NoExecutionApiKeyException()
