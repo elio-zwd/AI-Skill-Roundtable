@@ -27,12 +27,14 @@ import com.elio.jianyu.skill.knowledge.SkillKnowledgeRetrievalGateway
 import com.elio.jianyu.skill.knowledge.SkillKnowledgeRetrievalResult
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -63,7 +65,7 @@ class ExecutionRunCoordinatorTest {
     }
 
     @Test
-    fun multipleSkillsExecuteInFrozenOrder() = runBlocking {
+    fun multipleSkillsKeepFrozenParticipantOrderAndAllSucceed() = runBlocking {
         val persistence = FakeExecutionPersistence()
         val network = FakeExecutionNetworkGateway(
             mutableMapOf(
@@ -77,9 +79,45 @@ class ExecutionRunCoordinatorTest {
             startCommand("run-1", "skill-a", "skill-b", "skill-c"),
         )
 
-        assertEquals(listOf("skill-a", "skill-b", "skill-c"), network.calls)
+        assertEquals(
+            listOf("skill-a", "skill-b", "skill-c"),
+            result.runtime.participants.sortedBy { it.position }.map { it.sourceId },
+        )
+        assertEquals(setOf("skill-a", "skill-b", "skill-c"), network.calls.toSet())
         assertEquals(ExecutionRunStatus.SUCCEEDED, result.runtime.run.status)
         assertEquals(3, persistence.messages.size)
+    }
+
+    @Test
+    fun multipleSkillsReachNetworkExecutionConcurrently() = runBlocking {
+        val persistence = FakeExecutionPersistence()
+        val startedCount = AtomicInteger(0)
+        val release = CompletableDeferred<Unit>()
+        val barrier = FakeOutcome.Barrier(
+            startedCount = startedCount,
+            targetCount = 2,
+            release = release,
+        )
+        val network = FakeExecutionNetworkGateway(
+            mutableMapOf(
+                "skill-a" to barrier,
+                "skill-b" to barrier,
+            ),
+        )
+
+        val result = withTimeout(2_000L) {
+            coordinator(persistence, network).start(
+                startCommand("run-parallel", "skill-a", "skill-b"),
+            )
+        }
+
+        assertEquals(2, startedCount.get())
+        assertEquals(ExecutionRunStatus.SUCCEEDED, result.runtime.run.status)
+        assertEquals(2, result.runtime.budget.usedApiCalls)
+        assertEquals(
+            setOf(ExecutionParticipantStatus.SUCCEEDED),
+            result.runtime.participantStates.map { it.status }.toSet(),
+        )
     }
 
     @Test
@@ -313,6 +351,11 @@ class ExecutionRunCoordinatorTest {
         data class Failure(val error: Throwable) : FakeOutcome
         data object NoKey : FakeOutcome
         data class Blocking(val started: CompletableDeferred<Unit>) : FakeOutcome
+        data class Barrier(
+            val startedCount: AtomicInteger,
+            val targetCount: Int,
+            val release: CompletableDeferred<Unit>,
+        ) : FakeOutcome
     }
 
     private class FakeExecutionNetworkGateway(
@@ -345,6 +388,15 @@ class ExecutionRunCoordinatorTest {
                             }
                         }
                         error("unreachable")
+                    }
+                    is FakeOutcome.Barrier -> {
+                        if (outcome.startedCount.incrementAndGet() == outcome.targetCount) {
+                            outcome.release.complete(Unit)
+                        }
+                        outcome.release.await()
+                        val text = "answer-${request.participant.sourceId}"
+                        onTextUpdate(text)
+                        ExecutionNetworkResult("interaction", text)
                     }
                     FakeOutcome.NoKey -> error("NoKey must fail during prepare")
                 }

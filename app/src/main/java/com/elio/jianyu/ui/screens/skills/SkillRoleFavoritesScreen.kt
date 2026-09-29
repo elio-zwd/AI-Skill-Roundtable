@@ -15,13 +15,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Search
@@ -49,6 +47,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.skill.catalog.OfficialSkillPrimaryType
 import com.elio.jianyu.ui.components.JianyuRoleAvatar
+import com.elio.jianyu.ui.components.JianyuTopBar
+import com.elio.jianyu.ui.components.JianyuTopBarLevel
 
 @Composable
 internal fun SkillRoleFavoritesScreen(
@@ -69,37 +69,16 @@ internal fun SkillRoleFavoritesScreen(
     Surface(
         modifier = modifier
             .fillMaxSize()
-            .statusBarsPadding()
             .testTag("skill_role_favorites_screen"),
         color = MaterialTheme.colorScheme.background,
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Top Bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                IconButton(
-                    onClick = onBack,
-                    modifier = Modifier.testTag("favorites_screen_back"),
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "返回",
-                    )
-                }
-
-                Text(
-                    text = "收藏的角色",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f),
-                )
-
-                if (hasAnyFavorites) {
+            JianyuTopBar(
+                title = "收藏的角色",
+                level = JianyuTopBarLevel.SECONDARY,
+                onBack = onBack,
+                actions = {
+                    if (hasAnyFavorites) {
                     val activeFilterCount = filters.activeCount(includeFavorites = false, includeRecent = false)
                     BadgedBox(
                         badge = {
@@ -115,8 +94,9 @@ internal fun SkillRoleFavoritesScreen(
                             modifier = Modifier.testTag("favorites_screen_filter_button"),
                         )
                     }
-                }
-            }
+                    }
+                },
+            )
 
             if (!hasAnyFavorites) {
                 // 真正无任何收藏的空态

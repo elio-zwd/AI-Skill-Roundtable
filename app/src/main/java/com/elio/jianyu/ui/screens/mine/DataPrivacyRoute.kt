@@ -46,6 +46,7 @@ import com.elio.jianyu.data.ConversationSessionPreferences
 import com.elio.jianyu.telemetry.TelemetryRepository
 import com.elio.jianyu.ui.components.JianyuMetadataRow
 import com.elio.jianyu.ui.components.JianyuPageShell
+import com.elio.jianyu.ui.components.JianyuTopBarLevel
 import com.elio.jianyu.ui.components.JianyuStateCard
 import com.elio.jianyu.ui.settings.AppPreferences
 import java.io.File
@@ -150,6 +151,7 @@ fun DataPrivacyRoute(
 
     JianyuPageShell(
         title = "数据与隐私",
+        level = JianyuTopBarLevel.SECONDARY,
         subtitle = "你的数据由你决定如何使用",
         onBack = onBack,
         contentScrollable = true,

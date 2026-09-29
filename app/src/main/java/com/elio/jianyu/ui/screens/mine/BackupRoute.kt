@@ -34,6 +34,7 @@ import com.elio.jianyu.backup.PortableBackupService
 import com.elio.jianyu.backup.SnapshotCatalog
 import com.elio.jianyu.data.JianyuRepository
 import com.elio.jianyu.ui.components.JianyuPageShell
+import com.elio.jianyu.ui.components.JianyuTopBarLevel
 import com.elio.jianyu.ui.components.JianyuStateCard
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -77,6 +78,7 @@ fun BackupRoute(
 
     JianyuPageShell(
         title = "备份与恢复",
+        level = JianyuTopBarLevel.SECONDARY,
         subtitle = "正式加密导出与设备绑定快照",
         onBack = onBack,
         contentScrollable = true,

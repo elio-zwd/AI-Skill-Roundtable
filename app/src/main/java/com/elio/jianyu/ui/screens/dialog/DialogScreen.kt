@@ -1,4 +1,4 @@
-package com.elio.jianyu.ui.screens.dialog
+﻿package com.elio.jianyu.ui.screens.dialog
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -171,12 +172,12 @@ fun DialogScreen(
         modifier = modifier
             .fillMaxSize()
             .background(DialogTokens.PageBackground)
-            .testTag(JianyuAutomationTags.Screen.HOME)
-            .imePadding(),
+            .testTag(JianyuAutomationTags.Screen.HOME),
     ) {
         // 主内容纵向布局
         Scaffold(
             containerColor = DialogTokens.PageBackground,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 Column(modifier = Modifier.background(DialogTokens.SurfaceWhite)) {
                     // 1. 顶部导航栏
@@ -202,7 +203,13 @@ fun DialogScreen(
                 }
             },
             bottomBar = {
-                Column(modifier = Modifier.background(DialogTokens.PageBackground)) {
+                // imePadding 在 bottomBar 内：IME 弹起时输入栏随键盘上移，
+                // Scaffold 内容区的 paddingValues 随 bottomBar 高度自动更新，避免整体平移产生空白。
+                Column(
+                    modifier = Modifier
+                        .background(DialogTokens.PageBackground)
+                        .imePadding(),
+                ) {
                     // 3. 对话编辑器与联网状态 Chip
                     DialogComposer(
                         composerState = uiState.composerState,

@@ -32,6 +32,8 @@ object JianyuAutomationTags {
     object Shell {
         const val GLOBAL_SETTINGS_BUTTON = "global_settings_button"
         const val PAGE_BACK_BUTTON = "page_back_button"
+        const val TOP_BAR = "jianyu_top_bar"
+        const val PAGE_TITLE = "jianyu_page_title"
     }
 
     object Screen {
@@ -292,6 +294,8 @@ object JianyuAutomationTags {
         Navigation.MINE,
         Shell.GLOBAL_SETTINGS_BUTTON,
         Shell.PAGE_BACK_BUTTON,
+        Shell.TOP_BAR,
+        Shell.PAGE_TITLE,
         Screen.HOME,
         Screen.ISSUES,
         Screen.ISSUE_EXECUTION,

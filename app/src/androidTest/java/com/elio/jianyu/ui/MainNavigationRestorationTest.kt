@@ -7,7 +7,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.elio.jianyu.MainActivity
-import com.elio.jianyu.ui.components.JianyuShellTestTags
 import com.elio.jianyu.ui.navigation.AppDestination
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.screens.resources.ResourcesTestTags
@@ -48,9 +47,9 @@ class MainNavigationRestorationTest {
     @Test
     fun settingsSystemBack_returnsToOriginDestination() {
         composeRule
-            .onNodeWithTag(AppTestTags.destination(AppDestination.RESOURCES))
+            .onNodeWithTag(AppTestTags.destination(AppDestination.MINE))
             .performClick()
-        composeRule.onNodeWithTag(JianyuShellTestTags.GLOBAL_SETTINGS_BUTTON).performClick()
+        composeRule.onNodeWithTag(JianyuAutomationTags.Mine.SETTINGS_BUTTON).performClick()
         composeRule.onNodeWithTag(SettingsShellTestTags.SCREEN).assertIsDisplayed()
 
         composeRule.activityRule.scenario.onActivity { activity ->
@@ -58,9 +57,9 @@ class MainNavigationRestorationTest {
         }
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag(ResourcesTestTags.SCREEN).assertIsDisplayed()
+        composeRule.onNodeWithTag(JianyuAutomationTags.Screen.MINE).assertIsDisplayed()
         composeRule
-            .onNodeWithTag(AppTestTags.destination(AppDestination.RESOURCES))
+            .onNodeWithTag(AppTestTags.destination(AppDestination.MINE))
             .assertIsSelected()
     }
 

@@ -45,6 +45,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.ui.components.UserAvatar
+import com.elio.jianyu.ui.components.JianyuTopBar
+import com.elio.jianyu.ui.components.JianyuTopBarLevel
 
 @Composable
 fun MineScreen(
@@ -115,31 +117,23 @@ fun MineScreen(
 
 @Composable
 private fun MineHeader(onOpenSettings: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(72.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = "我的",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        IconButton(
-            onClick = onOpenSettings,
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(end = 8.dp)
-                .testTag(MineTestTags.SETTINGS_BUTTON),
-        ) {
-            Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = "设置",
-            )
-        }
-    }
+    JianyuTopBar(
+        title = "我的",
+        level = JianyuTopBarLevel.PRIMARY,
+        actions = {
+            IconButton(
+                onClick = onOpenSettings,
+                modifier = Modifier
+                    .size(48.dp)
+                    .testTag(MineTestTags.SETTINGS_BUTTON),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "设置",
+                )
+            }
+        },
+    )
 }
 
 @Composable

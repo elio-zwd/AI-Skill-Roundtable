@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.BuildConfig
 import com.elio.jianyu.ui.components.JianyuPageShell
+import com.elio.jianyu.ui.components.JianyuTopBarLevel
 import com.elio.jianyu.ui.components.JianyuStateCard
 
 object AboutTestTags {
@@ -29,6 +30,7 @@ fun AboutRoute(onBack: () -> Unit) {
     }.getOrNull() ?: BuildConfig.VERSION_NAME
     JianyuPageShell(
         title = "关于见域",
+        level = JianyuTopBarLevel.SECONDARY,
         onBack = onBack,
         contentScrollable = true,
         modifier = Modifier.testTag(AboutTestTags.SCREEN),

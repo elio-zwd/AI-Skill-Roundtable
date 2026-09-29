@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
@@ -20,7 +21,6 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -96,6 +96,8 @@ object AppTestTags {
     fun destination(destination: AppDestination): String =
         JianyuAutomationTags.Navigation.destination(destination.testTagSuffix)
 }
+
+private val CompactNavigationBarHeight = 72.dp
 
 /**
  * App 根宿主观察 Runtime 世代；维护期间移除全部数据库消费者，重开后使用全新的
@@ -253,7 +255,6 @@ internal fun MainAppContent(
     val currentDestination = AppDestination.fromRoutePattern(currentRoutePattern)
         ?: if (currentRoutePattern == null) AppDestination.startDestination else null
     val currentTopLevel = currentDestination?.takeIf { it.showsBottomNavigation }
-    val showsBottomNavigation = currentTopLevel != null
     // 外部 URI 要等 NavHost 建立首个目的地后再消费，避免空 back stack 竞态。
     LaunchedEffect(navController, currentRoutePattern) {
         if (currentRoutePattern != null && !initialIntentHandled) {
@@ -261,12 +262,7 @@ internal fun MainAppContent(
             hostActivity?.intent?.let(navController::handleDeepLink)
         }
     }
-    val contentWindowInsets = if (showsBottomNavigation) {
-        ScaffoldDefaults.contentWindowInsets
-    } else {
-        WindowInsets(0, 0, 0, 0)
-    }
-
+    val contentWindowInsets = WindowInsets(0, 0, 0, 0)
     com.elio.jianyu.ui.components.JianyuBackgroundAtmosphere {
         Scaffold(
             modifier = Modifier
@@ -320,6 +316,7 @@ internal fun MainAppContent(
                             repository = appRuntime.repository,
                             lifecycleRuntime = appRuntime.lifecycleRuntime,
                             onOpenIssue = navController::navigateToIssue,
+                            onBack = { navController.popBackStack() },
                             onOpenSettings = {
                                 navController.navigateToSecondary(AppDestination.SETTINGS)
                             },
@@ -544,7 +541,11 @@ internal fun AppBottomNavigation(
         border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         NavigationBar(
-            modifier = Modifier.testTag(AppTestTags.BOTTOM_NAVIGATION),
+            // 比 Material 默认规格低一档，仍高于 48dp 的单项最小触控面积；
+            // 底部系统手势安全区继续由 NavigationBar 默认 Insets 处理。
+            modifier = Modifier
+                .height(CompactNavigationBarHeight)
+                .testTag(AppTestTags.BOTTOM_NAVIGATION),
             containerColor = androidx.compose.ui.graphics.Color.Transparent,
             tonalElevation = 0.dp,
         ) {

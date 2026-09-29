@@ -25,6 +25,8 @@ import com.elio.jianyu.result.ArtifactType
 import com.elio.jianyu.skill.knowledge.SkillKnowledgeSelection
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.components.JianyuPageShell
+import com.elio.jianyu.ui.components.JianyuSettingsAction
+import com.elio.jianyu.ui.components.JianyuTopBarLevel
 import com.elio.jianyu.ui.components.JianyuStateCard
 import com.elio.jianyu.ui.navigation.ResourceTab
 
@@ -109,9 +111,10 @@ fun ResourcesScreen(
     } else {
         JianyuPageShell(
         title = if (selectedTab == ResourceTab.ARTIFACTS) "全部成果" else "全部资料",
+        level = JianyuTopBarLevel.SECONDARY,
         subtitle = null,
         onBack = onBackToOverview,
-        onOpenSettings = onOpenSettings,
+        actions = { JianyuSettingsAction(onOpenSettings) },
         contentScrollable = true,
         modifier = Modifier.testTag(ResourcesTestTags.SCREEN),
         ) {

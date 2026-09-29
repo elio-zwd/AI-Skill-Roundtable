@@ -211,15 +211,14 @@ fun DialogRoute(
                     is DialogEvent.AddSkillToSession -> {
                         scope.launch {
                             val success = viewModel.addSkillRoleToCurrentSessionAwait(event.skillId)
-                            if (success) {
-                                localState = localState.copy(activeOverlay = DialogOverlayType.NONE)
-                            } else {
+                            if (!success) {
                                 Toast.makeText(
                                     context,
                                     " Skill ，。",
                                     Toast.LENGTH_SHORT,
                                 ).show()
                             }
+                            // 成功后保持 Sheet 打开，用户可继续增加角色，点关闭才收起。
                         }
                     }
                     is DialogEvent.RemoveSkillFromSession -> {

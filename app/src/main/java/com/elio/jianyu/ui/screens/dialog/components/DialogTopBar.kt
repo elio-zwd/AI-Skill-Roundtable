@@ -1,6 +1,5 @@
 package com.elio.jianyu.ui.screens.dialog.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -8,7 +7,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -34,6 +32,9 @@ import com.elio.jianyu.ui.screens.dialog.DialogEvent
 import com.elio.jianyu.ui.screens.dialog.DialogIcons
 import com.elio.jianyu.ui.screens.dialog.DialogSessionInfo
 import com.elio.jianyu.ui.screens.dialog.DialogTokens
+import com.elio.jianyu.ui.components.JianyuShellTestTags
+import com.elio.jianyu.ui.components.JianyuTopBarLayout
+import com.elio.jianyu.ui.components.JianyuTopBarLevel
 
 /**
  * 见域「对话」页面顶部导航栏
@@ -46,23 +47,13 @@ fun DialogTopBar(
     modifier: Modifier = Modifier,
     roleStripExpanded: Boolean = true,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(DialogTokens.SurfaceWhite),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(54.dp)
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            // 1. 左侧抽屉菜单按钮 (Hamburger)
+    JianyuTopBarLayout(
+        level = JianyuTopBarLevel.PRIMARY,
+        modifier = modifier,
+        navigationContent = {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -78,12 +69,10 @@ fun DialogTopBar(
                     modifier = Modifier.size(24.dp),
                 )
             }
-
-            Spacer(modifier = Modifier.width(6.dp))
-
-            // 2. 中间标题与副标题
+        },
+        titleContent = {
             Column(
-                modifier = Modifier.weight(1f).clickable { onEvent(DialogEvent.ToggleRoleStrip) },
+                modifier = Modifier.clickable { onEvent(DialogEvent.ToggleRoleStrip) },
                 verticalArrangement = Arrangement.Center,
             ) {
                 Text(
@@ -93,6 +82,7 @@ fun DialogTopBar(
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.testTag(JianyuShellTestTags.PAGE_TITLE),
                 )
                 Spacer(modifier = Modifier.height(1.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -112,13 +102,11 @@ fun DialogTopBar(
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.width(6.dp))
-
-            // 3. 右侧新建/编辑会话按钮 (纯紫色方框带斜笔图标)
+        },
+        actions = {
             Box(
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(48.dp)
                     .testTag("new_session_button")
                     .clip(CircleShape)
                     .clickable(
@@ -135,13 +123,9 @@ fun DialogTopBar(
                     modifier = Modifier.size(22.dp),
                 )
             }
-
-            Spacer(modifier = Modifier.width(2.dp))
-
-            // 4. 右侧三点更多按钮
             Box(
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -157,6 +141,6 @@ fun DialogTopBar(
                     modifier = Modifier.size(22.dp),
                 )
             }
-        }
-    }
+        },
+    )
 }

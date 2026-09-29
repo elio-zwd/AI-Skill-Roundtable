@@ -63,6 +63,8 @@ import com.elio.jianyu.skill.catalog.OfficialSkillPrimaryType
 import com.elio.jianyu.skill.role.SkillRoleDiscoveryCategory
 import com.elio.jianyu.ui.components.JianyuRoleAvatar
 import com.elio.jianyu.ui.components.JianyuStateCard
+import com.elio.jianyu.ui.components.JianyuTopBar
+import com.elio.jianyu.ui.components.JianyuTopBarLevel
 
 /**
  * UI-02 专用 Screen。
@@ -82,6 +84,12 @@ internal fun SkillRolePageScreen(
             .background(MaterialTheme.colorScheme.background)
             .testTag(OfficialSkillCatalogTestTags.ROOT),
     ) {
+        RolePageHeader(
+            favoritesOnly = uiState.section == OfficialSkillCatalogSection.FAVORITES,
+            activeFilterCount = uiState.discoveryFilters.activeCount(),
+            onToggleFavorites = { onEvent(OfficialSkillCatalogEvent.NavigateToFavorites) },
+            onOpenFilters = { onEvent(OfficialSkillCatalogEvent.DiscoveryFilterSheetChanged(true)) },
+        )
         when {
             uiState.isLoading -> {
                 Spacer(Modifier.weight(1f))
@@ -172,13 +180,6 @@ private fun SkillRolePageContent(
     val displayedIds = displayedRoles.mapTo(linkedSetOf(), SkillRoleCardUi::skillId)
     val featuredRoles = roleCatalog.featuredRoles.filter { it.skillId in displayedIds }
     val recentRoles = roleCatalog.recentRoles.filter { it.skillId in displayedIds }.take(2)
-
-    RolePageHeader(
-        favoritesOnly = favoritesOnly,
-        activeFilterCount = uiState.discoveryFilters.activeCount(),
-        onToggleFavorites = { onEvent(OfficialSkillCatalogEvent.NavigateToFavorites) },
-        onOpenFilters = { onEvent(OfficialSkillCatalogEvent.DiscoveryFilterSheetChanged(true)) },
-    )
 
     LazyColumn(
         modifier = modifier
@@ -317,54 +318,39 @@ private fun RolePageHeader(
     onToggleFavorites: () -> Unit,
     onOpenFilters: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            Text(
-                text = "Skill 角色",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = "和不同的思考方式对话",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        IconButton(
-            onClick = onToggleFavorites,
-            modifier = Modifier.size(48.dp),
-        ) {
-            Icon(
-                imageVector = if (favoritesOnly) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                contentDescription = if (favoritesOnly) "查看全部角色" else "查看收藏角色",
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        }
-        BadgedBox(
-            badge = {
-                if (activeFilterCount > 0) {
-                    Badge { Text(activeFilterCount.toString()) }
-                }
-            },
-        ) {
-            TextButton(
-                onClick = onOpenFilters,
-                modifier = Modifier
-                    .heightIn(min = 48.dp)
-                    .testTag(OfficialSkillCatalogTestTags.FILTER_BUTTON),
+    JianyuTopBar(
+        title = "Skill 角色",
+        subtitle = "和不同的思考方式对话",
+        level = JianyuTopBarLevel.PRIMARY,
+        actions = {
+            IconButton(
+                onClick = onToggleFavorites,
+                modifier = Modifier.size(48.dp),
             ) {
-                Text("筛选")
+                Icon(
+                    imageVector = if (favoritesOnly) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = if (favoritesOnly) "查看全部角色" else "查看收藏角色",
+                    tint = MaterialTheme.colorScheme.primary,
+                )
             }
-        }
-    }
+            BadgedBox(
+                badge = {
+                    if (activeFilterCount > 0) {
+                        Badge { Text(activeFilterCount.toString()) }
+                    }
+                },
+            ) {
+                TextButton(
+                    onClick = onOpenFilters,
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .testTag(OfficialSkillCatalogTestTags.FILTER_BUTTON),
+                ) {
+                    Text("筛选")
+                }
+            }
+        },
+    )
 }
 
 @Composable

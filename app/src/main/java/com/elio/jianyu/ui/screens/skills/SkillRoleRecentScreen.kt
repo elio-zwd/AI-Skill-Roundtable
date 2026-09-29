@@ -12,12 +12,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
@@ -46,6 +44,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.elio.jianyu.ui.components.JianyuRoleAvatar
+import com.elio.jianyu.ui.components.JianyuTopBar
+import com.elio.jianyu.ui.components.JianyuTopBarLevel
 
 @Composable
 internal fun SkillRoleRecentScreen(
@@ -66,37 +66,16 @@ internal fun SkillRoleRecentScreen(
     Surface(
         modifier = modifier
             .fillMaxSize()
-            .statusBarsPadding()
             .testTag("skill_role_recent_screen"),
         color = MaterialTheme.colorScheme.background,
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Top Bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                IconButton(
-                    onClick = onBack,
-                    modifier = Modifier.testTag("recent_screen_back"),
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "返回",
-                    )
-                }
-
-                Text(
-                    text = "最近使用",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f),
-                )
-
-                if (hasAnyRecent) {
+            JianyuTopBar(
+                title = "最近使用",
+                level = JianyuTopBarLevel.SECONDARY,
+                onBack = onBack,
+                actions = {
+                    if (hasAnyRecent) {
                     val activeFilterCount = filters.activeCount(includeFavorites = false, includeRecent = false)
                     BadgedBox(
                         badge = {
@@ -121,8 +100,9 @@ internal fun SkillRoleRecentScreen(
                             color = MaterialTheme.colorScheme.error,
                         )
                     }
-                }
-            }
+                    }
+                },
+            )
 
             message?.let {
                 Text(

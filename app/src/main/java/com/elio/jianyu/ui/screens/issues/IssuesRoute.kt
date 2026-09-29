@@ -32,6 +32,8 @@ import com.elio.jianyu.lifecycle.JianyuLifecycleRuntime
 import com.elio.jianyu.ui.automation.JianyuLifecycleAutomationTags
 import com.elio.jianyu.ui.components.JianyuMetadataRow
 import com.elio.jianyu.ui.components.JianyuPageShell
+import com.elio.jianyu.ui.components.JianyuSettingsAction
+import com.elio.jianyu.ui.components.JianyuTopBarLevel
 import com.elio.jianyu.ui.components.JianyuStateCard
 
 object IssuesTestTags {
@@ -59,6 +61,7 @@ fun IssuesRoute(
     repository: JianyuRepository,
     lifecycleRuntime: JianyuLifecycleRuntime,
     onOpenIssue: (issueId: String, stageId: String?) -> Unit,
+    onBack: () -> Unit,
     onOpenSettings: () -> Unit,
     viewModel: IssuesViewModel = viewModel(
         factory = IssuesViewModel.factory(repository),
@@ -97,6 +100,7 @@ fun IssuesRoute(
         state = state,
         onRetry = viewModel::refresh,
         onOpenIssue = onOpenIssue,
+        onBack = onBack,
         onOpenSettings = onOpenSettings,
         onArchive = lifecycleViewModel::beginArchive,
         onResume = lifecycleViewModel::beginResume,
@@ -132,6 +136,7 @@ fun IssuesScreen(
     state: IssuesUiState,
     onRetry: () -> Unit,
     onOpenIssue: (issueId: String, stageId: String?) -> Unit,
+    onBack: () -> Unit,
     onOpenSettings: () -> Unit,
     onArchive: (String) -> Unit = {},
     onResume: (String) -> Unit = {},
@@ -143,8 +148,10 @@ fun IssuesScreen(
     var selectedTab by rememberSaveable { mutableStateOf(IssueListTab.ACTIVE) }
     JianyuPageShell(
         title = "议题",
+        level = JianyuTopBarLevel.SECONDARY,
         subtitle = null,
-        onOpenSettings = onOpenSettings,
+        onBack = onBack,
+        actions = { JianyuSettingsAction(onOpenSettings) },
         contentScrollable = true,
         modifier = Modifier.testTag(IssuesTestTags.SCREEN),
     ) {
@@ -443,6 +450,7 @@ fun IssueRecoveryScreen(
 ) {
     JianyuPageShell(
         title = "议题定位",
+        level = JianyuTopBarLevel.SECONDARY,
         subtitle = "按稳定 ID 恢复",
         onBack = onBack,
         contentScrollable = true,

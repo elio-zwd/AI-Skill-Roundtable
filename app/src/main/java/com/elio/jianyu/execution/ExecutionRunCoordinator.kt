@@ -22,6 +22,9 @@ import com.elio.jianyu.skill.knowledge.SkillKnowledgeRetrievalResult
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 
 /**
@@ -317,32 +320,42 @@ class ExecutionRunCoordinator(
         contributions: List<ExecutionContextContribution>,
         keepBudgetOpenOnSuccess: Boolean = false,
     ): ExecutionRunResult {
-        val failures = linkedMapOf<String, ExecutionFailure>()
+        // 用 ConcurrentHashMap 支持并行写入；保留 linkedMapOf 的插入序需要在并行完成后重建。
+        val concurrentFailures = ConcurrentHashMap<String, ExecutionFailure>()
         val history = historyFor(runtime, issueRecovery, stage)
-        runtime.participants.sortedBy { it.position }.forEach { participant ->
-            val current = persistence.getRuntime(runtime.run.id)
-            if (current.run.status == ExecutionRunStatus.STOPPED) return@forEach
-            val currentState = current.participantStates.first { state ->
-                state.participantSnapshotId == participant.id
-            }
-            if (currentState.status == ExecutionParticipantStatus.SUCCEEDED) {
-                return@forEach
-            }
-            val failure = executeParticipant(
-                runtime = current,
-                participant = participant,
-                issueRecovery = issueRecovery,
-                stage = stage,
-                history = history,
-                currentUserInput = currentUserInput,
-                roundIndex = roundIndex,
-                model = model,
-                searchMode = searchMode,
-                contributions = contributions,
-            )
-            if (failure != null) failures[participant.id] = failure
-            aggregateRun(runtime.run.id, failures.values.firstOrNull())
+        val sortedParticipants = runtime.participants.sortedBy { it.position }
+
+        coroutineScope {
+            sortedParticipants.map { participant ->
+                async {
+                    val current = persistence.getRuntime(runtime.run.id)
+                    if (current.run.status == ExecutionRunStatus.STOPPED) return@async
+                    val currentState = current.participantStates.first { state ->
+                        state.participantSnapshotId == participant.id
+                    }
+                    if (currentState.status == ExecutionParticipantStatus.SUCCEEDED) return@async
+                    val failure = executeParticipant(
+                        runtime = current,
+                        participant = participant,
+                        issueRecovery = issueRecovery,
+                        stage = stage,
+                        history = history,
+                        currentUserInput = currentUserInput,
+                        roundIndex = roundIndex,
+                        model = model,
+                        searchMode = searchMode,
+                        contributions = contributions,
+                    )
+                    if (failure != null) concurrentFailures[participant.id] = failure
+                }
+            }.awaitAll()
         }
+
+        // 按原始顺序重建 failures，保证 aggregateRun 使用的 representative failure 稳定。
+        val failures = sortedParticipants
+            .mapNotNull { p -> concurrentFailures[p.id]?.let { p.id to it } }
+            .toMap(linkedMapOf())
+
 
         val finalRuntime = aggregateRun(runtime.run.id, failures.values.firstOrNull())
         val shouldClose = when (finalRuntime.run.status) {

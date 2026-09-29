@@ -17,21 +17,18 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -49,6 +46,8 @@ import com.elio.jianyu.data.IssueThinkingPolicy
 import com.elio.jianyu.execution.SearchMode
 import com.elio.jianyu.ui.automation.JianyuAutomationTags
 import com.elio.jianyu.ui.components.JianyuStateCard
+import com.elio.jianyu.ui.components.JianyuTopBar
+import com.elio.jianyu.ui.components.JianyuTopBarLevel
 import com.elio.jianyu.ui.screens.context.ContextConfirmationDialog
 import com.elio.jianyu.ui.screens.result.StageDraftResultPanel
 import com.elio.jianyu.ui.screens.result.StageResultCallbacks
@@ -100,6 +99,7 @@ fun IssueExecutionScreen(
     Scaffold(
         modifier = Modifier.testTag(IssueExecutionTestTags.SCREEN),
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             IssueExecutionTopBar(
                 title = contentState?.issueTitle ?: "议题工作区",
@@ -196,43 +196,27 @@ private fun IssueExecutionTopBar(
     onBack: () -> Unit,
     onOpenDrawer: () -> Unit,
 ) {
-    Surface(color = MaterialTheme.colorScheme.surface) {
-        Column {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleLarge,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+    JianyuTopBar(
+        title = title,
+        subtitle = "$skillCount 个 Skill 角色",
+        level = JianyuTopBarLevel.SECONDARY,
+        onBack = onBack,
+        actions = {
+            AssistChip(
+                onClick = onOpenDrawer,
+                label = { Text("助手与成果") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "展开工作区控制面板",
                     )
                 },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回议题",
-                        )
-                    }
-                },
-                actions = {
-                    AssistChip(
-                        onClick = onOpenDrawer,
-                        label = { Text("助手与成果") },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = "展开工作区控制面板",
-                            )
-                        },
-                        modifier = Modifier.padding(end = 12.dp),
-                    )
-                },
-                windowInsets = WindowInsets(0, 0, 0, 0),
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .padding(end = 4.dp),
             )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        }
-    }
+        },
+    )
 }
 
 @Composable

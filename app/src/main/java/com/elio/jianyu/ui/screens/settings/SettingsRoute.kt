@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import com.elio.jianyu.ui.components.JianyuPageShell
+import com.elio.jianyu.ui.components.JianyuTopBarLevel
 import com.elio.jianyu.ui.components.JianyuStateCard
 import com.elio.jianyu.ui.settings.AppPreferences
 import com.elio.jianyu.ui.settings.AppPreferencesState
@@ -63,9 +64,9 @@ fun SettingsScreen(
 ) {
     JianyuPageShell(
         title = "设置",
+        level = JianyuTopBarLevel.SECONDARY,
         subtitle = null,
         onBack = onBack,
-        compactHeader = true,
         contentScrollable = true,
         modifier = Modifier.testTag(SettingsShellTestTags.SCREEN),
     ) {
