@@ -52,6 +52,20 @@ class TelemetryUiStateTest {
     }
 
     @Test
+    fun telemetryEventPresentation_marksCompletedHttp200StreamFailureAsError() {
+        val failure = telemetryEventPresentation(
+            event(statusCode = 200, durationMs = 547L).copy(
+                failureType = "SERIALIZATION",
+                errorMessage = "InteractionStreamProtocolException: closed before completion",
+            )
+        )
+
+        assertFalse(failure.isSuccess)
+        assertEquals("ERR · 547ms", failure.statusText)
+        assertEquals(SettingsTone.ERROR, failure.tone)
+    }
+
+    @Test
     fun contentDebugConfirmationAndEventTags_areStable() {
         assertEquals(TelemetryConfirmation.ContentDebug, TelemetryConfirmation.ContentDebug)
         assertEquals("telemetry_event_event-1", SettingsTestTags.telemetryEvent("event-1"))

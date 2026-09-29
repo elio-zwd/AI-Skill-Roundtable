@@ -194,6 +194,12 @@ object TelemetryRepository {
                     TelemetryPreviewExtractor.MAX_ERROR_MESSAGE_CHARS
                 )
             },
+            errorMessage = event.errorMessage?.let {
+                truncateTelemetryText(
+                    TelemetryRedactor.redact(it),
+                    TelemetryPreviewExtractor.MAX_ERROR_MESSAGE_CHARS
+                )
+            },
             retryCount = event.retryCount.coerceAtLeast(0),
             inputTokens = event.inputTokens?.coerceAtLeast(0),
             outputTokens = event.outputTokens?.coerceAtLeast(0),

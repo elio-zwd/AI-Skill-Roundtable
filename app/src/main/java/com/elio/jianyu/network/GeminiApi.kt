@@ -245,6 +245,8 @@ object GeminiRestTransport {
         .connectTimeout(90, TimeUnit.SECONDS)
         .readTimeout(300, TimeUnit.SECONDS)
         .writeTimeout(90, TimeUnit.SECONDS)
+        .pingInterval(15, TimeUnit.SECONDS)
+        .retryOnConnectionFailure(true)
         .addInterceptor(TelemetryInterceptor())
         .addInterceptor(HttpLoggingInterceptor { rawMessage ->
             PrivacySafeLogger.d("OkHttp", rawMessage)
