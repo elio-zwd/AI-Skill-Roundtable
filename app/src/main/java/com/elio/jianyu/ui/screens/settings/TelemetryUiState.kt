@@ -46,10 +46,12 @@ internal fun telemetryAvailableKeyCount(statuses: List<KeyStatus>): Int {
 }
 
 internal fun telemetryEventPresentation(event: TelemetryEvent): TelemetryEventPresentation {
-    val success = event.statusCode?.let { it in 200..299 } == true
+    val success = event.failureType == null &&
+        event.errorMessage == null &&
+        event.statusCode?.let { it in 200..299 } == true
     return TelemetryEventPresentation(
         isSuccess = success,
-        statusText = "${event.statusCode ?: "ERR"} · ${event.durationMs}ms",
+        statusText = "${if (success) event.statusCode else "ERR"} · ${event.durationMs}ms",
         tone = if (success) SettingsTone.PRIMARY else SettingsTone.ERROR,
     )
 }

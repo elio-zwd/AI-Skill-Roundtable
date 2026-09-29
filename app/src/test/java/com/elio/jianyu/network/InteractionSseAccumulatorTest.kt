@@ -1,11 +1,16 @@
 package com.elio.jianyu.network
 
+import com.elio.jianyu.network.retry.ApiCallFailure
 import java.io.IOException
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import okhttp3.HttpUrl.Companion.toHttpUrl
+import retrofit2.HttpException
+import retrofit2.Response
 
 class InteractionSseAccumulatorTest {
 
@@ -125,8 +130,30 @@ class InteractionSseAccumulatorTest {
         assertTrue(accumulator.completed)
     }
 
-    @Test(expected = IOException::class)
-    fun failedInteractionIsRejected() {
+    @Test
+    fun onlyTransportAndProtocolFailuresMayFallbackToRest() {
+        assertTrue(shouldFallbackToNonStreaming(InteractionStreamTransportException("connection reset")))
+        assertTrue(shouldFallbackToNonStreaming(InteractionStreamProtocolException("closed before completion")))
+        assertFalse(shouldFallbackToNonStreaming(InteractionStreamTerminalException("interaction.failed")))
+        assertFalse(shouldFallbackToNonStreaming(IOException("consumer callback failed")))
+        assertFalse(shouldFallbackToNonStreaming(StreamingHttpException(500, null)))
+    }
+
+    @Test
+    fun fallbackRetrofitHttpFailureKeepsHttpRetrySemantics() {
+        val response = Response.error<Any>(
+            429,
+            "{}".toResponseBody("application/json".toMediaType()),
+        )
+
+        val failure = classifyInteractionFailure(HttpException(response))
+
+        assertTrue(failure is ApiCallFailure.Http)
+        assertEquals(429, (failure as ApiCallFailure.Http).code)
+    }
+
+    @Test(expected = InteractionStreamTerminalException::class)
+    fun failedInteractionIsRejectedWithoutBecomingTransportFailure() {
         val accumulator = InteractionSseAccumulator()
         accumulator.accept(
             """{"event_type":"interaction.failed","interaction":{"id":"int_failed","status":"failed"}}"""

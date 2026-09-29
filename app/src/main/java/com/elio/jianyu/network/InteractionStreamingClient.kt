@@ -1,6 +1,7 @@
 package com.elio.jianyu.network
 
 import android.content.Context
+import com.elio.jianyu.BuildConfig
 import com.elio.jianyu.network.keys.ApiKeyLease
 import com.elio.jianyu.network.retry.ApiCallFailure
 import com.elio.jianyu.network.retry.ApiRetryPolicy
@@ -10,8 +11,13 @@ import com.elio.jianyu.roundtable.RequestBudgetTracker
 import com.elio.jianyu.telemetry.CloudInteractionRequestPolicy
 import com.elio.jianyu.telemetry.InteractionChainStore
 import com.elio.jianyu.telemetry.PrivacySafeLogger
+import com.elio.jianyu.telemetry.TelemetryEventFactory
+import com.elio.jianyu.telemetry.TelemetryLevel
+import com.elio.jianyu.telemetry.TelemetryPreviewExtractor
 import com.elio.jianyu.telemetry.TelemetryRepository
 import java.io.IOException
+import java.util.UUID
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -31,6 +37,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import retrofit2.HttpException
 
 data class StreamedInteraction(
     val id: String,
@@ -105,11 +112,47 @@ object GeminiInteractionsTransport {
             reserveForRequired = reserveForRequired,
             onAttemptStarted = onAttemptStarted
         ) { secret ->
-            streamSingleAttempt(
-                apiKey = secret,
-                request = streamingRequest,
-                onTextUpdate = onTextUpdate
-            )
+            try {
+                streamSingleAttempt(
+                    apiKey = secret,
+                    request = streamingRequest,
+                    onTextUpdate = onTextUpdate,
+                )
+            } catch (streamError: CancellationException) {
+                throw streamError
+            } catch (streamError: Exception) {
+                if (!shouldFallbackToNonStreaming(streamError)) throw streamError
+
+                PrivacySafeLogger.w(
+                    TAG,
+                    "SSE 流式传输异常（${streamError.javaClass.simpleName}），使用当前 Key 降级为非流式请求",
+                )
+
+                if (isRequired) tracker.tryConsumeRequired() else tracker.tryConsumeOptional()
+                onAttemptStarted()
+
+                try {
+                    val restResponse = GeminiRestTransport.service.createInteraction(
+                        apiKey = secret,
+                        request = streamingRequest.copy(stream = false),
+                    )
+                    val outputText = restResponse.outputText.trim()
+                    if (outputText.isBlank()) {
+                        throw SerializationException("Non-streaming fallback returned no model text")
+                    }
+                    onTextUpdate(outputText)
+                    StreamedInteraction(
+                        id = restResponse.id,
+                        outputText = outputText,
+                        model = restResponse.model,
+                    )
+                } catch (fallbackError: CancellationException) {
+                    throw fallbackError
+                } catch (fallbackError: Exception) {
+                    PrivacySafeLogger.e(TAG, "SSE 非流式降级请求失败", fallbackError)
+                    throw fallbackError
+                }
+            }
         }
 
         if (
@@ -142,7 +185,7 @@ object GeminiInteractionsTransport {
                 if (isRequired) tracker.tryConsumeRequired() else tracker.tryConsumeOptional()
                 onAttemptStarted()
             },
-            failureClassifier = ::classifyFailure,
+            failureClassifier = ::classifyInteractionFailure,
             block = block,
         )
     }
@@ -159,57 +202,109 @@ object GeminiInteractionsTransport {
             .header("x-goog-api-key", apiKey)
             .header("Api-Revision", API_REVISION)
             .header("Accept", "text/event-stream")
+            .header("Cache-Control", "no-cache")
             .post(body)
             .build()
 
         val accumulator = InteractionSseAccumulator()
+        val telemetryLevel = TelemetryRepository.currentLevel()
+        val startedAt = System.currentTimeMillis()
+        val contentDebugAtStart = telemetryLevel == TelemetryLevel.CONTENT_DEBUG && BuildConfig.DEBUG
+        val requestPreview = if (contentDebugAtStart) {
+            TelemetryPreviewExtractor.requestPreview(httpRequest)
+        } else {
+            null
+        }
+        var statusCode: Int? = null
+        var streamFailure: Throwable? = null
         var lastDeliveredText = ""
         var lastDeliveryNanos = 0L
 
-        streamFrames(httpRequest).collect { data ->
-            val progress = accumulator.accept(data)
-            if (
-                (progress.textChanged || progress.flushSuggested) &&
-                progress.text != lastDeliveredText
-            ) {
-                val now = System.nanoTime()
-                val growth = progress.text.length - lastDeliveredText.length
-                val shouldDeliver = progress.flushSuggested ||
-                    growth >= MIN_UI_UPDATE_GROWTH ||
-                    now - lastDeliveryNanos >= MIN_UI_UPDATE_INTERVAL_NS
-                if (shouldDeliver) {
-                    onTextUpdate(progress.text)
-                    lastDeliveredText = progress.text
-                    lastDeliveryNanos = now
+        try {
+            streamFrames(
+                request = httpRequest,
+                onResponseStatus = { code -> statusCode = code },
+            ).collect { data ->
+                val progress = try {
+                    accumulator.accept(data)
+                } catch (error: SerializationException) {
+                    throw InteractionStreamProtocolException(
+                        "Interaction stream frame could not be parsed",
+                        error,
+                    )
+                }
+                if (
+                    (progress.textChanged || progress.flushSuggested) &&
+                    progress.text != lastDeliveredText
+                ) {
+                    val now = System.nanoTime()
+                    val growth = progress.text.length - lastDeliveredText.length
+                    val shouldDeliver = progress.flushSuggested ||
+                        growth >= MIN_UI_UPDATE_GROWTH ||
+                        now - lastDeliveryNanos >= MIN_UI_UPDATE_INTERVAL_NS
+                    if (shouldDeliver) {
+                        onTextUpdate(progress.text)
+                        lastDeliveredText = progress.text
+                        lastDeliveryNanos = now
+                    }
                 }
             }
-        }
 
-        if (!accumulator.completed) {
-            throw IOException("Interaction stream closed before completion")
+            if (!accumulator.completed) {
+                throw InteractionStreamProtocolException("Interaction stream closed before completion")
+            }
+            val outputText = accumulator.outputText.trim()
+            if (outputText.isBlank()) {
+                throw InteractionStreamProtocolException("Interaction stream returned no model text")
+            }
+            if (outputText != lastDeliveredText) {
+                onTextUpdate(outputText)
+            }
+            val interactionId = accumulator.interactionId
+                ?.takeIf(String::isNotBlank)
+                ?: throw InteractionStreamProtocolException("Interaction stream returned no interaction id")
+            return StreamedInteraction(interactionId, outputText, accumulator.interactionModel)
+        } catch (error: CancellationException) {
+            streamFailure = error
+            throw error
+        } catch (error: Exception) {
+            streamFailure = error
+            throw error
+        } finally {
+            recordStreamingTelemetry(
+                level = telemetryLevel,
+                startedAt = startedAt,
+                statusCode = statusCode,
+                apiKey = apiKey,
+                model = request.model,
+                requestPreview = requestPreview,
+                responsePreview = accumulator.outputText.takeIf {
+                    contentDebugAtStart && it.isNotBlank()
+                },
+                hasThoughtStep = accumulator.hasThoughtStep,
+                failure = streamFailure,
+            )
         }
-        val outputText = accumulator.outputText.trim()
-        if (outputText.isBlank()) {
-            throw SerializationException("Interaction stream returned no model text")
-        }
-        if (outputText != lastDeliveredText) {
-            onTextUpdate(outputText)
-        }
-        val interactionId = accumulator.interactionId
-            ?.takeIf(String::isNotBlank)
-            ?: throw SerializationException("Interaction stream returned no interaction id")
-        return StreamedInteraction(interactionId, outputText, accumulator.interactionModel)
     }
 
-    private fun streamFrames(request: Request): Flow<String> = callbackFlow {
+    private fun streamFrames(
+        request: Request,
+        onResponseStatus: (Int) -> Unit,
+    ): Flow<String> = callbackFlow {
         val call = GeminiRestTransport.okHttpClient.newCall(request)
         call.enqueue(object : Callback {
             override fun onFailure(call: Call, error: IOException) {
-                close(error)
+                close(
+                    InteractionStreamTransportException(
+                        "Interaction stream transport failed: ${error.javaClass.simpleName}: ${error.message.orEmpty()}",
+                        error,
+                    )
+                )
             }
 
             override fun onResponse(call: Call, response: Response) {
                 response.use {
+                    onResponseStatus(response.code)
                     if (!response.isSuccessful) {
                         close(
                             StreamingHttpException(
@@ -224,7 +319,7 @@ object GeminiInteractionsTransport {
 
                     val responseBody = response.body
                     if (responseBody == null) {
-                        close(IOException("Interaction stream response body is empty"))
+                        close(InteractionStreamProtocolException("Interaction stream response body is empty"))
                         return
                     }
 
@@ -237,7 +332,7 @@ object GeminiInteractionsTransport {
                             val data = dataLines.joinToString("\n")
                             dataLines.clear()
                             if (data != "[DONE]" && trySend(data).isFailure) {
-                                throw IOException("Interaction stream consumer is unavailable")
+                                throw InteractionStreamConsumerException("Interaction stream consumer is unavailable")
                             }
                         }
 
@@ -253,7 +348,16 @@ object GeminiInteractionsTransport {
                         dispatchFrame()
                         close()
                     } catch (error: Exception) {
-                        close(error)
+                        close(
+                            when (error) {
+                                is InteractionStreamConsumerException -> error
+                                is IOException -> InteractionStreamTransportException(
+                                    "Interaction stream body read failed: ${error.javaClass.simpleName}: ${error.message.orEmpty()}",
+                                    error,
+                                )
+                                else -> error
+                            }
+                        )
                     }
                 }
             }
@@ -261,11 +365,70 @@ object GeminiInteractionsTransport {
         awaitClose { call.cancel() }
     }.buffer(Channel.UNLIMITED)
 
-    private fun classifyFailure(error: Exception): ApiCallFailure = when (error) {
-        is StreamingHttpException -> ApiCallFailure.Http(error.code, error.retryAfterMs)
-        is IOException -> ApiCallFailure.Network(error)
-        is SerializationException -> ApiCallFailure.Serialization(error)
-        else -> ApiCallFailure.Unknown(error)
+    private fun recordStreamingTelemetry(
+        level: TelemetryLevel,
+        startedAt: Long,
+        statusCode: Int?,
+        apiKey: String,
+        model: String?,
+        requestPreview: String?,
+        responsePreview: String?,
+        hasThoughtStep: Boolean,
+        failure: Throwable?,
+    ) {
+        if (level == TelemetryLevel.OFF) return
+        val completedAt = System.currentTimeMillis()
+        val failureType = when (failure) {
+            null -> when {
+                statusCode == 429 -> "RATE_LIMITED"
+                statusCode != null && statusCode in 400..499 -> "HTTP_4XX"
+                statusCode != null && statusCode in 500..599 -> "HTTP_5XX"
+                else -> null
+            }
+            is CancellationException -> "CANCELLED"
+            is InteractionStreamTransportException -> "NETWORK"
+            is InteractionStreamProtocolException -> "SERIALIZATION"
+            is StreamingHttpException -> when {
+                failure.code == 429 -> "RATE_LIMITED"
+                failure.code in 400..499 -> "HTTP_4XX"
+                failure.code in 500..599 -> "HTTP_5XX"
+                else -> "HTTP"
+            }
+            is InteractionStreamTerminalException -> "STREAM_TERMINAL"
+            else -> failure.javaClass.simpleName.take(80)
+        }
+        val errorMessage = when (failure) {
+            null -> null
+            is InteractionStreamTransportException,
+            is InteractionStreamProtocolException,
+            is StreamingHttpException,
+            is InteractionStreamTerminalException -> {
+                val message = failure.message?.takeIf(String::isNotBlank)
+                if (message != null) "${failure.javaClass.simpleName}: $message" else failure.javaClass.simpleName
+            }
+            else -> failure.javaClass.simpleName
+        }
+        val event = TelemetryEventFactory.create(
+            level = level,
+            id = UUID.randomUUID().toString(),
+            timestamp = startedAt,
+            durationMs = (completedAt - startedAt).coerceAtLeast(0L),
+            endpoint = "POST /v1beta/interactions?alt=sse",
+            model = model,
+            keyId = AiManager.findKeyIdOrNull(apiKey),
+            statusCode = statusCode,
+            failureType = failureType,
+            errorMessage = errorMessage,
+            requestPreview = requestPreview,
+            responsePreview = responsePreview,
+            hasThoughtStep = hasThoughtStep,
+            contentExpiresAt = if (level == TelemetryLevel.CONTENT_DEBUG) {
+                TelemetryRepository.contentDebugExpiresAtOrNull()
+            } else {
+                null
+            },
+        )
+        if (event != null) TelemetryRepository.record(event)
     }
 
     private fun interactionCharacterId(operationName: String): String? {
@@ -303,6 +466,8 @@ internal class InteractionSseAccumulator {
         private set
     var completed: Boolean = false
         private set
+    var hasThoughtStep: Boolean = false
+        private set
     val outputText: String
         get() = output.toString()
 
@@ -323,6 +488,9 @@ internal class InteractionSseAccumulator {
             "step.start" -> {
                 val step = envelope.objectValue("step")
                 val index = envelope.intValue("index")
+                if (step?.string("type") == "thought") {
+                    hasThoughtStep = true
+                }
                 if (step?.string("type") == "model_output" && index != null) {
                     modelOutputStepIndexes.add(index)
                     val initialText = step.arrayValue("content")
@@ -363,7 +531,9 @@ internal class InteractionSseAccumulator {
 
             "interaction.failed",
             "interaction.cancelled",
-            "error" -> throw IOException("Interaction stream reported failure")
+            "error" -> throw InteractionStreamTerminalException(
+                "Interaction stream reported terminal event: ${eventType ?: "unknown"}"
+            )
         }
 
         return InteractionStreamProgress(
@@ -386,7 +556,41 @@ internal class InteractionSseAccumulator {
         this[name] as? JsonArray
 }
 
-private class StreamingHttpException(
+internal class StreamingHttpException(
     val code: Int,
-    val retryAfterMs: Long?
+    val retryAfterMs: Long?,
 ) : IOException("Interaction streaming HTTP failure: $code")
+
+internal class InteractionStreamTransportException(
+    message: String,
+    cause: Throwable? = null,
+) : IOException(message, cause)
+
+internal class InteractionStreamProtocolException(
+    message: String,
+    cause: Throwable? = null,
+) : Exception(message, cause)
+
+internal class InteractionStreamTerminalException(
+    message: String,
+) : Exception(message)
+
+internal class InteractionStreamConsumerException(
+    message: String,
+) : Exception(message)
+
+internal fun shouldFallbackToNonStreaming(error: Exception): Boolean =
+    error is InteractionStreamTransportException ||
+        error is InteractionStreamProtocolException
+
+internal fun classifyInteractionFailure(error: Exception): ApiCallFailure = when (error) {
+    is StreamingHttpException -> ApiCallFailure.Http(error.code, error.retryAfterMs)
+    is HttpException -> ApiCallFailure.Http(
+        code = error.code(),
+        retryAfterMs = ApiRetryPolicy.parseRetryAfterMs(error.response()?.headers()?.get("Retry-After")),
+    )
+    is InteractionStreamProtocolException,
+    is SerializationException -> ApiCallFailure.Serialization(error)
+    is IOException -> ApiCallFailure.Network(error)
+    else -> ApiCallFailure.Unknown(error)
+}

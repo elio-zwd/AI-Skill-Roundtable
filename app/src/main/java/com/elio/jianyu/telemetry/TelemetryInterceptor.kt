@@ -11,13 +11,15 @@ class TelemetryInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
         val initialLevel = TelemetryRepository.currentLevel()
-        if (initialLevel == TelemetryLevel.OFF) return chain.proceed(request)
+        val isStreamingSse = request.url.queryParameter("alt") == "sse"
+        if (initialLevel == TelemetryLevel.OFF || isStreamingSse) return chain.proceed(request)
 
         val startedAt = System.currentTimeMillis()
         val endpoint = "${request.method} ${request.url.encodedPath}"
         val model = Regex("models/([^:/]+)").find(request.url.encodedPath)?.groupValues?.getOrNull(1)
         val apiKey = request.url.queryParameter("key")
             ?: request.header("Authorization")?.removePrefix("Bearer ")
+            ?: request.header("x-goog-api-key")
         val keyId = apiKey?.takeIf(String::isNotBlank)?.let(AiManager::findKeyIdOrNull)
         val contentDebugAtStart = initialLevel == TelemetryLevel.CONTENT_DEBUG && BuildConfig.DEBUG
         val requestPreview = if (contentDebugAtStart) TelemetryPreviewExtractor.requestPreview(request) else null
@@ -43,6 +45,16 @@ class TelemetryInterceptor : Interceptor {
         } finally {
             runCatching {
                 val completedAt = System.currentTimeMillis()
+                val errorMessage = failure?.let { error ->
+                    if (error is IOException) {
+                        val message = error.message?.takeIf(String::isNotBlank)
+                        if (message != null) "${error.javaClass.simpleName}: $message" else error.javaClass.simpleName
+                    } else {
+                        error.javaClass.simpleName
+                    }
+                } ?: response?.takeIf { !it.isSuccessful }?.let { httpResponse ->
+                    "HTTP ${httpResponse.code}: ${httpResponse.message.ifBlank { "Request failed" }}"
+                }
                 val event = TelemetryEventFactory.create(
                     level = initialLevel,
                     id = UUID.randomUUID().toString(),
@@ -53,6 +65,7 @@ class TelemetryInterceptor : Interceptor {
                     keyId = keyId,
                     statusCode = response?.code,
                     failureType = classifyFailure(failure, response?.code),
+                    errorMessage = errorMessage,
                     requestPreview = requestPreview,
                     responsePreview = responsePreview,
                     hasThoughtStep = hasThoughtStep,

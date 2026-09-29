@@ -82,9 +82,7 @@ fun TelemetryRoute(
             TelemetryRepository.disableContentDebugAndPurgePreviews(context)
         },
         onToggleEvent = { event ->
-            if (event.containsContentPreview) {
-                expandedEventId = if (expandedEventId == event.id) null else event.id
-            }
+            expandedEventId = if (expandedEventId == event.id) null else event.id
         },
         onDismissConfirmation = {
             confirmation = null

@@ -1,6 +1,7 @@
 package com.elio.jianyu.telemetry
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -14,6 +15,31 @@ class TelemetryEventFactoryTest {
     @Test
     fun metadataOnlyDropsContent() {
         val event = create(TelemetryLevel.METADATA_ONLY)!!
+        assertNull(event.requestPreview)
+        assertNull(event.responsePreview)
+    }
+
+    @Test
+    fun metadataOnlyKeepsRedactedErrorMessage() {
+        val event = TelemetryEventFactory.create(
+            level = TelemetryLevel.METADATA_ONLY,
+            id = "id",
+            timestamp = 1,
+            durationMs = 2,
+            endpoint = "POST /v1beta/interactions?alt=sse",
+            model = "model",
+            keyId = "K1",
+            statusCode = 200,
+            failureType = "NETWORK",
+            requestPreview = null,
+            responsePreview = null,
+            hasThoughtStep = false,
+            contentExpiresAt = null,
+            errorMessage = "IOException: request failed for developer@example.com",
+        )!!
+
+        assertTrue(event.errorMessage.orEmpty().contains("[REDACTED_EMAIL]"))
+        assertFalse(event.errorMessage.orEmpty().contains("developer@example.com"))
         assertNull(event.requestPreview)
         assertNull(event.responsePreview)
     }
