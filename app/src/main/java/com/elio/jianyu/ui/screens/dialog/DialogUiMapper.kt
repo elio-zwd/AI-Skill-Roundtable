@@ -1,6 +1,7 @@
 package com.elio.jianyu.ui.screens.dialog
 
 import com.elio.jianyu.data.Character
+import com.elio.jianyu.data.CharacterGroup
 import com.elio.jianyu.data.ChatSession
 import com.elio.jianyu.data.Message
 import com.elio.jianyu.data.MessageAnswerStatus
@@ -26,6 +27,7 @@ internal fun mapDialogUiState(
     searchEnabled: Boolean,
     thinkingIntensity: String,
     showMessageTimestamps: Boolean = true,
+    characterGroups: List<CharacterGroup> = emptyList(),
 ): DialogUiState {
     val legacyRoleById = characters.associate { character ->
         character.id to character.toSkillRoleUiModel(character.id in participantIds)
@@ -47,6 +49,29 @@ internal fun mapDialogUiState(
         skillSearchQuery.isEmpty() ||
             role.name.contains(skillSearchQuery, ignoreCase = true) ||
             role.shortDescription.contains(skillSearchQuery, ignoreCase = true)
+    }
+    val visibleRoleGroups = characterGroups.mapNotNull { group ->
+        val groupRoles = group.characterIds
+            .split(',')
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
+            .mapNotNull(roleById::get)
+        val matchesSearch = skillSearchQuery.isEmpty() ||
+            group.name.contains(skillSearchQuery, ignoreCase = true) ||
+            group.description.contains(skillSearchQuery, ignoreCase = true) ||
+            groupRoles.any { role ->
+                role.name.contains(skillSearchQuery, ignoreCase = true) ||
+                    role.shortDescription.contains(skillSearchQuery, ignoreCase = true)
+            }
+        groupRoles.takeIf { it.isNotEmpty() && matchesSearch }?.let { roles ->
+            SkillRoleGroupUiModel(
+                id = group.id,
+                name = group.name,
+                description = group.description,
+                roles = roles,
+            )
+        }
     }
     val selectedRole = localState.selectedSkillDetail?.role?.id?.let(roleById::get)
     val composerState = localState.composerState.copy(
@@ -90,6 +115,7 @@ internal fun mapDialogUiState(
         ),
         addSkillCatalog = AddSkillCatalogUiModel(
             searchQuery = skillSearchQuery,
+            groups = visibleRoleGroups,
             recentUsed = activeRoles.filter { role -> role in visibleRoles }.take(5),
             recommended = visibleRoles.filterNot { role -> role.id in participantIds }.take(8),
             // “全部角色”必须保留完整查询结果，不能复用推荐区的数量上限。
