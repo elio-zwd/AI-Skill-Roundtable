@@ -1,9 +1,15 @@
 package com.elio.jianyu.ui.screens.dialog
 
+import android.graphics.Rect
+import android.view.ViewGroup
+import android.widget.TextView
+import androidx.core.view.descendants
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
@@ -87,6 +93,52 @@ class AnswerPagerTest {
         composeRule.runOnIdle { assertTrue(expanded) }
         composeRule.runOnIdle { longAnswer = false; expanded = false }
         composeRule.onNodeWithTag("answer_expand_a1").assertDoesNotExist()
+    }
+
+    @Test
+    fun collapsedPreviewKeepsFirstSentenceVisibleAfterExpandingAndCollapsing() {
+        val firstSentence = "这是回复的第一句话。"
+        val longText = firstSentence + "\n\n" + (1..30).joinToString("\n\n") {
+            "## 第 $it 段\n\n这是后续分析内容，不应替代开头。"
+        }
+        var expanded by mutableStateOf(false)
+        lateinit var rootView: ViewGroup
+        composeRule.setContent {
+            rootView = LocalView.current.rootView as ViewGroup
+            SkillRoundtableTheme {
+                SkillMessageCard(
+                    message = DialogMessageItem.SkillMessage(
+                        "a1", SkillRoleUiModel("a", "角色甲", ""), longText, "10:00",
+                    ),
+                    onEvent = {},
+                    expanded = expanded,
+                    onToggleExpanded = { expanded = !expanded },
+                    previewViewportHeight = 240.dp,
+                )
+            }
+        }
+
+        fun assertFirstSentenceVisible() {
+            composeRule.runOnIdle {
+                val textView = rootView.descendants.filterIsInstance<TextView>()
+                    .single { it.text.startsWith(firstSentence) }
+                val visible = Rect()
+                assertTrue("折叠正文应可见", textView.getLocalVisibleRect(visible))
+                assertTrue("预览应从正文开头显示", visible.top <= textView.totalPaddingTop)
+                assertTrue(
+                    "第一行应完整显示",
+                    visible.bottom >= textView.totalPaddingTop + textView.layout.getLineBottom(0),
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("answer_expand_a1").assertExists()
+        assertFirstSentenceVisible()
+        composeRule.onNodeWithTag("answer_expand_a1").performClick()
+        composeRule.runOnIdle { assertTrue(expanded) }
+        composeRule.onAllNodesWithText("收起")[0].performClick()
+        composeRule.runOnIdle { assertTrue(!expanded) }
+        assertFirstSentenceVisible()
     }
 
     @Test
