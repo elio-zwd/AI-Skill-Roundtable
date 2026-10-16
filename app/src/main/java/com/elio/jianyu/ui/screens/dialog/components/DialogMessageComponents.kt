@@ -255,10 +255,11 @@ fun SkillMessageCard(
                             color = MaterialTheme.colorScheme.onSurface,
                             fontSize = 14.5.sp,
                             isTextSelectable = true,
-                            // 测量完整正文，再由外层裁剪预览；Markdown 的标题、列表和代码高度不能用行数估算。
+                            // 测量完整正文并从顶部裁剪，确保折叠预览始终从第一句话开始。
+                            // Markdown 的标题、列表和代码高度不能用行数估算。
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .wrapContentHeight(unbounded = true)
+                                .wrapContentHeight(align = Alignment.Top, unbounded = true)
                                 .onSizeChanged { contentHeightPx = it.height },
                             afterSetMarkdown = { markdownView = it },
                             onTextLayout = {
