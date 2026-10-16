@@ -21,7 +21,7 @@
 ### 2.1 语言与环境
 
 - 报告、文档和代码注释使用简体中文；协议字段、API 名称和标准术语可保留英文。
-- 用户环境为 **Windows 10 x64**，交付脚本必须按此环境验证；调用 PowerShell 默认使用 **`pwsh.exe`（PowerShell 7）**。
+- 用户环境为 **Windows 10 x64**，交付脚本必须适配此环境；调用 PowerShell 默认使用 **`pwsh.exe`（PowerShell 7）**。
 - 使用仓库 Gradle Wrapper 与 JDK 17；具体依赖版本以构建配置为准，不复制文档中的历史版本号作修改依据。
 - 优先用 `rg` / `rg --files` 定位文件；按任务读取相关内容，不遍历无关目录或输出敏感配置。
 
@@ -64,9 +64,9 @@ git log -5 --oneline
 | 产品、UI、用户文案或角色行为变更 | ADR-009、当前三份产品规范、相关任务施工单；UI 文件另读 [UI 目录规则](app/src/main/java/com/elio/jianyu/ui/AGENTS.md) |
 | 生产代码、配置或构建修改 | 调用链、关联测试、配置、相关架构/协议和任务施工单；不能只读单个目标文件 |
 | 总控计划所列重构任务 | 另读 [总控计划](docs/planning/pr-execution-master-plan.md)，核对适用阶段和已被覆盖的条款 |
-| PR 实施、评审或交接 | 核查开放 PR 的文件范围、目标 Base/Head SHA、Draft、相关 CI、评论、Review 和未解决审查线程 |
+| PR 实施、评审或交接 | 核查开放 PR 的文件范围、目标 Base/Head SHA、Draft、评论、Review 和未解决审查线程 |
 
-- 修改前简要说明预计文件、必须保持的行为、验证命令和主要风险；小改动用一段话即可。
+- 修改前简要说明预计文件、必须保持的行为和主要风险；小改动用一段话即可。
 - 写入任务使用独立分支，默认前缀 `codex/`，不直接修改 `main`。已有本任务分支则继续使用，不重复建分支。
 - 新分支从已核实的目标基线创建；远端不可访问时注明本地基线和未核实项，不声称已同步最新远端。
 - 开始写入前检查开放 PR 和本地工作区是否存在同文件修改；本地工作与其他任务隔离，必要时使用独立 worktree。
@@ -77,9 +77,10 @@ git log -5 --oneline
 ### 3.2 修改与交付
 
 1. 完成最小可运行改动，并同步受影响的测试、注释和文档。
-2. 按第 7 节执行匹配的验证；失败先定位根因，再修复本次范围内的问题。
-3. 回读文件、检查净差异和工作区，确认只包含授权修改。
-4. 交付说明修改结果、实际验证和未验证项；需要真机或本地 AI 验收时，附只读验收 Prompt。
+2. 回读文件、检查净差异和工作区，确认只包含授权修改。
+3. 交付准确说明修改结果与未完成项；不得虚构命令、测试、分支、Commit、CI、PR 或验收状态。
+
+仅在用户明确要求构建、测试、扫描、验收或查询/等待 CI 时，才读取[按需验证指南](docs/testing/on-demand-verification.md)，并只执行用户要求的范围。日常实现、文档整理和 Git 合并不自动触发这些流程，实测默认由用户负责。
 
 ## 4. 工程基线与数据边界
 
@@ -140,7 +141,7 @@ git log -5 --oneline
 - **交叉讨论必须由用户显式触发**；允许相关角色观点作为讨论输入，有限轮次，不以多数票裁决真理，结束后恢复独立回应。
 - 用户主动引用或明确要求评价其他角色观点时，可将相关输出作为本次明确输入，无需强制进入交叉讨论模式。
 
-修改以下任一环节，必须检查上下文是否泄漏其他角色的默认判断，并以相关测试或验收验证：`previous_interaction_id`、历史上下文拼接（包括现有 fallback 路径）、会话摘要、`RoundtableOrchestrator` / 调度器、Prompt 组装、缓存与召回。
+修改以下任一环节，必须检查代码中的上下文是否泄漏其他角色的默认判断：`previous_interaction_id`、历史上下文拼接（包括现有 fallback 路径）、会话摘要、`RoundtableOrchestrator` / 调度器、Prompt 组装、缓存与召回。
 
 ### 5.3 资料、背景与成果
 
@@ -158,59 +159,16 @@ git log -5 --oneline
 - 聊天正文占主体，头像、名称和消息归属清晰，多角色视觉平级。高级控制项放二级入口或 Bottom Sheet；Run、Interaction ID、阶段时间线、策略 Override 等不常驻主屏。
 - 不使用 iPhone Dynamic Island、iOS Home Indicator 等 iOS 专属视觉作为 Android 基准。
 
-## 7. 验证与完成标准
-
-先确认 JDK 17、Android SDK 和仓库环境；不要把示例占位路径写入实际配置。环境配置详见 [Android 编译指南](docs/environment/android-compilation-guide.md)。
-
-```powershell
-# 通过 Wrapper 核实实际 Gradle 与 JVM 环境。
-.\gradlew.bat --version
-```
-
-| 修改类型 | 必须执行 | 按影响补充 |
-|---|---|---|
-| 纯文档 | 文件回读、相对链接、术语与覆盖关系、范围核对、`git diff --check` | 已有 PR 的当前 Head CI |
-| 生产 Kotlin | `compileDebugKotlin`、`testDebugUnitTest` | 关联模块的聚焦回归 |
-| UI、资源、Manifest、Gradle 或集成 | 上述编译/单测及 `lintDebug`、`assembleDebug` | UI 行为需设备或模拟器验收；存在对应测试时运行设备测试 |
-| 数据库结构 | 编译/单测、版本与 Schema 一致性检查 | 当前支持范围内的数据库设备测试、新建与重新打开验证；说明既有数据处理结果 |
-| Release 或签名配置 | 对应构建与静态检查 | `assembleRelease`，确认签名和制品；缺少必要配置时说明阻塞 |
-| 密钥处理、日志、发布或历史泄露审查 | 相关测试和密钥扫描 | 历史扫描使用 `-IncludeHistory` |
-
-表中 Gradle 任务通过仓库 Wrapper 执行，例如：
-
-```powershell
-.\gradlew.bat compileDebugKotlin testDebugUnitTest
-.\gradlew.bat lintDebug assembleDebug
-.\gradlew.bat connectedDebugAndroidTest
-pwsh.exe -File .\tools\check-secrets.ps1 -IncludeHistory
-git diff --check
-git status --short
-```
-
-以上是按场景选择的命令，不要求每次全部运行。`clean` 仅在排查缓存或确需干净构建时使用；检查通过后，除非有新改动、失败或未解决疑点，不重复执行同一轮完整验证。
-
-- 失败时记录失败命令和首个根因，区分环境、既有问题与本次引入问题；修复后重跑相关检查。
-- 交付明确区分：本地实际通过、GitHub CI 通过、仅静态检查、环境阻塞未执行、待真机/本地验收。
-- 不得虚构命令、测试、分支、Commit、CI、PR 或验收状态；没有 PR 时写“未创建 PR”，不声称 CI 通过。
-
-## 8. Git、PR 与协作
+## 7. Git、PR 与协作
 
 - 每个实现任务保持独立分支、原子 Commit 和对应 PR，不混入其他任务。仅本地文档整理不自动扩展为提交、推送或创建 PR。
 - Commit 和 PR 标题使用“英文类型: 中文描述”，例如 `docs: 精简项目代理工作规范`；不自动添加 `Co-Authored-By`。
-- PR 描述覆盖背景、实现、修改文件、验证、风险、本地验收和回滚建议；简单改动可合并描述，避免空模板。
+- PR 描述说明背景、实现、修改文件和主要风险；验证与验收按实际执行或用户要求说明，不为填写模板启动流程。简单改动用简短描述即可。
 - 沿用历史规格时说明仍适用条款和被 ADR-009 覆盖的内容。
 - 多任务通过分支、Commit、Issue、PR 和交接文档传递可核实状态，不假设其他对话共享实时记忆。
 - 未经用户明确授权，不合并或关闭 PR、不删除分支、不强制更新他人分支，也不向他人发送消息。
 
-### GitHub Actions 查询
-
-1. 先锁定 PR 的 Base、Head SHA 和 Draft 状态，按当前 Head 查询关联 Workflow Run。
-2. 全部成功后停止；运行中按需等待，不重复查询未变化状态。只有失败或取消时读取 Job，先看失败步骤摘要，必要时再取完整日志。
-3. 仅验收需要 APK、测试报告或 Schema 时获取 Artifact。
-4. 遇到权限、速率限制或服务错误，记录原因并停止连续试探。
-5. 仅 Runner、网络或服务端瞬时故障可直接重跑；代码或文档问题须修复并产生新 Head，不创建空提交触发 CI。
-
-## 9. 按需查阅的工程文档
+## 8. 按需查阅的工程文档
 
 | 场景 | 入口 |
 |---|---|
