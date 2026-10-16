@@ -3,11 +3,15 @@ package com.elio.jianyu.ui.screens.dialog.overlays
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import com.elio.jianyu.ui.screens.dialog.AddSkillCatalogUiModel
 import com.elio.jianyu.ui.screens.dialog.DialogEvent
 import com.elio.jianyu.ui.screens.dialog.SkillRoleUiModel
+import com.elio.jianyu.ui.screens.dialog.SkillRoleGroupUiModel
 import com.elio.jianyu.ui.theme.SkillRoundtableTheme
 import org.junit.Rule
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class AddSkillRoleBottomSheetTest {
@@ -46,5 +50,43 @@ class AddSkillRoleBottomSheetTest {
 
         composeRule.onNodeWithContentDescription("职业发展顾问").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("学习规划师").assertExists()
+    }
+
+    @Test
+    fun roleGroup_addAllDispatchesOnlyRolesNotAlreadyInSession() {
+        val joined = SkillRoleUiModel(
+            id = "career-navigator",
+            name = "职业发展顾问",
+            shortDescription = "职业方向",
+            isInCurrentSession = true,
+        )
+        val available = SkillRoleUiModel(
+            id = "study-planner",
+            name = "学习规划师",
+            shortDescription = "学习计划",
+        )
+        var received: DialogEvent? = null
+
+        composeRule.setContent {
+            SkillRoundtableTheme {
+                AddSkillRoleBottomSheet(
+                    isOpen = true,
+                    catalog = AddSkillCatalogUiModel(
+                        groups = listOf(
+                            SkillRoleGroupUiModel(
+                                id = "growth",
+                                name = "成长组合",
+                                description = "职业与学习",
+                                roles = listOf(joined, available),
+                            ),
+                        ),
+                    ),
+                    onEvent = { received = it },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("增加全部（1）").performClick()
+        assertEquals(DialogEvent.AddSkillGroupToSession(listOf("study-planner")), received)
     }
 }

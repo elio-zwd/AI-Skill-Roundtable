@@ -48,6 +48,7 @@ import com.elio.jianyu.ui.screens.dialog.AddSkillCatalogUiModel
 import com.elio.jianyu.ui.screens.dialog.DialogEvent
 import com.elio.jianyu.ui.screens.dialog.DialogTokens
 import com.elio.jianyu.ui.screens.dialog.SkillRoleUiModel
+import com.elio.jianyu.ui.screens.dialog.SkillRoleGroupUiModel
 import com.elio.jianyu.ui.screens.dialog.components.SkillRoleAvatar
 
 /**
@@ -191,6 +192,24 @@ fun AddSkillRoleBottomSheet(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
+                    if (catalog.groups.isNotEmpty()) {
+                        item {
+                            SectionHeader(title = "角色分组")
+                        }
+                        items(catalog.groups, key = { "group-${it.id}" }) { group ->
+                            SkillRoleGroupCard(
+                                group = group,
+                                onAddAll = {
+                                    onEvent(
+                                        DialogEvent.AddSkillGroupToSession(
+                                            group.rolesNotInCurrentSession.map(SkillRoleUiModel::id),
+                                        ),
+                                    )
+                                },
+                            )
+                        }
+                    }
+
                     // 分组一：最近使用
                     if (catalog.recentUsed.isNotEmpty()) {
                         item {
@@ -241,6 +260,84 @@ fun AddSkillRoleBottomSheet(
 
                     item { Spacer(modifier = Modifier.height(20.dp)) }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SkillRoleGroupCard(
+    group: SkillRoleGroupUiModel,
+    onAddAll: () -> Unit,
+) {
+    val remainingCount = group.rolesNotInCurrentSession.size
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(DialogTokens.RadiusCard))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .border(
+                width = DialogTokens.BorderThin,
+                color = MaterialTheme.colorScheme.outlineVariant,
+                shape = RoundedCornerShape(DialogTokens.RadiusCard),
+            )
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = group.name,
+                    color = DialogTokens.TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "${group.roles.size} 位 Skill 角色",
+                    color = DialogTokens.TextSecondary,
+                    fontSize = 11.sp,
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(14.dp))
+                    .border(
+                        DialogTokens.BorderThin,
+                        if (remainingCount > 0) DialogTokens.BrandPurple else DialogTokens.TextTertiary,
+                        RoundedCornerShape(14.dp),
+                    )
+                    .clickable(enabled = remainingCount > 0, onClick = onAddAll)
+                    .padding(horizontal = 12.dp, vertical = 5.dp),
+            ) {
+                Text(
+                    text = if (remainingCount > 0) "增加全部（$remainingCount）" else "已全部加入",
+                    color = if (remainingCount > 0) DialogTokens.BrandPurple else DialogTokens.TextTertiary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+        if (group.description.isNotBlank()) {
+            Text(
+                text = group.description,
+                color = DialogTokens.TextSecondary,
+                fontSize = 11.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            group.roles.take(6).forEach { role ->
+                SkillRoleAvatar(
+                    role = role,
+                    modifier = Modifier
+                        .size(30.dp)
+                        .clip(CircleShape),
+                )
             }
         }
     }

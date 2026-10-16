@@ -24,12 +24,15 @@ class DialogCompletionContractTest {
         assertTrue(viewModel.contains("prepareAndRecordConversationContextUsage"))
         assertTrue(viewModel.contains("expectedSourceHash"))
         assertTrue(viewModel.contains("issueId = formal.issueId"))
-        assertFalse(viewModel.contains("retryConversationContexts"))
+        assertTrue(viewModel.contains("questionConversationContexts[questionRunId] = contextSelections"))
+        assertTrue(viewModel.contains("val requestContext = questionConversationContexts[questionRunId]"))
         assertFalse(viewModel.contains("consumePendingConversationContext"))
         assertTrue(viewModel.contains("explicitlyConfirmedConversationContextSessions"))
-        assertTrue(viewModel.contains("requireExplicitConfirmation = true"))
-        assertTrue(viewModel.contains("\"confirmation_required\""))
+        assertFalse(viewModel.contains("requireExplicitConfirmation = true"))
+        assertFalse(viewModel.contains("重试前请重新打开“选择资料”"))
         assertTrue(route.contains("if (viewModel.confirmConversationContext(selections))"))
+        assertTrue(route.contains("networkAllowed = true"))
+        assertFalse(route.contains("允许本次发送给模型服务"))
     }
 
     @Test
@@ -51,6 +54,7 @@ class DialogCompletionContractTest {
         assertTrue(viewModel.contains(executionRetentionComment))
         assertTrue(viewModel.contains("pendingConversationContexts.remove(sessionId)"))
         assertTrue(viewModel.contains("activeConversationContexts.remove(sessionId)"))
+        assertTrue(viewModel.contains("userMsgIds.forEach(questionConversationContexts::remove)"))
         assertTrue(viewModel.contains("explicitlyConfirmedConversationContextSessions.remove(sessionId)"))
         assertTrue(viewModel.contains("formalContexts.remove(sessionId)"))
     }
@@ -76,9 +80,8 @@ class DialogCompletionContractTest {
 
         assertFalse(route.contains("|| !appPreferences.confirmSensitiveContext"))
         assertFalse(route.contains("candidate.sensitiveConfirmed || !requireSensitiveConfirmation"))
-        assertTrue(route.contains("candidate.sourceType != ContextSourceType.SKILL_KNOWLEDGE"))
         assertTrue(route.contains("candidate.sensitive && !candidate.sensitiveConfirmed"))
-        assertTrue(route.contains("if (candidate.sensitive)"))
+        assertTrue(route.contains("candidate.selected && candidate.sensitive"))
         assertTrue(route.contains("checked = candidate.sensitiveConfirmed"))
         assertTrue(route.contains("onChange(candidate.copy(sensitiveConfirmed = it))"))
         assertTrue(route.contains("sensitive = false"))

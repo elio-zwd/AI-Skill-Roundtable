@@ -68,6 +68,22 @@ class RoundtableViewModelSkillRoleActionsTest {
     }
 
     @Test
+    fun addGroup_appendsEveryRoleAndKeepsExistingParticipants() = runBlocking {
+        val viewModel = RoundtableViewModel(application)
+        assertTrue(viewModel.createNewSessionWithSkillRole("meeting-to-action"))
+
+        val added = viewModel.addSkillRolesToCurrentSessionAwait(
+            listOf("study-planner", "career-navigator"),
+        )
+
+        assertTrue(added)
+        assertEquals(
+            listOf("meeting-to-action", "study-planner", "career-navigator"),
+            viewModel.currentParticipantIds.value,
+        )
+    }
+
+    @Test
     fun selectSession_whenStoredOfficialParticipantCharacterIsMissing_restoresParticipant() = runBlocking {
         val viewModel = RoundtableViewModel(application)
         val database = RoundtableDatabase.getDatabase(application, this)

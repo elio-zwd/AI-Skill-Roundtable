@@ -424,7 +424,19 @@ data class SessionSummaryUiModel(
 @Immutable
 data class AddSkillCatalogUiModel(
     val searchQuery: String = "",
+    val groups: List<SkillRoleGroupUiModel> = emptyList(),
     val recentUsed: List<SkillRoleUiModel> = emptyList(),
     val recommended: List<SkillRoleUiModel> = emptyList(),
     val allSkills: List<SkillRoleUiModel> = emptyList(),
 )
+
+@Immutable
+data class SkillRoleGroupUiModel(
+    val id: String,
+    val name: String,
+    val description: String,
+    val roles: List<SkillRoleUiModel>,
+) {
+    val rolesNotInCurrentSession: List<SkillRoleUiModel>
+        get() = roles.filterNot(SkillRoleUiModel::isInCurrentSession)
+}

@@ -85,20 +85,35 @@ suspend fun RoundtableViewModel.createNewSessionWithSkillRole(
 suspend fun RoundtableViewModel.addSkillRoleToCurrentSessionAwait(
     skillId: String,
     settleTimeoutMs: Long = ROLE_ACTION_SETTLE_TIMEOUT_MS,
+): Boolean = addSkillRolesToCurrentSessionAwait(listOf(skillId), settleTimeoutMs)
+
+/**
+ * 把一个角色分组整体追加到当前会话。先验证并准备全部角色，再一次性发布 roster；
+ * 任一角色不可用、人数超限或刷新失败时恢复原 roster，避免只加入半个分组。
+ */
+suspend fun RoundtableViewModel.addSkillRolesToCurrentSessionAwait(
+    skillIds: List<String>,
+    settleTimeoutMs: Long = ROLE_ACTION_SETTLE_TIMEOUT_MS,
 ): Boolean {
     val sessionId = currentSessionId.value
-        ?: return roleActionFailure("add_current", "no_current_session")
-    val definition = resolveExecutableOfficialSkill(skillId)
-        ?: return roleActionFailure("add_current", "official_role_unavailable")
+        ?: return roleActionFailure("add_group", "no_current_session")
+    val requestedSkillIds = skillIds.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+    if (requestedSkillIds.isEmpty()) {
+        return roleActionFailure("add_group", "empty_group")
+    }
+    val definitions = requestedSkillIds.map { skillId ->
+        resolveExecutableOfficialSkill(skillId)
+            ?: return roleActionFailure("add_group", "official_role_unavailable")
+    }
     val application = getApplication<Application>()
     val database = RoundtableDatabase.getDatabase(application, viewModelScope)
     val characterRepository = CharacterRepository(database.characterDao())
     val adapter = OfficialSkillConversationRoleAdapter(application, characterRepository)
-    if (adapter.ensureCompatibleCharacter(definition) == null) {
-        return roleActionFailure("add_current", "compatibility_adapter_rejected")
+    if (definitions.any { definition -> adapter.ensureCompatibleCharacter(definition) == null }) {
+        return roleActionFailure("add_group", "compatibility_adapter_rejected")
     }
     if (currentSessionId.value != sessionId) {
-        return roleActionFailure("add_current", "session_changed_before_mutation")
+        return roleActionFailure("add_group", "session_changed_before_mutation")
     }
 
     val conversationPreferences = ConversationSessionPreferences(application)
@@ -106,19 +121,20 @@ suspend fun RoundtableViewModel.addSkillRoleToCurrentSessionAwait(
         sessionId = sessionId,
         defaultIds = currentParticipantIds.value,
     ).distinct()
-    val updatedParticipantIds = (originalParticipantIds + skillId).distinct().take(15)
-    if (skillId !in updatedParticipantIds) {
-        return roleActionFailure("add_current", "participant_limit_reached")
+    val updatedParticipantIds = (originalParticipantIds + requestedSkillIds).distinct()
+    if (updatedParticipantIds.size > 15) {
+        return roleActionFailure("add_group", "participant_limit_reached")
     }
+    if (requestedSkillIds.all { it in originalParticipantIds }) return true
 
     conversationPreferences.setParticipantIds(sessionId, updatedParticipantIds)
     if (currentSessionId.value != sessionId) {
         conversationPreferences.setParticipantIds(sessionId, originalParticipantIds)
-        return roleActionFailure("add_current", "session_changed_before_refresh")
+        return roleActionFailure("add_group", "session_changed_before_refresh")
     }
 
     try {
-        if (refreshSessionRosterAndAwait(sessionId, skillId, settleTimeoutMs)) {
+        if (refreshSessionRosterAndAwait(sessionId, requestedSkillIds, settleTimeoutMs)) {
             return true
         }
         compensateAddedRole(
@@ -126,7 +142,7 @@ suspend fun RoundtableViewModel.addSkillRoleToCurrentSessionAwait(
             sessionId = sessionId,
             originalParticipantIds = originalParticipantIds,
         )
-        return roleActionFailure("add_current", "session_roster_not_settled")
+        return roleActionFailure("add_group", "session_roster_not_settled")
     } catch (cancelled: CancellationException) {
         compensateAddedRole(
             conversationPreferences = conversationPreferences,
@@ -185,13 +201,19 @@ private suspend fun RoundtableViewModel.refreshSessionRosterAndAwait(
     sessionId: Long,
     skillId: String,
     settleTimeoutMs: Long,
+): Boolean = refreshSessionRosterAndAwait(sessionId, listOf(skillId), settleTimeoutMs)
+
+private suspend fun RoundtableViewModel.refreshSessionRosterAndAwait(
+    sessionId: Long,
+    skillIds: List<String>,
+    settleTimeoutMs: Long,
 ): Boolean {
     selectSession(sessionId)
     return withTimeoutOrNull(settleTimeoutMs) {
         // currentSession 可能仍保留同一 session 的旧值；真正能证明角色动作
         // 已完成的是 rehydrate 后发布的 participant roster。
         currentParticipantIds.first { participants ->
-            currentSessionId.value == sessionId && skillId in participants
+            currentSessionId.value == sessionId && skillIds.all { it in participants }
         }
         true
     } == true

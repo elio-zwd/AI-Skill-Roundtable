@@ -29,9 +29,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.unit.dp
@@ -44,6 +46,7 @@ import com.elio.jianyu.skill.catalog.OfficialSkillCatalog
 import com.elio.jianyu.ui.components.LocalUserAvatarImage
 import com.elio.jianyu.ui.settings.AppPreferences
 import com.elio.jianyu.viewmodel.RoundtableViewModel
+import com.elio.jianyu.viewmodel.addSkillRolesToCurrentSessionAwait
 import com.elio.jianyu.viewmodel.addSkillRoleToCurrentSessionAwait
 import com.elio.jianyu.viewmodel.ConversationContextSelection
 import kotlinx.coroutines.launch
@@ -65,6 +68,7 @@ fun DialogRoute(
     val currentSession by viewModel.currentSession.collectAsState()
     val messages by viewModel.currentMessages.collectAsState()
     val characters by viewModel.allCharacters.collectAsState()
+    val characterGroups by viewModel.allGroups.collectAsState()
     val participantIds by viewModel.currentParticipantIds.collectAsState()
     val archivedSessionIds by viewModel.archivedSessionIds.collectAsState()
     val isGenerating by viewModel.isRoundtableRunning.collectAsState()
@@ -146,6 +150,7 @@ fun DialogRoute(
         searchEnabled = searchMode != SearchMode.OFF,
         thinkingIntensity = thinkingIntensity,
         showMessageTimestamps = appPreferences.showMessageTimestamps,
+        characterGroups = characterGroups,
     )
 
     fun resolveSessionId(rawId: String): Long? =
@@ -214,11 +219,25 @@ fun DialogRoute(
                             if (!success) {
                                 Toast.makeText(
                                     context,
-                                    " Skill ，。",
+                                    "增加 Skill 角色失败，请稍后重试。",
                                     Toast.LENGTH_SHORT,
                                 ).show()
                             }
                             // 成功后保持 Sheet 打开，用户可继续增加角色，点关闭才收起。
+                        }
+                    }
+                    is DialogEvent.AddSkillGroupToSession -> {
+                        scope.launch {
+                            val success = viewModel.addSkillRolesToCurrentSessionAwait(event.skillIds)
+                            Toast.makeText(
+                                context,
+                                if (success) {
+                                    "已增加分组中的全部可用 Skill 角色。"
+                                } else {
+                                    "增加角色分组失败，请检查会话人数上限后重试。"
+                                },
+                                Toast.LENGTH_SHORT,
+                            ).show()
                         }
                     }
                     is DialogEvent.RemoveSkillFromSession -> {
@@ -383,7 +402,6 @@ fun DialogRoute(
                                     sensitive = material.sensitive,
                                     selected = previous != null,
                                     selectionOrder = previous?.confirmationOrder,
-                                    networkAllowed = previous?.networkAllowed == true,
                                     sensitiveConfirmed = previous?.sensitiveConfirmed == true,
                                 )
                             }
@@ -404,7 +422,6 @@ fun DialogRoute(
                                     sensitive = personal.sensitive,
                                     selected = previous != null,
                                     selectionOrder = previous?.confirmationOrder,
-                                    networkAllowed = previous?.networkAllowed == true,
                                     sensitiveConfirmed = previous?.sensitiveConfirmed == true,
                                 )
                             }
@@ -424,7 +441,6 @@ fun DialogRoute(
                                         sensitive = false,
                                         selected = true,
                                         selectionOrder = previous.confirmationOrder,
-                                        networkAllowed = true,
                                         sensitiveConfirmed = false,
                                     )
                                 }
@@ -493,7 +509,8 @@ fun DialogRoute(
                         expectedSourceHash = candidate.expectedSourceHash,
                         expectedSourceUpdatedAt = candidate.expectedSourceUpdatedAt,
                         confirmationOrder = requireNotNull(candidate.selectionOrder),
-                        networkAllowed = candidate.networkAllowed,
+                        // 勾选某项资料本身就是用户对“本次发送”的明确授权，不再二次打钩。
+                        networkAllowed = true,
                         sensitive = candidate.sensitive,
                         sensitiveConfirmed = candidate.sensitiveConfirmed,
                     )
@@ -563,8 +580,8 @@ internal data class DialogContextCandidate(
     val sensitive: Boolean,
     val selected: Boolean = false,
     val selectionOrder: Int? = null,
-    val networkAllowed: Boolean = false,
     val sensitiveConfirmed: Boolean = false,
+    val expanded: Boolean = false,
 )
 
 internal data class DialogContextState(
@@ -602,22 +619,16 @@ internal fun updateDialogContextCandidate(
 }
 
 @Composable
-private fun DialogContextSelectionDialog(
+internal fun DialogContextSelectionDialog(
     state: DialogContextState,
     showSensitiveReminder: Boolean,
     onDismiss: () -> Unit,
     onChange: (DialogContextCandidate) -> Unit,
     onConfirm: () -> Unit,
 ) {
-    val hasMissingPermission = state.selectedItems.any { candidate ->
+    val hasIncompleteSelection = state.selectedItems.any { candidate ->
         candidate.content.isBlank() ||
-            (
-                candidate.sourceType != ContextSourceType.SKILL_KNOWLEDGE &&
-                    (
-                        !candidate.networkAllowed ||
-                            (candidate.sensitive && !candidate.sensitiveConfirmed)
-                        )
-                )
+            (candidate.sensitive && !candidate.sensitiveConfirmed)
     }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -638,36 +649,30 @@ private fun DialogContextSelectionDialog(
                 }
                 state.candidates.forEach { candidate ->
                     Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                        Row {
+                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                             Checkbox(
                                 checked = candidate.selected,
                                 onCheckedChange = {
                                     onChange(
-                                        if (candidate.sourceType == ContextSourceType.SKILL_KNOWLEDGE) {
-                                            candidate.copy(
-                                                selected = !candidate.selected,
-                                                networkAllowed = true,
-                                                sensitiveConfirmed = false,
-                                            )
-                                        } else {
-                                            candidate.copy(
-                                                selected = !candidate.selected,
-                                                networkAllowed = if (candidate.selected) {
-                                                    false
-                                                } else {
-                                                    candidate.networkAllowed
-                                                },
-                                                sensitiveConfirmed = if (candidate.selected) {
-                                                    false
-                                                } else {
-                                                    candidate.sensitiveConfirmed
-                                                },
-                                            )
-                                        }
+                                        candidate.copy(
+                                            selected = !candidate.selected,
+                                            sensitiveConfirmed = if (candidate.selected) {
+                                                false
+                                            } else {
+                                                candidate.sensitiveConfirmed
+                                            },
+                                        )
                                     )
                                 },
                             )
-                            Column(modifier = Modifier.padding(top = 12.dp)) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onChange(candidate.copy(expanded = !candidate.expanded))
+                                    }
+                                    .padding(vertical = 8.dp),
+                            ) {
                                 Text(candidate.title, style = MaterialTheme.typography.titleSmall)
                                 Text(
                                     when (candidate.sourceType) {
@@ -677,10 +682,20 @@ private fun DialogContextSelectionDialog(
                                     },
                                     style = MaterialTheme.typography.labelMedium,
                                 )
+                                Text(
+                                    if (candidate.expanded) "点击收起内容" else "点击展开内容",
+                                    color = MaterialTheme.colorScheme.primary,
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
                             }
                         }
-                        if (candidate.selected) {
-                            if (candidate.sourceType == ContextSourceType.SKILL_KNOWLEDGE) {
+                        if (candidate.expanded) {
+                            if (candidate.sensitive && !candidate.selected) {
+                                Text(
+                                    "敏感内容已隐藏；选中后可以查看并确认。",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            } else if (candidate.sourceType == ContextSourceType.SKILL_KNOWLEDGE) {
                                 Text(
                                     candidate.content,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -692,39 +707,6 @@ private fun DialogContextSelectionDialog(
                                     label = { Text("本次发送的正文或摘录") },
                                     minLines = 3,
                                 )
-                                Row {
-                                    Checkbox(
-                                        checked = candidate.networkAllowed,
-                                        onCheckedChange = {
-                                            onChange(candidate.copy(networkAllowed = it))
-                                        },
-                                    )
-                                    Text(
-                                        "允许本次发送给模型服务",
-                                        modifier = Modifier.padding(top = 12.dp),
-                                    )
-                                }
-                                if (candidate.sensitive) {
-                                    if (showSensitiveReminder) {
-                                        Text(
-                                            "这项内容标记为敏感；请确认本次确实需要发送。",
-                                            color = MaterialTheme.colorScheme.error,
-                                        )
-                                    }
-                                    Row {
-                                        Checkbox(
-                                            checked = candidate.sensitiveConfirmed,
-                                            onCheckedChange = {
-                                                onChange(candidate.copy(sensitiveConfirmed = it))
-                                            },
-                                        )
-                                        Text(
-                                            "我已查看并确认发送敏感内容",
-                                            modifier = Modifier.padding(top = 12.dp),
-                                            color = MaterialTheme.colorScheme.error,
-                                        )
-                                    }
-                                }
                             }
                         } else {
                             Text(
@@ -734,14 +716,36 @@ private fun DialogContextSelectionDialog(
                                     candidate.content.lineSequence().firstOrNull().orEmpty().take(120)
                                 },
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
                             )
+                        }
+                        if (candidate.selected && candidate.sensitive) {
+                            if (showSensitiveReminder) {
+                                Text(
+                                    "这项内容标记为敏感；请确认本次确实需要发送。",
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                            Row {
+                                Checkbox(
+                                    checked = candidate.sensitiveConfirmed,
+                                    onCheckedChange = {
+                                        onChange(candidate.copy(sensitiveConfirmed = it))
+                                    },
+                                )
+                                Text(
+                                    "我已查看并确认发送敏感内容",
+                                    modifier = Modifier.padding(top = 12.dp),
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
                         }
                     }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = onConfirm, enabled = !hasMissingPermission) { Text("确认选择") }
+            TextButton(onClick = onConfirm, enabled = !hasIncompleteSelection) { Text("确认选择") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
     )

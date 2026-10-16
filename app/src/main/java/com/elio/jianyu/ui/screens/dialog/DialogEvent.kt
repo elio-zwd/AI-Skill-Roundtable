@@ -28,6 +28,7 @@ sealed interface DialogEvent {
     object ClickAddSkillCard : DialogEvent
     data class SearchSkillsToAdd(val query: String) : DialogEvent
     data class AddSkillToSession(val skillId: String) : DialogEvent
+    data class AddSkillGroupToSession(val skillIds: List<String>) : DialogEvent
     data class RemoveSkillFromSession(val skillId: String) : DialogEvent
     data class LetSkillAnswerCurrent(val skillId: String) : DialogEvent
 

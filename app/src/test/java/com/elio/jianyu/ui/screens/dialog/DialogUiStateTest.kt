@@ -1,6 +1,7 @@
 package com.elio.jianyu.ui.screens.dialog
 
 import com.elio.jianyu.data.Character
+import com.elio.jianyu.data.CharacterGroup
 import com.elio.jianyu.data.ChatSession
 import com.elio.jianyu.data.ContextSourceType
 import com.elio.jianyu.data.Message
@@ -335,6 +336,42 @@ class DialogUiStateTest {
             "avatars/portraits/career-navigator.jpg",
             mapped.addSkillCatalog.allSkills.first { it.id == "career-navigator" }.avatarUrl,
         )
+    }
+
+    @Test
+    fun mapDialogUiState_projectsCharacterGroupsForAddAll() {
+        val officialSkills = listOf(
+            officialSkill("career-navigator", "职业发展顾问", 1),
+            officialSkill("study-planner", "学习规划师", 2),
+        )
+
+        val mapped = mapDialogUiState(
+            localState = DialogUiState(),
+            sessions = listOf(ChatSession(id = 1, title = "测试会话")),
+            currentSession = ChatSession(id = 1, title = "测试会话"),
+            messages = emptyList(),
+            characters = emptyList(),
+            officialSkills = officialSkills,
+            participantIds = listOf("career-navigator"),
+            archivedSessionIds = emptySet(),
+            showArchivedSessions = false,
+            isGenerating = false,
+            searchEnabled = false,
+            thinkingIntensity = "标准",
+            characterGroups = listOf(
+                CharacterGroup(
+                    id = "growth",
+                    name = "成长组合",
+                    description = "职业与学习",
+                    characterIds = "career-navigator,study-planner",
+                    isPreset = true,
+                ),
+            ),
+        )
+
+        val group = mapped.addSkillCatalog.groups.single()
+        assertEquals(listOf("career-navigator", "study-planner"), group.roles.map { it.id })
+        assertEquals(listOf("study-planner"), group.rolesNotInCurrentSession.map { it.id })
     }
 
     @Test
